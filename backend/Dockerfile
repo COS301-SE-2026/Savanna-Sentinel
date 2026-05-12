@@ -24,3 +24,8 @@ COPY . .
 RUN useradd -m myuser
 #Sets the user
 USER myuser
+
+EXPOSE 8000
+
+#uvicorn run command for now, if more workers are needed we can combine aspects
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
