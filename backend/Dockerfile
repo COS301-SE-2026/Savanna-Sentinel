@@ -4,7 +4,7 @@ FROM python:3.11-slim
 #Prevents pyc files from being generated, since it bloats the container.
 ENV PYTHONDONTWRITEBYTECODE=1
 #Prevents buffered output for better error handling.
-ENV PYTHONBUFFERED=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
