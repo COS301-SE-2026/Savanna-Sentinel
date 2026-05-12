@@ -1,0 +1,12 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "The frontend for the Savanna Sentinel PWA",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:pwa": "mkdir -p web-build && echo '<h1>Dummy PWA</h1>' > web-build/index.html"
+  },
+  "author": "SIGILL",
+  "license": "ISC"
+}
