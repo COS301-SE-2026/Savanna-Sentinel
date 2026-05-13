@@ -1,0 +1,45 @@
+import { api } from "./api";
+
+export interface LoginPayload
+{
+  email: string;
+  password: string;
+}
+
+/**
+ * JWT NOTE: This interface must match the JSON body returned by
+ * POST /v1/auth/login and POST /v1/auth/refresh on the backend
+ * Field names must be exactly: access_token, refresh_token, token_type, expires_in
+ */
+export interface TokenResponse
+{
+  access_token : string;
+  refresh_token : string;
+  token_type : string;
+  expires_in : number;
+}
+
+export const authApi = {
+  /**
+   * POST /v1/auth/login
+   * JWT NOTE: Backend must return TokenResponse on success
+   * On ANY failure (wrong password, unknown email, inactive account)
+   */
+  login : (payload: LoginPayload): Promise<TokenResponse> => api.post<TokenResponse>("/auth/login", payload).then((r) => r.data),
+
+  /**
+   * POST /v1/auth/refresh
+   * JWT NOTE: Receives { refresh_token }, returns new TokenResponse
+   * Must return 401 if token is invalid or has been revoked
+   */
+  refresh: (refresh_token: string): Promise<TokenResponse> =>
+    api.post<TokenResponse>("/auth/refresh", { refresh_token }).then((r) => r.data),
+
+  /**
+   * POST /v1/auth/logout
+   * JWT NOTE: Backend should revoke / blacklist the refresh token
+   * Returns 204 No Content
+   */
+  logout : (refresh_token: string): Promise<void> =>
+    api.post("/auth/logout", { refresh_token }).then(() => undefined),
+};
