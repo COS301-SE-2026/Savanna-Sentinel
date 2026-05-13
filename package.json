@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "axios": "^1.16.1",
+    "lucide-react": "^1.14.0",
+    "react-hook-form": "^7.75.0",
+    "react-router-dom": "^7.15.0",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.13"
+  }
+}
