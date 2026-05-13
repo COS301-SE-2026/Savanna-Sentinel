@@ -1,0 +1,10 @@
+name: CI pipeline
+
+on:
+  push:
+    # Do we use main as a branch for a push since we never push to main?
+    # Do we have a rule that we cannot push to main?
+    # Should I just keep it like this regardless??
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
