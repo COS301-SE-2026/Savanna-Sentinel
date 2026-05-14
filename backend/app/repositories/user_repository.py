@@ -14,10 +14,13 @@ when moving to the real database.
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.core.security import get_password_hash
+from app.schemas.auth import RegisterRequest
 
 
 # Stub data model
@@ -27,9 +30,13 @@ from app.core.security import get_password_hash
 class UserRecord:
     id: str
     username: str
+    email: str
+    first_name: str
+    last_name: str
     hashed_password: str
     is_active: bool
     role: str
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # Seed data
@@ -40,6 +47,9 @@ _STUB_USERS: dict[str, UserRecord] = {
     "ranger": UserRecord(
         id="user-001",
         username="ranger",
+        email="ranger@savanna.test",
+        first_name="Test",
+        last_name="Ranger",
         hashed_password=get_password_hash("SecurePass1!"),
         is_active=True,
         role="ranger",
@@ -47,10 +57,18 @@ _STUB_USERS: dict[str, UserRecord] = {
     "inactive": UserRecord(
         id="user-002",
         username="inactive",
+        email="inactive@savanna.test",
+        first_name="Inactive",
+        last_name="User",
         hashed_password=get_password_hash("SecurePass1!"),
         is_active=False,      # tests the inactive-account 401 path
         role="analyst",
     ),
+}
+
+# Secondary index by email for fast lookup
+_STUB_USERS_BY_EMAIL: dict[str, UserRecord] = {
+    u.email: u for u in _STUB_USERS.values()
 }
 
 # In memory refresh token store (user_id to set of valid token strings)
@@ -140,3 +158,40 @@ class UserRepository:
             UPDATE refresh_tokens SET is_revoked = true WHERE user_id = :user_id
         """
         _REFRESH_TOKENS.pop(user_id, None)
+
+    async def get_by_email(self, email: str) -> Optional[UserRecord]:
+        """
+        Returns a UserRecord for the given email, or None if not found.
+
+        DB NOTE: Replace with:
+            result = await self.db.execute(
+                select(User).where(User.email == email)
+            )
+            return result.scalar_one_or_none()
+        """
+        return _STUB_USERS_BY_EMAIL.get(email)
+
+    async def create(self, req: RegisterRequest, hashed_password: str) -> UserRecord:
+        """
+        Creates and persists a new user, returning the saved record.
+
+        DB NOTE: Replace with:
+            user = User(**fields, hashed_password=hashed_password, is_active=False)
+            self.db.add(user)
+            await self.db.commit()
+            await self.db.refresh(user)
+            return user
+        """
+        user = UserRecord(
+            id=str(uuid.uuid4()),
+            username=req.username,
+            email=req.email,
+            first_name=req.first_name,
+            last_name=req.last_name,
+            hashed_password=hashed_password,
+            is_active=False,
+            role=req.requested_role.value,
+        )
+        _STUB_USERS[req.username] = user
+        _STUB_USERS_BY_EMAIL[req.email] = user
+        return user
