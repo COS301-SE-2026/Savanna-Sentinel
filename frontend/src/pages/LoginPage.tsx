@@ -7,16 +7,13 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { AxiosError } from "axios";
 import { useAuthStore } from "@/store/authStore";
 
-//Validation schema
-
+// Validation schema
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
-
-// Component
 
 export default function LoginPage()
 {
@@ -38,27 +35,18 @@ export default function LoginPage()
   async function onSubmit(values: LoginFormValues)
   {
     setServerError(null);
+
     try
     {
-      /*
-       * JWT NOTE: login() calls POST /v1/auth/login with
-       * { username, password }. On success the backend returns
-       * access_token + refresh_token which are stored in localStorage
-       * If your endpoint uses "email" instead of "username", update
-       * LoginPayload in authApi.ts to match
-       */
       await login(values.username, values.password);
       navigate("/dashboard");
     }
     catch(err)
     {
       const axiosErr = err as AxiosError<{ detail: string }>;
+
       if(axiosErr.response?.status === 401)
       {
-        /*
-         * JWT NOTE: Backend returns a generic 401 for ALL failures
-         * We mirror that here — one vague message, no enumeration.
-         */
         setServerError("Incorrect username or password. Please try again.");
       }
       else
@@ -69,145 +57,164 @@ export default function LoginPage()
   }
 
   return (
-    <div className="min-h-screen bg-brand-navy flex items-center justify-center px-4 py-10">
+    <div className="h-screen overflow-hidden bg-brand-navy flex flex-col items-center px-6 pt-10">
 
-      <div className="w-full max-w-sm flex flex-col items-center gap-8">
+      {/* Logo */}
+      <img
+        src="/icons/SavannaSentinelLogo.png"
+        alt="Savana Sentinel Logo"
+        className="w-60 h-auto mb-12"
+      />
 
-        {/* Logo */}
-        {/*
-          Served from frontend/public/icons/SavannaSentinelLogo.png
-          No import needed — Vite serves public/ at the root URL
-        */}
-        <img
-          src="/icons/SavannaSentinelLogo.png"
-          alt="Savana Sentinel Logo"
-          className="w-64 h-auto"
-        />
+      {/* Login Section */}
+      <div className="w-full max-w-[320px]">
 
-        <div className="w-full bg-brand-dark-blue rounded-2xl px-7 py-8 flex flex-col gap-5">
+        {/* Title */}
+        <h1 className="text-center text-2xl font-light tracking-[0.18em] text-white mb-10">
+          LOGIN
+        </h1>
 
-          {/* Title */}
-          <h1 className="text-center text-2xl font-bold tracking-widest text-primary-foreground">
-            LOGIN
-          </h1>
-
-          {/* Server error banner */}
-          {serverError && (
-            <p
-              role="alert"
-              className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-center text-sm text-destructive"
-            >
-              {serverError}
-            </p>
-          )}
-
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            noValidate
-            className="flex flex-col gap-4"
+        {/* Server Error */}
+        {serverError && (
+          <p
+            role="alert"
+            className="
+              mb-4 rounded-lg border border-red-400/40
+              bg-red-400/10 px-3 py-2 text-center
+              text-xs text-red-300
+            "
           >
-            {/* Username */}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="username"
-                className="text-sm font-medium text-primary-foreground/90"
-              >
-                Username
-              </label>
+            {serverError}
+          </p>
+        )}
+
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="flex flex-col gap-5"
+        >
+
+          {/* Username */}
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="username"
+              className="text-white text-sm font-medium"
+            >
+              Username
+            </label>
+
+            <input
+              id="username"
+              type="text"
+              placeholder="Username"
+              autoComplete="username"
+              autoFocus
+              className="
+                w-full rounded-lg bg-[#d9d9d9]
+                px-4 py-2.5
+                text-sm text-black
+                placeholder:text-gray-600
+                focus:outline-none focus:ring-2 focus:ring-white/40
+              "
+              {...register("username")}
+            />
+
+            {errors.username && (
+              <p className="text-xs text-red-300">
+                {errors.username.message}
+              </p>
+            )}
+          </div>
+
+          {/* Password */}
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="password"
+              className="text-white text-sm font-medium"
+            >
+              Password
+            </label>
+
+            <div className="relative">
               <input
-                id="username"
-                type="text"
-                placeholder="Username"
-                autoComplete="username"
-                autoFocus
-                className={`
-                  w-full rounded-lg bg-input px-3.5 py-2.5
-                  text-sm text-secondary-foreground placeholder:text-muted-foreground
-                  border border-transparent
-                  focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
-                  transition-shadow
-                `}
-                {...register("username")}
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                autoComplete="current-password"
+                className="
+                  w-full rounded-lg bg-[#d9d9d9]
+                  px-4 py-2.5 pr-10
+                  text-sm text-black
+                  placeholder:text-gray-600
+                  focus:outline-none focus:ring-2 focus:ring-white/40
+                "
+                {...register("password")}
               />
-              {errors.username && (
-                <p className="text-xs text-destructive">{errors.username.message}</p>
-              )}
-            </div>
 
-            {/* Password */}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="password"
-                className="text-sm font-medium text-primary-foreground/90"
+              <button
+                type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() => setShowPassword((v) => !v)}
+                className="
+                  absolute right-3 top-1/2 -translate-y-1/2
+                  text-gray-600 hover:text-black transition-colors
+                "
               >
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  autoComplete="current-password"
-                  className={`
-                    w-full rounded-lg bg-input px-3.5 py-2.5 pr-10
-                    text-sm text-secondary-foreground placeholder:text-muted-foreground
-                    border border-transparent
-                    focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
-                    transition-shadow
-                  `}
-                  {...register("password")}
-                />
-                <button
-                  type="button"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="text-xs text-destructive">{errors.password.message}</p>
-              )}
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
             </div>
 
-            {/* Log In button */}
+            {errors.password && (
+              <p className="text-xs text-red-300">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          {/* Login Button */}
+          <div className="flex justify-center pt-5">
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`
-                w-full mt-1 flex items-center justify-center gap-2
-                rounded-lg bg-secondary text-secondary-foreground
-                px-4 py-3 text-sm font-semibold tracking-wide
-                hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-ring
+              className="
+                flex items-center justify-center gap-2
+                rounded-lg bg-[#a8b4c5]
+                px-7 py-2.5
+                text-base text-gray-800
+                hover:bg-[#bcc7d6]
                 transition-all
                 disabled:opacity-60 disabled:cursor-not-allowed
-              `}
+              "
             >
               {isSubmitting ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Logging in…
+                  Logging in...
                 </>
               ) : (
                 "Log In"
               )}
             </button>
-          </form>
+          </div>
 
-          {/* Register link */}
-          <p className="text-center text-xs text-primary-foreground/60">
-            Don't have an account?{" "}
-            <Link
-              to="/register"
-              className="font-semibold text-primary-foreground/90 underline underline-offset-2 hover:text-primary-foreground transition-colors"
-            >
-              Register
-            </Link>
-          </p>
+        </form>
 
-        </div>
+        {/* Register */}
+        <p className="mt-7 text-center text-xs text-white/80">
+          Don’t have an account?{" "}
+          <Link
+            to="/register"
+            className="hover:underline text-white"
+          >
+            Register
+          </Link>
+        </p>
+
       </div>
+
+      {/* Space for future bottom content */}
+      <div className="flex-1" />
+
     </div>
   );
 }
