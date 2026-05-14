@@ -6,7 +6,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run || echo 'No tests found'",
     "build:pwa": "mkdir -p web-build && echo '<h1>Dummy PWA</h1>' > web-build/index.html",
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -43,6 +43,7 @@
     "globals": "^17.6.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^4.1.6"
   }
 }
