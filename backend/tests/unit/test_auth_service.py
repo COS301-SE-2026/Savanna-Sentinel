@@ -11,7 +11,7 @@ from app.services.auth_service import AuthService
 # Helpers
 
 def make_service() -> AuthService:
-    """Return a fresh AuthService backed by the in-memory stub."""
+    """Return a fresh AuthService backed by the in memory stub."""
     return AuthService(db=None)
 
 
@@ -32,7 +32,7 @@ async def test_login_valid_active_user_returns_tokens():
 
 @pytest.mark.asyncio
 async def test_login_wrong_password_returns_none():
-    """wrong password → None (caller raises vague 401)."""
+    """wrong password None (caller raises vague 401)."""
     service = make_service()
     result = await service.login("ranger", "WrongPassword!")
     assert result is None
@@ -40,7 +40,7 @@ async def test_login_wrong_password_returns_none():
 
 @pytest.mark.asyncio
 async def test_login_unknown_email_returns_none():
-    """unknown username → None, same as wrong password (no enumeration)."""
+    """unknown username None, same as wrong password (no enumeration)."""
     service = make_service()
     result = await service.login("ghost", "AnyPassword1!")
     assert result is None
@@ -48,7 +48,7 @@ async def test_login_unknown_email_returns_none():
 
 @pytest.mark.asyncio
 async def test_login_inactive_account_returns_none():
-    """inactive account → None (same vague 401, no enumeration)."""
+    """inactive account None (same vague 401, no enumeration)."""
     service = make_service()
     result = await service.login("inactive", "SecurePass1!")
     assert result is None
@@ -58,7 +58,7 @@ async def test_login_inactive_account_returns_none():
 
 @pytest.mark.asyncio
 async def test_refresh_valid_token_returns_new_tokens():
-    """Valid refresh token → new access + refresh tokens."""
+    """Valid refresh token new access + refresh tokens."""
     service = make_service()
 
     login_result = await service.login("ranger", "SecurePass1!")
@@ -87,7 +87,7 @@ async def test_refresh_rotates_token():
 
 @pytest.mark.asyncio
 async def test_refresh_invalid_token_returns_none():
-    """garbage token → None (caller raises 401)."""
+    """garbage token None (caller raises 401)."""
     service = make_service()
     result = await service.refresh("this.is.garbage")
     assert result is None

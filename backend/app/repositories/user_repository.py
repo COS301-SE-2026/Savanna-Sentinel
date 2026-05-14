@@ -88,7 +88,12 @@ class UserRepository:
             )
             return result.scalar_one_or_none()
         """
-        return _STUB_USERS.get(username)
+        user = _STUB_USERS.get(username)
+        if user is not None:
+            return user
+
+        local_part = username.split("@", 1)[0]
+        return _STUB_USERS.get(local_part)
 
     async def save_refresh_token(self, user_id: str, token: str) -> None:
         """

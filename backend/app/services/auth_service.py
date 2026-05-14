@@ -7,9 +7,9 @@ It has no knowledge of FastAPI, HTTP status codes, or the database
 
 from typing import Optional
 
-from jose import JWTError
-
 from app.core.security import (
+    JWTError,
+    get_password_hash,
     verify_password,
     create_access_token,
     create_refresh_token,
@@ -22,7 +22,7 @@ from app.schemas.auth import TokenResponse
 # A dummy hash used when the user does not exist.
 # This ensures verify_password always runs and response time does not
 # reveal whether an username is registered (timing attack prevention).
-_DUMMY_HASH = "$2b$12$KIXeJ0LNHHIHGHUWIJSKXeabcdefghijklmnopqrstuvwxyz012"
+_DUMMY_HASH = get_password_hash("__dummy_password__")
 
 
 class AuthService:
