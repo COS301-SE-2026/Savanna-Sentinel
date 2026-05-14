@@ -1,23 +1,25 @@
-"""
-User repository.
-
-Currently uses an IN MEMORY stub so the auth API can be developed and tested
-without a database connection.
-
-DB NOTE: When the database is ready, replace the stub class body below with
-real SQLAlchemy async queries. The method signatures (names, parameters, return
-types) must not change the auth service depends on this exact interface.
-
-The in memory USERS dict and RefreshTokenStore class should be deleted entirely
-when moving to the real database.
-"""
+"""Repository used by auth to resolve users and refresh tokens."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import datetime, timezone
+import uuid
 from typing import Optional
 
-from app.core.security import get_password_hash
+from app.core.security import JWTError, decode_token, get_password_hash
+
+try:
+    from sqlalchemy import select, update
+    from app.models.refresh_token import RefreshToken
+    from app.models.user import User
+
+    _SQLALCHEMY_AVAILABLE = True
+except Exception:
+    select = update = None  # type: ignore[assignment]
+    RefreshToken = None  # type: ignore[assignment]
+    User = None  # type: ignore[assignment]
+    _SQLALCHEMY_AVAILABLE = False
 
 
 # Stub data model
@@ -71,12 +73,7 @@ class UserRepository:
     """
 
     def __init__(self, db=None):
-        """
-        db is unused in the stub.
-        DB NOTE: Change to `def __init__(self, db: AsyncSession):`
-        and store `self.db = db` for use in queries.
-        """
-        pass
+        self.db = db
 
     async def get_by_username(self, username: str) -> Optional[UserRecord]:
         """
@@ -88,6 +85,13 @@ class UserRepository:
             )
             return result.scalar_one_or_none()
         """
+        if _SQLALCHEMY_AVAILABLE and self.db is not None:
+            stmt = select(User).where((User.username == username) | (User.email == username))
+            result = await self.db.execute(stmt)
+            user = result.scalar_one_or_none()
+            if user is not None:
+                return user
+
         user = _STUB_USERS.get(username)
         if user is not None:
             return user
@@ -102,6 +106,22 @@ class UserRepository:
         DB NOTE: Replace with an INSERT into a refresh_tokens table.
         Store a hash of the token, not the raw token string, for security.
         """
+        if _SQLALCHEMY_AVAILABLE and self.db is not None:
+            try:
+                payload = decode_token(token)
+            except JWTError:
+                return
+
+            self.db.add(
+                RefreshToken(
+                    jti=uuid.UUID(payload["jti"]),
+                    user_id=uuid.UUID(str(user_id)),
+                    expires_at=datetime.fromtimestamp(int(payload["exp"]), tz=timezone.utc),
+                )
+            )
+            await self.db.commit()
+            return
+
         if user_id not in _REFRESH_TOKENS:
             _REFRESH_TOKENS[user_id] = set()
         _REFRESH_TOKENS[user_id].add(token)
@@ -114,9 +134,26 @@ class UserRepository:
         DB NOTE: Replace with a JOIN query between refresh_tokens and users,
         filtering by token hash and checking expiry and is_revoked.
         """
+        if _SQLALCHEMY_AVAILABLE and self.db is not None:
+            try:
+                payload = decode_token(token)
+            except JWTError:
+                return None
+
+            stmt = (
+                select(User)
+                .join(RefreshToken, RefreshToken.user_id == User.id)
+                .where(
+                    RefreshToken.jti == uuid.UUID(payload["jti"]),
+                    RefreshToken.revoked_at.is_(None),
+                    RefreshToken.expires_at > datetime.now(timezone.utc),
+                )
+            )
+            result = await self.db.execute(stmt)
+            return result.scalar_one_or_none()
+
         for user_id, tokens in _REFRESH_TOKENS.items():
             if token in tokens:
-                # Find the user record that matches this user_id
                 for user in _STUB_USERS.values():
                     if user.id == user_id:
                         return user
@@ -129,6 +166,19 @@ class UserRepository:
         DB NOTE: Replace with:
             UPDATE refresh_tokens SET is_revoked = true WHERE token_hash = hash(token)
         """
+        if _SQLALCHEMY_AVAILABLE and self.db is not None:
+            try:
+                payload = decode_token(token)
+            except JWTError:
+                return
+
+            stmt = update(RefreshToken).where(RefreshToken.jti == uuid.UUID(payload["jti"])).values(
+                revoked_at=datetime.now(timezone.utc)
+            )
+            await self.db.execute(stmt)
+            await self.db.commit()
+            return
+
         for tokens in _REFRESH_TOKENS.values():
             tokens.discard(token)
 
@@ -139,4 +189,12 @@ class UserRepository:
         DB NOTE: Replace with:
             UPDATE refresh_tokens SET is_revoked = true WHERE user_id = :user_id
         """
+        if _SQLALCHEMY_AVAILABLE and self.db is not None:
+            stmt = update(RefreshToken).where(RefreshToken.user_id == uuid.UUID(str(user_id))).values(
+                revoked_at=datetime.now(timezone.utc)
+            )
+            await self.db.execute(stmt)
+            await self.db.commit()
+            return
+
         _REFRESH_TOKENS.pop(user_id, None)
