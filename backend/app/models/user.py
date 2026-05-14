@@ -9,7 +9,8 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Enum, String
+from sqlalchemy import Boolean, DateTime, Enum, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -21,15 +22,15 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(
-        String, primary_key=True, default=lambda: str(uuid.uuid4())
+        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    first_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    last_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    username: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    first_name: Mapped[str] = mapped_column(Text, nullable=False)
+    last_name: Mapped[str] = mapped_column(Text, nullable=False)
+    hashed_password: Mapped[str] = mapped_column("password_hash", Text, nullable=False)
     role: Mapped[str] = mapped_column(
-        Enum("ranger", "analyst", "community_liaison", "admin", name="user_role"),
+        Enum("ranger", "analyst", "community_liaison", "admin", name="user_role", create_type=False),
         nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
