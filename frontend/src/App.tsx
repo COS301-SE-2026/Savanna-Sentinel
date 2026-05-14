@@ -1,19 +1,30 @@
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import LoginPage from "@/pages/LoginPage";
+import ProtectedRoute from "@/components/layout/ProtectedRoute";
+
+// Uncomment as other pages are built by the team:
+// import RegisterPage from "@/pages/RegisterPage";
+// import DashboardPage from "@/pages/DashboardPage";
 
 export default function App() {
   return (
-    <main className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-3xl font-bold text-primary">Savanna Sentinel</h1>
+    <BrowserRouter>
+      <Routes>
 
-      <div className="flex gap-4">
-        <Button variant="default">Primary</Button>
-        <Button variant="outline">Outline</Button>
-        <Button variant="secondary">Secondary</Button>
-        <Button variant="destructive">Destructive</Button>
-      </div>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
+        {/* <Route path="/register" element={<RegisterPage />} /> */}
 
-      <Input className="max-w-sm" placeholder="Test input" />
-    </main>
-  )
+        {/* Protected routes (access token required) */}
+        <Route element={<ProtectedRoute />}>
+          {/* <Route path="/dashboard" element={<DashboardPage />} /> */}
+        </Route>
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+
+      </Routes>
+    </BrowserRouter>
+  );
 }
