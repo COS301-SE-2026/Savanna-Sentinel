@@ -22,6 +22,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install ruff
+          pip install pytest
+
+      - name: Linter
+        run: |
+          ruff check backend/
+
+      - name: Tests
+        run: |
+          pytest backend/tests/
+    
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
