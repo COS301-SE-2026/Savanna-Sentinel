@@ -4,6 +4,7 @@ select = ["E", "F"]
 
 ignore = [
     "E501", # Ignore line length violations (very common for "less strict" setups)
-    "F401", # Ignore unused imports (handy if you're still scaffolding)
+    "F401", # Ignore unused imports (handy if you're still scaffolding), but to remove eventually
     "E402", # Ignore module level import not at top of file
+    "F841", # Ignore unused variables
 ]
