@@ -42,11 +42,7 @@ class FakeAuthRepository:
         self.refresh_tokens: dict[str, set[str]] = {}
 
     async def get_by_username(self, username: str):
-        user = self.users.get(username)
-        if user is not None:
-            return user
-        local_part = username.split("@", 1)[0]
-        return self.users.get(local_part)
+        return self.users.get(username)
 
     async def save_refresh_token(self, user_id: str, token: str) -> None:
         self.refresh_tokens.setdefault(user_id, set()).add(token)
@@ -98,7 +94,7 @@ async def test_login_wrong_password_returns_none():
 
 
 @pytest.mark.asyncio
-async def test_login_unknown_email_returns_none():
+async def test_login_unknown_username_returns_none():
     """unknown username None, same as wrong password (no enumeration)."""
     service = make_service()
     result = await service.login("ghost", "AnyPassword1!")
@@ -183,7 +179,7 @@ async def test_logout_revokes_refresh_token():
 async def test_logout_already_revoked_token_is_silent():
     """Logging out twice with the same token does not raise an error."""
     service = make_service()
-    login_result = await service.login("ranger@savana.test", "SecurePass1!")
+    login_result = await service.login("ranger", "SecurePass1!")
 
     await service.logout(login_result.refresh_token)
     # Should not raise
