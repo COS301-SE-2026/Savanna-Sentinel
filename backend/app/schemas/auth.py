@@ -1,9 +1,9 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
     """Body sent by the client to POST /v1/auth/login."""
-    email: EmailStr
+    username: str
     password: str = Field(min_length=1)
 
 

@@ -26,7 +26,7 @@ from app.core.security import get_password_hash
 @dataclass
 class UserRecord:
     id: str
-    email: str
+    username: str
     hashed_password: str
     is_active: bool
     role: str
@@ -37,23 +37,23 @@ class UserRecord:
 # DB NOTE: Delete this entire block when connecting to the real database.
 
 _STUB_USERS: dict[str, UserRecord] = {
-    "ranger@savana.test": UserRecord(
+    "ranger": UserRecord(
         id="user-001",
-        email="ranger@savana.test",
+        username="ranger",
         hashed_password=get_password_hash("SecurePass1!"),
         is_active=True,
         role="ranger",
     ),
-    "inactive@savana.test": UserRecord(
+    "inactive": UserRecord(
         id="user-002",
-        email="inactive@savana.test",
+        username="inactive",
         hashed_password=get_password_hash("SecurePass1!"),
         is_active=False,      # tests the inactive-account 401 path
         role="analyst",
     ),
 }
 
-# In memory refresh token store (email to set of valid token strings)
+# In memory refresh token store (user_id to set of valid token strings)
 # DB NOTE: Replace with a refresh_tokens table in the real database.
 _REFRESH_TOKENS: dict[str, set[str]] = {}
 
@@ -78,17 +78,17 @@ class UserRepository:
         """
         pass
 
-    async def get_by_email(self, email: str) -> Optional[UserRecord]:
+    async def get_by_username(self, username: str) -> Optional[UserRecord]:
         """
-        Returns a UserRecord for the given email, or None if not found.
+        Returns a UserRecord for the given username, or None if not found.
 
         DB NOTE: Replace with:
             result = await self.db.execute(
-                select(User).where(User.email == email)
+                select(User).where(User.username == username)
             )
             return result.scalar_one_or_none()
         """
-        return _STUB_USERS.get(email)
+        return _STUB_USERS.get(username)
 
     async def save_refresh_token(self, user_id: str, token: str) -> None:
         """

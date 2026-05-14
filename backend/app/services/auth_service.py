@@ -33,18 +33,18 @@ class AuthService:
         """
         self.repo = UserRepository(db)
 
-    async def login(self, email: str, password: str) -> Optional[TokenResponse]:
+    async def login(self, username: str, password: str) -> Optional[TokenResponse]:
         """
         Validates credentials and returns tokens on success.
 
-        Returns None on ANY failure wrong password, unknown email,
+        Returns None on ANY failure wrong password, unknown username,
         or inactive account. The router converts None into a single
         vague 401 response.
         """
-        user = await self.repo.get_by_email(email)
+        user = await self.repo.get_by_username(username)
 
         # Always run bcrypt even if user not found prevents timing based
-        # email enumeration attacks.
+        # username enumeration attacks.
         stored_hash = user.hashed_password if user else _DUMMY_HASH
         password_ok = verify_password(password, stored_hash)
 

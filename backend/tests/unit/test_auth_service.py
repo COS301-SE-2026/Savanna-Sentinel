@@ -21,7 +21,7 @@ def make_service() -> AuthService:
 async def test_login_valid_active_user_returns_tokens():
     """correct credentials for an active user → both tokens returned."""
     service = make_service()
-    result = await service.login("ranger@savana.test", "SecurePass1!")
+    result = await service.login("ranger", "SecurePass1!")
 
     assert result is not None
     assert result.access_token != ""
@@ -34,15 +34,15 @@ async def test_login_valid_active_user_returns_tokens():
 async def test_login_wrong_password_returns_none():
     """wrong password → None (caller raises vague 401)."""
     service = make_service()
-    result = await service.login("ranger@savana.test", "WrongPassword!")
+    result = await service.login("ranger", "WrongPassword!")
     assert result is None
 
 
 @pytest.mark.asyncio
 async def test_login_unknown_email_returns_none():
-    """unknown email → None, same as wrong password (no enumeration)."""
+    """unknown username → None, same as wrong password (no enumeration)."""
     service = make_service()
-    result = await service.login("ghost@nobody.test", "AnyPassword1!")
+    result = await service.login("ghost", "AnyPassword1!")
     assert result is None
 
 
@@ -50,7 +50,7 @@ async def test_login_unknown_email_returns_none():
 async def test_login_inactive_account_returns_none():
     """inactive account → None (same vague 401, no enumeration)."""
     service = make_service()
-    result = await service.login("inactive@savana.test", "SecurePass1!")
+    result = await service.login("inactive", "SecurePass1!")
     assert result is None
 
 
@@ -61,7 +61,7 @@ async def test_refresh_valid_token_returns_new_tokens():
     """Valid refresh token → new access + refresh tokens."""
     service = make_service()
 
-    login_result = await service.login("ranger@savana.test", "SecurePass1!")
+    login_result = await service.login("ranger", "SecurePass1!")
     assert login_result is not None
 
     refresh_result = await service.refresh(login_result.refresh_token)
@@ -74,7 +74,7 @@ async def test_refresh_rotates_token():
     """Each refresh issues a NEW refresh token and invalidates the old one."""
     service = make_service()
 
-    login_result = await service.login("ranger@savana.test", "SecurePass1!")
+    login_result = await service.login("ranger", "SecurePass1!")
     old_refresh = login_result.refresh_token
 
     refresh_result = await service.refresh(old_refresh)
@@ -97,7 +97,7 @@ async def test_refresh_invalid_token_returns_none():
 async def test_refresh_access_token_as_refresh_returns_none():
     """Reject access tokens presented as refresh tokens."""
     service = make_service()
-    login_result = await service.login("ranger@savana.test", "SecurePass1!")
+    login_result = await service.login("ranger", "SecurePass1!")
     # Use the access token where a refresh token is expected
     result = await service.refresh(login_result.access_token)
     assert result is None
@@ -110,7 +110,7 @@ async def test_logout_revokes_refresh_token():
     """After logout the refresh token can no longer be used."""
     service = make_service()
 
-    login_result = await service.login("ranger@savana.test", "SecurePass1!")
+    login_result = await service.login("ranger", "SecurePass1!")
     refresh_token = login_result.refresh_token
 
     await service.logout(refresh_token)

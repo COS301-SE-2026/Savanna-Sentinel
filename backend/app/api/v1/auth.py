@@ -30,14 +30,14 @@ async def login(
     db=Depends(get_db),
 ):
     """
-    Validates email and password.
+    Validates username and password.
     Returns access + refresh tokens on success.
     Returns a single vague 401 on ANY failure,
-    the response must not reveal whether the email exists, the password
+    the response must not reveal whether the username exists, the password
     is wrong, or the account is inactive.
     """
     service = AuthService(db)
-    result = await service.login(body.email, body.password)
+    result = await service.login(body.username, body.password)
     if result is None:
         raise _INVALID_CREDENTIALS
     return result
