@@ -1,0 +1,55 @@
+name: Frontend CI pipeline
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/**'
+
+  pull_request:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  frontend-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Linter
+        working-directory: ./frontend
+        run: npx eslint . # --max-warnings 0 # Strict linting
+
+      - name: Tests
+        working-directory: ./frontend
+        run: npx vitest run
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Frontend
+        uses: docker/build-push-action@v5
+
+        with:
+          context: ./frontend
+          push: false
+          load: true
+          # leaving as commented for now until we use any API's in frontend, but this is a template
+          # API_URL = ARG API_URL in dockerfile
+          # secrets.API_URL = ENV VITE_API_URL=$API_URL in dockerfile 
+          # So 'build:pwa' command has context
+          # build-args: |
+          #   API_URL=${{ secrets.API_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
