@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 import jwt
+import uuid
 from dotenv import load_dotenv
 from models.token import Token_Body
 from pydantic import ValidationError
@@ -10,6 +11,7 @@ load_dotenv()
 SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+REFRESH_TOKEN_EXPIRE_MINUTES = 43200 #30 days
 
 def encode(body: dict) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -23,6 +25,21 @@ def encode(body: dict) -> str:
     except ValidationError as e:
         error_details = e.errors();
         raise ValueError("Token Generation failed due to invalid data structure: {error_details}")
+    
+def encode_refresh(userid: int, jti: str) -> str:
+    now = datetime.now(timezone.utc)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
+
+    refresh_body = {
+        "sub": userid,
+        "iat": int(now.timestamp()),
+        "exp": int(expire.timestamp()),
+        "jti": jti,
+        "type": "refresh"
+    }
+
+    return jwt.encode(refresh_body, SECRET_KEY,algorithm=ALGORITHM)
+
 
 #Returns the decoded body
 def decode(token):
@@ -45,3 +62,21 @@ def verify(token):
     except ValidationError as e:
         print("Token payload structure is corrupt: {e}")
         return None
+    
+def verify_refresh(token):
+    #Stubbed but will interface with the DB to determine if a new JWT should be generated when database is setup.
+    return None
+    
+def generate_token_pair(body: dict):
+    access_token = encode(body)
+
+    jti = uuid.uuid4()
+    refresh_token = encode_refresh(body["id"], jti)
+
+    # Store the jti in the database with the user id
+    # THE REFRESH TOKEN SHOULD BE SENT IN THE APPROPRIATE COOKIE FOR SECURITY.
+
+    return {
+        "access_token": access_token,
+        "refresh_token" : refresh_token
+    }
