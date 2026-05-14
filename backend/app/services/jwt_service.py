@@ -8,10 +8,16 @@ from pydantic import ValidationError
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("JWT_SECRET", "Testing-secret-not-used-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_MINUTES = 43200 #30 days
+
+
+def _require_secret_key() -> str:
+    if not SECRET_KEY:
+        raise RuntimeError("JWT_SECRET must be set")
+    return SECRET_KEY
 
 def encode(body: dict) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -21,7 +27,7 @@ def encode(body: dict) -> str:
 
     try:
         validated_data = Token_Body(**body_with_exp)
-        return jwt.encode(validated_data.model_dump(), SECRET_KEY, algorithm=ALGORITHM)
+        return jwt.encode(validated_data.model_dump(), _require_secret_key(), algorithm=ALGORITHM)
     except ValidationError as e:
         raise ValueError(f"Access Token Generation failed: {e.errors()}")
     
@@ -38,7 +44,7 @@ def encode_refresh(userid: int, jti: str) -> str:
     }
     try:
         validated_refresh_body = Refresh_Token_Body(**refresh_body)
-        return jwt.encode(validated_refresh_body.model_dump(), SECRET_KEY,algorithm=ALGORITHM)
+        return jwt.encode(validated_refresh_body.model_dump(), _require_secret_key(), algorithm=ALGORITHM)
     except ValidationError as e:
         raise ValueError(f"Refresh Token Generation failed: {e.errors()}")
 
@@ -46,7 +52,7 @@ def encode_refresh(userid: int, jti: str) -> str:
 #Returns the decoded body
 def decode(token):
     try:
-        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return jwt.decode(token, _require_secret_key(), algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
         print("Token has expired.")
         return None

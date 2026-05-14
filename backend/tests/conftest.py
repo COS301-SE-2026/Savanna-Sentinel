@@ -1,6 +1,9 @@
 import asyncio
 import inspect
 import os
+
+os.environ.setdefault("JWT_SECRET", "Testing-secret-not-used-in-production")
+
 import pytest
 
 
@@ -27,4 +30,4 @@ def pytest_pyfunc_call(pyfuncitem):
 
 @pytest.fixture(autouse=True)
 def setup_env():
-    os.environ["JWT_SECRET"] = "Testing-secret-not-used-in-production"
+    yield
