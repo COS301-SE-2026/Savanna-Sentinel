@@ -26,7 +26,15 @@ def encode(body: dict) -> str:
 
 #Returns the decoded body
 def decode(token):
-    return jwt.decode(token, SECRET_KEY, algorithm="HS256")
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithm="HS256")
+    except jwt.ExpiredSignatureError:
+        print("Token has expired.")
+        return None
+    #Token failed to decode for some other reason.
+    except jwt.InvalidTokenError:
+        print("Invalid token sequence")
+        return None
 
 def verify(token):
     body = decode(token)
