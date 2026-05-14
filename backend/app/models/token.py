@@ -8,7 +8,7 @@ class Token_Body(BaseModel):
     exp: int
 
 class Refresh_Token_Body(BaseModel):
-    sub: int
+    sub: str
     iat: int
     exp: int
     jti: str

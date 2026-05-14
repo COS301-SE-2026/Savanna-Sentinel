@@ -3,12 +3,12 @@ from datetime import datetime, timedelta, timezone
 import jwt
 import uuid
 from dotenv import load_dotenv
-from models.token import Token_Body, Refresh_Token_Body
+from app.models.token import Token_Body, Refresh_Token_Body
 from pydantic import ValidationError
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("JWT_SECRET")
+SECRET_KEY = os.getenv("JWT_SECRET", "Testing-secret-not-used-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_MINUTES = 43200 #30 days
@@ -30,7 +30,7 @@ def encode_refresh(userid: int, jti: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
     refresh_body = {
-        "sub": userid,
+        "sub": str(userid),
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
         "jti": jti,
@@ -46,13 +46,13 @@ def encode_refresh(userid: int, jti: str) -> str:
 #Returns the decoded body
 def decode(token):
     try:
-        return jwt.decode(token, SECRET_KEY, algorithm=ALGORITHM)
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
         print("Token has expired.")
         return None
     #Token failed to decode for some other reason.
-    except jwt.InvalidTokenError:
-        print("Invalid token sequence")
+    except jwt.InvalidTokenError as e:
+        print(f"Invalid token sequence: {e}")
         return None
 
 def verify(token):
