@@ -7,5 +7,11 @@
     "react-router-dom": "^7.15.0",
     "zod": "^4.4.3",
     "zustand": "^5.0.13"
+  },
+  "scripts": {
+    "dev": "npm install --prefix frontend && npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "lint": "npm --prefix frontend run lint"
   }
 }
