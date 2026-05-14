@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 import uuid
 from dotenv import load_dotenv
-from models.token import Token_Body
+from models.token import Token_Body, Refresh_Token_Body
 from pydantic import ValidationError
 
 load_dotenv()
@@ -23,22 +23,24 @@ def encode(body: dict) -> str:
         validated_data = Token_Body(**body_with_exp)
         return jwt.encode(validated_data.model_dump(), SECRET_KEY, algorithm=ALGORITHM)
     except ValidationError as e:
-        error_details = e.errors()
-        raise ValueError(f"Token Generation failed due to invalid data structure: {error_details}")
+        raise ValueError(f"Access Token Generation failed: {e.errors()}")
     
 def encode_refresh(userid: int, jti: str) -> str:
     now = datetime.now(timezone.utc)
     expire = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
     refresh_body = {
-        "id": userid,
+        "sub": userid,
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
         "jti": jti,
         "type": "refresh"
     }
-
-    return jwt.encode(refresh_body, SECRET_KEY,algorithm=ALGORITHM)
+    try:
+        validated_refresh_body = Refresh_Token_Body(**refresh_body)
+        return jwt.encode(validated_refresh_body.model_dump(), SECRET_KEY,algorithm=ALGORITHM)
+    except ValidationError as e:
+        raise ValueError(f"Refresh Token Generation failed: {e.errors()}")
 
 
 #Returns the decoded body
@@ -73,14 +75,14 @@ def rotate_refresh(uuid):
     
 def generate_token_pair(body: dict):
 
-    user_id = body["id"]
+    user_id = body.get("id")
     if user_id is None:
         raise ValueError("Token generation failed: 'id' is missing from the input data.")
     
     access_token = encode(body)
 
     jti = str(uuid.uuid4())
-    refresh_token = encode_refresh(body["id"], jti)
+    refresh_token = encode_refresh(user_id, jti)
 
     # Store the jti in the database with the user id
     # THE REFRESH TOKEN SHOULD BE SENT IN THE APPROPRIATE COOKIE FOR SECURITY.
