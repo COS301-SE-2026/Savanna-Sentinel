@@ -5,6 +5,7 @@ click==8.3.3
 dnspython==2.8.0
 email-validator==2.3.0
 fastapi==0.136.1
+freezegun==1.5.5
 h11==0.16.0
 idna==3.15
 iniconfig==2.3.0
@@ -15,7 +16,9 @@ pydantic_core==2.46.4
 Pygments==2.20.0
 PyJWT==2.12.1
 pytest==9.0.3
+python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
+six==1.17.0
 starlette==1.0.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0

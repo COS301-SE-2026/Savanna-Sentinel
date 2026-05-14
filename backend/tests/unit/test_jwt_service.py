@@ -1,4 +1,6 @@
 import pytest
+from freezegun import freeze_time
+from datetime import datetime, timedelta, timezone
 from app.services import jwt_service
 
 # Defining reusable data for tests
@@ -39,3 +41,18 @@ def test_decode_invalid_token():
 
     result = jwt_service.decode("this.is.not.a.real.jwt.token")
     assert result is None
+
+def test_token_rejected_after_exp_expires(valid_user_data):
+    """Test that a token created expires after 60 minutes"""
+
+    initial_time = datetime(2026, 5, 14, 12, 0, 0, tzinfo=timezone.utc)
+
+    with freeze_time(initial_time):
+        token = jwt_service.encode(valid_user_data)
+
+    future_time = initial_time + timedelta(minutes=61)
+
+    with freeze_time(future_time):
+        decoded_payload = jwt_service.decode(token)
+
+        assert decoded_payload is None
