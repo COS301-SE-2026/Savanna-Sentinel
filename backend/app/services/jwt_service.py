@@ -9,12 +9,20 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 def encode(body: dict) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    return jwt.encode(body, SECRET_KEY, algorithm="HS256")
+    body_with_exp = body.copy()
+    body_with_exp["exp"] = int(expire.timestamp())
+
+    try:
+        validated_data = Token_Body(**body_with_exp)
+        return jwt.encode(validated_data.model_dump(), SECRET_KEY, algorithm=ALGORITHM)
+    except ValidationError as e:
+        error_details = e.errors();
+        raise ValueError("Token Generation failed due to invalid data structure: {error_details}")
 
 #Returns the decoded body
 def decode(token):
