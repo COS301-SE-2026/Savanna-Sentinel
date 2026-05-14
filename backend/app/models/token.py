@@ -5,3 +5,4 @@ class Token_Body(BaseModel):
     username: str
     email: EmailStr
     is_active: bool
+    exp: int
