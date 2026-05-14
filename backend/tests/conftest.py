@@ -28,3 +28,4 @@ def pytest_pyfunc_call(pyfuncitem):
 @pytest.fixture(autouse=True)
 def setup_env():
     os.environ["JWT_SECRET"] = "Testing-secret-not-used-in-production"
+    os.environ.setdefault("DATABASE_URL")
