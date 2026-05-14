@@ -11,6 +11,9 @@ export const authHandlers = [
 
     const isValid = body.username === "ranger" && body.password === "SecurePass1!";
 
+    // Add delay to allow tests to check loading state
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     if(isValid)
     {
       /*

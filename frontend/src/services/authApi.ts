@@ -2,7 +2,7 @@ import { api } from "./api";
 
 export interface LoginPayload
 {
-  email: string;
+  username: string;
   password: string;
 }
 

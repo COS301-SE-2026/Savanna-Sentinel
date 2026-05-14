@@ -34,8 +34,8 @@ export const useAuthStore = create<AuthState>()(
        * JWT implementation. Field names here must match the backend response
        * exactly. See authApi.ts to TokenResponse interface.
        */
-      login : async(email : string, password : string) => {
-        const data = await authApi.login({ email, password });
+      login : async(username : string, password : string) => {
+        const data = await authApi.login({ username, password });
         set({
           accessToken: data.access_token,
           refreshToken: data.refresh_token,
