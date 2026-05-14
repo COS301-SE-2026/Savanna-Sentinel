@@ -23,7 +23,7 @@ export const authApi = {
   /**
    * POST /v1/auth/login
    * JWT NOTE: Backend must return TokenResponse on success
-   * On ANY failure (wrong password, unknown email, inactive account)
+  * On ANY failure (wrong password, unknown username, inactive account)
    */
   login : (payload: LoginPayload): Promise<TokenResponse> => api.post<TokenResponse>("/auth/login", payload).then((r) => r.data),
 

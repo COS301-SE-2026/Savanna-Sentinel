@@ -5,7 +5,7 @@ import { authApi } from '../services/authApi';
 export interface AuthUser
 {
     id : string;
-    email : string;
+  username : string;
     role : string;
 }
 
@@ -15,7 +15,7 @@ interface AuthState
     refreshToken : string | null;
     user : AuthUser | null;
 
-    login : (email : string, password : string) => Promise<void>;
+    login : (username : string, password : string) => Promise<void>;
     refreshSession : () => Promise<string>;
     logout : () => void;
     setUser : (user : AuthUser) => void;
