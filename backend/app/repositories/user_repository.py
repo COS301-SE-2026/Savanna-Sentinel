@@ -47,7 +47,7 @@ _STUB_USERS: dict[str, UserRecord] = {
     "ranger": UserRecord(
         id="user-001",
         username="ranger",
-        email="ranger@savanna.test",
+        email="ranger@savanna.com",
         first_name="Test",
         last_name="Ranger",
         hashed_password=get_password_hash("SecurePass1!"),
@@ -57,7 +57,7 @@ _STUB_USERS: dict[str, UserRecord] = {
     "inactive": UserRecord(
         id="user-002",
         username="inactive",
-        email="inactive@savanna.test",
+        email="inactive@savanna.com",
         first_name="Inactive",
         last_name="User",
         hashed_password=get_password_hash("SecurePass1!"),

@@ -129,3 +129,85 @@ async def test_logout_already_revoked_token_is_silent():
     await service.logout(login_result.refresh_token)
     # Should not raise
     await service.logout(login_result.refresh_token)
+
+
+# Register tests
+
+@pytest.mark.asyncio
+async def test_register_creates_inactive_user():
+    """Successful registration returns a user with is_active=False."""
+    service = make_service()
+    from app.schemas.auth import RegisterRequest, RequestedRole
+
+    req = RegisterRequest(
+        username="newranger",
+        email="newranger@savanna.com",
+        password="SecurePass1!",
+        first_name="New",
+        last_name="Ranger",
+        requested_role=RequestedRole.ranger,
+    )
+    user = await service.register(req)
+
+    assert user.username == "newranger"
+    assert user.email == "newranger@savanna.com"
+    assert user.role == "ranger"
+    assert user.is_active is False
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_email_raises_409():
+    """Registration with an already-used email raises a 409 HTTPException."""
+    service = make_service()
+    from app.schemas.auth import RegisterRequest, RequestedRole
+    from fastapi import HTTPException
+
+    req = RegisterRequest(
+        username="uniqueuser",
+        email="ranger@savanna.com",
+        password="SecurePass1!",
+        first_name="Unique",
+        last_name="User",
+        requested_role=RequestedRole.ranger,
+    )
+    with pytest.raises(HTTPException) as exc:
+        await service.register(req)
+
+    assert exc.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_username_raises_409():
+    """Registration with an already-used username raises a 409 HTTPException."""
+    service = make_service()
+    from app.schemas.auth import RegisterRequest, RequestedRole
+    from fastapi import HTTPException
+
+    req = RegisterRequest(
+        username="ranger",
+        email="brand.new@savanna.com",
+        password="SecurePass1!",
+        first_name="Brand",
+        last_name="New",
+        requested_role=RequestedRole.analyst,
+    )
+    with pytest.raises(HTTPException) as exc:
+        await service.register(req)
+
+    assert exc.value.status_code == 409
+
+
+def test_register_short_password_raises_validation_error():
+    """RegisterRequest rejects passwords shorter than 8 characters."""
+    from app.schemas.auth import RegisterRequest, RequestedRole
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        RegisterRequest(
+            username="someone",
+            email="someone@savanna.com",
+            password="short",
+            first_name="Some",
+            last_name="One",
+            requested_role=RequestedRole.ranger,
+        )
