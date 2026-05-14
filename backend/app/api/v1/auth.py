@@ -7,7 +7,7 @@ This file is the HTTP layer only. Business logic lives in AuthService.
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.dependencies import get_db
-from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, LogoutRequest
+from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, LogoutRequest, LoginRequest, RegisterRequest, UserResponse
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -18,6 +18,34 @@ _INVALID_CREDENTIALS = HTTPException(
     detail="Invalid credentials",
     headers={"WWW-Authenticate": "Bearer"},
 )
+
+
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new user account",
+)
+async def register(
+    body: RegisterRequest,
+    db=Depends(get_db),
+):
+    """
+    Creates a new inactive account.
+    Returns 201 on success.
+    Returns 409 if the email or username is already in use.
+    The account cannot be used to log in until an Admin activates it.
+    """
+    service = AuthService(db)
+    user = await service.register(body)
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at,
+    )
 
 
 @router.post(
