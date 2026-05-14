@@ -23,15 +23,15 @@ def encode(body: dict) -> str:
         validated_data = Token_Body(**body_with_exp)
         return jwt.encode(validated_data.model_dump(), SECRET_KEY, algorithm=ALGORITHM)
     except ValidationError as e:
-        error_details = e.errors();
-        raise ValueError("Token Generation failed due to invalid data structure: {error_details}")
+        error_details = e.errors()
+        raise ValueError(f"Token Generation failed due to invalid data structure: {error_details}")
     
 def encode_refresh(userid: int, jti: str) -> str:
     now = datetime.now(timezone.utc)
     expire = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
     refresh_body = {
-        "sub": userid,
+        "id": userid,
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
         "jti": jti,
@@ -44,7 +44,7 @@ def encode_refresh(userid: int, jti: str) -> str:
 #Returns the decoded body
 def decode(token):
     try:
-        return jwt.decode(token, SECRET_KEY, algorithm="HS256")
+        return jwt.decode(token, SECRET_KEY, algorithm=ALGORITHM)
     except jwt.ExpiredSignatureError:
         print("Token has expired.")
         return None
@@ -66,11 +66,20 @@ def verify(token):
 def verify_refresh(token):
     #Stubbed but will interface with the DB to determine if a new JWT should be generated when database is setup.
     return None
+
+def rotate_refresh(uuid):
+    #Stubbed
+    return None
     
 def generate_token_pair(body: dict):
+
+    user_id = body["id"]
+    if user_id is None:
+        raise ValueError("Token generation failed: 'id' is missing from the input data.")
+    
     access_token = encode(body)
 
-    jti = uuid.uuid4()
+    jti = str(uuid.uuid4())
     refresh_token = encode_refresh(body["id"], jti)
 
     # Store the jti in the database with the user id
@@ -78,5 +87,6 @@ def generate_token_pair(body: dict):
 
     return {
         "access_token": access_token,
-        "refresh_token" : refresh_token
+        "refresh_token" : refresh_token,
+        "jti": jti
     }

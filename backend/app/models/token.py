@@ -6,3 +6,10 @@ class Token_Body(BaseModel):
     email: EmailStr
     is_active: bool
     exp: int
+
+class Refresh_Token_Body(BaseModel):
+    id: int
+    iat: int
+    exp: int
+    jti: str
+    type: str = "refresh"
