@@ -25,9 +25,7 @@ jobs:
 
       - name: Install Dependencies
         working-directory: ./frontend
-        run: |
-          npm install
-          npm ci
+        run: npm ci
 
       - name: Linter
         working-directory: ./frontend
