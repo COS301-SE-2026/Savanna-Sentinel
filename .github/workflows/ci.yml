@@ -8,3 +8,21 @@ on:
     branches: [ "main", "dev" ]
   pull_request:
     branches: [ "main", "dev" ]
+
+jobs:
+  backend-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          # Changing push: true in the workflow to send images to GitHub Container Registry or DockerHub.
+          push: false  # Don't push to a registry yet, just test the build
+          load: true   # Loads it into the local Docker daemon for testing
