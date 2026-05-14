@@ -1,3 +1,5 @@
+# https://docs.astral.sh/ruff/rules/
+
 [tool.ruff.lint]
 # Only check for errors (E) and Flux (F) - excludes stylistic "Warning" rules
 select = ["E", "F"]
