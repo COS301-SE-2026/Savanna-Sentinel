@@ -6,13 +6,12 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/**'
-      - '!frontend/src/components/ui'
+
   pull_request:
     branches: [ "main", "dev" ]
     paths:
       - 'frontend/**'
       - '.github/workflows/**'
-      - '!frontend/src/components/ui'
 
 permissions:
   contents: read
