@@ -29,12 +29,10 @@ jobs:
           pip install pytest
 
       - name: Linter
-        run: |
-          ruff check backend/
+        run: ruff check backend/
 
       - name: Tests
-        run: |
-          pytest backend/tests/
+        run: pytest backend/tests/
     
 
       - name: Set up Docker Buildx
