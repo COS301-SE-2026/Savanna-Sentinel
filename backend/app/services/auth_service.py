@@ -29,8 +29,8 @@ _DUMMY_HASH = get_password_hash("__dummy_password__")
 
 
 class AuthService:
-    def __init__(self, db):
-        self.repo = UserRepository(db)
+    def __init__(self, repo):
+        self.repo = repo
 
     async def login(self, username: str, password: str) -> Optional[TokenResponse]:
         """
