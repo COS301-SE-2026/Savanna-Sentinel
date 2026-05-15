@@ -111,3 +111,20 @@ async def test_register_missing_field_returns_422():
     async with _client() as c:
         r = await c.post("/v1/auth/register", json=payload)
     assert r.status_code == 422
+
+@pytest.mark.asyncio
+async def test_register_all_valid_roles_accepted():
+    async with _client() as c:
+        for role in ("ranger", "analyst", "community_liaison"):
+            r = await c.post("/v1/auth/register", json=_payload(
+                username=f"test_{role}",
+                email=f"test_{role}@example.com",
+                requested_role=role,
+            ))
+            assert r.status_code == 201, f"role={role} got {r.status_code}"
+
+@pytest.mark.asyncio
+async def test_register_admin_role_rejected_returns_422():
+    async with _client() as c:
+        r = await c.post("/v1/auth/register", json=_payload(requested_role="admin"))
+    assert r.status_code == 422
