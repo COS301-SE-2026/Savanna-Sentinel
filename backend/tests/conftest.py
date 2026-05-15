@@ -1,6 +1,14 @@
 import asyncio
 import inspect
 import os
+
+from dotenv import load_dotenv
+
+_ENV_PATH = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(_ENV_PATH)
+
+os.environ.setdefault("JWT_SECRET", "Testing-secret-not-used-in-production")
+
 import pytest
 
 
@@ -27,5 +35,5 @@ def pytest_pyfunc_call(pyfuncitem):
 
 @pytest.fixture(autouse=True)
 def setup_env():
-    os.environ["JWT_SECRET"] = "Testing-secret-not-used-in-production"
     os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://localhost/savanna_sentinel")
+    yield

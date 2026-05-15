@@ -38,7 +38,10 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    if(error.response?.status === 401 && !originalRequest._retry)
+    const requestUrl = originalRequest?.url ?? "";
+    const isAuthRequest = requestUrl.startsWith("/auth/login") || requestUrl.startsWith("/auth/refresh");
+
+    if(error.response?.status === 401 && !originalRequest._retry && !isAuthRequest)
     {
       if(isRefreshing)
       {
