@@ -89,3 +89,25 @@ async def test_register_duplicate_username_returns_409():
         await c.post("/v1/auth/register", json=_payload())
         r = await c.post("/v1/auth/register", json=_payload(email="test_other@example.com"))
     assert r.status_code == 409
+
+@pytest.mark.asyncio
+async def test_register_short_password_returns_422():
+    async with _client() as c:
+        r = await c.post("/v1/auth/register", json=_payload(password="short"))
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_invalid_email_returns_422():
+    async with _client() as c:
+        r = await c.post("/v1/auth/register", json=_payload(email="not-an-email"))
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_missing_field_returns_422():
+    payload = _payload()
+    del payload["username"]
+    async with _client() as c:
+        r = await c.post("/v1/auth/register", json=payload)
+    assert r.status_code == 422
