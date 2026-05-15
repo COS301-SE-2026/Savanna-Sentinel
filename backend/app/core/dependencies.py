@@ -1,34 +1,29 @@
-"""
-FastAPI dependencies.
-
-DB NOTE: When the database is ready, replace get_db with a real
-async SQLAlchemy session factory:
-
-    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-    from app.core.config import settings
-
-    engine = create_async_engine(settings.DATABASE_URL)
-    AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
-
-    async def get_db() -> AsyncGenerator[AsyncSession, None]:
-        async with AsyncSessionLocal() as session:
-            yield session
-
-Then update every router that uses Depends(get_db) the injected value
-will change from None to a real AsyncSession, which UserRepository already
-accepts as its constructor argument.
-"""
+"""FastAPI dependencies."""
 
 from typing import AsyncGenerator, Optional
 
+from app.core.config import settings
+
+try:
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    _SQLALCHEMY_AVAILABLE = True
+except Exception:
+    async_sessionmaker = None  # type: ignore[assignment]
+    create_async_engine = None  # type: ignore[assignment]
+    _SQLALCHEMY_AVAILABLE = False
+
+
+_async_session_local = None
+if _SQLALCHEMY_AVAILABLE and settings.DATABASE_URL:
+    engine = create_async_engine(settings.DATABASE_URL)
+    _async_session_local = async_sessionmaker(engine, expire_on_commit=False)
+
 
 async def get_db() -> AsyncGenerator[Optional[object], None]:
-    """
-    Stub database session dependency.
+    if _async_session_local is None:
+        yield None
+        return
 
-    Currently yields None — the stub UserRepository ignores this value.
-
-    DB NOTE: Replace this entire function with a real AsyncSession
-    generator as shown in the module docstring above.
-    """
-    yield None
+    async with _async_session_local() as session:
+        yield session
