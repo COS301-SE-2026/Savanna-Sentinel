@@ -7,7 +7,6 @@ can stay DB-only and free of hardcoded login users.
 from dataclasses import dataclass
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from app.core.security import get_password_hash
 from app.services.auth_service import AuthService
@@ -17,6 +16,7 @@ from app.services.auth_service import AuthService
 class AuthUser:
     id: str
     username: str
+    email: str
     hashed_password: str
     is_active: bool
     role: str
@@ -28,6 +28,7 @@ class FakeAuthRepository:
             "ranger": AuthUser(
                 id="user-001",
                 username="ranger",
+                email="ranger@savanna.com",
                 hashed_password=get_password_hash("SecurePass1!"),
                 is_active=True,
                 role="ranger",
@@ -35,6 +36,7 @@ class FakeAuthRepository:
             "inactive": AuthUser(
                 id="user-002",
                 username="inactive",
+                email="inactive@savanna.com",
                 hashed_password=get_password_hash("SecurePass1!"),
                 is_active=False,
                 role="analyst",
@@ -64,37 +66,37 @@ class FakeAuthRepository:
         self.refresh_tokens.pop(user_id, None)
 
 
+class FakeRegisterRepository:
+    def __init__(self, email_taken=False, username_taken=False):
+        self._email_taken = email_taken
+        self._username_taken = username_taken
+
+    async def get_by_email(self, email: str):
+        return AuthUser("x", "x", email, "x", True, "ranger") if self._email_taken else None
+
+    async def get_by_username(self, username: str):
+        return AuthUser("x", username, "x", "x", True, "ranger") if self._username_taken else None
+
+    async def create(self, req, hashed_password: str):
+        return AuthUser(
+            id="new-001",
+            username=req.username,
+            email=req.email,
+            hashed_password=hashed_password,
+            is_active=False,
+            role=req.requested_role.value,
+        )
+
+
 # Helpers
 
 def make_service() -> AuthService:
     """Return a fresh AuthService backed by the fake repository."""
-    return AuthService(repo=FakeAuthRepository())
-
-
-def _mock_db(email_result=None, username_result=None):
-    """
-    Build a minimal AsyncSession mock for register tests.
-    """
-    db = MagicMock()
-    db.add = MagicMock()
-    db.commit = AsyncMock()
-    db.refresh = AsyncMock()
-
-    def _result(val):
-        r = MagicMock()
-        r.scalar_one_or_none.return_value = val
-        return r
-
-    db.execute = AsyncMock(side_effect=[
-        _result(email_result),
-        _result(username_result),
-    ])
-    return db
+    return AuthService(FakeAuthRepository())
 
 
 # Login tests
 
-@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_login_valid_active_user_returns_tokens():
     """correct credentials for an active user → both tokens returned."""
@@ -108,7 +110,6 @@ async def test_login_valid_active_user_returns_tokens():
     assert result.expires_in == 3600
 
 
-@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_login_wrong_password_returns_none():
     """wrong password None (caller raises vague 401)."""
@@ -117,7 +118,6 @@ async def test_login_wrong_password_returns_none():
     assert result is None
 
 
-@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_login_unknown_username_returns_none():
     """unknown username None, same as wrong password (no enumeration)."""
@@ -126,7 +126,6 @@ async def test_login_unknown_username_returns_none():
     assert result is None
 
 
-@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_login_inactive_account_returns_none():
     """inactive account None (same vague 401, no enumeration)."""
@@ -137,7 +136,6 @@ async def test_login_inactive_account_returns_none():
 
 #Refresh tests
 
-@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_refresh_valid_token_returns_new_tokens():
     """Valid refresh token new access + refresh tokens."""
@@ -151,7 +149,6 @@ async def test_refresh_valid_token_returns_new_tokens():
     assert refresh_result.access_token != login_result.access_token
 
 
-@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_refresh_rotates_token():
     """Each refresh issues a NEW refresh token and invalidates the old one."""
@@ -163,7 +160,6 @@ async def test_refresh_rotates_token():
     refresh_result = await service.refresh(old_refresh)
     assert refresh_result is not None
 
-    # The old token must now be invalid (revoked)
     second_refresh = await service.refresh(old_refresh)
     assert second_refresh is None
 
@@ -176,20 +172,17 @@ async def test_refresh_invalid_token_returns_none():
     assert result is None
 
 
-@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_refresh_access_token_as_refresh_returns_none():
     """Reject access tokens presented as refresh tokens."""
     service = make_service()
     login_result = await service.login("ranger", "SecurePass1!")
-    # Use the access token where a refresh token is expected
     result = await service.refresh(login_result.access_token)
     assert result is None
 
 
 # Logout tests
 
-@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_logout_revokes_refresh_token():
     """After logout the refresh token can no longer be used."""
@@ -200,12 +193,10 @@ async def test_logout_revokes_refresh_token():
 
     await service.logout(refresh_token)
 
-    # Token must now be invalid
     result = await service.refresh(refresh_token)
     assert result is None
 
 
-@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_logout_already_revoked_token_is_silent():
     """Logging out twice with the same token does not raise an error."""
@@ -213,7 +204,6 @@ async def test_logout_already_revoked_token_is_silent():
     login_result = await service.login("ranger", "SecurePass1!")
 
     await service.logout(login_result.refresh_token)
-    # Should not raise
     await service.logout(login_result.refresh_token)
 
 
@@ -224,7 +214,7 @@ async def test_register_creates_inactive_user():
     """Successful registration returns a user with is_active=False."""
     from app.schemas.auth import RegisterRequest, RequestedRole
 
-    service = AuthService(db=_mock_db(email_result=None, username_result=None))
+    service = AuthService(FakeRegisterRepository())
 
     req = RegisterRequest(
         username="newranger",
@@ -248,7 +238,7 @@ async def test_register_duplicate_email_raises_409():
     from app.schemas.auth import RegisterRequest, RequestedRole
     from fastapi import HTTPException
 
-    service = AuthService(db=_mock_db(email_result=MagicMock()))
+    service = AuthService(FakeRegisterRepository(email_taken=True))
 
     req = RegisterRequest(
         username="uniqueuser",
@@ -270,7 +260,7 @@ async def test_register_duplicate_username_raises_409():
     from app.schemas.auth import RegisterRequest, RequestedRole
     from fastapi import HTTPException
 
-    service = AuthService(db=_mock_db(email_result=None, username_result=MagicMock()))
+    service = AuthService(FakeRegisterRepository(username_taken=True))
 
     req = RegisterRequest(
         username="ranger",
