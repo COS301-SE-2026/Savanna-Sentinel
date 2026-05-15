@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import secrets
+import uuid
 
 from app.core.config import settings
 
@@ -148,7 +149,7 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
         "exp": expire, # expiry timestamp
         "type": "access", # lets us reject refresh tokens used as access tokens
         "iat": datetime.now(timezone.utc),
-        "jti": secrets.token_urlsafe(16),
+        "jti": str(uuid.uuid4()),
     }
 
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.ALGORITHM)
@@ -165,7 +166,7 @@ def create_refresh_token(subject: str) -> str:
         "exp": expire,
         "type": "refresh",
         "iat": datetime.now(timezone.utc),
-        "jti": secrets.token_urlsafe(16),
+        "jti": str(uuid.uuid4()),
     }
 
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.ALGORITHM)
