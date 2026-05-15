@@ -1,3 +1,14 @@
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+
+import { Button } from "@/components/ui/button"
+
 interface UserData{
     "username": string,
     "role": string,
@@ -23,23 +34,38 @@ const AuthPage = () => {
 
     return(
         <div className="">
-            Test Content
-            {testArray.map((e, index) => {
-                return(
-                    <User key={index} data={e}/>
-                )
-            })}
-
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Username</TableHead>
+                        <TableHead>Role Claim</TableHead>
+                        <TableHead>Created At</TableHead>
+                        <TableHead>Accept/Reject</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {testArray.map((e, index) => {
+                        return(
+                            <User key={index} data={e} />
+                        )
+                    })}
+                </TableBody>
+            </Table>
         </div>
     )
 }
 
 const User = ({ data }: UserCardProps) => {
     return(
-        <div className="user">
-            {data.username} {data.created} {data.role}
-            
-        </div>
+        <TableRow>
+            <TableCell>{data.username}</TableCell>
+            <TableCell>{data.role}</TableCell>
+            <TableCell>{data.created}</TableCell>
+            <TableCell>
+                <Button>Accept</Button>
+                <Button>Reject</Button>
+            </TableCell>
+        </TableRow>
     )
 }
 
