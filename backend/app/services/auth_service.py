@@ -17,7 +17,8 @@ from app.core.security import (
     create_refresh_token,
     decode_token,
 )
-from app.repositories.user_repository import UserRepository, UserRecord
+from app.models.user import User
+from app.repositories.user_repository import UserRepository
 from app.schemas.auth import TokenResponse, RegisterRequest
 
 
@@ -28,11 +29,7 @@ _DUMMY_HASH = get_password_hash("__dummy_password__")
 
 
 class AuthService:
-    def __init__(self, db=None):
-        """
-        DB NOTE: Change to `def __init__(self, db: AsyncSession):`
-        once the real database is connected.
-        """
+    def __init__(self, db):
         self.repo = UserRepository(db)
 
     async def login(self, username: str, password: str) -> Optional[TokenResponse]:
@@ -102,7 +99,7 @@ class AuthService:
         """
         await self.repo.revoke_refresh_token(refresh_token)
 
-    async def register(self, req: RegisterRequest) -> UserRecord:
+    async def register(self, req: RegisterRequest) -> User:
         """
         Creates a new inactive user account.
 
