@@ -7,7 +7,7 @@ This file is the HTTP layer only. Business logic lives in AuthService.
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.dependencies import get_db
-from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, LogoutRequest, LoginRequest, RegisterRequest, UserResponse
+from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, LogoutRequest, RegisterRequest, UserResponse
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
