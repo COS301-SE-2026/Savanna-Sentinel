@@ -1,29 +1,41 @@
-"""User ORM model aligned with the database schema."""
+"""
+User ORM model.
 
-from sqlalchemy import Boolean, DateTime, Enum, String, text
+DB NOTE: This model is ready for use once a real database is connected.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import Boolean, DateTime, Enum, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, declarative_base, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 
 class User(Base):
-	__tablename__ = "users"
+    __tablename__ = "users"
 
-	id: Mapped[object] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-	username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-	email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-	password_hash: Mapped[str] = mapped_column(String, nullable=False)
-	first_name: Mapped[str] = mapped_column(String, nullable=False)
-	last_name: Mapped[str] = mapped_column(String, nullable=False)
-	role: Mapped[str] = mapped_column(
-		Enum("ranger", "analyst", "community_liaison", "admin", name="user_role"),
-		nullable=False,
-	)
-	is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
-	created_at: Mapped[object] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
-
-	@property
-	def hashed_password(self) -> str:
-		return self.password_hash
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    username: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    first_name: Mapped[str] = mapped_column(Text, nullable=False)
+    last_name: Mapped[str] = mapped_column(Text, nullable=False)
+    hashed_password: Mapped[str] = mapped_column("password_hash", Text, nullable=False)
+    role: Mapped[str] = mapped_column(
+        Enum("ranger", "analyst", "community_liaison", "admin", name="user_role", create_type=False),
+        nullable=False,
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )

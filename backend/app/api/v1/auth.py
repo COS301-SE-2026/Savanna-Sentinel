@@ -7,8 +7,9 @@ This file is the HTTP layer only. Business logic lives in AuthService.
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.dependencies import get_db
-from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, LogoutRequest
+from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, LogoutRequest, RegisterRequest, UserResponse
 from app.services.auth_service import AuthService
+from app.repositories.user_repository import UserRepository
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -18,6 +19,34 @@ _INVALID_CREDENTIALS = HTTPException(
     detail="Invalid credentials",
     headers={"WWW-Authenticate": "Bearer"},
 )
+
+
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new user account",
+)
+async def register(
+    body: RegisterRequest,
+    db=Depends(get_db),
+):
+    """
+    Creates a new inactive account.
+    Returns 201 on success.
+    Returns 409 if the email or username is already in use.
+    The account cannot be used to log in until an Admin activates it.
+    """
+    service = AuthService(UserRepository(db))
+    user = await service.register(body)
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at,
+    )
 
 
 @router.post(
@@ -36,7 +65,7 @@ async def login(
     the response must not reveal whether the username exists, the password
     is wrong, or the account is inactive.
     """
-    service = AuthService(db)
+    service = AuthService(UserRepository(db))
     result = await service.login(body.username, body.password)
     if result is None:
         raise _INVALID_CREDENTIALS
@@ -57,7 +86,7 @@ async def refresh(
     Rotates the refresh token on every call
     Returns 401 if the token is invalid, expired, or revoked
     """
-    service = AuthService(db)
+    service = AuthService(UserRepository(db))
     result = await service.refresh(body.refresh_token)
     if result is None:
         raise _INVALID_CREDENTIALS
@@ -77,5 +106,5 @@ async def logout(
     Revokes the supplied refresh token server-side
     Always returns 204 even if the token was already revoked or never existed
     """
-    service = AuthService(db)
+    service = AuthService(UserRepository(db))
     await service.logout(body.refresh_token)

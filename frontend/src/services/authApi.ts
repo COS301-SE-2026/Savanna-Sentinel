@@ -19,7 +19,28 @@ export interface TokenResponse
   expires_in : number;
 }
 
+export interface RegisterPayload {
+  username: string;
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  requested_role: "ranger" | "analyst" | "community_liaison";
+}
+
+export interface UserResponse {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 export const authApi = {
+  register: (payload: RegisterPayload): Promise<UserResponse> => api.post<UserResponse>("/auth/register", payload).then((r) => r.data),
+
+
   /**
    * POST /v1/auth/login
    * JWT NOTE: Backend must return TokenResponse on success

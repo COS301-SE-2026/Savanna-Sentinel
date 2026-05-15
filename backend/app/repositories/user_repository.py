@@ -6,19 +6,12 @@ from datetime import datetime, timezone
 import uuid
 from typing import Optional
 
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import decode_token
-
-try:
-    from sqlalchemy import select, update
-    from app.models.refresh_token import RefreshToken
-    from app.models.user import User
-
-    _SQLALCHEMY_AVAILABLE = True
-except Exception:
-    select = update = None  # type: ignore[assignment]
-    RefreshToken = None  # type: ignore[assignment]
-    User = None  # type: ignore[assignment]
-    _SQLALCHEMY_AVAILABLE = False
+from app.models.refresh_token import RefreshToken
+from app.models.user import User
+from app.schemas.auth import RegisterRequest
 
 
 class UserRepository:
@@ -31,18 +24,14 @@ class UserRepository:
 
     async def get_by_username(self, username: str) -> Optional[object]:
         """Return the matching user row by username only."""
-        if not _SQLALCHEMY_AVAILABLE:
-            raise RuntimeError("SQLAlchemy async support is required")
-
+        
         stmt = select(User).where(User.username == username)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def save_refresh_token(self, user_id: str, token: str) -> None:
         """Persist a refresh token in the refresh_tokens table."""
-        if not _SQLALCHEMY_AVAILABLE:
-            raise RuntimeError("SQLAlchemy async support is required")
-
+        
         payload = decode_token(token)
         self.db.add(
             RefreshToken(
@@ -55,9 +44,7 @@ class UserRepository:
 
     async def get_user_by_refresh_token(self, token: str) -> Optional[object]:
         """Return the user that owns a valid refresh token."""
-        if not _SQLALCHEMY_AVAILABLE:
-            raise RuntimeError("SQLAlchemy async support is required")
-
+        
         payload = decode_token(token)
         stmt = (
             select(User)
@@ -73,9 +60,7 @@ class UserRepository:
 
     async def revoke_refresh_token(self, token: str) -> None:
         """Mark one refresh token as revoked."""
-        if not _SQLALCHEMY_AVAILABLE:
-            raise RuntimeError("SQLAlchemy async support is required")
-
+        
         payload = decode_token(token)
         stmt = update(RefreshToken).where(RefreshToken.jti == uuid.UUID(payload["jti"])).values(
             revoked_at=datetime.now(timezone.utc)
@@ -85,11 +70,28 @@ class UserRepository:
 
     async def revoke_all_refresh_tokens(self, user_id: str) -> None:
         """Revoke every refresh token for a given user."""
-        if not _SQLALCHEMY_AVAILABLE:
-            raise RuntimeError("SQLAlchemy async support is required")
 
         stmt = update(RefreshToken).where(RefreshToken.user_id == uuid.UUID(str(user_id))).values(
             revoked_at=datetime.now(timezone.utc)
         )
         await self.db.execute(stmt)
         await self.db.commit()
+
+    async def get_by_email(self, email: str) -> Optional[User]:
+        result = await self.db.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
+
+    async def create(self, req: RegisterRequest, hashed_password: str) -> User:
+        user = User(
+            username=req.username,
+            email=req.email,
+            first_name=req.first_name,
+            last_name=req.last_name,
+            hashed_password=hashed_password,
+            role=req.requested_role.value,
+            is_active=False,
+        )
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user

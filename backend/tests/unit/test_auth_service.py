@@ -16,6 +16,7 @@ from app.services.auth_service import AuthService
 class AuthUser:
     id: str
     username: str
+    email: str
     hashed_password: str
     is_active: bool
     role: str
@@ -27,6 +28,7 @@ class FakeAuthRepository:
             "ranger": AuthUser(
                 id="user-001",
                 username="ranger",
+                email="ranger@savanna.com",
                 hashed_password=get_password_hash("SecurePass1!"),
                 is_active=True,
                 role="ranger",
@@ -34,6 +36,7 @@ class FakeAuthRepository:
             "inactive": AuthUser(
                 id="user-002",
                 username="inactive",
+                email="inactive@savanna.com",
                 hashed_password=get_password_hash("SecurePass1!"),
                 is_active=False,
                 role="analyst",
@@ -63,11 +66,33 @@ class FakeAuthRepository:
         self.refresh_tokens.pop(user_id, None)
 
 
+class FakeRegisterRepository:
+    def __init__(self, email_taken=False, username_taken=False):
+        self._email_taken = email_taken
+        self._username_taken = username_taken
+
+    async def get_by_email(self, email: str):
+        return AuthUser("x", "x", email, "x", True, "ranger") if self._email_taken else None
+
+    async def get_by_username(self, username: str):
+        return AuthUser("x", username, "x", "x", True, "ranger") if self._username_taken else None
+
+    async def create(self, req, hashed_password: str):
+        return AuthUser(
+            id="new-001",
+            username=req.username,
+            email=req.email,
+            hashed_password=hashed_password,
+            is_active=False,
+            role=req.requested_role.value,
+        )
+
+
 # Helpers
 
 def make_service() -> AuthService:
     """Return a fresh AuthService backed by the fake repository."""
-    return AuthService(repo=FakeAuthRepository())
+    return AuthService(FakeAuthRepository())
 
 
 # Login tests
@@ -135,7 +160,6 @@ async def test_refresh_rotates_token():
     refresh_result = await service.refresh(old_refresh)
     assert refresh_result is not None
 
-    # The old token must now be invalid (revoked)
     second_refresh = await service.refresh(old_refresh)
     assert second_refresh is None
 
@@ -153,7 +177,6 @@ async def test_refresh_access_token_as_refresh_returns_none():
     """Reject access tokens presented as refresh tokens."""
     service = make_service()
     login_result = await service.login("ranger", "SecurePass1!")
-    # Use the access token where a refresh token is expected
     result = await service.refresh(login_result.access_token)
     assert result is None
 
@@ -170,7 +193,6 @@ async def test_logout_revokes_refresh_token():
 
     await service.logout(refresh_token)
 
-    # Token must now be invalid
     result = await service.refresh(refresh_token)
     assert result is None
 
@@ -182,5 +204,89 @@ async def test_logout_already_revoked_token_is_silent():
     login_result = await service.login("ranger", "SecurePass1!")
 
     await service.logout(login_result.refresh_token)
-    # Should not raise
     await service.logout(login_result.refresh_token)
+
+
+# Register tests
+
+@pytest.mark.asyncio
+async def test_register_creates_inactive_user():
+    """Successful registration returns a user with is_active=False."""
+    from app.schemas.auth import RegisterRequest, RequestedRole
+
+    service = AuthService(FakeRegisterRepository())
+
+    req = RegisterRequest(
+        username="newranger",
+        email="newranger@savanna.com",
+        password="SecurePass1!",
+        first_name="New",
+        last_name="Ranger",
+        requested_role=RequestedRole.ranger,
+    )
+    user = await service.register(req)
+
+    assert user.username == "newranger"
+    assert user.email == "newranger@savanna.com"
+    assert user.role == "ranger"
+    assert user.is_active is False
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_email_raises_409():
+    """Registration with an already-used email raises a 409 HTTPException."""
+    from app.schemas.auth import RegisterRequest, RequestedRole
+    from fastapi import HTTPException
+
+    service = AuthService(FakeRegisterRepository(email_taken=True))
+
+    req = RegisterRequest(
+        username="uniqueuser",
+        email="ranger@savanna.com",
+        password="SecurePass1!",
+        first_name="Unique",
+        last_name="User",
+        requested_role=RequestedRole.ranger,
+    )
+    with pytest.raises(HTTPException) as exc:
+        await service.register(req)
+
+    assert exc.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_username_raises_409():
+    """Registration with an already-used username raises a 409 HTTPException."""
+    from app.schemas.auth import RegisterRequest, RequestedRole
+    from fastapi import HTTPException
+
+    service = AuthService(FakeRegisterRepository(username_taken=True))
+
+    req = RegisterRequest(
+        username="ranger",
+        email="brand.new@savanna.com",
+        password="SecurePass1!",
+        first_name="Brand",
+        last_name="New",
+        requested_role=RequestedRole.analyst,
+    )
+    with pytest.raises(HTTPException) as exc:
+        await service.register(req)
+
+    assert exc.value.status_code == 409
+
+
+def test_register_short_password_raises_validation_error():
+    """RegisterRequest rejects passwords shorter than 8 characters."""
+    from app.schemas.auth import RegisterRequest, RequestedRole
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        RegisterRequest(
+            username="someone",
+            email="someone@savanna.com",
+            password="short",
+            first_name="Some",
+            last_name="One",
+            requested_role=RequestedRole.ranger,
+        )
