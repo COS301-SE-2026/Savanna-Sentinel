@@ -51,3 +51,26 @@ def cleanup_test_users():
         async with _engine.begin() as conn:
             await conn.execute(text("DELETE FROM users WHERE username LIKE 'test_%'"))
     asyncio.run(_delete())
+
+
+#register
+
+@pytest.mark.asyncio
+async def test_register_returns_201():
+    async with _client() as c:
+        r = await c.post("/v1/auth/register", json=_payload())
+    assert r.status_code == 201
+    data = r.json()
+    assert data["username"] == "test_ranger"
+    assert data["email"] == "test_ranger@example.com"
+    assert data["role"] == "ranger"
+    assert data["is_active"] is False
+    assert "id" in data
+    assert "created_at" in data
+
+
+@pytest.mark.asyncio
+async def test_register_new_account_is_inactive():
+    async with _client() as c:
+        r = await c.post("/v1/auth/register", json=_payload())
+    assert r.json()["is_active"] is False
