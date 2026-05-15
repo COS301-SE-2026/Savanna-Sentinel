@@ -19,7 +19,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.security import get_password_hash
+from app.models.user import User
 from app.schemas.auth import RegisterRequest
 
 
@@ -88,30 +92,12 @@ class UserRepository:
         def __init__(self, db: AsyncSession): ...
     """
 
-    def __init__(self, db=None):
-        """
-        db is unused in the stub.
-        DB NOTE: Change to `def __init__(self, db: AsyncSession):`
-        and store `self.db = db` for use in queries.
-        """
-        pass
+    def __init__(self, db: AsyncSession):
+        self.db = db
 
-    async def get_by_username(self, username: str) -> Optional[UserRecord]:
-        """
-        Returns a UserRecord for the given username, or None if not found.
-
-        DB NOTE: Replace with:
-            result = await self.db.execute(
-                select(User).where(User.username == username)
-            )
-            return result.scalar_one_or_none()
-        """
-        user = _STUB_USERS.get(username)
-        if user is not None:
-            return user
-
-        local_part = username.split("@", 1)[0]
-        return _STUB_USERS.get(local_part)
+    async def get_by_username(self, username: str) -> Optional[User]:
+        result = await self.db.execute(select(User).where(User.username == username))
+        return result.scalar_one_or_none()
 
     async def save_refresh_token(self, user_id: str, token: str) -> None:
         """
@@ -159,39 +145,21 @@ class UserRepository:
         """
         _REFRESH_TOKENS.pop(user_id, None)
 
-    async def get_by_email(self, email: str) -> Optional[UserRecord]:
-        """
-        Returns a UserRecord for the given email, or None if not found.
+    async def get_by_email(self, email: str) -> Optional[User]:
+        result = await self.db.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
 
-        DB NOTE: Replace with:
-            result = await self.db.execute(
-                select(User).where(User.email == email)
-            )
-            return result.scalar_one_or_none()
-        """
-        return _STUB_USERS_BY_EMAIL.get(email)
-
-    async def create(self, req: RegisterRequest, hashed_password: str) -> UserRecord:
-        """
-        Creates and persists a new user, returning the saved record.
-
-        DB NOTE: Replace with:
-            user = User(**fields, hashed_password=hashed_password, is_active=False)
-            self.db.add(user)
-            await self.db.commit()
-            await self.db.refresh(user)
-            return user
-        """
-        user = UserRecord(
-            id=str(uuid.uuid4()),
+    async def create(self, req: RegisterRequest, hashed_password: str) -> User:
+        user = User(
             username=req.username,
             email=req.email,
             first_name=req.first_name,
             last_name=req.last_name,
             hashed_password=hashed_password,
-            is_active=False,
             role=req.requested_role.value,
+            is_active=False,
         )
-        _STUB_USERS[req.username] = user
-        _STUB_USERS_BY_EMAIL[req.email] = user
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
         return user
