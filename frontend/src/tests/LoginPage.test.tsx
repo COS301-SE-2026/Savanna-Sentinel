@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { setupServer } from "msw/node";
 import { beforeAll, afterEach, afterAll, describe, it, expect } from "vitest";
 
@@ -12,10 +12,13 @@ beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-function renderLoginPage() {
+function renderLoginPage(initialPath = "/login") {
   return render(
-    <MemoryRouter>
-      <LoginPage />
+    <MemoryRouter initialEntries={[initialPath]}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/dashboard" element={<div>Dashboard</div>} />
+      </Routes>
     </MemoryRouter>
   );
 }
@@ -82,9 +85,7 @@ describe("LoginPage — Savana Sentinel", () => {
     await userEvent.click(screen.getByRole("button", { name: /log in/i }));
 
     await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: /log in/i })
-      ).not.toBeInTheDocument();
+      expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
     });
   });
 
