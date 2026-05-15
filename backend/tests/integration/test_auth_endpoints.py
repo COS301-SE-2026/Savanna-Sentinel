@@ -74,3 +74,18 @@ async def test_register_new_account_is_inactive():
     async with _client() as c:
         r = await c.post("/v1/auth/register", json=_payload())
     assert r.json()["is_active"] is False
+
+@pytest.mark.asyncio
+async def test_register_duplicate_email_returns_409():
+    async with _client() as c:
+        await c.post("/v1/auth/register", json=_payload())
+        r = await c.post("/v1/auth/register", json=_payload(username="test_other"))
+    assert r.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_username_returns_409():
+    async with _client() as c:
+        await c.post("/v1/auth/register", json=_payload())
+        r = await c.post("/v1/auth/register", json=_payload(email="test_other@example.com"))
+    assert r.status_code == 409
