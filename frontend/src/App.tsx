@@ -4,7 +4,7 @@ import LoginPage from "@/pages/LoginPage";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 
 // Uncomment as other pages are built by the team:
-// import RegisterPage from "@/pages/RegisterPage";
+import RegisterPage from "@/pages/RegisterPage";
 // import DashboardPage from "@/pages/DashboardPage";
 
 export default function App() {
@@ -14,7 +14,7 @@ export default function App() {
 
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
-        {/* <Route path="/register" element={<RegisterPage />} /> */}
+        <Route path="/register" element={<RegisterPage />} />
 
         {/* Protected routes (access token required) */}
         <Route element={<ProtectedRoute />}>
