@@ -1,11 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "@/pages/LoginPage";
-import ProtectedRoute from "@/components/layout/ProtectedRoute";
-
-// Uncomment as other pages are built by the team:
 import RegisterPage from "@/pages/RegisterPage";
-// import DashboardPage from "@/pages/DashboardPage";
+import ProtectedRoute from "@/components/layout/ProtectedRoute";
+import AppLayout from "@/components/layout/AppLayout";
+
+// Uncomment each route as the corresponding page is implemented:
+import DashboardPage from "@/pages/DashboardPage";
+// import MapPage from "@/pages/MapPage";
+// import ReportsPage from "@/pages/ReportsPage";
+// import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
+// import IngestionPage from "@/pages/IngestionPage";
+// import TipoffPage from "@/pages/TipoffPage";
+// import AdminPage from "@/pages/AdminPage";
+// import ProfilePage from "@/pages/ProfilePage";
 
 export default function App() {
   return (
@@ -16,9 +24,18 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
-        {/* Protected routes (access token required) */}
+        {/* Protected routes — AppLayout renders TopBar + BurgerMenu for all children */}
         <Route element={<ProtectedRoute />}>
-          {/* <Route path="/dashboard" element={<DashboardPage />} /> */}
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            {/* <Route path="/map" element={<MapPage />} /> */}
+            {/* <Route path="/reports" element={<ReportsPage />} /> */}
+            {/* <Route path="/patrol" element={<PatrolPlannerPage />} /> */}
+            {/* <Route path="/ingestion" element={<IngestionPage />} /> */}
+            {/* <Route path="/tipoffs" element={<TipoffPage />} /> */}
+            {/* <Route path="/admin" element={<AdminPage />} /> */}
+            {/* <Route path="/profile" element={<ProfilePage />} /> */}
+          </Route>
         </Route>
 
         {/* Fallback */}
