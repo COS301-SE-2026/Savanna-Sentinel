@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table"
 
 import { Button } from "@/components/ui/button"
+import { usersApi } from "@/services/usersApi";
 
 interface UserData{
     "username": string,
@@ -55,7 +56,31 @@ const AuthPage = () => {
     )
 }
 
-const User = ({ data }: UserCardProps) => {
+const UserRow = ({ user, refreshList}: UserRowProps) => {
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [rowError, setRowError] = useState<string | null>(null);
+
+    const handleAccept = async () => {
+        setIsProcessing(true);
+        setRowError(null);
+
+        try{
+            await usersApi.setUserStatus(user.id, true);
+            refreshList(); //Refresh the list
+        }
+        catch (error: any){
+            console.error("Failed to activate user:", error);
+
+            if(error.response?.status == 401){
+                setRowError("Permission denied. Cannot modify admins");
+            }
+            else{
+                setRowError("Failed to accept user");
+            }
+            setIsProcessing(false)
+        }
+    }
+
     return(
         <TableRow>
             <TableCell>{data.username}</TableCell>
