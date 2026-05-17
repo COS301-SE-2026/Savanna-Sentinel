@@ -60,21 +60,33 @@ const AuthPage = () => {
 
     return(
         <div className="">
+            <div className="">
+                Pending Registrations
+            </div>
+
             <Table>
                 <TableHeader>
                     <TableRow>
                         <TableHead>Username</TableHead>
+                        <TableHead>Name</TableHead>
                         <TableHead>Role Claim</TableHead>
                         <TableHead>Created At</TableHead>
-                        <TableHead>Accept/Reject</TableHead>
+                        <TableHead>Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {testArray.map((e, index) => {
-                        return(
-                            <User key={index} data={e} />
+                    {users.length === 0 ?
+                        (
+                        <TableRow>
+                            <TableCell colSpan={5}>No Pending Registrations found</TableCell>
+                        </TableRow>
+                        ) : 
+                        (
+                            users.map((user) => (
+                                <UserRow key={user.id} user={user} refreshList={fetchPendingUsers} />
+                            ))
                         )
-                    })}
+                    }
                 </TableBody>
             </Table>
         </div>
