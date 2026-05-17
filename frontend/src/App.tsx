@@ -28,7 +28,7 @@ export default function App() {
         {/* Temporarily public so testing can performed, will make protected with admin access late */}
         <Route path="/admin/auth" element={<AuthPage />} />
 
-        {/* Protected routes — AppLayout renders TopBar + BurgerMenu for all children */}
+        {/* Protected routes - AppLayout renders TopBar + BurgerMenu for all children */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />

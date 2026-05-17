@@ -29,5 +29,5 @@ app.include_router(auth_router, prefix="/v1")
 
 @app.get("/health", tags=["health"])
 async def health():
-    """Quick liveness check — returns 200 if the server is running."""
+    """Quick liveness check - returns 200 if the server is running."""
     return {"status": "ok"}
