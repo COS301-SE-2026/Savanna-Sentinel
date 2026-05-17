@@ -39,6 +39,7 @@ export const useAuthStore = create<AuthState>()(
         set({
           accessToken: data.access_token,
           refreshToken: data.refresh_token,
+          user: { id: data.user.id, username: data.user.username, role: data.user.role },
         });
       },
 
@@ -56,7 +57,11 @@ export const useAuthStore = create<AuthState>()(
             throw new Error("No refresh token available");
         }
         const data = await authApi.refresh(refreshToken);
-        set({accessToken: data.access_token, refreshToken: data.refresh_token,});
+        set({
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          user: { id: data.user.id, username: data.user.username, role: data.user.role },
+        });
         return data.access_token;
       },
 
