@@ -9,29 +9,54 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { usersApi } from "@/services/usersApi";
+import { useEffect, useState } from "react";
 
-interface UserData{
-    "username": string,
-    "role": string,
-    "created": string
+export interface UserResponse {
+  id: string;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
 }
-interface UserCardProps {
-    data: UserData;
+interface UserRowProps {
+  user: UserResponse;
+  refreshList: () => void;
 }
-
 const AuthPage = () => {
-    const testArray : UserData[]= [
-        {
-            "username": "Test 1",
-            "role": "Ranger",
-            "created": "2026-05-15",
-        },
-        {
-            "username": "12-390124889134yu13984eoi13je0iko13qwjdnoqiujkewf qneikpfcnuoe3jfniqwsdfjiakosfeuiowfjakfosiaedkfhiawekfoelasdfiokaldsfasifdoklamsdfc",
-            "role": "Ranger",
-            "created": "2026-05-15",
-        },
-    ]
+    const [users, setUsers] = useState<UserResponse[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [pageError, setPageError] = useState<string | null>(null);
+
+    useEffect(() => {
+        fetchPendingUsers();
+    }, []);
+
+    const fetchPendingUsers = async () => {
+        setIsLoading(true);
+        setPageError(null);
+
+        try{
+            const data = await usersApi.getPendingUsers();
+            setUsers(data.results);
+        }
+        catch (error){
+            console.error("Failed to fetch users:", error);
+            setPageError("Failed to load pending registrations.");
+        }
+        finally{
+            setIsLoading(false);
+        }
+    };
+
+    if(isLoading){
+        return <div className="">Loading pending users...</div>
+    }
+    if(pageError){
+        return <div className="">{pageError}</div>
+    }
 
     return(
         <div className="">
