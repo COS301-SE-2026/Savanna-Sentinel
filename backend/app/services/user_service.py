@@ -21,3 +21,11 @@ class UserService:
             return None
         
         return results
+    
+    async def admin_delete(self, user_id: str):
+        results = await self.repo.admin_delete(user_id)
+
+        if results is None:
+            return None
+        
+        return results

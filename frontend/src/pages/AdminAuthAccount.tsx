@@ -123,7 +123,8 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
         setRowError(null);
 
         try{
-            //Delete the account
+            await usersApi.deleteUser(user.id);
+            refreshList();
         }
         catch(error){
             console.error("Failed to reject user:", error);

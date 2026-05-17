@@ -34,7 +34,7 @@ export const usersApi = {
         }).then((r) => r.data),
     
     deleteUser: (user_id: string): Promise<UserResponse> =>
-        api.delete<UserResponse>(`/admin/delete/${user_id}`)
+        api.delete<UserResponse>(`/admin/users/delete/${user_id}`)
             .then((r) => r.data)
 
 }

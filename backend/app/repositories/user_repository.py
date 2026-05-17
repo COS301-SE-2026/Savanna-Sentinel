@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import uuid
 from typing import Optional
 
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import decode_token
 from app.models.refresh_token import RefreshToken
@@ -142,6 +142,21 @@ class UserRepository:
 
         await self.db.commit()
         await self.db.refresh(user)
+
+        return user
+    
+    async def admin_delete(self, user_id: str) -> UsersResponse:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return None
+        
+        del_stmt = delete(User).where(User.id == user_id)
+        await self.db.execute(del_stmt)
+
+        await self.db.commit()
 
         return user
     
