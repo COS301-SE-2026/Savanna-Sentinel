@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-from app.core.dependencies import get_db
+from app.core.dependencies import get_db, require_admin
 from app.schemas.user import UsersRequest, UsersResponse, UsersResultResponse, SetUsersStatusRequest
 from app.services.user_service import UserService
 from app.repositories.user_repository import UserRepository
+from app.models.user import User
 
 router = APIRouter()
 
@@ -16,7 +17,7 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
     summary="Filter and get all user accounts"
 )
-async def users(req: UsersRequest = Depends(), db: AsyncSession=Depends(get_db)):
+async def users(req: UsersRequest = Depends(), db: AsyncSession=Depends(get_db), current_admin: User = Depends(require_admin)):
     repo = UserRepository(db)
 
     service = UserService(repo)

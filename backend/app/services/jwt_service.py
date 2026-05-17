@@ -68,7 +68,7 @@ def verify(token):
     try:
         return Token_Body(**payload)
     except ValidationError as e:
-        print("Token payload structure is corrupt: {e}")
+        print(f"Token payload structure is corrupt: {e}")
         return None
     
 def verify_refresh(token):

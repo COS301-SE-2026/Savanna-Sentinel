@@ -1,11 +1,12 @@
 from pydantic import BaseModel, EmailStr
 
 class Token_Body(BaseModel):
-    id: int
-    username: str
-    email: EmailStr
-    is_active: bool
+    sub: str
     exp: int
+    type: str = "access"
+    iat: int
+    jti: str
+
 
 class Refresh_Token_Body(BaseModel):
     sub: str
