@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
+import AuthPage from "@/pages/AdminAuthAccount";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
 
@@ -23,6 +24,9 @@ export default function App() {
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        
+        {/* Temporarily public so testing can performed, will make protected with admin access late */}
+        <Route path="/admin/auth" element={<AuthPage />} />
 
         {/* Protected routes — AppLayout renders TopBar + BurgerMenu for all children */}
         <Route element={<ProtectedRoute />}>
