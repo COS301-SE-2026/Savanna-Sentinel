@@ -32,5 +32,15 @@ async def users(req: UsersRequest = Depends(), db: AsyncSession=Depends(get_db),
     status_code=status.HTTP_200_OK,
     summary="Switch the selected users status"
 )
-async def status(req: SetUsersStatusRequest, db: AsyncSession=Depends(get_db), current_admin: User = Depends(require_admin)):
-    
+async def statusSwitch(req: SetUsersStatusRequest,user_id: str, db: AsyncSession=Depends(get_db), current_admin: User = Depends(require_admin)):
+    repo = UserRepository(db)
+    service = UserService(repo)
+
+    response_data = await service.switch_status(req.is_active, user_id)
+
+    if response_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User Id does not exist"
+        )
+    return response_data

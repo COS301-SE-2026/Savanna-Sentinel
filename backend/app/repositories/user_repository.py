@@ -129,3 +129,22 @@ class UserRepository:
 
         result = await self.db.execute(stmt)
         return result.scalar()
+    
+    async def switch_status(self, is_active: bool, user_id: str) -> UsersResponse:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return None
+    
+        user.is_active = is_active
+
+        await self.db.commit()
+        await self.db.refresh(user)
+
+        return user
+    
+
+        
+

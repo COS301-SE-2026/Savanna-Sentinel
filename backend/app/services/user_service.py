@@ -14,4 +14,10 @@ class UserService:
             page_size=req.page_size,
             results=results
         )
+    async def switch_status(self, is_active: bool, user_id: str):
+        results = await self.repo.switch_status(is_active, user_id)
 
+        if results is None:
+            return None
+        
+        return results
