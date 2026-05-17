@@ -11,12 +11,12 @@ router = APIRouter()
 
 # Add exceptions here
 @router.get(
-    "/v1/users",
+    "/users",
     response_model=UsersResultResponse,
     status_code=status.HTTP_200_OK,
     summary="Filter and get all user accounts"
 )
-async def users(req: UsersRequest, db, AsyncSession=Depends(get_db)):
+async def users(req: UsersRequest = Depends(), db: AsyncSession=Depends(get_db)):
     repo = UserRepository(db)
 
     service = UserService(repo)

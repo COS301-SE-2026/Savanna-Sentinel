@@ -1,9 +1,11 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
-from auth import RequestedRole
+from app.schemas.auth import RequestedRole
 from typing import Optional
 
 class UsersResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     username: str
     email: str
@@ -23,8 +25,8 @@ class UsersResultResponse(BaseModel):
 class UsersRequest(BaseModel):
     is_active: bool
     role: Optional[RequestedRole] = None
-    page: int = Field(default=1)
-    page_size: int = Field(default=20, max=100)
+    page: int = 1
+    page_size: int = Field(default=20, le=100)
 
 class SetUsersStatusRequest(BaseModel):
     is_active: bool

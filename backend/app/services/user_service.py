@@ -5,7 +5,7 @@ class UserService:
         self.repo = repo
 
     async def get_users(self, req: UsersRequest):
-        results = self.repo.get_users(req)
+        results = await self.repo.get_users(req)
         total_count = await self.repo.count_users(req)
 
         return UsersResultResponse(
