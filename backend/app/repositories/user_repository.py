@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import uuid
 from typing import Optional
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import decode_token
 from app.models.refresh_token import RefreshToken
@@ -112,3 +112,15 @@ class UserRepository:
         result = await self.db.execute(stmt)
 
         return result.scalars().all()
+    
+    async def count_users(self, req: UsersRequest) -> int:
+        stmt = select(func.count()).select_from(User)
+
+        if req.is_active is not None:
+            stmt = stmt.where(User.is_active == req.is_active)
+
+        if req.role is not None:
+            stmt = stmt.where(User.role == req.role.value)
+
+        result = await self.db.execute(stmt)
+        return result.scalar()

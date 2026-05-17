@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from auth import RequestedRole
+from typing import Optional
 
 class UsersResponse(BaseModel):
     id: str
@@ -21,8 +22,8 @@ class UsersResultResponse(BaseModel):
 
 class UsersRequest(BaseModel):
     is_active: bool
-    role: RequestedRole
-    page: int
+    role: Optional[RequestedRole] = None
+    page: int = Field(default=1)
     page_size: int = Field(default=20, max=100)
 
 class SetUsersStatusRequest(BaseModel):
