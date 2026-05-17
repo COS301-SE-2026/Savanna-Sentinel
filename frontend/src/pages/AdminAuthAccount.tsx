@@ -96,15 +96,41 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
     };
 
     return(
-        <TableRow>
-            <TableCell>{data.username}</TableCell>
-            <TableCell>{data.role}</TableCell>
-            <TableCell>{data.created}</TableCell>
-            <TableCell>
-                <Button>Accept</Button>
-                <Button>Reject</Button>
-            </TableCell>
-        </TableRow>
+        <>
+            <TableRow>
+                <TableCell>{user.username}</TableCell>
+                <TableCell>{`${user.first_name} ${user.last_name}`}</TableCell>
+                <TableCell>{user.role}</TableCell>
+                <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>
+                    <Button
+                        variant="default"
+                        onClick={handleAccept}
+                        disabled={isProcessing}
+                    >
+                        Accept
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        onClick={handleReject}
+                        disabled={isProcessing}
+                    >
+                        Reject
+                    </Button>
+                </TableCell>
+            </TableRow>
+
+            {rowError && (
+                <TableRow>
+                    <TableCell colSpan={5} className="text-sm text-red-500 bg-red-50/50 py-2">
+                        {rowError}
+                    </TableCell>
+                </TableRow>
+            )}
+        </>
+        
+
+
     )
 }
 
