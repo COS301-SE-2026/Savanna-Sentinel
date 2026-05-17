@@ -25,3 +25,12 @@ async def users(req: UsersRequest = Depends(), db: AsyncSession=Depends(get_db),
     response_data = await service.get_users(req)
 
     return response_data
+
+@router.patch(
+    "/users/{user_id}/status",
+    response_model=UsersResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Switch the selected users status"
+)
+async def status(req: SetUsersStatusRequest, db: AsyncSession=Depends(get_db), current_admin: User = Depends(require_admin)):
+    
