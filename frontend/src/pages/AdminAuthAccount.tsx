@@ -79,7 +79,21 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
             }
             setIsProcessing(false)
         }
-    }
+    };
+
+    const handleReject = async () => {
+        setIsProcessing(true);
+        setRowError(null);
+
+        try{
+            //Delete the account
+        }
+        catch(error){
+            console.error("Failed to reject user:", error);
+            setRowError("Failed to reject user.");
+            setIsProcessing(false);
+        }
+    };
 
     return(
         <TableRow>
