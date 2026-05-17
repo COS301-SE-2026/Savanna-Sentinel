@@ -1,1 +1,20 @@
-# Local configuration will be added to gitignore later.
+# Applied automatically during local development (docker compose up).
+# Enables hot-reload for backend and vite dev server for frontend.
+
+services:
+  backend:
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      VITE_API_URL: http://localhost:8000/v1
