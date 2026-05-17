@@ -25,6 +25,7 @@ export const authHandlers = [
         refresh_token: "fake-refresh-token",
         token_type: "bearer",
         expires_in: 3600,
+        user: { id: "user-001", username: "ranger", role: "ranger" },
       });
     }
 
