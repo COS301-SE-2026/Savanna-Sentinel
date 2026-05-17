@@ -1,7 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
+from auth import RequestedRole
 
-class UserResponse(BaseModel):
+class UsersResponse(BaseModel):
     id: str
     username: str
     email: str
@@ -12,8 +13,18 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
-class UserResultResponse(BaseModel):
+class UsersResultResponse(BaseModel):
     total: int
     page: int
     page_size: int
-    results: UserResponse
+    results: list[UsersResponse]
+
+class UsersRequest(BaseModel):
+    is_active: bool
+    role: RequestedRole
+    page: int
+    page_size: int = Field(default=20, max=100)
+
+class SetUsersStatusRequest(BaseModel):
+    is_active: bool
+
