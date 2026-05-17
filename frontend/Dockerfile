@@ -1,29 +1,30 @@
-FROM node:18-alpine AS build-stage
+FROM node:24-alpine AS dev
 
 WORKDIR /app
-
 COPY package*.json ./
-
 RUN npm install
+COPY . .
+EXPOSE 5173
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
+
+FROM node:24-alpine AS build
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
 COPY . .
 
-# Template for when we start using enviroment variables
-# ARG API_URL
-# ENV VITE_API_URL=$API_URL 
-# (Note: Use VITE_ or REACT_APP_ depending on your framework)
-# Add the API_URL to your GitHub Repository Secrets (Settings > Secrets and variables > Actions).
+ARG VITE_API_URL=/v1
+ENV VITE_API_URL=$VITE_API_URL
 
-#Generate with the pwa settings
-RUN npm run build:pwa
+RUN npm run build
 
-#Start new nginx environment now that everything has been compiled
-FROM nginx:stable-alpine
 
-#Grab the compiled files
-COPY --from=build-stage /app/web-build /usr/share/nginx/html
+FROM nginx:stable-alpine AS prod
 
-#MIGHT HAVE TO BE UPDATED TO HTTPS LATER, but for now uses HTTP port
+COPY --from=build /app/web-build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]
