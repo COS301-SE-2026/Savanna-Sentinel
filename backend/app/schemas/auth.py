@@ -1,4 +1,48 @@
 from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+
+from pydantic import BaseModel, EmailStr, field_validator
+
+
+class RequestedRole(str, Enum):
+    ranger = "ranger"
+    analyst = "analyst"
+    community_liaison = "community_liaison"
+
+
+class RegisterRequest(BaseModel):
+    """Body sent by the client to POST /v1/auth/register."""
+
+    username: str
+    email: EmailStr
+    password: str
+    first_name: str
+    last_name: str
+    requested_role: RequestedRole
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
+
+class UserResponse(BaseModel):
+    """Returned after successful registration and by user management endpoints."""
+
+    id: str
+    username: str
+    email: str
+    role: str
+    is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+
 
 
 @dataclass

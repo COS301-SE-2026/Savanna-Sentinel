@@ -7,6 +7,8 @@ It has no knowledge of FastAPI, HTTP status codes, or the database
 
 from typing import Optional
 
+from fastapi import HTTPException, status
+
 from app.core.security import (
     JWTError,
     get_password_hash,
@@ -15,8 +17,9 @@ from app.core.security import (
     create_refresh_token,
     decode_token,
 )
+from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import TokenResponse
+from app.schemas.auth import TokenResponse, RegisterRequest
 
 
 # A dummy hash used when the user does not exist.
@@ -26,12 +29,8 @@ _DUMMY_HASH = get_password_hash("__dummy_password__")
 
 
 class AuthService:
-    def __init__(self, db=None, repo=None):
-        """
-        DB NOTE: Change to `def __init__(self, db: AsyncSession):`
-        once the real database is connected.
-        """
-        self.repo = repo or UserRepository(db)
+    def __init__(self, repo):
+        self.repo = repo
 
     async def login(self, username: str, password: str) -> Optional[TokenResponse]:
         """
@@ -99,3 +98,24 @@ class AuthService:
         Silently succeeds even if the token was already revoked or invalid.
         """
         await self.repo.revoke_refresh_token(refresh_token)
+
+    async def register(self, req: RegisterRequest) -> User:
+        """
+        Creates a new inactive user account.
+
+        Raises 409 if the email or username is already in use.
+        """
+        if await self.repo.get_by_email(req.email):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email already in use",
+            )
+
+        if await self.repo.get_by_username(req.username):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Username already in use",
+            )
+
+        hashed = get_password_hash(req.password)
+        return await self.repo.create(req, hashed)

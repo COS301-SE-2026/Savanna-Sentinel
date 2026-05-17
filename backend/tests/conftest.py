@@ -8,6 +8,7 @@ _ENV_PATH = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(_ENV_PATH)
 
 os.environ.setdefault("JWT_SECRET", "Testing-secret-not-used-in-production")
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://localhost/savanna_sentinel")
 
 import pytest
 
