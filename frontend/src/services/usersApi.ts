@@ -18,6 +18,8 @@ export interface PaginatedUsersResponse {
   results: UserResponse[];
 }
 
+
+
 export const usersApi = {
     getPendingUsers: (): Promise<PaginatedUsersResponse> => 
         api.get<PaginatedUsersResponse>("/users", {
@@ -30,4 +32,9 @@ export const usersApi = {
         api.patch<UserResponse>(`/users/${userId}/status`, { 
             is_active: isActive 
         }).then((r) => r.data),
+    
+    deleteUser: (user_id: string): Promise<UserResponse> =>
+        api.delete<UserResponse>(`/admin/delete/${user_id}`)
+            .then((r) => r.data)
+
 }
