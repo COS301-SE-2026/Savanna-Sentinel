@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "@/pages/LoginPage";
+import AuthPage from "@/pages/AdminAuthAccount";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 
 // Uncomment as other pages are built by the team:
@@ -15,6 +16,9 @@ export default function App() {
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        
+        {/* Temporarily public so testing can performed, will make protected with admin access late */}
+        <Route path="/admin/auth" element={<AuthPage />} />
 
         {/* Protected routes (access token required) */}
         <Route element={<ProtectedRoute />}>
