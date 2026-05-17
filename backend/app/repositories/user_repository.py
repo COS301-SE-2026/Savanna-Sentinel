@@ -12,6 +12,7 @@ from app.core.security import decode_token
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.auth import RegisterRequest
+from app.schemas.user import UsersRequest, UsersResponse
 
 
 class UserRepository:
@@ -95,3 +96,19 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+    async def get_users(self, req: UsersRequest ) -> list[UsersResponse]:
+        stmt = select(User)
+
+        if req.is_active is not None:
+            stmt = stmt.where(User.is_active == req.is_active)
+        
+        if req.role is not None:
+            stmt = stmt.where(User.role == req.role.value)
+
+        offset = (req.page - 1) * req.page_size
+
+        stmt = stmt.limit(req.page_size).offset(offset)
+
+        result = await self.db.execute(stmt)
+
+        return result.scalars().all()
