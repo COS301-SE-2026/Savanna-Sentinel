@@ -19,7 +19,7 @@ from app.core.security import (
 )
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import TokenResponse, RegisterRequest
+from app.schemas.auth import TokenResponse, TokenUser, RegisterRequest
 
 
 # A dummy hash used when the user does not exist.
@@ -59,6 +59,7 @@ class AuthService:
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
+            user=TokenUser(id=str(user.id), username=user.username, role=user.role),
         )
 
     async def refresh(self, refresh_token: str) -> Optional[TokenResponse]:
@@ -90,6 +91,7 @@ class AuthService:
         return TokenResponse(
             access_token=new_access,
             refresh_token=new_refresh,
+            user=TokenUser(id=str(user.id), username=user.username, role=user.role),
         )
 
     async def logout(self, refresh_token: str) -> None:
