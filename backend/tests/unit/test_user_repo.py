@@ -83,3 +83,31 @@ async def test_get_users_role_filter_works(db_session):
     assert len(analyst_results) == 1
     assert analyst_results[0].username == "analyst1"
     assert analyst_results[0].role == "analyst"
+
+async def test_count_users_excludes_admins(db_session):
+    admin1 = User(
+        id=str(uuid.uuid4()), username="admin1", role="admin", is_active=True, email="a1@test.com", first_name="Admin", last_name="One", hashed_password="mocked_Hash"
+    )
+    admin2 = User(
+        id=str(uuid.uuid4()), username="admin2", role="admin", is_active=False, email="a2@test.com", first_name="Admin", last_name="Two", hashed_password="mocked_Hash"
+    )
+    ranger1 = User(
+        id=str(uuid.uuid4()), username="ranger1", role="ranger", is_active=True, email="r1@test.com", first_name="Ranger", last_name="One", hashed_password="mocked_Hash"
+    )
+    ranger2 = User(
+        id=str(uuid.uuid4()), username="ranger2", role="ranger", is_active=False, email="r2@test.com", first_name="Ranger", last_name="Two", hashed_password="mocked_Hash"
+    )
+
+    db_session.add_all([admin1, admin2, ranger1, ranger2])
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+
+    request_active = UsersRequest(page=1, page_size=10, is_active=True, role=None)
+    active_count = await repo.count_users(request_active)
+
+    request_inactive = UsersRequest(page=1, page_size=10, is_active=False, role=None)
+    inactive_count = await repo.count_users(request_inactive)
+
+    assert active_count == 1
+    assert inactive_count == 1
