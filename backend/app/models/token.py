@@ -6,6 +6,9 @@ class Token_Body(BaseModel):
     type: str = "access"
     iat: int
     jti: str
+    username: str | None = None
+    email: str | None = None
+    is_active: bool | None = None
 
 
 class Refresh_Token_Body(BaseModel):
