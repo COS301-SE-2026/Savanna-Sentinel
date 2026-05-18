@@ -115,15 +115,17 @@ export const ProfilePage: React.FC = () => {
 							<p>Loading…</p>
 						) : (
 							<form onSubmit={onSaveProfile}>
-								<label className="block text-sm font-medium text-gray-700">First name</label>
+								<label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First name</label>
 								<input
+									id="first_name"
 									className="mt-1 w-full p-2 border rounded-md"
 									value={firstName}
 									onChange={(e) => setFirstName(e.target.value)}
 								/>
 
-								<label className="block text-sm font-medium text-gray-700 mt-4">Last name</label>
+								<label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mt-4">Last name</label>
 								<input
+									id="last_name"
 									className="mt-1 w-full p-2 border rounded-md"
 									value={lastName}
 									onChange={(e) => setLastName(e.target.value)}
@@ -158,16 +160,18 @@ export const ProfilePage: React.FC = () => {
 					<section className="bg-white rounded-md p-6 shadow-sm border">
 						<h2 className="text-lg font-semibold mb-4">Change password</h2>
 						<form onSubmit={onChangePassword}>
-							<label className="block text-sm font-medium text-gray-700">Current password</label>
+								<label htmlFor="current_password" className="block text-sm font-medium text-gray-700">Current password</label>
 							<input
+									id="current_password"
 								type="password"
 								className="mt-1 w-full p-2 border rounded-md"
 								value={currentPassword}
 								onChange={(e) => setCurrentPassword(e.target.value)}
 							/>
 
-							<label className="block text-sm font-medium text-gray-700 mt-4">New password</label>
+								<label htmlFor="new_password" className="block text-sm font-medium text-gray-700 mt-4">New password</label>
 							<input
+									id="new_password"
 								type="password"
 								className="mt-1 w-full p-2 border rounded-md"
 								value={newPassword}
