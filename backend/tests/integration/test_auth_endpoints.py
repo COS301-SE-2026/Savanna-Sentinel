@@ -721,6 +721,17 @@ async def test_logout_garbage_token_returns_204():
         )
  
     assert r.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_logout_malformed_token_returns_204():
+    async with _client() as c:
+        r = await c.post(
+            "/v1/auth/logout",
+            json={"refresh_token": "not-a-jwt"},
+        )
+
+    assert r.status_code == 204
  
  
 @pytest.mark.asyncio
