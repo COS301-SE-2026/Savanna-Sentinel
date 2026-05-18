@@ -3,6 +3,7 @@ import uuid
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UsersRequest
+from sqlalchemy import select
 
 
 pytestmark = pytest.mark.asyncio
@@ -147,3 +148,26 @@ async def test_switch_status_activate_successful(db_session):
     assert updated_user.is_active is True
     await db_session.refresh(test_user)
     assert test_user.is_active is True
+
+async def test_admin_delete_user_success(db_session):
+    user_id = str(uuid.uuid4())
+    test_user = User(
+        id=user_id, username="target_user", role="ranger", is_active=False, email="u@test.com", first_name="Test", last_name="User", hashed_password="mocked_hash"
+    )
+
+    db_session.add_all([test_user])
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+
+    deleted_user = await repo.admin_delete(user_id=user_id)
+
+    assert deleted_user is not None
+    assert deleted_user.id == user_id
+    assert deleted_user.username == "target_user"
+
+    stmt = select(User).where(User.id == user_id)
+    result = await db_session.execute(stmt)
+    db_user = result.scalar_one_or_none()
+    assert db_user is None
+
