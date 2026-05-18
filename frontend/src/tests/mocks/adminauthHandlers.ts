@@ -26,11 +26,11 @@ export const mockUsers = {
 }
 
 export const authHandlers = [
-    http.get("*/api/users/pending", () => {
+    http.get("**/v1/users", () => {
         return HttpResponse.json(mockUsers)
     }),
 
-    http.patch("*/api/users/:id/:status", ({ params }) => {
+    http.patch("**/v1/users/:id/status", ({ params }) => {
         const { id } = params;
         if(id === "admin-error-id"){
             return new HttpResponse(null, {status: 401})
@@ -39,7 +39,7 @@ export const authHandlers = [
         return HttpResponse.json({message: "Status updated successfully"})
     }),
 
-    http.delete("*/api/users/delete/:id", () => {
+    http.delete("**/v1/admin/users/delete/:id", () => {
         return HttpResponse.json({message: "User reject successfully"})
     })
 ]
