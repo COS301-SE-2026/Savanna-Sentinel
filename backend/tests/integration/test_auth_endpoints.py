@@ -35,7 +35,7 @@ from app.core.dependencies import get_db
 from app.core.security import get_password_hash
 from app.main import app
 
-_engine = create_async_engine(_DATABASE_URL, poolclass=NullPool)
+_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 _Session = async_sessionmaker(_engine, expire_on_commit=False)
 
 
