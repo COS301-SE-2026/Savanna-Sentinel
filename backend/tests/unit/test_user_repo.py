@@ -85,6 +85,23 @@ async def test_get_users_role_filter_works(db_session):
     assert analyst_results[0].username == "analyst1"
     assert analyst_results[0].role == "analyst"
 
+async def test_get_users_pagination_works(db_session):
+    u1 = User(id=str(uuid.uuid4()), username="user1", role="ranger", is_active=True, email="u1@test.com", first_name="A", last_name="B", hashed_password="x")
+    u2 = User(id=str(uuid.uuid4()), username="user2", role="ranger", is_active=True, email="u2@test.com", first_name="A", last_name="B", hashed_password="x")
+    u3 = User(id=str(uuid.uuid4()), username="user3", role="ranger", is_active=True, email="u3@test.com", first_name="A", last_name="B", hashed_password="x")
+
+    db_session.add_all([u1, u2, u3])
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+
+    request_params = UsersRequest(page=2, page_size=2, is_active=True, role=None)
+    results = await repo.get_users(request_params)
+    
+    assert len(results) == 1
+    assert results[0].username == "user3"
+
+
 async def test_count_users_excludes_admins(db_session):
     admin1 = User(
         id=str(uuid.uuid4()), username="admin1", role="admin", is_active=True, email="a1@test.com", first_name="Admin", last_name="One", hashed_password="mocked_Hash"
