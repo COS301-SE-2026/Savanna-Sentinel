@@ -25,7 +25,7 @@ can safely delete them without touching real data.
 import asyncio
 import os
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy import text
 from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -35,7 +35,7 @@ from app.core.dependencies import get_db
 from app.core.security import get_password_hash
 from app.main import app
 
-_engine = create_async_engine(_DATABASE_URL, poolclass=NullPool)
+_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 _Session = async_sessionmaker(_engine, expire_on_commit=False)
 
 
