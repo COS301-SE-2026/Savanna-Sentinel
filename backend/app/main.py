@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.users import router as users_router
 # As other routers are built, import and include them here:
-# from app.api.v1.users import router as users_router
 # from app.api.v1.reports import router as reports_router
 
 app = FastAPI(
@@ -25,6 +25,7 @@ app.add_middleware(
 
 # Routers
 app.include_router(auth_router, prefix="/v1")
+app.include_router(users_router, prefix="/v1")
 
 
 @app.get("/health", tags=["health"])
