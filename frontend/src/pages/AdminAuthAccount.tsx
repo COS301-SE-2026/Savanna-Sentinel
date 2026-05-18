@@ -52,43 +52,45 @@ const AuthPage = () => {
     };
 
     if(isLoading){
-        return <div className="">Loading pending users...</div>
+        return <div className="p-6 md:p-10 text-sm text-muted-foreground">Loading pending users...</div>
     }
     if(pageError){
-        return <div className="">{pageError}</div>
+        return <div className="p-6 md:p-10 text-sm text-destructive">{pageError}</div>
     }
 
     return(
-        <div className="">
-            <div className="">
+        <div className="max-w-7xl mx-auto p-6 md:p-10 space-y-6">
+            <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
                 Pending Registrations
             </div>
-
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Username</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role Claim</TableHead>
-                        <TableHead>Created At</TableHead>
-                        <TableHead>Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {users.length === 0 ?
-                        (
+            <div className="rounded-md border border-slate-200 dark:border-slate-800">
+                <Table>
+                    <TableHeader>
                         <TableRow>
-                            <TableCell colSpan={5}>No Pending Registrations found</TableCell>
+                            <TableHead>Username</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Role Claim</TableHead>
+                            <TableHead>Created At</TableHead>
+                            <TableHead className="text-center">Actions</TableHead>
                         </TableRow>
-                        ) : 
-                        (
-                            users.map((user) => (
-                                <UserRow key={user.id} user={user} refreshList={fetchPendingUsers} />
-                            ))
-                        )
-                    }
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                        {users.length === 0 ?
+                            (
+                            <TableRow>
+                                <TableCell colSpan={5}>No Pending Registrations found</TableCell>
+                            </TableRow>
+                            ) : 
+                            (
+                                users.map((user) => (
+                                    <UserRow key={user.id} user={user} refreshList={fetchPendingUsers} />
+                                ))
+                            )
+                        }
+                    </TableBody>
+                </Table>
+            </div>
+            
         </div>
     )
 }
@@ -136,11 +138,14 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
     return(
         <>
             <TableRow>
-                <TableCell>{user.username}</TableCell>
+                <TableCell className="font-medium">{user.username}</TableCell>
                 <TableCell>{`${user.first_name} ${user.last_name}`}</TableCell>
-                <TableCell>{user.role}</TableCell>
-                <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>
+                    <span className="capitalize px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                        {user.role}
+                    </span></TableCell>
+                <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                <TableCell className="text-center">
                     <Button
                         variant="default"
                         onClick={handleAccept}
@@ -160,7 +165,7 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
 
             {rowError && (
                 <TableRow>
-                    <TableCell colSpan={5} className="text-sm text-red-500 bg-red-50/50 py-2">
+                    <TableCell colSpan={5} className="text-sm text-red-500 bg-red-50/50 dark:bg-red-950/20 py-2 px-4 italic">
                         {rowError}
                     </TableCell>
                 </TableRow>

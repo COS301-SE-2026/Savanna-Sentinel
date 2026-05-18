@@ -102,7 +102,7 @@ class UserRepository:
         await self.db.refresh(user)
         return user
     async def get_users(self, req: UsersRequest ) -> list[UsersResponse]:
-        stmt = select(User)
+        stmt = select(User).where(User.role != "admin")
 
         if req.is_active is not None:
             stmt = stmt.where(User.is_active == req.is_active)
