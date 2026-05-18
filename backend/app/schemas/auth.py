@@ -54,6 +54,15 @@ class LoginRequest:
 
 
 @dataclass
+class TokenUser:
+    """Minimal user info embedded in every token response."""
+
+    id: str
+    username: str
+    role: str
+
+
+@dataclass
 class TokenResponse:
     """
     Returned on successful login or refresh.
@@ -62,6 +71,7 @@ class TokenResponse:
 
     access_token: str
     refresh_token: str
+    user: TokenUser
     token_type: str = "bearer"
     expires_in: int = 3600
 

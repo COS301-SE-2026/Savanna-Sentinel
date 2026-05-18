@@ -9,7 +9,7 @@ export interface LoginPayload
 /**
  * JWT NOTE: This interface must match the JSON body returned by
  * POST /v1/auth/login and POST /v1/auth/refresh on the backend
- * Field names must be exactly: access_token, refresh_token, token_type, expires_in
+ * Field names must be exactly: access_token, refresh_token, token_type, expires_in, user
  */
 export interface TokenResponse
 {
@@ -17,6 +17,11 @@ export interface TokenResponse
   refresh_token : string;
   token_type : string;
   expires_in : number;
+  user: {
+    id: string;
+    username: string;
+    role: string;
+  };
 }
 
 export interface RegisterPayload {

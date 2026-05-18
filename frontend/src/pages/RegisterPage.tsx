@@ -19,7 +19,7 @@ const registerSchema = z.object({
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   requested_role: z.enum(["ranger", "analyst", "community_liaison"], {
-    errorMap: () => ({ message: "Please select a role" }),
+    error: "Please select a role",
   }),
 });
 
