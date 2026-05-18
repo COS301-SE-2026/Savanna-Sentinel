@@ -1,3 +1,4 @@
+```mermaid
 classDiagram
 
     %% ── USER HIERARCHY ──────────────────────────────────────────────────────
@@ -221,3 +222,4 @@ classDiagram
 
     %% Field report linked to patrol route
     FieldReport "*" --> "0..1" PatrolRoute : linked to
+```

@@ -1295,5 +1295,3 @@ Each report object follows the same shape as the SC-11 request body, with an add
 | 404 | User ID does not exist |
 
 ---
-
-`details` is omitted when not applicable (e.g. 401, 404 responses).

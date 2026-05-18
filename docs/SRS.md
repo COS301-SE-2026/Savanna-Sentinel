@@ -65,7 +65,7 @@ The system is a multi-role web application with offline-first field capabilities
 
 | Document | Location |
 |---|---|
-| User Stories | `docs/requirements//User_Story.md` |
+| User Stories | `docs/requirements/User_Story.md` |
 | Functional Requirements | `docs/requirements/Functional_Requirements.md` |
 | API Service Contract | `docs/requirements/API_Service_Contract.md` |
 | Domain Model | `docs/architecture/Domain_Model.md` |
@@ -74,7 +74,7 @@ The system is a multi-role web application with offline-first field capabilities
 | Technology Requirements | `docs/non-functional/Technology_Requirements.md` |
 | Constraints | `docs/non-functional/Constraints.md` |
 | Brand Style Guide | `docs/design/brand_style_guide.html` |
-| Database Schema | `backend/schema.sql` |
+| Database Schema | `backend/init-db/01_schema.sql` |
 
 ### 1.5 Document Overview
 
@@ -444,7 +444,7 @@ Savanna Sentinel is structured across four logical tiers:
 
 ## 7. Data Model
 
-The authoritative schema is in `backend/schema.sql`. The entity-relationship diagram is in `docs/architecture/Domain_Model.md`. The following describes the core entities and their relationships.
+The authoritative schema is in `backend/init-db/01_schema.sql`. The entity-relationship diagram is in `docs/architecture/Domain_Model.md`. The following describes the core entities and their relationships.
 
 ### 7.1 User & Auth Entities
 
