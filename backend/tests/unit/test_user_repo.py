@@ -149,6 +149,14 @@ async def test_switch_status_activate_successful(db_session):
     await db_session.refresh(test_user)
     assert test_user.is_active is True
 
+async def test_swtich_status_user_not_found(db_session):
+    no_user_id = str(uuid.uuid4())
+    repo = UserRepository(db_session)
+
+    result = await repo.switch_status(is_active=True, user_id=no_user_id)
+
+    assert result is None
+
 async def test_admin_delete_user_success(db_session):
     user_id = str(uuid.uuid4())
     test_user = User(
@@ -171,3 +179,10 @@ async def test_admin_delete_user_success(db_session):
     db_user = result.scalar_one_or_none()
     assert db_user is None
 
+async def test_admin_delete_user_not_found(db_session):
+    no_user_id = str(uuid.uuid4())
+    repo = UserRepository(db_session)
+
+    result = await repo.admin_delete(user_id=no_user_id)
+
+    assert result is None
