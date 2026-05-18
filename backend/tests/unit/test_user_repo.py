@@ -111,3 +111,39 @@ async def test_count_users_excludes_admins(db_session):
 
     assert active_count == 1
     assert inactive_count == 1
+
+async def test_switch_status_deactivate_successful(db_session):
+    user_id = str(uuid.uuid4())
+    test_user = User(
+        id=user_id, username="active_user", role="ranger", is_active=True, email="u@test.com", first_name="Test", last_name="User", hashed_password="mocked_hash"
+    )
+
+    db_session.add_all([test_user])
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+
+    updated_user = await repo.switch_status(is_active=False, user_id=user_id)
+
+    assert updated_user is not None
+    assert updated_user.is_active is False
+    await db_session.refresh(test_user)
+    assert test_user.is_active is False
+
+async def test_switch_status_activate_successful(db_session):
+    user_id = str(uuid.uuid4())
+    test_user = User(
+        id=user_id, username="inactive_user", role="ranger", is_active=False, email="u@test.com", first_name="Test", last_name="User", hashed_password="mocked_hash"
+    )
+
+    db_session.add_all([test_user])
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+
+    updated_user = await repo.switch_status(is_active=True, user_id=user_id)
+
+    assert updated_user is not None
+    assert updated_user.is_active is True
+    await db_session.refresh(test_user)
+    assert test_user.is_active is True
