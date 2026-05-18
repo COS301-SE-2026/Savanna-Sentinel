@@ -87,3 +87,23 @@ async def test_get_current_user_success(mock_user_repo, mock_jwt_verify):
     result = await get_current_user(credentials=credentials, db=mock_db)
 
     assert result == mock_user
+
+async def test_require_admin_allows_admin_role():
+    mock_user = User(
+        id="user-123", username="test", role="admin", is_active=True, email="a@test.com", first_name="Test", last_name="User", hashed_password="HashedPassword"
+    )
+
+    result = await require_admin(current_user=mock_user)
+
+    assert result == mock_user
+
+async def test_require_admin_raises_403_for_non_admin():
+    mock_user = User(
+        id="user-123", username="test", role="ranger", is_active=True, email="a@test.com", first_name="Test", last_name="User", hashed_password="HashedPassword"
+    )
+
+    with pytest.raises(HTTPException) as e:
+        await require_admin(current_user=mock_user)
+
+    assert e.value.status_code == status.HTTP_403_FORBIDDEN
+    assert "Admin privileges required" in e.value.detail
