@@ -15,6 +15,26 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const labelClass = "text-white md:text-primary text-sm font-medium";
+const inputClass =
+  "w-full rounded-lg bg-[#d9d9d9] px-4 py-2.5 text-sm text-black placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-white/40 md:bg-card md:text-foreground md:placeholder:text-muted-foreground md:focus:ring-ring/40";
+
+function BrandPanel() {
+  return (
+    <div className="hidden md:flex md:w-1/2 bg-brand-navy flex-col items-center justify-center gap-6 px-12">
+      <img
+        src="/icons/SavannaSentinelLogo.png"
+        alt=""
+        aria-hidden="true"
+        className="w-64 h-auto"
+      />
+      <p className="text-white/50 text-xs tracking-[0.22em] uppercase text-center">
+        Wildlife Conservation Monitoring
+      </p>
+    </div>
+  );
+}
+
 export default function LoginPage()
 {
   const navigate = useNavigate();
@@ -57,163 +77,131 @@ export default function LoginPage()
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-brand-navy flex flex-col items-center px-6 pt-10">
+    <div className="min-h-screen flex flex-col md:flex-row">
 
-      {/* Logo */}
-      <img
-        src="/icons/SavannaSentinelLogo.png"
-        alt="Savana Sentinel Logo"
-        className="w-60 h-auto mb-12"
-      />
+      <BrandPanel />
 
-      {/* Login Section */}
-      <div className="w-full max-w-[320px]">
+      <div className="flex-1 flex flex-col items-center justify-center bg-brand-navy md:bg-background px-6 py-10">
 
-        {/* Title */}
-        <h1 className="text-center text-2xl font-light tracking-[0.18em] text-white mb-10">
-          LOGIN
-        </h1>
+        <img
+          src="/icons/SavannaSentinelLogo.png"
+          alt="Savana Sentinel Logo"
+          className="w-60 h-auto mb-10 md:hidden"
+        />
 
-        {/* Server Error */}
-        {serverError && (
-          <p
-            role="alert"
-            className="
-              mb-4 rounded-lg border border-red-400/40
-              bg-red-400/10 px-3 py-2 text-center
-              text-xs text-red-300
-            "
+        <div className="w-full max-w-[320px]">
+
+          <h1 className="text-center text-2xl font-light tracking-[0.18em] text-white md:text-primary mb-8">
+            LOGIN
+          </h1>
+
+          {serverError && (
+            <p
+              role="alert"
+              className="mb-4 rounded-lg border border-red-400/40 bg-red-400/10 px-3 py-2 text-center text-xs text-red-300 md:text-destructive"
+            >
+              {serverError}
+            </p>
+          )}
+
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            noValidate
+            className="flex flex-col gap-5"
           >
-            {serverError}
-          </p>
-        )}
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          noValidate
-          className="flex flex-col gap-5"
-        >
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="username"
+                className={labelClass}
+              >
+                Username
+              </label>
 
-          {/* Username */}
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="username"
-              className="text-white text-sm font-medium"
-            >
-              Username
-            </label>
-
-            <input
-              id="username"
-              type="text"
-              placeholder="Username"
-              autoComplete="username"
-              autoFocus
-              className="
-                w-full rounded-lg bg-[#d9d9d9]
-                px-4 py-2.5
-                text-sm text-black
-                placeholder:text-gray-600
-                focus:outline-none focus:ring-2 focus:ring-white/40
-              "
-              {...register("username")}
-            />
-
-            {errors.username && (
-              <p className="text-xs text-red-300">
-                {errors.username.message}
-              </p>
-            )}
-          </div>
-
-          {/* Password */}
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="password"
-              className="text-white text-sm font-medium"
-            >
-              Password
-            </label>
-
-            <div className="relative">
               <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                autoComplete="current-password"
-                className="
-                  w-full rounded-lg bg-[#d9d9d9]
-                  px-4 py-2.5 pr-10
-                  text-sm text-black
-                  placeholder:text-gray-600
-                  focus:outline-none focus:ring-2 focus:ring-white/40
-                "
-                {...register("password")}
+                id="username"
+                type="text"
+                placeholder="Username"
+                autoComplete="username"
+                autoFocus
+                className={inputClass}
+                {...register("username")}
               />
 
-              <button
-                type="button"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                onClick={() => setShowPassword((v) => !v)}
-                className="
-                  absolute right-3 top-1/2 -translate-y-1/2
-                  text-gray-600 hover:text-black transition-colors
-                "
+              {errors.username && (
+                <p className="text-xs text-red-300 md:text-destructive">
+                  {errors.username.message}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="password"
+                className={labelClass}
               >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                Password
+              </label>
+
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  autoComplete="current-password"
+                  className={`${inputClass} pr-10`}
+                  {...register("password")}
+                />
+
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-black transition-colors md:text-muted-foreground md:hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+
+              {errors.password && (
+                <p className="text-xs text-red-300 md:text-destructive">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-center pt-4">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex items-center justify-center gap-2 rounded-lg bg-[#a8b4c5] px-7 py-2.5 text-base text-gray-800 transition-all hover:bg-[#bcc7d6] disabled:cursor-not-allowed disabled:opacity-60 md:bg-primary md:text-primary-foreground md:hover:bg-primary/80"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Logging in...
+                  </>
+                ) : (
+                  "Log In"
+                )}
               </button>
             </div>
 
-            {errors.password && (
-              <p className="text-xs text-red-300">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
+          </form>
 
-          {/* Login Button */}
-          <div className="flex justify-center pt-5">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="
-                flex items-center justify-center gap-2
-                rounded-lg bg-[#a8b4c5]
-                px-7 py-2.5
-                text-base text-gray-800
-                hover:bg-[#bcc7d6]
-                transition-all
-                disabled:opacity-60 disabled:cursor-not-allowed
-              "
+          <p className="mt-7 text-center text-xs text-white/80 md:text-muted-foreground">
+            Don’t have an account?{" "}
+            <Link
+              to="/register"
+              className="text-white hover:underline md:text-primary"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Logging in...
-                </>
-              ) : (
-                "Log In"
-              )}
-            </button>
-          </div>
+              Register
+            </Link>
+          </p>
 
-        </form>
-
-        {/* Register */}
-        <p className="mt-7 text-center text-xs text-white/80">
-          Don’t have an account?{" "}
-          <Link
-            to="/register"
-            className="hover:underline text-white"
-          >
-            Register
-          </Link>
-        </p>
+        </div>
 
       </div>
-
-      {/* Space for future bottom content */}
-      <div className="flex-1" />
 
     </div>
   );
