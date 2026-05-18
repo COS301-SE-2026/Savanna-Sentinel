@@ -33,7 +33,7 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detial="Token is missing user id"
+            detail="Token is missing user id"
         )
     
     repo = UserRepository(db)

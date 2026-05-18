@@ -13,7 +13,7 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture(autouse=True)
 def mock_jwt_verify():
-    patcher = patch("app.services.jwt_service.verify")
+    patcher = patch("app.core.dependencies.verify")
     mock_verify = patcher.start()
 
     yield mock_verify
@@ -30,4 +30,18 @@ async def test_get_current_user_invalid_token(mock_jwt_verify):
 
     assert e.value.status_code  == status.HTTP_401_UNAUTHORIZED
     assert "Invalid access token" in e.value.detail
+
+async def test_get_current_user_missing_id_in_token(mock_jwt_verify):
+    mock_token_body = MagicMock(spec=[])
+    mock_jwt_verify.return_value = mock_token_body
+    credentials = create_mock_credentials()
+    mock_db = AsyncMock()
+
+    with pytest.raises(HTTPException) as e:
+        await get_current_user(credentials=credentials, db=mock_db)
+
+    assert e.value.status_code  == status.HTTP_401_UNAUTHORIZED
+    assert "Token is missing user id" in e.value.detail
+
+
 
