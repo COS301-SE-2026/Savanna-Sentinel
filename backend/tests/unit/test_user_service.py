@@ -31,3 +31,14 @@ async def test_get_users_service_works():
 
     mock_repo.get_users.assert_called_once_with(request_params)
     mock_repo.count_users.assert_called_once_with(request_params)
+
+async def test_switch_status_service_returns_none_when_user_not_found():
+    mock_repo = MagicMock()
+    mock_repo.switch_status = AsyncMock(return_value=None)
+
+    service = UserService(repo=mock_repo)
+
+    result = await service.switch_status(is_active=False, user_id="fake_id")
+
+    assert result is None
+    mock_repo.switch_status.assert_called_once_with(False, "fake_id")
