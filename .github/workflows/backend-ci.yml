@@ -47,6 +47,7 @@ jobs:
           pip install -r backend/requirements.txt
           pip install ruff
           pip install pytest
+          pip install pytest-cov
 
       - name: Linter
         run: ruff check backend/
@@ -55,9 +56,13 @@ jobs:
       - name: Apply schema
         run: psql postgresql://postgres:postgres@localhost:5432/savanna_sentinel -f backend/schema.sql
 
-      - name: Tests
-        run: pytest backend/tests/
-    
+      - name: Tests (with coverage)
+        run: pytest backend/tests/ --cov=backend --cov-report=xml:coverage.xml --cov-report=term
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

@@ -31,9 +31,14 @@ jobs:
         working-directory: ./frontend
         run: npx eslint . # --max-warnings 0 # Strict linting
 
-      - name: Tests
+      - name: Tests (with coverage)
         working-directory: ./frontend
-        run: npx vitest run
+        run: npx vitest run --coverage --coverageReporters=lcov
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage/lcov.info
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
