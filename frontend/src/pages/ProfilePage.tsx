@@ -20,7 +20,7 @@ export const ProfilePage: React.FC = () => {
 	const [currentPassword, setCurrentPassword] = useState('');
 	const [newPassword, setNewPassword] = useState('');
 
-	const [loadingProfile, setLoadingProfile] = useState(false);
+	const [loadingProfile, setLoadingProfile] = useState(true);
 	const [savingProfile, setSavingProfile] = useState(false);
 	const [changingPassword, setChangingPassword] = useState(false);
 
@@ -31,7 +31,6 @@ export const ProfilePage: React.FC = () => {
 
 	useEffect(() => {
 		let mounted = true;
-		setLoadingProfile(true);
 		usersApi
 			.getMe()
 			.then((p) => {
@@ -51,6 +50,15 @@ export const ProfilePage: React.FC = () => {
 		};
 	}, []);
 
+	const getErrorMessage = (err: unknown, fallback: string) => {
+		if (typeof err === 'object' && err !== null && 'response' in err) {
+			const response = (err as { response?: { data?: { detail?: string } } }).response;
+			return response?.data?.detail ?? fallback;
+		}
+
+		return fallback;
+	};
+
 	const onSaveProfile = async (e?: React.FormEvent) => {
 		e?.preventDefault();
 		setSavingProfile(true);
@@ -61,8 +69,8 @@ export const ProfilePage: React.FC = () => {
 			const updated = await usersApi.updateProfile({ first_name: firstName, last_name: lastName });
 			setProfile(updated);
 			setMessage('Profile updated');
-		} catch (err: any) {
-			setError(err?.response?.data?.detail ?? 'Failed to update profile');
+		} catch (err: unknown) {
+			setError(getErrorMessage(err, 'Failed to update profile'));
 		} finally {
 			setSavingProfile(false);
 		}
@@ -86,8 +94,8 @@ export const ProfilePage: React.FC = () => {
 			setMessage('Password changed — you will be signed out');
 			// small delay so message is visible
 			setTimeout(() => logout(), 1200);
-		} catch (err: any) {
-			setError(err?.response?.data?.detail ?? 'Failed to change password');
+		} catch (err: unknown) {
+			setError(getErrorMessage(err, 'Failed to change password'));
 		} finally {
 			setChangingPassword(false);
 			setCurrentPassword('');
