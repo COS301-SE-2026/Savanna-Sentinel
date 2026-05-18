@@ -1,35 +1,31 @@
 """
 Integration tests for POST /v1/auth/register
 
-Hit the real database through the FastAPI ASGI app.
+Sends real HTTP requests to a running backend container.
 All test users use the 'test_' prefix so the autouse fixture can clean them up.
+BASE_URL defaults to http://localhost:8000 — override via env var in CI.
 """
 
 import asyncio
+import os
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-from app.core.config import settings
-from app.core.dependencies import get_db
-from app.main import app
+_BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel",
+)
 
-_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+_engine = create_async_engine(_DATABASE_URL, poolclass=NullPool)
 _Session = async_sessionmaker(_engine, expire_on_commit=False)
 
 
-async def _override_get_db():
-    async with _Session() as session:
-        yield session
-
-
-app.dependency_overrides[get_db] = _override_get_db
-
-
 def _client():
-    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    return AsyncClient(base_url=_BASE_URL)
 
 
 def _payload(**overrides):
@@ -53,7 +49,7 @@ def cleanup_test_users():
     asyncio.run(_delete())
 
 
-#register
+# register
 
 @pytest.mark.asyncio
 async def test_register_returns_201():
