@@ -42,6 +42,7 @@ jobs:
         run: |
           pip install -r backend/requirements.txt
           pip install ruff
+          pip install pytest-cov
 
       - name: Linter
         run: ruff check backend/
@@ -51,7 +52,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel
           JWT_SECRET: ci-secret-not-used-in-production
-        run: pytest backend/tests/unit/
+        run: pytest backend/tests/unit/ --cov=backend/app --cov-report=xml:coverage.xml --cov-report=term
 
       - name: Wait for backend to be ready
         run: |
@@ -69,6 +70,13 @@ jobs:
       - name: Tear down Docker services
         if: always()
         run: docker compose -f docker-compose.yml -p savanna-ci down --volumes
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
