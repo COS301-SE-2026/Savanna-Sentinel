@@ -1,7 +1,7 @@
 import AuthPage from "@/pages/AdminAuthAccount"
 import { http, HttpResponse } from "msw"
 import { setupServer } from "msw/node"
-import { authHandlers, mockUsers } from "./mocks/adminauthHandlers"
+import { authHandlers} from "./mocks/adminauthHandlers"
 import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
 
@@ -25,5 +25,16 @@ describe("Authpage - Pending Registrations", () => {
         expect(screen.getByText("analyst2")).toBeInTheDocument();
         expect(screen.getByText("John Doe")).toBeInTheDocument();
         expect(screen.getByText("Jane Smith")).toBeInTheDocument();
+    })
+    it("renders a fallback message if the incoming collection is empty", async () => {
+        server.use(
+            http.get("**/v1/users", () => {
+                return HttpResponse.json({results: []})
+            })
+        );
+
+        renderAuthPage();
+
+        expect(await screen.findByText(/no pending registrations found/i)).toBeInTheDocument();
     })
 })

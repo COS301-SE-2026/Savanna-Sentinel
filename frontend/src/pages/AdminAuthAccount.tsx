@@ -30,10 +30,6 @@ const AuthPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [pageError, setPageError] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchPendingUsers();
-    }, []);
-
     const fetchPendingUsers = async () => {
         setIsLoading(true);
         setPageError(null);
@@ -50,6 +46,12 @@ const AuthPage = () => {
             setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        Promise.resolve().then(() => {
+            fetchPendingUsers();
+        });
+    }, []);
 
     if(isLoading){
         return <div className="p-6 md:p-10 text-sm text-muted-foreground">Loading pending users...</div>
@@ -107,13 +109,14 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
             await usersApi.setUserStatus(user.id, true);
             refreshList(); //Refresh the list
         }
-        catch (error: any){
+        catch (error: unknown){
             console.error("Failed to activate user:", error);
 
-            if(error.response?.status == 401){
+            const err = error as { response?: { status?: number } };
+            if (err.response?.status === 401) {
                 setRowError("Permission denied. Cannot modify admins");
-            }
-            else{
+            } 
+            else {
                 setRowError("Failed to accept user");
             }
             setIsProcessing(false)
