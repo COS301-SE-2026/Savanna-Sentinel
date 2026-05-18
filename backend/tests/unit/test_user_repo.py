@@ -52,3 +52,34 @@ async def test_get_users_is_active_flag_works(db_session):
     assert results[1].username == "ranger3"
     assert results2[0].username == "ranger2"
     assert results2[1].username == "ranger4"
+
+async def test_get_users_role_filter_works(db_session):
+    ranger_id = str(uuid.uuid4())
+    ranger_id2 = str(uuid.uuid4())
+    analyst_id = str(uuid.uuid4())
+    liasion_id = str(uuid.uuid4())
+
+    ranger1 = User(id=ranger_id, username="ranger1", role="ranger", is_active=True, email="r1@test.com", first_name="Ranger", last_name="One", hashed_password="mocked_Hash")
+    ranger2 = User(id=ranger_id2, username="ranger2", role="ranger", is_active=True, email="r2@test.com", first_name="Ranger", last_name="Two", hashed_password="mocked_Hash")
+    analyst1 = User(id=analyst_id, username="analyst1", role="analyst", is_active=True, email="a1@test.com", first_name="Analyst", last_name="One", hashed_password="mocked_Hash")
+    liasion1 = User(id=liasion_id, username="liasion1", role="community_liaison", is_active=True, email="l1@test.com", first_name="Liasion", last_name="One", hashed_password="mocked_Hash")
+    
+    db_session.add_all([ranger1, ranger2, analyst1, liasion1])
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+
+    request_params_ranger = UsersRequest(page=1, page_size=10, is_active=True, role="ranger") 
+    ranger_results = await repo.get_users(request_params_ranger)
+
+    request_params_analyst = UsersRequest(page=1, page_size=10, is_active=True, role="analyst")
+    analyst_results = await repo.get_users(request_params_analyst)
+
+    assert len(ranger_results) == 2
+    assert ranger_results[0].username == "ranger1"
+    assert ranger_results[1].username == "ranger2"
+    assert ranger_results[0].role == "ranger"
+
+    assert len(analyst_results) == 1
+    assert analyst_results[0].username == "analyst1"
+    assert analyst_results[0].role == "analyst"
