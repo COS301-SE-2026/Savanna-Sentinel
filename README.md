@@ -6,7 +6,6 @@
 
 [![GitHub issues](https://img.shields.io/github/issues/COS301-SE-2026/Savanna-Sentinel)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)
 [![GitHub closed issues](https://img.shields.io/github/issues-closed/COS301-SE-2026/Savanna-Sentinel)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues?q=is%3Aissue+is%3Aclosed)
-[![GitHub raw issues](https://img.shields.io/github/issues-raw/COS301-SE-2026/Savanna-Sentinel)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)
 
 Wildlife conservation anti-poaching intelligence platform. Helps game reserve rangers, analysts, and community liaisons detect poaching hotspots, plan optimal patrols, and capture field data, even while offline.
 
