@@ -43,5 +43,29 @@ async def test_get_current_user_missing_id_in_token(mock_jwt_verify):
     assert e.value.status_code  == status.HTTP_401_UNAUTHORIZED
     assert "Token is missing user id" in e.value.detail
 
+@patch("app.core.dependencies.UserRepository")
+async def test_get_current_user_deactivated(mock_user_repo, mock_jwt_verify):
+    mock_token_body = MagicMock()
+    mock_token_body.id = "user-123"
+    mock_jwt_verify.return_value = mock_token_body
+
+    mock_user = User(
+        id="user-123", username="test", role="ranger", is_active=False, email="a@test.com", first_name="Test", last_name="User", hashed_password="HashedPassword"
+    )
+    mock_repo = MagicMock()
+    mock_repo.get_user_by_id = AsyncMock()
+    mock_repo.get_user_by_id.return_value = mock_user
+    mock_user_repo.return_value = mock_repo
+
+    credentials = create_mock_credentials()
+    mock_db = AsyncMock()
+
+    with pytest.raises(HTTPException) as e:
+        await get_current_user(credentials=credentials, db=mock_db)
+        
+    assert e.value.status_code == status.HTTP_403_FORBIDDEN
+    assert "User account has been deactivated" in e.value.detail
+
+
 
 
