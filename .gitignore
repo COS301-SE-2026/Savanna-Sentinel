@@ -50,3 +50,7 @@ uploads/
 # ML model artefacts
 *.pkl
 *.joblib
+
+# Coverage
+backend/coverage.xml
+frontend/coverage
