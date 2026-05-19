@@ -32,9 +32,20 @@ export const usersApi = {
         api.patch<UserResponse>(`/users/${userId}/status`, { 
             is_active: isActive 
         }).then((r) => r.data),
+
+    getActiveUsers: (): Promise<PaginatedUsersResponse> =>
+        api.get<PaginatedUsersResponse>("/users", {
+            params: {
+                is_active: true
+            }
+        }).then((r) => r.data),
     
     deleteUser: (user_id: string): Promise<UserResponse> =>
         api.delete<UserResponse>(`/admin/users/delete/${user_id}`)
-            .then((r) => r.data)
+            .then((r) => r.data),
 
+    changeUserRole: (userId: string, newRole: string): Promise<UserResponse> =>
+        api.patch<UserResponse>(`/users/${userId}/role`, {
+            new_role: newRole
+        }).then((r) => r.data),
 }
