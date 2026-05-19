@@ -23,7 +23,7 @@ function renderLoginPage(initialPath = "/login") {
   );
 }
 
-describe("LoginPage — Savana Sentinel", () => {
+describe("LoginPage - Savana Sentinel", () => {
 
   it("renders the logo, username field, password field, and Log In button", () => {
     renderLoginPage();
@@ -46,7 +46,7 @@ describe("LoginPage — Savana Sentinel", () => {
     expect(await screen.findByText(/password is required/i)).toBeInTheDocument();
   });
 
-  it("shows a generic error on 401 — no credential detail exposed (US1.3)", async () => {
+  it("shows a generic error on 401 - no credential detail exposed (US1.3)", async () => {
     renderLoginPage();
     await userEvent.type(screen.getByLabelText(/username/i), "baduser");
     await userEvent.type(screen.getByLabelText(/^password$/i), "wrongpass");

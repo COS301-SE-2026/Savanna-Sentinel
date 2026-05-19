@@ -26,7 +26,7 @@ export default function App() {
         
         
 
-        {/* Protected routes — AppLayout renders TopBar + BurgerMenu for all children */}
+        {/* Protected routes - AppLayout renders TopBar + BurgerMenu for all children */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />

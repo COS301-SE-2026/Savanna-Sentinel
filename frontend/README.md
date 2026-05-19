@@ -1,4 +1,4 @@
-# Savanna Sentinel — Frontend
+# Savanna Sentinel - Frontend
 
 React + TypeScript + Vite PWA. UI built with shadcn/ui and Tailwind CSS v4.
 
@@ -20,7 +20,7 @@ Components are copied into `src/components/ui/` and are fully editable.
 
 ## Using colours
 
-### Brand palette — general UI
+### Brand palette - general UI
 
 ```tsx
 <div className="bg-brand-dark-blue text-brand-off-white" />
@@ -28,7 +28,7 @@ Components are copied into `src/components/ui/` and are fully editable.
 <div className="border-brand-light-grey" />
 ```
 
-### shadcn system tokens — use these inside components
+### shadcn system tokens - use these inside components
 
 ```tsx
 <div className="bg-primary text-primary-foreground" />  {}
@@ -37,7 +37,7 @@ Components are copied into `src/components/ui/` and are fully editable.
 <div className="bg-sidebar text-sidebar-foreground" />  {}
 ```
 
-### Spot colours — alerts, heatmaps, risk scoring only
+### Spot colours - alerts, heatmaps, risk scoring only
 
 ```tsx
 <span className="text-spot-green" />   {}
