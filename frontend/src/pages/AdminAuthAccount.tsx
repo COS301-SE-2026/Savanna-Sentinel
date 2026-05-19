@@ -117,7 +117,7 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
                 setRowError("Permission denied. Cannot modify admins");
             } 
             else {
-                setRowError("Failed to accept user");
+                setRowError("Failed to accept user.");
             }
             setIsProcessing(false)
         }

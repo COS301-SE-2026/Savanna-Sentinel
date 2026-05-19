@@ -119,4 +119,40 @@ describe("Authpage - Pending Registrations", () => {
         expect(await screen.findByText(/permission denied. cannot modify admins/i)).toBeInTheDocument();
         expect(acceptButton).not.toBeDisabled();
     })
+    it("Displays an error message when accept call returns an error message", async() => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", {name: /ranger/i});
+        const acceptButton = within(userRow).getByRole("button", {name: /accept/i})
+
+        server.use(
+            http.patch("**/v1/users/:id/status", () => {
+                return new HttpResponse(null, { status: 500 });
+            })
+        );
+
+        await userEvent.click(acceptButton);
+
+        expect(await screen.findByText(/failed to accept user\./i));
+        expect(acceptButton).not.toBeDisabled();
+        expect(screen.getByText("ranger1")).toBeInTheDocument();
+    })
+    it("Displays an error message when reject call returns an error message", async() => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", {name: /analyst2/i});
+        const rejectButton = within(userRow).getByRole("button", {name: /reject/i})
+
+        server.use(
+            http.delete("**/admin/users/delete/:id", () => {
+                return new HttpResponse(null, { status: 500 });
+            })
+        );
+
+        await userEvent.click(rejectButton);
+
+        expect(await screen.findByText(/failed to reject user\./i)).toBeInTheDocument();
+        expect(rejectButton).not.toBeDisabled();
+        expect(screen.getByText("analyst2")).toBeInTheDocument();
+    })
 })
