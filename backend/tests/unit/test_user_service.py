@@ -42,3 +42,26 @@ async def test_switch_status_service_returns_none_when_user_not_found():
 
     assert result is None
     mock_repo.switch_status.assert_called_once_with(False, "fake_id")
+
+async def test_change_role_service_returns_updated_user():
+    mock_repo = MagicMock()
+    mock_user = MagicMock(id="user-1", username="ranger1", role="analyst")
+    mock_repo.update_role = AsyncMock(return_value=mock_user)
+
+    service = UserService(repo=mock_repo)
+
+    result = await service.change_role(user_id="user-1", new_role="analyst")
+
+    assert result is mock_user
+    mock_repo.update_role.assert_called_once_with("user-1", "analyst")
+
+async def test_change_role_service_returns_none_when_user_not_found():
+    mock_repo = MagicMock()
+    mock_repo.update_role = AsyncMock(return_value=None)
+
+    service = UserService(repo=mock_repo)
+
+    result = await service.change_role(user_id="nonexistent", new_role="ranger")
+
+    assert result is None
+    mock_repo.update_role.assert_called_once_with("nonexistent", "ranger")
