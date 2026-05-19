@@ -3,12 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 from app.core.dependencies import get_db, require_admin
-from app.schemas.user import UsersRequest, UsersResponse, UsersResultResponse, SetUsersStatusRequest
+from app.schemas.user import UsersRequest, UsersResponse, UsersResultResponse, SetUsersStatusRequest, RoleChangeRequest
 from app.services.user_service import UserService
 from app.repositories.user_repository import UserRepository
 from app.models.user import User
 
-router = APIRouter()
+router = APIRouter(tags=["users"])
 
 # Add exceptions here
 @router.get(
@@ -61,5 +61,24 @@ async def adminDeleteUser(user_id: str, db: AsyncSession=Depends(get_db), curren
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User Id does not exist"
+        )
+    return response_data
+
+@router.patch(
+    "/users/{user_id}/role",
+    response_model=UsersResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Change the role of a user"
+)
+async def changeUserRole(req: RoleChangeRequest, user_id: str, db: AsyncSession=Depends(get_db), current_admin: User = Depends(require_admin)):
+    repo = UserRepository(db)
+    service = UserService(repo)
+
+    response_data = await service.change_role(user_id, req.new_role.value)
+
+    if response_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User id does not exist"
         )
     return response_data
