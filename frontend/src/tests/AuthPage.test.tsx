@@ -72,4 +72,23 @@ describe("Authpage - Pending Registrations", () => {
         expect(screen.getByText("analyst2")).toBeInTheDocument();
 
     })
+        it("Refreshes the page when accept is clicked, and calls the status update endpoint", async () => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", {name: /analyst2/i});
+        const rejectButton = within(userRow).getByRole("button", {name: /reject/i})
+
+        server.use(
+            http.get("**/v1/users", () => {
+                return HttpResponse.json({results: [mockUsers.results[0]]})
+            })
+        );
+
+        await userEvent.click(rejectButton);
+        expect(rejectButton).toBeDisabled();
+
+        await waitFor(() => {
+            expect(screen.queryByText("analyst2")).not.toBeInTheDocument();
+        });
+    })
 })
