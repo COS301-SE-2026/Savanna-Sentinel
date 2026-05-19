@@ -1,10 +1,9 @@
 ```mermaid
 classDiagram
 
-    %% ── USER HIERARCHY ──────────────────────────────────────────────────────
+    %% ── USER ────────────────────────────────────────────────────────────────
 
     class User {
-        <<abstract>>
         +UUID id
         +String username
         +String email
@@ -15,45 +14,17 @@ classDiagram
         +DateTime created_at
     }
 
-    class Ranger {
-    }
+    %% ── DOMAIN SERVICES ─────────────────────────────────────────────────────
 
-    class Analyst {
-    }
-
-    class CommunityLiaison {
-    }
-
-    class Admin {
-    }
-
-    User <|-- Ranger
-    User <|-- Analyst
-    User <|-- CommunityLiaison
-    User <|-- Admin
-
-    %% ── SYSTEM SERVICES ─────────────────────────────────────────────────────
-
-    class DataIngestionController {
-    }
-
-    class AIRiskEngine {
+    class RiskEngine {
+        <<service>>
     }
 
     class PatrolPlanner {
-    }
-
-    class SyncService {
-    }
-
-    class Dashboard {
-        +Float patrol_coverage
-        +String outcomes
-        +String trends
+        <<service>>
     }
 
     %% ── GEOSPATIAL EVENT HIERARCHY ───────────────────────────────────────────
-    %% Covers CSV-imported historical data; also created by FieldReports and TipOffs
 
     class GeospatialEvent {
         <<abstract>>
@@ -78,19 +49,11 @@ classDiagram
         +Float distance_covered
     }
 
-    class TipOff {
-        +UUID id
-        +Enum report_type
-        +String description
-        +DateTime occurred_at
-        +Geography~Point~ location
-    }
-
     GeospatialEvent <|-- Incident
     GeospatialEvent <|-- Sighting
     GeospatialEvent <|-- PatrolTrack
 
-    %% ── FIELD REPORT (PWA offline capture) ──────────────────────────────────
+    %% ── FIELD REPORT ────────────────────────────────────────────────────────
 
     class FieldReport {
         +UUID id
@@ -104,6 +67,16 @@ classDiagram
         +DateTime deleted_at
     }
 
+    %% ── TIP-OFF ─────────────────────────────────────────────────────────────
+
+    class TipOff {
+        +UUID id
+        +Enum report_type
+        +String description
+        +DateTime occurred_at
+        +Geography~Point~ location
+    }
+
     %% ── MEDIA ───────────────────────────────────────────────────────────────
 
     class Photo {
@@ -112,17 +85,6 @@ classDiagram
         +DateTime uploaded_at
     }
 
-    %% ── DATA INGESTION ──────────────────────────────────────────────────────
-
-    class UploadJob {
-        +UUID id
-        +Enum data_type
-        +Enum status
-        +Int rows_imported
-        +Int rows_failed
-        +DateTime queued_at
-        +DateTime completed_at
-    }
 
     %% ── RISK ENGINE ─────────────────────────────────────────────────────────
 
@@ -147,16 +109,9 @@ classDiagram
 
     %% ── PATROL PLANNING ─────────────────────────────────────────────────────
 
-    class ResourceConstraint {
-        +Geography~Point~ start_point
-        +Float max_time
-        +Float max_fuel
-    }
-
     class PatrolRoute {
         +UUID id
         +UUID request_id
-        +UUID requested_by
         +Geography~Point~ start_point
         +Float max_time
         +Float max_fuel
@@ -181,45 +136,29 @@ classDiagram
     %% ── RELATIONSHIPS ───────────────────────────────────────────────────────
 
     %% User interactions
-    Analyst --> DataIngestionController : uses
-    Ranger "1" --> "*" FieldReport : captures
-    Ranger --> PatrolPlanner : requests route
-    CommunityLiaison "1" --> "*" TipOff : submits
-    Analyst --> Dashboard : views
-    Admin --> Dashboard : views
-    Admin "1" --> "*" AuditLog : recorded in
+    User "1" --> "*" FieldReport : captures
+    User "1" --> "*" TipOff : submits
+    User "1" --> "*" PatrolRoute : requests
+    User "1" --> "*" AuditLog : actor
 
-    %% Data ingestion pipeline
-    DataIngestionController ..> GeospatialEvent : validates and uploads
-    DataIngestionController --> UploadJob : creates
+    %% FieldReport and TipOff produce geospatial events
+    FieldReport "1" --> "0..1" Incident : creates
+    FieldReport "1" --> "0..1" Sighting : creates
+    TipOff "1" --> "0..1" Incident : creates
+    TipOff "1" --> "0..1" Sighting : creates
 
-    %% AI risk engine
-    AIRiskEngine ..> GeospatialEvent : consumes
-    AIRiskEngine --> RiskHeatmap : generates
+    %% Risk engine domain service
+    RiskEngine ..> GeospatialEvent : processes
+    RiskEngine --> RiskHeatmap : produces
 
-    %% Patrol planning
-    PatrolPlanner ..> RiskHeatmap : consumes
-    PatrolPlanner ..> ResourceConstraint : consumes
+    %% Patrol planner domain service
+    PatrolPlanner ..> RiskHeatmap : uses
     PatrolPlanner --> PatrolRoute : generates
 
-    %% Offline sync
-    SyncService ..> FieldReport : syncs and resolves conflicts
-
-    %% FieldReport creates a geospatial event (incident xor sighting based on report_type)
-    FieldReport "1" --> "0..1" Incident : creates (if incident)
-    FieldReport "1" --> "0..1" Sighting : creates (if sighting)
-
-    %% TipOff creates a geospatial event (incident xor sighting based on report_type)
-    TipOff "1" --> "0..1" Incident : creates (if incident)
-    TipOff "1" --> "0..1" Sighting : creates (if sighting)
-
     %% Risk heatmap structure
-    RiskHeatmap "1" *-- "*" GridCell : divided into
-    GridCell "1" *-- "*" ExplainabilityMetric : clarified by
+    RiskHeatmap "1" *-- "*" GridCell : contains
+    GridCell "1" *-- "*" ExplainabilityMetric : clarifies
 
-    %% Photo evidence linked to geospatial events
-    GeospatialEvent "1" --> "*" Photo : optionally includes
-
-    %% Field report linked to patrol route
-    FieldReport "*" --> "0..1" PatrolRoute : linked to
+    %% Photo evidence
+    GeospatialEvent "1" --> "*" Photo : includes
 ```

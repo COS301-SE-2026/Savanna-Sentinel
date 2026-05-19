@@ -107,18 +107,18 @@ Password recovery requires the system to dispatch a time-limited reset link to t
 
 ```mermaid
 flowchart TD
-    User(["User\nRanger · Analyst · Admin · Community Liaison"])
+    User
 
     subgraph Proxy["Reverse Proxy - TLS / HTTPS Enforcement"]
     end
 
     subgraph PL["Presentation Layer - PWA Client"]
-        MapUI["Map UI Module\nHeatmap · Routes · Time Slider · Filters"]
-        Core["PWA Core\nService Worker · Local Database · Background Sync"]
-        Dash["Dashboard Module\nAnalytics · Explainability Panel"]
+        MapUI["Map UI Module\nHeatmap - Routes - Time Slider - Filters"]
+        Core["PWA Core\nService Worker - Local Database - Background Sync"]
+        Dash["Dashboard Module\nAnalytics - Explainability Panel"]
     end
 
-    subgraph AL["Application Layer - REST API  /v1/..."]
+    subgraph AL["Application Layer]
         Auth["Auth & Access Control Service"]
         Ingest["Data Ingestion Controller"]
         Sync["Sync Service"]
@@ -135,7 +135,7 @@ flowchart TD
     subgraph DL["Data Layer"]
         DB[("Primary Database\nRelational + Spatial Extension")]
         Obj[("Object Storage")]
-        Mem[("In-Memory Store\nCache + Queue Broker")]
+        Mem[("In Memory Store\nCache + Queue Broker")]
     end
 
     Email["Email Service\n(External Relay)"]
