@@ -29,3 +29,7 @@ class UserService:
             return None
         
         return results
+
+    async def change_role(self, user_id: str, new_role: str):
+        result = await self.repo.update_role(user_id, new_role)
+        return result
