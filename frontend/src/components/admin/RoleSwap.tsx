@@ -110,21 +110,20 @@ export default function RoleSwap() {
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
-  const fetchUsers = async (showLoader = false) => {
-    if (showLoader) setIsLoading(true);
-    setPageError(null);
+  const fetchUsers = async () => {
     try {
       const data = await usersApi.getActiveUsers();
       setUsers(data.results);
     } catch {
-      setPageError("Failed to load users.");
-    } finally {
-      setIsLoading(false);
+      // silent on refresh
     }
   };
 
   useEffect(() => {
-    fetchUsers(true);
+    usersApi.getActiveUsers()
+      .then((data) => { setUsers(data.results); })
+      .catch(() => setPageError("Failed to load users."))
+      .finally(() => setIsLoading(false));
   }, []);
 
   if (isLoading) {
