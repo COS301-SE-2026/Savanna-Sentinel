@@ -1,10 +1,10 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { describe, beforeAll, afterAll, afterEach, it, expect, vi } from "vitest";
+import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RoleSwap from "@/components/admin/RoleSwap";
-import { roleSwapHandlers, mockActiveUsers } from "./mocks/roleSwapHandlers";
+import { roleSwapHandlers } from "./mocks/roleSwapHandlers";
 
 const server = setupServer(...roleSwapHandlers);
 
