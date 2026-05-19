@@ -20,13 +20,22 @@ def _require_secret_key() -> str:
     return SECRET_KEY
 
 def encode(body: dict) -> str:
+    now = datetime.now(timezone.utc)
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    body_with_exp = body.copy()
-    body_with_exp["exp"] = int(expire.timestamp())
+    body_with_claims = body.copy()
+    body_with_claims["exp"] = int(expire.timestamp())
+    body_with_claims["iat"] = int(now.timestamp())
+    body_with_claims["jti"] = body.get("jti") or str(uuid.uuid4())
+
+    raw_id = body.get("id") or body.get("sub")
+    if raw_id is None:
+        raise ValueError("Access Token Generation failed: 'id' or 'sub' is missing from payload data.")
+    
+    body_with_claims["sub"] = str(raw_id)
 
     try:
-        validated_data = Token_Body(**body_with_exp)
+        validated_data = Token_Body(**body_with_claims)
         return jwt.encode(validated_data.model_dump(), _require_secret_key(), algorithm=ALGORITHM)
     except ValidationError as e:
         raise ValueError(f"Access Token Generation failed: {e.errors()}")
@@ -61,14 +70,14 @@ def decode(token):
         print(f"Invalid token sequence: {e}")
         return None
 
-def verify(token):
+def verify(token) -> Token_Body:
     payload = decode(token)
     if not payload:
         return None
     try:
         return Token_Body(**payload)
     except ValidationError as e:
-        print("Token payload structure is corrupt: {e}")
+        print(f"Token payload structure is corrupt: {e}")
         return None
     
 def verify_refresh(token):
