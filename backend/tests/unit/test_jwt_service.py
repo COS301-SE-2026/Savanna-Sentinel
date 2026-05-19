@@ -30,7 +30,7 @@ def test_encode_invalid_data_raises_validation_error():
     """Test that passing invalid data types raises a ValueError"""
 
     bad_data = {
-        "id": "not-an-int",
+        "ids": "not-an-int",
         "username": "Bam",
         "email": "bad-email",
         "is_active": True
