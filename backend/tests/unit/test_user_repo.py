@@ -203,3 +203,26 @@ async def test_admin_delete_user_not_found(db_session):
     result = await repo.admin_delete(user_id=no_user_id)
 
     assert result is None
+
+async def test_update_role_success(db_session):
+    user_id = str(uuid.uuid4())
+    test_user = User(
+        id=user_id, username="role_user", role="ranger", is_active=True,
+        email="role@test.com", first_name="Role", last_name="User", hashed_password="mocked_hash"
+    )
+
+    db_session.add(test_user)
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    updated = await repo.update_role(user_id=user_id, new_role="analyst")
+
+    assert updated is not None
+    assert updated.role == "analyst"
+    await db_session.refresh(test_user)
+    assert test_user.role == "analyst"
+
+async def test_update_role_user_not_found(db_session):
+    repo = UserRepository(db_session)
+    result = await repo.update_role(user_id=str(uuid.uuid4()), new_role="analyst")
+    assert result is None
