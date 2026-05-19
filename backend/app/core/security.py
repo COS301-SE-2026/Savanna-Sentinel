@@ -121,7 +121,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Constant-time comparison — safe against timing attacks.
+    Constant-time comparison - safe against timing attacks.
     Always call this even when the user does not exist (use a dummy hash)
     so the response time does not reveal whether an email is registered.
     """

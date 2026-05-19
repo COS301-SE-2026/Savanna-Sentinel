@@ -28,7 +28,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"}
         )
     
-    user_id = getattr(token_body, "id", None) or getattr(token_body, "sub", None)
+    user_id = token_body.sub
 
     if not user_id:
         raise HTTPException(

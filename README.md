@@ -1,4 +1,7 @@
 # Savanna Sentinel
+Wildlife conservation anti-poaching intelligence platform. Helps game reserve rangers, analysts, and community liaisons detect poaching hotspots, plan optimal patrols, and capture field data, even while offline.
+
+**SIGILL - Savanna Sentinel - Wildlife conservation anti-poaching intelligence platform.**
 
 [![Codecov](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel/branch/dev/graph/badge.svg)](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel)
 [![Backend CI pipeline](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/backend-ci.yml)
@@ -8,7 +11,20 @@
 [![GitHub closed issues](https://img.shields.io/github/issues-closed/COS301-SE-2026/Savanna-Sentinel)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues?q=is%3Aissue+is%3Aclosed)
 [![GitHub raw issues](https://img.shields.io/github/issues-raw/COS301-SE-2026/Savanna-Sentinel)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)
 
-Wildlife conservation anti-poaching intelligence platform. Helps game reserve rangers, analysts, and community liaisons detect poaching hotspots, plan optimal patrols, and capture field data, even while offline.
+## Documentation
+
+- [Software Requirements Specification (SRS)](https://github.com/COS301-SE-2026/Savanna-Sentinel/blob/main/docs/SRS.md)
+- [GitHub Project Board](https://github.com/orgs/COS301-SE-2026/projects/72/)
+
+## Team
+
+| Name | Role | GitHub | LinkedIn |
+|---|---|---|---|
+| David van Rooijen | Project Lead | [@davidvrjn](https://github.com/davidvrjn) | [david-van-rooijen](https://www.linkedin.com/in/david-van-rooijen/) |
+| Stephan Kritzinger | Developer | [@Stephan-Kritzinger](https://github.com/Stephan-Kritzinger) | [stephan-kritzinger](https://www.linkedin.com/in/stephan-kritzinger-134702375/) |
+| Daniel Cohen | Developer | [@Sashumi-6](https://github.com/Sashumi-6) | [daniel-cohen](https://www.linkedin.com/in/daniel-cohen-057640235) |
+| Michael Koch | Developer | [@MichaelKoch23](https://github.com/MichaelKoch23) | [michael-koch](https://www.linkedin.com/in/michael-koch-6a8599240/) |
+| Dandré Nel | Developer | [@DandreNel7](https://github.com/DandreNel7) | [dandré-nel](https://www.linkedin.com/in/dandré-nel-065b70183/) |
 
 ## Requirements
 
@@ -46,8 +62,8 @@ All seed accounts use the password **`SentinelSeed1!`**
 
 The `docker-compose.override.yml` is applied automatically. It mounts source directories into the containers so changes take effect without rebuilding.
 
-- **Backend** — FastAPI with `--reload`: edit files in `backend/` and the server restarts.
-- **Frontend** — Vite dev server on port 5173: edit files in `frontend/src/` and the browser hot-reloads.
+- **Backend** - FastAPI with `--reload`: edit files in `backend/` and the server restarts.
+- **Frontend** - Vite dev server on port 5173: edit files in `frontend/src/` and the browser hot-reloads.
 
 ### Running services individually
 
@@ -101,8 +117,8 @@ npm test
 
 The database is initialised automatically on the first `docker compose up` using the scripts in `backend/init-db/`:
 
-1. `01_schema.sql` — creates all tables and types
-2. `02_seed.sql` — inserts one seed account per role
+1. `01_schema.sql` - creates all tables and types
+2. `02_seed.sql` - inserts one seed account per role
 
 To reset the database and re-run init scripts:
 

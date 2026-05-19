@@ -1,9 +1,10 @@
 import AuthPage from "@/pages/AdminAuthAccount"
 import { http, HttpResponse } from "msw"
 import { setupServer } from "msw/node"
-import { authHandlers} from "./mocks/adminauthHandlers"
+import { authHandlers, mockUsers} from "./mocks/adminauthHandlers"
 import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, within, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 
 const server = setupServer(...authHandlers);
 
@@ -36,5 +37,122 @@ describe("Authpage - Pending Registrations", () => {
         renderAuthPage();
 
         expect(await screen.findByText(/no pending registrations found/i)).toBeInTheDocument();
+    })
+    it("Renders an alert banner when the fetch fails", async () => {
+        server.use(
+            http.get("**/v1/users", () => {
+                return new HttpResponse(null, {status: 500})
+            })
+        )
+
+        renderAuthPage();
+
+        expect(await screen.findByText(/failed to load pending registrations/i)).toBeInTheDocument();
+
+    })
+    it("Refreshes the page when accept is clicked, and calls the status update endpoint", async () => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", {name: /ranger/i});
+        const acceptButton = within(userRow).getByRole("button", {name: /accept/i})
+
+        server.use(
+            http.get("**/v1/users", () => {
+                return HttpResponse.json({results: [mockUsers.results[1]]})
+            })
+        );
+
+        await userEvent.click(acceptButton);
+        expect(acceptButton).toBeDisabled();
+
+        await waitFor(() => {
+            expect(screen.queryByText("ranger1")).not.toBeInTheDocument();
+        });
+
+        expect(screen.getByText("analyst2")).toBeInTheDocument();
+
+    })
+    it("Refreshes the page when reject is clicked, and calls the status update endpoint", async () => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", {name: /analyst2/i});
+        const rejectButton = within(userRow).getByRole("button", {name: /reject/i})
+
+        server.use(
+            http.get("**/v1/users", () => {
+                return HttpResponse.json({results: [mockUsers.results[0]]})
+            })
+        );
+
+        await userEvent.click(rejectButton);
+        expect(rejectButton).toBeDisabled();
+
+        await waitFor(() => {
+            expect(screen.queryByText("analyst2")).not.toBeInTheDocument();
+        });
+    })
+    it("Displays a warning when an admin somehow ends up in the list", async() => {
+        server.use(
+            http.get("**/v1/users", () => {
+                return HttpResponse.json({
+                results: [
+                    {
+                        id: "admin-error-id",
+                        username: "illegal_admin",
+                        email: "admin@test.com",
+                        first_name: "Test",
+                        last_name: "User",
+                        role: "admin",
+                        is_active: false,
+                        created_at: "2026-05-14T12:00:00.000Z",
+                    },
+                ],
+                });
+            })
+        );
+
+        renderAuthPage();
+
+        const acceptButton = await screen.findByRole("button", {name: /accept/i});
+        await userEvent.click(acceptButton);
+
+        expect(await screen.findByText(/permission denied. cannot modify admins/i)).toBeInTheDocument();
+        expect(acceptButton).not.toBeDisabled();
+    })
+    it("Displays an error message when accept call returns an error message", async() => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", {name: /ranger/i});
+        const acceptButton = within(userRow).getByRole("button", {name: /accept/i})
+
+        server.use(
+            http.patch("**/v1/users/:id/status", () => {
+                return new HttpResponse(null, { status: 500 });
+            })
+        );
+
+        await userEvent.click(acceptButton);
+
+        expect(await screen.findByText(/failed to accept user\./i));
+        expect(acceptButton).not.toBeDisabled();
+        expect(screen.getByText("ranger1")).toBeInTheDocument();
+    })
+    it("Displays an error message when reject call returns an error message", async() => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", {name: /analyst2/i});
+        const rejectButton = within(userRow).getByRole("button", {name: /reject/i})
+
+        server.use(
+            http.delete("**/admin/users/delete/:id", () => {
+                return new HttpResponse(null, { status: 500 });
+            })
+        );
+
+        await userEvent.click(rejectButton);
+
+        expect(await screen.findByText(/failed to reject user\./i)).toBeInTheDocument();
+        expect(rejectButton).not.toBeDisabled();
+        expect(screen.getByText("analyst2")).toBeInTheDocument();
     })
 })

@@ -32,7 +32,8 @@ async def test_get_current_user_invalid_token(mock_jwt_verify):
     assert "Invalid access token" in e.value.detail
 
 async def test_get_current_user_missing_id_in_token(mock_jwt_verify):
-    mock_token_body = MagicMock(spec=[])
+    mock_token_body = MagicMock()
+    mock_token_body.sub = None
     mock_jwt_verify.return_value = mock_token_body
     credentials = create_mock_credentials()
     mock_db = AsyncMock()

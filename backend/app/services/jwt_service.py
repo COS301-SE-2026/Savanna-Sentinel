@@ -70,7 +70,7 @@ def decode(token):
         print(f"Invalid token sequence: {e}")
         return None
 
-def verify(token):
+def verify(token) -> Token_Body:
     payload = decode(token)
     if not payload:
         return None
