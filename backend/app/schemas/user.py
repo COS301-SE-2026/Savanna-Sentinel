@@ -31,3 +31,6 @@ class UsersRequest(BaseModel):
 class SetUsersStatusRequest(BaseModel):
     is_active: bool
 
+class RoleChangeRequest(BaseModel):
+    new_role: RequestedRole
+
