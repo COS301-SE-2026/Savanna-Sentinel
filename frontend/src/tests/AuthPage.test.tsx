@@ -72,7 +72,7 @@ describe("Authpage - Pending Registrations", () => {
         expect(screen.getByText("analyst2")).toBeInTheDocument();
 
     })
-        it("Refreshes the page when accept is clicked, and calls the status update endpoint", async () => {
+    it("Refreshes the page when reject is clicked, and calls the status update endpoint", async () => {
         renderAuthPage();
 
         const userRow = await screen.findByRole("row", {name: /analyst2/i});
@@ -90,5 +90,33 @@ describe("Authpage - Pending Registrations", () => {
         await waitFor(() => {
             expect(screen.queryByText("analyst2")).not.toBeInTheDocument();
         });
+    })
+    it("Displays a warning when an admin somehow ends up in the list", async() => {
+        server.use(
+            http.get("**/v1/users", () => {
+                return HttpResponse.json({
+                results: [
+                    {
+                        id: "admin-error-id",
+                        username: "illegal_admin",
+                        email: "admin@test.com",
+                        first_name: "Test",
+                        last_name: "User",
+                        role: "admin",
+                        is_active: false,
+                        created_at: "2026-05-14T12:00:00.000Z",
+                    },
+                ],
+                });
+            })
+        );
+
+        renderAuthPage();
+
+        const acceptButton = await screen.findByRole("button", {name: /accept/i});
+        await userEvent.click(acceptButton);
+
+        expect(await screen.findByText(/permission denied. cannot modify admins/i)).toBeInTheDocument();
+        expect(acceptButton).not.toBeDisabled();
     })
 })
