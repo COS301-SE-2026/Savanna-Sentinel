@@ -132,3 +132,25 @@ async def test_change_role_to_all_valid_roles(admin_token, target_user_id):
             )
             assert r.status_code == 200, f"role={role} got {r.status_code}"
             assert r.json()["role"] == role
+
+
+@pytest.mark.asyncio
+async def test_change_role_to_admin_rejected_422(admin_token, target_user_id):
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/users/{target_user_id}/role",
+            json={"new_role": "admin"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_change_role_user_not_found_404(admin_token):
+    async with _client() as c:
+        r = await c.patch(
+            "/v1/users/00000000-0000-0000-0000-000000000000/role",
+            json={"new_role": "analyst"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 404
