@@ -154,3 +154,24 @@ async def test_change_role_user_not_found_404(admin_token):
             headers={"Authorization": f"Bearer {admin_token}"},
         )
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_change_role_non_admin_forbidden_403(ranger_token, target_user_id):
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/users/{target_user_id}/role",
+            json={"new_role": "analyst"},
+            headers={"Authorization": f"Bearer {ranger_token}"},
+        )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_change_role_no_token_returns_403():
+    async with _client() as c:
+        r = await c.patch(
+            "/v1/users/00000000-0000-0000-0000-000000000000/role",
+            json={"new_role": "analyst"},
+        )
+    assert r.status_code in (401, 403)
