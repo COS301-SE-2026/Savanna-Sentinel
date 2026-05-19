@@ -8,7 +8,7 @@ from typing import Optional
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.security import decode_token
+from app.core.security import decode_token, JWTError
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.auth import RegisterRequest
@@ -60,8 +60,10 @@ class UserRepository:
 
     async def revoke_refresh_token(self, token: str) -> None:
         """Mark one refresh token as revoked."""
-        
-        payload = decode_token(token)
+        try:
+            payload = decode_token(token)
+        except JWTError:
+            return
         stmt = update(RefreshToken).where(RefreshToken.jti == uuid.UUID(payload["jti"])).values(
             revoked_at=datetime.now(timezone.utc)
         )
