@@ -57,7 +57,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     label: "Admin",
-    path: "/admin/auth",
+    path: "/admin",
     icon: ShieldCheck,
     roles: ["admin"],
   },

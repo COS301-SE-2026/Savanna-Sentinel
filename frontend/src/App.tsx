@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
-import AuthPage from "@/pages/AdminAuthAccount";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
 
@@ -13,7 +12,7 @@ import DashboardPage from "@/pages/DashboardPage";
 // import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
 // import IngestionPage from "@/pages/IngestionPage";
 // import TipoffPage from "@/pages/TipoffPage";
-// import AdminPage from "@/pages/AdminPage";
+import AdminPage from "@/pages/AdminPage";
 // import ProfilePage from "@/pages/ProfilePage";
 
 export default function App() {
@@ -31,13 +30,12 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/admin/auth" element={<AuthPage />} />
+            <Route path="/admin" element={<AdminPage />} />
             {/* <Route path="/map" element={<MapPage />} /> */}
             {/* <Route path="/reports" element={<ReportsPage />} /> */}
             {/* <Route path="/patrol" element={<PatrolPlannerPage />} /> */}
             {/* <Route path="/ingestion" element={<IngestionPage />} /> */}
             {/* <Route path="/tipoffs" element={<TipoffPage />} /> */}
-            {/* <Route path="/admin" element={<AdminPage />} /> */}
             {/* <Route path="/profile" element={<ProfilePage />} /> */}
           </Route>
         </Route>
