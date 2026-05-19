@@ -105,3 +105,30 @@ async def target_user_id():
             requested_role="ranger",
         ))
     return r.json()["id"]
+
+# Role swop tests
+
+@pytest.mark.asyncio
+async def test_change_role_success(admin_token, target_user_id):
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/users/{target_user_id}/role",
+            json={"new_role": "analyst"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 200
+    assert r.json()["role"] == "analyst"
+    assert r.json()["id"] == target_user_id
+
+
+@pytest.mark.asyncio
+async def test_change_role_to_all_valid_roles(admin_token, target_user_id):
+    async with _client() as c:
+        for role in ("analyst", "community_liaison", "ranger"):
+            r = await c.patch(
+                f"/v1/users/{target_user_id}/role",
+                json={"new_role": role},
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+            assert r.status_code == 200, f"role={role} got {r.status_code}"
+            assert r.json()["role"] == role
