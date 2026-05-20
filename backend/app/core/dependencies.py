@@ -6,7 +6,6 @@ from app.models.user import User
 from app.services.jwt_service import verify
 from app.repositories.user_repository import UserRepository
 from app.core.database import AsyncSessionLocal
-from app.repositories.user_repository import UserRepository
 
 security_scheme = HTTPBearer()
 
