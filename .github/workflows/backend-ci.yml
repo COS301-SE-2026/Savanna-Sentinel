@@ -52,7 +52,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel
           JWT_SECRET: ci-secret-not-used-in-production
-        run: pytest backend/tests/unit/ --cov=backend/app --cov-report=xml:coverage.xml --cov-report=term
+        run: pytest backend/tests/unit/ --cov=backend/app --cov-report=xml:backend/unit-coverage.xml --cov-report=term
 
       - name: Wait for backend to be ready
         run: |
@@ -65,7 +65,7 @@ jobs:
         env:
           BASE_URL: http://localhost:8000
           DATABASE_URL: postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel
-        run: pytest backend/tests/integration/
+        run: pytest backend/tests/integration/ --cov=backend/app --cov-report=xml:backend/int-coverage.xml --cov-report=term
 
       - name: Tear down Docker services
         if: always()
@@ -74,7 +74,9 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          files: coverage.xml
+          files: |
+            backend/unit-coverage.xml
+            backend/int-coverage.xml
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
