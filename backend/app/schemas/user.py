@@ -1,7 +1,13 @@
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
+from pydantic import BaseModel, Field, ConfigDict
 from app.schemas.auth import RequestedRole
 from typing import Optional
+
+class UpdateProfileRequest(BaseModel):
+	first_name: str | None = None
+	last_name: str | None = None
+	current_password: str | None = None
+	new_password: str | None = None
 
 class UsersResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -14,7 +20,6 @@ class UsersResponse(BaseModel):
     role: str
     is_active: bool
     created_at: datetime
-
 
 class UsersResultResponse(BaseModel):
     total: int
@@ -33,4 +38,3 @@ class SetUsersStatusRequest(BaseModel):
 
 class RoleChangeRequest(BaseModel):
     new_role: RequestedRole
-

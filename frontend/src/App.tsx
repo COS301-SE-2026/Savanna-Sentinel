@@ -13,7 +13,7 @@ import DashboardPage from "@/pages/DashboardPage";
 // import IngestionPage from "@/pages/IngestionPage";
 // import TipoffPage from "@/pages/TipoffPage";
 import AdminPage from "@/pages/AdminPage";
-// import ProfilePage from "@/pages/ProfilePage";
+import ProfilePage from "@/pages/ProfilePage";
 
 export default function App() {
   return (
@@ -36,7 +36,7 @@ export default function App() {
             {/* <Route path="/patrol" element={<PatrolPlannerPage />} /> */}
             {/* <Route path="/ingestion" element={<IngestionPage />} /> */}
             {/* <Route path="/tipoffs" element={<TipoffPage />} /> */}
-            {/* <Route path="/profile" element={<ProfilePage />} /> */}
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Route>
 

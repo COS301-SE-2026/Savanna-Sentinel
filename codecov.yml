@@ -1,0 +1,8 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 75%   # The overall proj cov at least 75%
+    patch:
+      default:
+        target: 75%   # New code in a PR - hit at least 75%

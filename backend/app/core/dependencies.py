@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.services.jwt_service import verify
 from app.repositories.user_repository import UserRepository
-
 from app.core.database import AsyncSessionLocal
 
 security_scheme = HTTPBearer()

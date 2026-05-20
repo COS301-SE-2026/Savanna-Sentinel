@@ -30,6 +30,13 @@ class UserRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_id(self, user_id: str) -> Optional[User]:
+        """Return the matching user row by primary key."""
+
+        stmt = select(User).where(User.id == str(user_id))
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def save_refresh_token(self, user_id: str, token: str) -> None:
         """Persist a refresh token in the refresh_tokens table."""
         
@@ -103,6 +110,14 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+
+    async def save_user(self, user: User) -> User:
+        """Persist an in-memory user instance and refresh it from the DB."""
+
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+    
     async def get_users(self, req: UsersRequest ) -> list[UsersResponse]:
         stmt = select(User).where(User.role != "admin")
 

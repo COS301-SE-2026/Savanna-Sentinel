@@ -1,14 +1,33 @@
+"""User profile endpoints for authenticated users."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from app.core.dependencies import get_current_user, get_db, require_admin
+from app.repositories.user_repository import UserRepository
+from app.schemas.user import UpdateProfileRequest, UsersRequest, UsersResponse, UsersResultResponse, SetUsersStatusRequest, RoleChangeRequest
+from app.services.user_service import UserService
+from app.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
-from app.core.dependencies import get_db, require_admin
-from app.schemas.user import UsersRequest, UsersResponse, UsersResultResponse, SetUsersStatusRequest, RoleChangeRequest
-from app.services.user_service import UserService
-from app.repositories.user_repository import UserRepository
-from app.models.user import User
-
 router = APIRouter(tags=["users"])
+
+@router.get("/users/me",
+            response_model=UsersResponse,
+            summary="Get the authenticated user's profile"
+)
+async def get_me(current_user=Depends(get_current_user), db=Depends(get_db)):
+	service = UserService(UserRepository(db))
+	user = await service.get_me(current_user)
+	return UsersResponse.model_validate(user)
+
+@router.patch("/users/me",
+              response_model=UsersResponse,
+              summary="Update the authenticated user's profile"
+)
+async def update_me(body: UpdateProfileRequest, current_user=Depends(get_current_user), db=Depends(get_db)):
+	service = UserService(UserRepository(db))
+	user = await service.update_me(current_user, body)
+	return UsersResponse.model_validate(user)
+
 
 # Add exceptions here
 @router.get(
