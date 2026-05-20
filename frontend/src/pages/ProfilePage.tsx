@@ -52,11 +52,14 @@ export const ProfilePage: React.FC = () => {
 
 	const getErrorMessage = (err: unknown, fallback: string) => {
 		if (typeof err === 'object' && err !== null) {
-			const e = err as any;
-			if (e.response?.data) {
-				return e.response.data.detail ?? e.response.data.message ?? fallback;
+			type ErrWithResponse = { response?: { data?: unknown }; message?: string };
+			const e = err as ErrWithResponse;
+			if (e.response && typeof e.response === 'object' && e.response.data && typeof e.response.data === 'object') {
+				const data = e.response.data as Record<string, unknown>;
+				if (typeof data.detail === 'string') return data.detail;
+				if (typeof data.message === 'string') return data.message;
 			}
-			if (e.message) return e.message;
+			if (typeof e.message === 'string') return e.message;
 		}
 
 		return fallback;
