@@ -74,7 +74,7 @@ async def test_get_me_returns_profile():
 	assert data["username"] == "test_profile_user"
 	assert data["email"] == "test_profile_user@example.com"
 	assert data["first_name"] == "Test"
-	assert data["last_name"] == "Profile"
+	assert data["last_name"] == "Ranger"
 	assert data["role"] == "ranger"
 	assert data["is_active"] is True
 	assert "created_at" in data
