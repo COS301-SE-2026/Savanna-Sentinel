@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { usersApi } from '@/services/usersApi';
-import type { UserProfile } from '@/services/usersApi';
+import type { UserResponse } from '@/services/usersApi';
 import { useAuthStore } from '@/store/authStore';
 
 const BrandHeader: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
@@ -13,7 +13,7 @@ const BrandHeader: React.FC<{ title: string; subtitle?: string }> = ({ title, su
 );
 
 export const ProfilePage: React.FC = () => {
-	const [profile, setProfile] = useState<UserProfile | null>(null);
+	const [profile, setProfile] = useState<UserResponse | null>(null);
 	const [firstName, setFirstName] = useState('');
 	const [lastName, setLastName] = useState('');
 
@@ -51,9 +51,12 @@ export const ProfilePage: React.FC = () => {
 	}, []);
 
 	const getErrorMessage = (err: unknown, fallback: string) => {
-		if (typeof err === 'object' && err !== null && 'response' in err) {
-			const response = (err as { response?: { data?: { detail?: string } } }).response;
-			return response?.data?.detail ?? fallback;
+		if (typeof err === 'object' && err !== null) {
+			const e = err as any;
+			if (e.response?.data) {
+				return e.response.data.detail ?? e.response.data.message ?? fallback;
+			}
+			if (e.message) return e.message;
 		}
 
 		return fallback;
@@ -66,7 +69,13 @@ export const ProfilePage: React.FC = () => {
 		setError(null);
 
 		try {
-			const updated = await usersApi.updateProfile({ first_name: firstName, last_name: lastName });
+			const payload: { first_name?: string; last_name?: string } = {};
+			const fn = firstName.trim();
+			const ln = lastName.trim();
+			if (fn !== '') payload.first_name = fn;
+			if (ln !== '') payload.last_name = ln;
+
+			const updated = await usersApi.updateProfile(payload);
 			setProfile(updated);
 			setMessage('Profile updated');
 		} catch (err: unknown) {
@@ -84,6 +93,12 @@ export const ProfilePage: React.FC = () => {
 
 		if (newPassword.length < 8) {
 			setError('New password must be at least 8 characters');
+			setChangingPassword(false);
+			return;
+		}
+
+		if (!currentPassword) {
+			setError('Current password is required');
 			setChangingPassword(false);
 			return;
 		}

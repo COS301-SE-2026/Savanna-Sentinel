@@ -12,13 +12,8 @@ import DashboardPage from "@/pages/DashboardPage";
 // import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
 // import IngestionPage from "@/pages/IngestionPage";
 // import TipoffPage from "@/pages/TipoffPage";
-<<<<<<< HEAD
-// import AdminPage from "@/pages/AdminPage";
-import ProfilePage from "@/pages/ProfilePage";
-=======
 import AdminPage from "@/pages/AdminPage";
-// import ProfilePage from "@/pages/ProfilePage";
->>>>>>> dev
+import ProfilePage from "@/pages/ProfilePage";
 
 export default function App() {
   return (
@@ -41,12 +36,7 @@ export default function App() {
             {/* <Route path="/patrol" element={<PatrolPlannerPage />} /> */}
             {/* <Route path="/ingestion" element={<IngestionPage />} /> */}
             {/* <Route path="/tipoffs" element={<TipoffPage />} /> */}
-<<<<<<< HEAD
-            {/* <Route path="/admin" element={<AdminPage />} /> */}
             <Route path="/profile" element={<ProfilePage />} />
-=======
-            {/* <Route path="/profile" element={<ProfilePage />} /> */}
->>>>>>> dev
           </Route>
         </Route>
 

@@ -10,18 +10,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(tags=["users"])
 
-@router.get("/users/me", response_model=UsersResponse, summary="Get the authenticated user's profile")
+@router.get("/users/me",
+            response_model=UsersResponse,
+            summary="Get the authenticated user's profile"
+)
 async def get_me(current_user=Depends(get_current_user), db=Depends(get_db)):
 	service = UserService(UserRepository(db))
 	user = await service.get_me(current_user)
 	return UsersResponse.model_validate(user)
 
-@router.patch("/users/me", response_model=UsersResponse, summary="Update the authenticated user's profile")
-async def update_me(
-	body: UpdateProfileRequest,
-	current_user=Depends(get_current_user),
-	db=Depends(get_db),
-):
+@router.patch("/users/me",
+              response_model=UsersResponse,
+              summary="Update the authenticated user's profile"
+)
+async def update_me(body: UpdateProfileRequest, current_user=Depends(get_current_user), db=Depends(get_db)):
 	service = UserService(UserRepository(db))
 	user = await service.update_me(current_user, body)
 	return UsersResponse.model_validate(user)
