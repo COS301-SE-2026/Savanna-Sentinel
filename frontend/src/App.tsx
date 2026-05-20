@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
-import AuthPage from "@/pages/AdminAuthAccount";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
 
@@ -13,8 +12,13 @@ import DashboardPage from "@/pages/DashboardPage";
 // import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
 // import IngestionPage from "@/pages/IngestionPage";
 // import TipoffPage from "@/pages/TipoffPage";
+<<<<<<< HEAD
 // import AdminPage from "@/pages/AdminPage";
 import ProfilePage from "@/pages/ProfilePage";
+=======
+import AdminPage from "@/pages/AdminPage";
+// import ProfilePage from "@/pages/ProfilePage";
+>>>>>>> dev
 
 export default function App() {
   return (
@@ -25,20 +29,24 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         
-        {/* Temporarily public so testing can performed, will make protected with admin access late */}
-        <Route path="/admin/auth" element={<AuthPage />} />
+        
 
-        {/* Protected routes — AppLayout renders TopBar + BurgerMenu for all children */}
+        {/* Protected routes - AppLayout renders TopBar + BurgerMenu for all children */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/admin" element={<AdminPage />} />
             {/* <Route path="/map" element={<MapPage />} /> */}
             {/* <Route path="/reports" element={<ReportsPage />} /> */}
             {/* <Route path="/patrol" element={<PatrolPlannerPage />} /> */}
             {/* <Route path="/ingestion" element={<IngestionPage />} /> */}
             {/* <Route path="/tipoffs" element={<TipoffPage />} /> */}
+<<<<<<< HEAD
             {/* <Route path="/admin" element={<AdminPage />} /> */}
             <Route path="/profile" element={<ProfilePage />} />
+=======
+            {/* <Route path="/profile" element={<ProfilePage />} /> */}
+>>>>>>> dev
           </Route>
         </Route>
 

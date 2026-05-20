@@ -1,53 +1,65 @@
 from typing import AsyncGenerator
-
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.security import JWTError, decode_token
+from app.models.user import User
+from app.services.jwt_service import verify
+from app.repositories.user_repository import UserRepository
 from app.core.database import AsyncSessionLocal
 from app.repositories.user_repository import UserRepository
 
+security_scheme = HTTPBearer()
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         yield session
 
-
-_bearer_scheme = HTTPBearer(auto_error=False)
-
-
-def _unauthorized() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Token missing or invalid",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
-    db: AsyncSession = Depends(get_db),
-):
-    """Resolve the authenticated user from the access token."""
+        credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+        db: AsyncSession = Depends(get_db)
+) -> User:
+    token = credentials.credentials
 
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise _unauthorized()
+    token_body = verify(token)
+    if not token_body:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid access token",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    user_id = token_body.sub
 
-    try:
-        payload = decode_token(credentials.credentials)
-    except JWTError:
-        raise _unauthorized()
-
-    if payload.get("type") != "access":
-        raise _unauthorized()
-
-    user_id = payload.get("sub")
     if not user_id:
-        raise _unauthorized()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token is missing user id"
+        )
+    
+    repo = UserRepository(db)
 
-    user = await UserRepository(db).get_by_id(str(user_id))
-    if user is None or not user.is_active:
-        raise _unauthorized()
+    user = await repo.get_user_by_id(user_id)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account has been removed"
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account has been deactivated."
+        )
 
     return user
+
+async def require_admin(
+        current_user: User = Depends(get_current_user)
+) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operation forbidden: Admin privileges required"
+        )
+    return current_user

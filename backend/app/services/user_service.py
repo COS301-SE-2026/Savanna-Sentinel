@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from fastapi import HTTPException, status
 
 from app.core.security import get_password_hash, verify_password
@@ -54,3 +55,40 @@ class UserService:
 			)
 
 		return await self.repo.save_user(user)
+=======
+from app.schemas.user import UsersRequest, UsersResultResponse
+
+class UserService:
+    def __init__(self, repo):
+        self.repo = repo
+
+    async def get_users(self, req: UsersRequest):
+        results = await self.repo.get_users(req)
+        total_count = await self.repo.count_users(req)
+
+        return UsersResultResponse(
+            total=total_count,
+            page=req.page,
+            page_size=req.page_size,
+            results=results
+        )
+    async def switch_status(self, is_active: bool, user_id: str):
+        results = await self.repo.switch_status(is_active, user_id)
+
+        if results is None:
+            return None
+        
+        return results
+    
+    async def admin_delete(self, user_id: str):
+        results = await self.repo.admin_delete(user_id)
+
+        if results is None:
+            return None
+        
+        return results
+
+    async def change_role(self, user_id: str, new_role: str):
+        result = await self.repo.update_role(user_id, new_role)
+        return result
+>>>>>>> dev

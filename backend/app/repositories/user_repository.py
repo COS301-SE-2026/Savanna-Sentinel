@@ -6,12 +6,13 @@ from datetime import datetime, timezone
 import uuid
 from typing import Optional
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.security import decode_token
+from app.core.security import decode_token, JWTError
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.auth import RegisterRequest
+from app.schemas.user import UsersRequest, UsersResponse
 
 
 class UserRepository:
@@ -64,11 +65,18 @@ class UserRepository:
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+    
+    async def get_user_by_id(self, user_id: str) -> Optional[User]:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def revoke_refresh_token(self, token: str) -> None:
         """Mark one refresh token as revoked."""
-        
-        payload = decode_token(token)
+        try:
+            payload = decode_token(token)
+        except JWTError:
+            return
         stmt = update(RefreshToken).where(RefreshToken.jti == uuid.UUID(payload["jti"])).values(
             revoked_at=datetime.now(timezone.utc)
         )
@@ -109,3 +117,79 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+    
+    async def get_users(self, req: UsersRequest ) -> list[UsersResponse]:
+        stmt = select(User).where(User.role != "admin")
+
+        if req.is_active is not None:
+            stmt = stmt.where(User.is_active == req.is_active)
+        
+        if req.role is not None:
+            stmt = stmt.where(User.role == req.role.value)
+
+        offset = (req.page - 1) * req.page_size
+
+        stmt = stmt.limit(req.page_size).offset(offset)
+
+        result = await self.db.execute(stmt)
+
+        return result.scalars().all()
+    
+    async def count_users(self, req: UsersRequest) -> int:
+        stmt = select(func.count()).select_from(User).where(User.role != "admin")
+
+        if req.is_active is not None:
+            stmt = stmt.where(User.is_active == req.is_active)
+
+        if req.role is not None:
+            stmt = stmt.where(User.role == req.role.value)
+
+        result = await self.db.execute(stmt)
+        return result.scalar()
+    
+    async def switch_status(self, is_active: bool, user_id: str) -> UsersResponse:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return None
+    
+        user.is_active = is_active
+
+        await self.db.commit()
+        await self.db.refresh(user)
+
+        return user
+    
+    async def admin_delete(self, user_id: str) -> UsersResponse:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return None
+        
+        del_stmt = delete(User).where(User.id == user_id)
+        await self.db.execute(del_stmt)
+
+        await self.db.commit()
+
+        return user
+
+    async def update_role(self, user_id: str, new_role: str) -> Optional[User]:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return None
+
+        user.role = new_role
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+    
+
+        
+

@@ -11,6 +11,9 @@ os.environ.setdefault("JWT_SECRET", "Testing-secret-not-used-in-production")
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://localhost/savanna_sentinel")
 
 import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from app.models.user import Base
 
 
 def pytest_configure(config):
@@ -37,3 +40,21 @@ def pytest_pyfunc_call(pyfuncitem):
 @pytest.fixture(autouse=True)
 def setup_env():
     yield
+
+@pytest_asyncio.fixture(scope="function")
+async def db_session():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    testing_session_local = async_sessionmaker(
+        bind=engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    async with testing_session_local() as session:
+        yield session
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
