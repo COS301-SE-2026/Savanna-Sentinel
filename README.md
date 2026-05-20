@@ -5,7 +5,7 @@
   Helping game reserve rangers, analysts, and community liaisons detect poaching hotspots,<br/>
   plan optimal patrols, and capture field data - even while offline.</p>
 
-  [![Codecov](https://img.shields.io/codecov/c/github/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&logo=codecov&label=Coverage&color=F01F7A)](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel)
+  [![Codecov](https://img.shields.io/codecov/c/gh/COS301-SE-2026/Savanna-Sentinel/dev?style=for-the-badge&logo=codecov&label=Coverage&color=F01F7A)](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel)
   [![Backend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/backend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Backend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/backend-ci.yml)
   [![Frontend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/frontend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Frontend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/frontend-ci.yml)
 
