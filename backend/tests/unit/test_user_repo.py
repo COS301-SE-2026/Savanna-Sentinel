@@ -226,3 +226,31 @@ async def test_update_role_user_not_found(db_session):
     repo = UserRepository(db_session)
     result = await repo.update_role(user_id=str(uuid.uuid4()), new_role="analyst")
     assert result is None
+
+
+async def test_save_user_persists_and_refreshes(db_session):
+    """Test that save_user() commits changes and refreshes the user from DB."""
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id, username="save_test", role="ranger", is_active=True,
+        email="save@test.com", first_name="Save", last_name="Test", hashed_password="hash1"
+    )
+    
+    db_session.add(user)
+    await db_session.commit()
+    
+    # Modify the user in memory
+    user.first_name = "Modified"
+    user.last_name = "Name"
+    
+    repo = UserRepository(db_session)
+    saved_user = await repo.save_user(user)
+    
+    # Verify the save persisted
+    assert saved_user.first_name == "Modified"
+    assert saved_user.last_name == "Name"
+    
+    # Verify it was actually committed to DB by fetching fresh
+    fresh_user = await repo.get_by_id(user_id)
+    assert fresh_user.first_name == "Modified"
+    assert fresh_user.last_name == "Name"

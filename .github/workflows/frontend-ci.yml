@@ -38,6 +38,8 @@ jobs:
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
+          files: |
+            frontend/coverage/lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Set up Docker Buildx

@@ -1,7 +1,9 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from fastapi import HTTPException, status
+from unittest.mock import AsyncMock, MagicMock, patch
 from app.services.user_service import UserService
-from app.schemas.user import UsersRequest, UsersResultResponse, UsersResponse
+from app.schemas.user import UsersRequest, UsersResultResponse, UsersResponse, UpdateProfileRequest
+from app.models.user import User
 
 pytestmark = pytest.mark.asyncio
 
@@ -65,3 +67,168 @@ async def test_change_role_service_returns_none_when_user_not_found():
 
     assert result is None
     mock_repo.update_role.assert_called_once_with("nonexistent", "ranger")
+
+
+# get_me() tests
+async def test_get_me_returns_current_user():
+    """Test that get_me() returns the passed user object."""
+    mock_repo = MagicMock()
+    mock_user = MagicMock(id="user-1", username="test_user", role="ranger", is_active=True)
+    
+    service = UserService(repo=mock_repo)
+    result = await service.get_me(mock_user)
+    
+    assert result is mock_user
+
+
+# update_me() tests
+async def test_update_me_updates_first_name_only():
+    """Test that update_me() updates first_name when provided."""
+    mock_repo = MagicMock()
+    mock_user = MagicMock(
+        id="user-1", username="test", first_name="Old", last_name="Name",
+        hashed_password="hash", email="test@test.com"
+    )
+    updated_user = MagicMock(first_name="New", last_name="Name")
+    mock_repo.save_user = AsyncMock(return_value=updated_user)
+    
+    service = UserService(repo=mock_repo)
+    body = UpdateProfileRequest(first_name="New", last_name=None, current_password=None, new_password=None)
+    result = await service.update_me(mock_user, body)
+    
+    assert result is updated_user
+    assert mock_user.first_name == "New"
+    mock_repo.save_user.assert_called_once()
+
+
+async def test_update_me_updates_last_name_only():
+    """Test that update_me() updates last_name when provided."""
+    mock_repo = MagicMock()
+    mock_user = MagicMock(
+        id="user-1", username="test", first_name="First", last_name="Old",
+        hashed_password="hash", email="test@test.com"
+    )
+    updated_user = MagicMock(first_name="First", last_name="New")
+    mock_repo.save_user = AsyncMock(return_value=updated_user)
+    
+    service = UserService(repo=mock_repo)
+    body = UpdateProfileRequest(first_name=None, last_name="New", current_password=None, new_password=None)
+    result = await service.update_me(mock_user, body)
+    
+    assert result is updated_user
+    assert mock_user.last_name == "New"
+    mock_repo.save_user.assert_called_once()
+
+
+async def test_update_me_rejects_empty_first_name():
+    """Test that update_me() rejects empty first_name."""
+    mock_repo = MagicMock()
+    mock_user = MagicMock(first_name="Old", last_name="Name", hashed_password="hash")
+    
+    service = UserService(repo=mock_repo)
+    body = UpdateProfileRequest(first_name="   ", last_name=None, current_password=None, new_password=None)
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await service.update_me(mock_user, body)
+    
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "First name cannot be empty" in exc_info.value.detail
+
+
+async def test_update_me_rejects_empty_last_name():
+    """Test that update_me() rejects empty last_name."""
+    mock_repo = MagicMock()
+    mock_user = MagicMock(first_name="First", last_name="Old", hashed_password="hash")
+    
+    service = UserService(repo=mock_repo)
+    body = UpdateProfileRequest(first_name=None, last_name="", current_password=None, new_password=None)
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await service.update_me(mock_user, body)
+    
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Last name cannot be empty" in exc_info.value.detail
+
+
+async def test_update_me_rejects_no_updates():
+    """Test that update_me() rejects empty payload."""
+    mock_repo = MagicMock()
+    mock_user = MagicMock()
+    
+    service = UserService(repo=mock_repo)
+    body = UpdateProfileRequest(first_name=None, last_name=None, current_password=None, new_password=None)
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await service.update_me(mock_user, body)
+    
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "No updatable fields provided" in exc_info.value.detail
+
+
+async def test_update_me_rejects_short_password():
+    """Test that update_me() rejects password shorter than 8 chars."""
+    mock_repo = MagicMock()
+    mock_user = MagicMock(hashed_password="hash")
+    
+    service = UserService(repo=mock_repo)
+    body = UpdateProfileRequest(first_name=None, last_name=None, current_password="old", new_password="short")
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await service.update_me(mock_user, body)
+    
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "at least 8 characters" in exc_info.value.detail
+
+
+async def test_update_me_rejects_password_without_current():
+    """Test that update_me() requires current_password when changing password."""
+    mock_repo = MagicMock()
+    mock_user = MagicMock(hashed_password="hash")
+    
+    service = UserService(repo=mock_repo)
+    body = UpdateProfileRequest(first_name=None, last_name=None, current_password=None, new_password="ValidPass1!")
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await service.update_me(mock_user, body)
+    
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Current password is required" in exc_info.value.detail
+
+
+@patch('app.services.user_service.verify_password')
+async def test_update_me_rejects_wrong_current_password(mock_verify):
+    """Test that update_me() rejects incorrect current_password."""
+    mock_verify.return_value = False
+    mock_repo = MagicMock()
+    mock_user = MagicMock(hashed_password="hash")
+    
+    service = UserService(repo=mock_repo)
+    body = UpdateProfileRequest(first_name=None, last_name=None, current_password="wrong", new_password="ValidPass1!")
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await service.update_me(mock_user, body)
+    
+    assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+    assert "Current password is incorrect" in exc_info.value.detail
+
+
+@patch('app.services.user_service.get_password_hash')
+@patch('app.services.user_service.verify_password')
+async def test_update_me_updates_password_and_revokes_tokens(mock_verify, mock_hash):
+    """Test that update_me() updates password and revokes old tokens."""
+    mock_verify.return_value = True
+    mock_hash.return_value = "newhash"
+    mock_repo = MagicMock()
+    mock_user = MagicMock(id="user-1", hashed_password="oldhash")
+    updated_user = MagicMock(hashed_password="newhash")
+    mock_repo.save_user = AsyncMock(return_value=updated_user)
+    mock_repo.revoke_all_refresh_tokens = AsyncMock()
+    
+    service = UserService(repo=mock_repo)
+    body = UpdateProfileRequest(first_name=None, last_name=None, current_password="old", new_password="ValidPass1!")
+    result = await service.update_me(mock_user, body)
+    
+    assert result is updated_user
+    assert mock_user.hashed_password == "newhash"
+    mock_repo.revoke_all_refresh_tokens.assert_called_once_with("user-1")
+    mock_repo.save_user.assert_called_once()
