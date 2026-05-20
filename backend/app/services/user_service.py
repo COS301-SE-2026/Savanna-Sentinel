@@ -17,10 +17,20 @@ class UserService:
 		updated = False
 
 		if body.first_name is not None:
+			if body.first_name.strip() == "":
+				raise HTTPException(
+					status_code=status.HTTP_400_BAD_REQUEST,
+					detail="First name cannot be empty",
+				)
 			user.first_name = body.first_name
 			updated = True
 
 		if body.last_name is not None:
+			if body.last_name.strip() == "":
+				raise HTTPException(
+					status_code=status.HTTP_400_BAD_REQUEST,
+					detail="Last name cannot be empty",
+				)
 			user.last_name = body.last_name
 			updated = True
 
