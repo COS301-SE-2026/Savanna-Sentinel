@@ -3,15 +3,6 @@ import { usersApi } from '@/services/usersApi';
 import type { UserResponse } from '@/services/usersApi';
 import { useAuthStore } from '@/store/authStore';
 
-const BrandHeader: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
-	<header className="mb-8 rounded-md" style={{ background: '#003A6B', color: '#fff', padding: '20px' }}>
-		<div className="max-w-4xl mx-auto">
-			<h1 className="text-2xl font-bold">{title}</h1>
-			{subtitle && <p className="mt-1 text-sm" style={{ color: '#8EADC4' }}>{subtitle}</p>}
-		</div>
-	</header>
-);
-
 export const ProfilePage: React.FC = () => {
 	const [profile, setProfile] = useState<UserResponse | null>(null);
 	const [firstName, setFirstName] = useState('');
@@ -28,6 +19,11 @@ export const ProfilePage: React.FC = () => {
 	const [error, setError] = useState<string | null>(null);
 
 	const logout = useAuthStore((s) => s.logout);
+	const profileFirstName = profile?.first_name ?? '';
+	const profileLastName = profile?.last_name ?? '';
+	const isProfileDirty =
+		!loadingProfile &&
+		(firstName.trim() !== profileFirstName.trim() || lastName.trim() !== profileLastName.trim());
 
 	useEffect(() => {
 		let mounted = true;
@@ -123,10 +119,8 @@ export const ProfilePage: React.FC = () => {
 
 	return (
 		<div className="min-h-screen" style={{ background: '#F2F2F2' }}>
-			<BrandHeader title="My profile" subtitle="Keep your account information up to date and secure" />
-
 			<main className="max-w-4xl mx-auto px-4">
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8">
 					<section className="bg-white rounded-md p-6 shadow-sm border">
 						<h2 className="text-lg font-semibold mb-4">Profile</h2>
 						{loadingProfile ? (
@@ -149,21 +143,22 @@ export const ProfilePage: React.FC = () => {
 									onChange={(e) => setLastName(e.target.value)}
 								/>
 
-								<div className="mt-4 flex items-center gap-3">
+								<div className="mt-4 flex items-center gap-3 pt-2">
 									<button
 										type="submit"
 										className="px-4 py-2 rounded-md text-white"
 										style={{ background: '#0070BF' }}
-										disabled={savingProfile}
+										disabled={savingProfile || !isProfileDirty}
 									>
 										{savingProfile ? 'Saving…' : 'Save'}
 									</button>
 									<button
 										type="button"
 										className="px-3 py-2 rounded-md border"
+										disabled={!isProfileDirty}
 										onClick={() => {
-											setFirstName(profile?.first_name ?? '');
-											setLastName(profile?.last_name ?? '');
+											setFirstName(profileFirstName);
+											setLastName(profileLastName);
 											setMessage(null);
 											setError(null);
 										}}
