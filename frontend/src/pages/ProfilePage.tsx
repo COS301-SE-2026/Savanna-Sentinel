@@ -2,6 +2,80 @@ import React, { useEffect, useState } from 'react';
 import { usersApi } from '@/services/usersApi';
 import type { UserResponse } from '@/services/usersApi';
 import { useAuthStore } from '@/store/authStore';
+import { Button } from '@/components/ui/button';
+import { Dialog as DialogPrimitive } from 'radix-ui';
+import { XIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
+	return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+}
+
+function DialogPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+	return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
+}
+
+function DialogOverlay({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+	return (
+		<DialogPrimitive.Overlay
+			data-slot="dialog-overlay"
+			className={cn(
+				'fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px] duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
+				className,
+			)}
+			{...props}
+		/>
+	);
+}
+
+function DialogContent({
+	className,
+	children,
+	showCloseButton = true,
+	...props
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+	showCloseButton?: boolean;
+}) {
+	return (
+		<DialogPortal>
+			<DialogOverlay />
+			<DialogPrimitive.Content
+				data-slot="dialog-content"
+				className={cn(
+					'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[#D8DAD6] bg-white shadow-2xl outline-none duration-200 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+					className,
+				)}
+				{...props}
+			>
+				{children}
+				{showCloseButton && (
+					<DialogPrimitive.Close asChild>
+						<Button variant="ghost" size="icon-sm" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground">
+							<XIcon />
+							<span className="sr-only">Close</span>
+						</Button>
+					</DialogPrimitive.Close>
+				)}
+			</DialogPrimitive.Content>
+		</DialogPortal>
+	);
+}
+
+function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
+	return <div data-slot="dialog-header" className={cn('flex flex-col gap-2 p-5', className)} {...props} />;
+}
+
+function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
+	return <div data-slot="dialog-footer" className={cn('flex flex-col-reverse gap-2 p-5 pt-0 sm:flex-row sm:justify-end', className)} {...props} />;
+}
+
+function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
+	return <DialogPrimitive.Title data-slot="dialog-title" className={cn('text-lg font-semibold text-[#003A6B]', className)} {...props} />;
+}
+
+function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Description>) {
+	return <DialogPrimitive.Description data-slot="dialog-description" className={cn('text-sm text-muted-foreground', className)} {...props} />;
+}
 
 export const ProfilePage: React.FC = () => {
 	const [profile, setProfile] = useState<UserResponse | null>(null);
@@ -15,6 +89,8 @@ export const ProfilePage: React.FC = () => {
 	const [loadingProfile, setLoadingProfile] = useState(true);
 	const [savingProfile, setSavingProfile] = useState(false);
 	const [changingPassword, setChangingPassword] = useState(false);
+	const [pendingAction, setPendingAction] = useState<'save-profile' | 'change-password' | null>(null);
+	const [isConfirming, setIsConfirming] = useState(false);
 
 	const [message, setMessage] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -38,6 +114,12 @@ export const ProfilePage: React.FC = () => {
 		newPassword === confirmPassword;
 
 	const isChangePasswordDisabled = changingPassword || !canChangePassword;
+	const isConfirmDialogOpen = pendingAction !== null;
+	const confirmDialogTitle = pendingAction === 'change-password' ? 'Confirm password change' : 'Confirm profile changes';
+	const confirmDialogBody =
+		pendingAction === 'change-password'
+			? 'You are about to update your password. Confirm changes to continue.'
+			: 'You are about to update your profile details. Confirm changes to continue.';
 
 	useEffect(() => {
 		let mounted = true;
@@ -75,8 +157,7 @@ export const ProfilePage: React.FC = () => {
 		return fallback;
 	};
 
-	const onSaveProfile = async (e?: React.FormEvent) => {
-		e?.preventDefault();
+	const applyProfileChanges = async () => {
 		setSavingProfile(true);
 		setMessage(null);
 		setError(null);
@@ -98,12 +179,7 @@ export const ProfilePage: React.FC = () => {
 		}
 	};
 
-	const onChangePassword = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!canChangePassword) {
-			return;
-		}
-
+	const applyPasswordChanges = async () => {
 		setChangingPassword(true);
 		setMessage(null);
 		setError(null);
@@ -137,22 +213,74 @@ export const ProfilePage: React.FC = () => {
 
 		try {
 			await usersApi.changePassword(currentPassword, newPassword);
-			// Log the user out so they must re-authenticate
 			setMessage('Password changed — you will be signed out...');
-			setChangingPassword(false);
 			setTimeout(() => logout(), 1500);
+			setCurrentPassword('');
+			setNewPassword('');
+			setConfirmPassword('');
 		} catch (err: unknown) {
 			setError(getErrorMessage(err, 'Failed to change password'));
 		} finally {
 			setChangingPassword(false);
-			setCurrentPassword('');
-			setNewPassword('');
 		}
+	};
+
+	const handleConfirmChanges = async () => {
+		if (!pendingAction || isConfirming) return;
+		setIsConfirming(true);
+		try {
+			if (pendingAction === 'save-profile') {
+				await applyProfileChanges();
+			} else {
+				await applyPasswordChanges();
+			}
+			setPendingAction(null);
+		} finally {
+			setIsConfirming(false);
+		}
+	};
+
+	const onSaveProfile = async (e?: React.FormEvent) => {
+		e?.preventDefault();
+		if (isSaveDisabled) return;
+		setMessage(null);
+		setError(null);
+		setPendingAction('save-profile');
+	};
+
+	const onChangePassword = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (isChangePasswordDisabled) {
+			return;
+		}
+		setMessage(null);
+		setError(null);
+		setPendingAction('change-password');
 	};
 
 	return (
 		<div className="min-h-screen" style={{ background: '#F2F2F2' }}>
 			<main className="max-w-4xl mx-auto px-4">
+				<Dialog open={isConfirmDialogOpen} onOpenChange={(open: boolean) => !open && setPendingAction(null)}>
+					<DialogContent showCloseButton={!isConfirming}>
+						<DialogHeader className="bg-[#003A6B] text-white rounded-t-xl">
+							<DialogTitle className="text-white">{confirmDialogTitle}</DialogTitle>
+							<DialogDescription className="text-[#D8DAD6]">{confirmDialogBody}</DialogDescription>
+						</DialogHeader>
+						<div className="px-5 pb-5 text-sm text-[#313131] pt-4">
+							Please click <span className="font-semibold text-[#003A6B]">Confirm changes</span> to apply the update.
+						</div>
+						<DialogFooter>
+							<Button type="button" variant="outline" onClick={() => setPendingAction(null)} disabled={isConfirming}>
+								Cancel
+							</Button>
+							<Button type="button" variant="default" onClick={handleConfirmChanges} disabled={isConfirming}>
+								{isConfirming ? 'Confirm changes' : 'Confirm changes'}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8">
 					<section className="bg-white rounded-md p-6 shadow-sm border">
 						<h2 className="text-lg font-semibold mb-4">Profile</h2>
@@ -177,29 +305,32 @@ export const ProfilePage: React.FC = () => {
 								/>
 
 								<div className="mt-4 flex items-center gap-3 pt-2">
-									<button
+									<Button
 										type="submit"
-										className="px-4 py-2 rounded-md text-white transition-colors"
+										variant="default"
+										className="px-4 py-2"
 										style={{
 											background: isSaveDisabled ? '#103364' : '#0070BF',
-											opacity: isSaveDisabled ? 0.72 : 1,
+											color: '#FFFFFF',
+											opacity: isSaveDisabled ? 0.6 : 1,
 											cursor: isSaveDisabled ? 'not-allowed' : 'pointer',
-											transition: 'background-color 180ms ease, color 180ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease',
+											transition: 'background-color 180ms ease, opacity 180ms ease, transform 120ms ease, box-shadow 120ms ease',
 										}}
 										disabled={isSaveDisabled}
 									>
 										{savingProfile ? 'Save' : 'Save'}
-									</button>
-									<button
+									</Button>
+									<Button
 										type="button"
-										className="px-3 py-2 rounded-md border transition-colors"
+										variant="outline"
+										className="px-3 py-2"
 										style={{
-											background: isResetDisabled ? '#F3F4F6' : '#FFFFFF',
-											borderColor: isResetDisabled ? '#D1D5DB' : '#D1D5DB',
-											color: isResetDisabled ? '#9CA3AF' : '#111827',
-											opacity: isResetDisabled ? 0.8 : 1,
+											borderColor: isResetDisabled ? '#D1D5DB' : '#174585',
+											borderWidth: '2px',
+											color: isResetDisabled ? '#9CA3AF' : '#174585',
+											opacity: isResetDisabled ? 0.85 : 1,
 											cursor: isResetDisabled ? 'not-allowed' : 'pointer',
-											transition: 'background-color 180ms ease, color 180ms ease, border-color 180ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease',
+											transition: 'border-color 180ms ease, color 180ms ease, opacity 180ms ease, box-shadow 120ms ease',
 										}}
 										disabled={isResetDisabled}
 										onClick={() => {
@@ -210,7 +341,7 @@ export const ProfilePage: React.FC = () => {
 										}}
 									>
 										Reset
-									</button>
+									</Button>
 								</div>
 							</form>
 						)}
@@ -254,19 +385,21 @@ export const ProfilePage: React.FC = () => {
 								/>
 
 							<div className="mt-4">
-								<button
+								<Button
 									type="submit"
-									className="px-4 py-2 rounded-md text-white transition-colors"
+									variant="default"
+									className="px-4 py-2"
 									style={{
-										background: isChangePasswordDisabled ? '#7F1D1D' : '#C00000',
-										opacity: isChangePasswordDisabled ? 0.72 : 1,
+										background: isChangePasswordDisabled ? '#103364' : '#0070BF',
+										color: '#FFFFFF',
+										opacity: isChangePasswordDisabled ? 0.6 : 1,
 										cursor: isChangePasswordDisabled ? 'not-allowed' : 'pointer',
-										transition: 'background-color 180ms ease, color 180ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease',
+										transition: 'background-color 180ms ease, opacity 180ms ease, transform 120ms ease, box-shadow 120ms ease',
 									}}
 									disabled={isChangePasswordDisabled}
 								>
 									{changingPassword ? 'Change password' : 'Change password'}
-								</button>
+								</Button>
 							</div>
 						</form>
 					</section>

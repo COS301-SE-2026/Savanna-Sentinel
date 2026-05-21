@@ -56,22 +56,14 @@ describe('ProfilePage', () => {
   });
 
   it('fails profile update when all fields are empty', async () => {
-    updateProfile.mockRejectedValue({
-      response: { data: { detail: 'No updatable fields provided' } },
-    });
-
     render(<ProfilePage />);
     await screen.findByDisplayValue('Jane');
     const user = createPlainUser();
 
     await user.clear(screen.getByLabelText(/first name/i));
     await user.clear(screen.getByLabelText(/last name/i));
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
-
-    await waitFor(() => {
-      expect(updateProfile).toHaveBeenCalledWith({});
-    });
-    expect(await screen.findByRole('alert')).toHaveTextContent(/no updatable fields provided/i);
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled();
+    expect(updateProfile).not.toHaveBeenCalled();
   });
 
   it('passes when updating first name with empty last name', async () => {
@@ -83,6 +75,9 @@ describe('ProfilePage', () => {
     await user.type(screen.getByLabelText(/first name/i), 'Janet');
     await user.clear(screen.getByLabelText(/last name/i));
     await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /confirm changes/i }));
 
     await waitFor(() => {
       expect(updateProfile).toHaveBeenCalledWith({ first_name: 'Janet' });
@@ -99,6 +94,9 @@ describe('ProfilePage', () => {
     await user.clear(screen.getByLabelText(/last name/i));
     await user.type(screen.getByLabelText(/last name/i), 'Ranger-Smith');
     await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /confirm changes/i }));
 
     await waitFor(() => {
       expect(updateProfile).toHaveBeenCalledWith({ last_name: 'Ranger-Smith' });
@@ -117,6 +115,9 @@ describe('ProfilePage', () => {
     await user.type(screen.getByLabelText(/last name/i), 'Ranger-Smith');
     await user.click(screen.getByRole('button', { name: /^save$/i }));
 
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /confirm changes/i }));
+
     await waitFor(() => {
       expect(updateProfile).toHaveBeenCalledWith({ first_name: 'Janet', last_name: 'Ranger-Smith' });
     });
@@ -129,9 +130,7 @@ describe('ProfilePage', () => {
     const user = createPlainUser();
 
     await user.type(screen.getByLabelText(/new password/i), 'new-pass-1');
-    await user.click(screen.getByRole('button', { name: /change password/i }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/current password is required/i);
+    expect(screen.getByRole('button', { name: /change password/i })).toBeDisabled();
     expect(changePassword).not.toHaveBeenCalled();
   });
 
@@ -141,9 +140,7 @@ describe('ProfilePage', () => {
     const user = createPlainUser();
 
     await user.type(screen.getByLabelText(/current password/i), 'old-pass-123');
-    await user.click(screen.getByRole('button', { name: /change password/i }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/at least 8 characters/i);
+    expect(screen.getByRole('button', { name: /change password/i })).toBeDisabled();
     expect(changePassword).not.toHaveBeenCalled();
   });
 
@@ -155,9 +152,7 @@ describe('ProfilePage', () => {
     // Using a password of length 7
     await user.type(screen.getByLabelText(/current password/i), 'old-pass-123');
     await user.type(screen.getByLabelText(/new password/i), '1234567');
-    await user.click(screen.getByRole('button', { name: /change password/i }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/at least 8 characters/i);
+    expect(screen.getByRole('button', { name: /change password/i })).toBeDisabled();
     expect(changePassword).not.toHaveBeenCalled();
   });
 
@@ -172,7 +167,11 @@ describe('ProfilePage', () => {
 
     await user.type(screen.getByLabelText(/current password/i), 'wrong-pass');
     await user.type(screen.getByLabelText(/new password/i), 'new-pass-123');
+    await user.type(screen.getByLabelText(/confirm password/i), 'new-pass-123');
     await user.click(screen.getByRole('button', { name: /change password/i }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /confirm changes/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/current password is incorrect/i);
   });
@@ -186,7 +185,15 @@ describe('ProfilePage', () => {
     fireEvent.change(screen.getByLabelText(/new password/i), {
       target: { value: 'new-pass-123' },
     });
+    fireEvent.change(screen.getByLabelText(/confirm password/i), {
+      target: { value: 'new-pass-123' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /change password/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /confirm changes/i }));
 
     await waitFor(() => {
       expect(changePassword).toHaveBeenCalledWith('old-pass-123', 'new-pass-123');
