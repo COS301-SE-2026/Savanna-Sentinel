@@ -138,9 +138,9 @@ export const ProfilePage: React.FC = () => {
 		try {
 			await usersApi.changePassword(currentPassword, newPassword);
 			// Log the user out so they must re-authenticate
-			setMessage('Password changed — you will be signed out');
+			setMessage('Password changed — you will be signed out...');
 			setChangingPassword(false);
-			setTimeout(() => logout(), 1400);
+			setTimeout(() => logout(), 1500);
 		} catch (err: unknown) {
 			setError(getErrorMessage(err, 'Failed to change password'));
 		} finally {
