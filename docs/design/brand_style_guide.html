@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -11,20 +11,15 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-
       --dark-blue:        #003A6B;
       --steel-blue:       #6897B8;
       --light-grey:       #D8DAD6;
-
-
       --sec-blue-1:       #002354;
       --sec-blue-2:       #174585;
       --sec-teal:         #056595;
       --sec-grey-blue:    #4F7392;
       --sec-light-blue:   #8EADC4;
       --off-white:        #F2F2F2;
-
-
       --spot-blue-1:      #103364;
       --spot-blue-2:      #2042B2;
       --spot-blue-3:      #0580BB;
@@ -39,7 +34,8 @@
 
     html { font-size: 16px; }
 
-    body {
+    body
+    {
       font-family: 'Inter', sans-serif;
       font-weight: 400;
       background-color: var(--off-white);
@@ -47,7 +43,8 @@
       line-height: 1.6;
     }
 
-    .page-wrap {
+    .page-wrap
+    {
       max-width: 1100px;
       margin: 0 auto;
       padding: 48px 32px 80px;
@@ -55,52 +52,44 @@
 
     section { margin-bottom: 64px; }
 
-    .page-header {
+    .page-header
+    {
       background: var(--dark-blue);
       color: #fff;
       padding: 48px 32px;
-      margin-bottom: 0;
     }
-    .page-header .logo-mark {
-      display: inline-flex;
-      align-items: center;
-      gap: 14px;
-      margin-bottom: 20px;
-    }
-    .page-header .logo-icon {
-      width: 52px;
-      height: 52px;
-      background: var(--steel-blue);
-      border-radius: 10px;
+    .page-header .logo-row
+    {
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    .page-header .logo-img
+    {
+      height: 60px;
+      width: auto;
+      display: block;
+    }
+    .page-header .logo-fallback
+    {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .page-header .logo-icon
+    {
+      width: 52px; height: 52px;
+      background: var(--steel-blue);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
     }
     .page-header .logo-icon svg { width: 30px; height: 30px; fill: #fff; }
-    .page-header h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
-    .page-header p {
-      font-size: 1rem;
-      color: var(--sec-light-blue);
-      max-width: 640px;
-      margin-top: 8px;
-    }
-    .page-header .badge {
-      display: inline-block;
-      margin-top: 16px;
-      background: var(--sec-blue-2);
-      color: #fff;
-      font-size: 0.75rem;
-      font-weight: 500;
-      padding: 4px 12px;
-      border-radius: 999px;
-      letter-spacing: 0.5px;
-    }
+    .page-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
+    .page-header p { font-size: 1rem; color: var(--sec-light-blue); max-width: 640px; margin-top: 8px; }
 
-    .section-label {
+    .section-label
+    {
       font-size: 0.7rem;
       font-weight: 600;
       letter-spacing: 2px;
@@ -108,401 +97,155 @@
       color: var(--steel-blue);
       margin-bottom: 8px;
     }
-    h2 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--dark-blue);
-      margin-bottom: 4px;
-    }
-    .section-desc {
-      font-size: 0.95rem;
-      color: #555;
+    h2 { font-size: 1.5rem; font-weight: 700; color: var(--dark-blue); margin-bottom: 4px; }
+    .section-desc { font-size: 0.95rem; color: #555; margin-bottom: 28px; max-width: 680px; }
+    .rationale
+    {
+      font-size: 0.85rem;
+      color: #666;
+      background: #fff;
+      border-left: 3px solid var(--steel-blue);
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
       margin-bottom: 28px;
       max-width: 680px;
+      line-height: 1.65;
     }
-    .divider {
-      border: none;
-      border-top: 1px solid var(--light-grey);
-      margin: 64px 0;
+    .divider { border: none; border-top: 1px solid var(--light-grey); margin: 64px 0; }
+
+    .brand-grid
+    {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
     }
+    .brand-card
+    {
+      background: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      border: 1px solid #e8e8e8;
+    }
+    .brand-card .bc-label
+    {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--steel-blue);
+      margin-bottom: 6px;
+    }
+    .brand-card p { font-size: 0.83rem; color: #555; line-height: 1.65; }
 
     .palette-group { margin-bottom: 32px; }
     .palette-group h3 {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--sec-grey-blue);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 14px;
+      font-size: 0.85rem; font-weight: 600;
+      color: var(--sec-grey-blue); text-transform: uppercase;
+      letter-spacing: 1px; margin-bottom: 14px;
     }
-    .swatches {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-    }
-    .swatch {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      width: 130px;
-    }
-    .swatch-block {
-      width: 100%;
-      height: 72px;
-      border-radius: 8px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-      margin-bottom: 8px;
-      position: relative;
-    }
+    .swatches { display: flex; flex-wrap: wrap; gap: 14px; }
+    .swatch { display: flex; flex-direction: column; align-items: flex-start; width: 130px; }
+    .swatch-block { width: 100%; height: 72px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.15); margin-bottom: 8px; }
     .swatch-block.outlined { border: 1px solid #ccc; }
-    .swatch-name {
-      font-size: 0.78rem;
-      font-weight: 500;
-      color: var(--spot-dark-grey);
-      line-height: 1.3;
-    }
-    .swatch-hex {
-      font-size: 0.72rem;
-      font-weight: 400;
-      color: #888;
-      font-family: 'Courier New', monospace;
-    }
+    .swatch-name { font-size: 0.78rem; font-weight: 500; color: var(--spot-dark-grey); line-height: 1.3; }
+    .swatch-hex { font-size: 0.72rem; color: #888; font-family: 'Courier New', monospace; }
     .spot-swatches { gap: 10px; }
     .spot-swatches .swatch { width: 100px; }
     .spot-swatches .swatch-block { height: 56px; }
 
     .type-samples { display: flex; flex-direction: column; gap: 28px; }
-    .type-row {
-      display: grid;
-      grid-template-columns: 180px 1fr;
-      gap: 24px;
-      align-items: start;
-    }
+    .type-row { display: grid; grid-template-columns: 180px 1fr; gap: 24px; align-items: start; }
     .type-meta { padding-top: 4px; }
-    .type-meta .type-role {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--sec-grey-blue);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-    }
-    .type-meta .type-spec {
-      font-size: 0.75rem;
-      color: #888;
-      margin-top: 2px;
-    }
-    .type-sample-h1 { font-size: 2rem;   font-weight: 700; color: var(--dark-blue); line-height: 1.2; }
-    .type-sample-h2 { font-size: 1.5rem; font-weight: 700; color: var(--dark-blue); line-height: 1.3; }
-    .type-sample-h3 { font-size: 1.2rem; font-weight: 600; color: var(--dark-blue); line-height: 1.3; }
-    .type-sample-body { font-size: 1rem; font-weight: 400; color: var(--spot-dark-grey); }
-    .type-sample-small { font-size: 0.8rem; font-weight: 400; color: #666; }
+    .type-meta .type-role { font-size: 0.8rem; font-weight: 600; color: var(--sec-grey-blue); text-transform: uppercase; letter-spacing: 0.8px; }
+    .type-meta .type-spec { font-size: 0.75rem; color: #888; margin-top: 2px; }
+    .type-sample-h1 { font-size: 2rem;    font-weight: 700; color: var(--dark-blue); line-height: 1.2; }
+    .type-sample-h2 { font-size: 1.5rem;  font-weight: 700; color: var(--dark-blue); line-height: 1.3; }
+    .type-sample-h3 { font-size: 1.2rem;  font-weight: 600; color: var(--dark-blue); line-height: 1.3; }
+    .type-sample-body { font-size: 1rem;    font-weight: 400; color: var(--spot-dark-grey); }
+    .type-sample-small{ font-size: 0.8rem;  font-weight: 400; color: #666; }
     .type-sample-caption { font-size: 0.75rem; font-weight: 500; color: #888; }
-    .type-sample-button { font-size: 0.9rem; font-weight: 500; color: var(--dark-blue); }
+    .type-sample-button { font-size: 0.9rem;  font-weight: 500; color: var(--dark-blue); }
 
-    .components-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 24px;
-    }
-    .comp-card {
-      background: #fff;
-      border-radius: 10px;
-      padding: 24px;
-      box-shadow: 0 1px 6px rgba(0,0,0,0.08);
-      border: 1px solid #e8e8e8;
-    }
-    .comp-card h4 {
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--sec-grey-blue);
-      margin-bottom: 16px;
-    }
+    .components-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
+    .comp-card { background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 1px 6px rgba(0,0,0,0.08); border: 1px solid #e8e8e8; }
+    .comp-card h4 { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--sec-grey-blue); margin-bottom: 16px; }
+    .comp-card .comp-note { font-size: 0.75rem; color: #888; margin-top: 14px; }
 
     .btn-demo { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 9px 20px;
-      border-radius: 6px;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: opacity 0.15s, box-shadow 0.15s;
-      outline: none;
-    }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: opacity 0.15s, box-shadow 0.15s; outline: none; }
     .btn:focus-visible { box-shadow: 0 0 0 3px rgba(0,58,107,0.35); }
-    .btn-primary {
-      background: var(--dark-blue);
-      color: #fff;
-      border: none;
-    }
+    .btn-primary { background: var(--dark-blue); color: #fff; border: none; }
     .btn-primary:hover { opacity: 0.88; }
-    .btn-secondary {
-      background: transparent;
-      color: var(--dark-blue);
-      border: 2px solid var(--dark-blue);
-    }
+    .btn-secondary { background: transparent; color: var(--dark-blue); border: 2px solid var(--dark-blue); }
     .btn-secondary:hover { background: rgba(0,58,107,0.06); }
 
     .form-demo { display: flex; flex-direction: column; gap: 12px; }
-    .form-input {
-      width: 100%;
-      padding: 9px 12px;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.875rem;
-      border: 1.5px solid var(--light-grey);
-      border-radius: 6px;
-      background: #fff;
-      color: var(--spot-dark-grey);
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
+    .form-input { width: 100%; padding: 9px 12px; font-family: 'Inter', sans-serif; font-size: 0.875rem; border: 1.5px solid var(--light-grey); border-radius: 6px; background: #fff; color: var(--spot-dark-grey); outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
     .form-input::placeholder { color: #aaa; }
     .form-input:focus { border-color: var(--dark-blue); box-shadow: 0 0 0 3px rgba(0,58,107,0.15); }
-    .form-select {
-      width: 100%;
-      padding: 9px 12px;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.875rem;
-      border: 1.5px solid var(--light-grey);
-      border-radius: 6px;
-      background: #fff;
-      color: var(--spot-dark-grey);
-      outline: none;
-    }
+    .form-select { width: 100%; padding: 9px 12px; font-family: 'Inter', sans-serif; font-size: 0.875rem; border: 1.5px solid var(--light-grey); border-radius: 6px; background: #fff; color: var(--spot-dark-grey); outline: none; }
 
-    .nav-demo {
-      background: var(--dark-blue);
-      border-radius: 8px;
-      padding: 12px 0;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 16px;
-      color: var(--sec-light-blue);
-      font-size: 0.875rem;
-      font-weight: 500;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-    .nav-item:hover, .nav-item.active {
-      background: rgba(255,255,255,0.1);
-      color: #fff;
-    }
+    .nav-demo { background: var(--dark-blue); border-radius: 8px; padding: 12px 0; display: flex; flex-direction: column; gap: 2px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: var(--sec-light-blue); font-size: 0.875rem; font-weight: 500; border-radius: 4px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; }
     .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
 
-    .modal-demo {
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-      padding: 24px;
-      border: 1px solid #e0e0e0;
-    }
-    .modal-demo h5 {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--dark-blue);
-      margin-bottom: 8px;
-    }
+    .modal-demo { background: #fff; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); padding: 24px; border: 1px solid #e0e0e0; }
+    .modal-demo h5 { font-size: 1rem; font-weight: 600; color: var(--dark-blue); margin-bottom: 8px; }
     .modal-demo p { font-size: 0.85rem; color: #555; margin-bottom: 16px; }
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
-    .dash-card {
-      background: var(--off-white);
-      border-radius: 8px;
-      padding: 16px;
-      border: 1px solid var(--light-grey);
-    }
-    .dash-card .card-title {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--dark-blue);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 10px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid var(--dark-blue);
-      display: inline-block;
-    }
-    .dash-card .card-value {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: var(--dark-blue);
-      margin-bottom: 2px;
-    }
-    .dash-card .card-sub { font-size: 0.78rem; color: #888; }
+    .dash-card { background: var(--off-white); border-radius: 8px; padding: 16px; border: 1px solid var(--light-grey); }
+    .dash-card .card-title { font-size: 0.8rem; font-weight: 600; color: var(--dark-blue); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid var(--dark-blue); display: inline-block; }
+    .dash-card .card-value { font-size: 1.8rem; font-weight: 700; color: var(--dark-blue); margin-bottom: 2px; }
+    .dash-card .card-sub   { font-size: 0.78rem; color: #888; }
 
     .toast-stack { display: flex; flex-direction: column; gap: 10px; }
-    .toast {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      border: 1px solid;
-    }
+    .toast { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 500; border: 1px solid; }
     .toast-icon { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
     .toast-success { background: #f0faf4; border-color: #a8dbbf; color: #065f2e; }
     .toast-warning { background: #fffde6; border-color: #e8d000; color: #7a6200; }
-    .toast-error   { background: #fff0f0; border-color: #f0b0b0; color: #7a0000; }
+    .toast-error { background: #fff0f0; border-color: #f0b0b0; color: #7a0000; }
     .toast-title { font-weight: 600; }
-    .toast-body  { font-weight: 400; margin-top: 2px; font-size: 0.8rem; }
+    .toast-body { font-weight: 400; margin-top: 2px; font-size: 0.8rem; }
 
-    .principles-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 20px;
-    }
-    .principle-card {
-      background: #fff;
-      border-radius: 10px;
-      padding: 22px 20px;
-      border: 1px solid #e8e8e8;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    }
-    .principle-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      background: var(--dark-blue);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 14px;
-    }
+    .principles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+    .principle-card { background: #fff; border-radius: 10px; padding: 22px 20px; border: 1px solid #e8e8e8; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .principle-icon { width: 40px; height: 40px; border-radius: 8px; background: var(--dark-blue); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
     .principle-icon svg { width: 20px; height: 20px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .principle-card h3 { font-size: 0.95rem; font-weight: 600; color: var(--dark-blue); margin-bottom: 6px; }
     .principle-card p  { font-size: 0.82rem; color: #666; line-height: 1.55; }
 
-    .icon-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-    .icon-tile {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      width: 80px;
-    }
-    .icon-bg {
-      width: 52px;
-      height: 52px;
-      border-radius: 12px;
-      background: var(--sec-blue-1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    .icon-grid { display: flex; flex-wrap: wrap; gap: 20px; }
+    .icon-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 80px; }
+    .icon-bg { width: 52px; height: 52px; border-radius: 12px; background: var(--sec-blue-1); display: flex; align-items: center; justify-content: center; }
     .icon-bg svg { width: 24px; height: 24px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .icon-bg.green  { background: var(--spot-green); }
-    .icon-bg.red    { background: var(--spot-red); }
+    .icon-bg.green { background: var(--spot-green); }
+    .icon-bg.red { background: var(--spot-red); }
     .icon-bg.orange { background: var(--spot-orange); }
-    .icon-bg.teal   { background: var(--spot-teal); }
-    .icon-bg.yellow { background: var(--spot-dark-grey); }
+    .icon-bg.teal { background: var(--spot-teal); }
+    .icon-bg.dark { background: var(--spot-dark-grey); }
     .icon-label { font-size: 0.72rem; font-weight: 500; color: #666; text-align: center; line-height: 1.3; }
 
-    .a11y-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
-    }
-    .a11y-card {
-      background: #fff;
-      border-radius: 10px;
-      padding: 22px 20px;
-      border: 1px solid #e8e8e8;
-    }
-    .a11y-card h3 { font-size: 0.9rem; font-weight: 600; color: var(--dark-blue); margin-bottom: 8px; }
-    .a11y-card p  { font-size: 0.82rem; color: #555; line-height: 1.55; }
-    .contrast-samples { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-    .contrast-row {
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.82rem;
-      font-weight: 500;
-    }
-    .focus-demo {
-      margin-top: 12px;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .focus-example {
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 0.82rem;
-      font-weight: 500;
-      border: 2px solid var(--dark-blue);
-      color: var(--dark-blue);
-      box-shadow: 0 0 0 3px rgba(0,58,107,0.3);
-      background: transparent;
-    }
-
-    .logo-zone-demo {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--dark-blue);
-      border-radius: 10px;
-      padding: 40px;
-      position: relative;
-    }
-    .logo-exclusion {
-      outline: 2px dashed rgba(255,255,255,0.3);
-      outline-offset: 26px;
-      padding: 0;
-    }
-    .logo-lockup {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    .logo-lockup .mark {
-      width: 64px;
-      height: 64px;
-      background: var(--steel-blue);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    .logo-zone-demo { display: flex; align-items: center; justify-content: center; background: var(--dark-blue); border-radius: 10px; padding: 40px; }
+    .logo-exclusion { outline: 2px dashed rgba(255,255,255,0.3); outline-offset: 26px; }
+    .logo-img-display { height: 72px; width: auto; display: block; }
+    .logo-lockup { display: flex; align-items: center; gap: 16px; }
+    .logo-lockup .mark { width: 64px; height: 64px; background: var(--steel-blue); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
     .logo-lockup .mark svg { width: 36px; height: 36px; fill: #fff; }
-    .logo-lockup .wordmark-wrap .wordmark-top {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -0.5px;
-      line-height: 1;
-    }
-    .logo-lockup .wordmark-wrap .wordmark-sub {
-      font-size: 0.72rem;
-      font-weight: 500;
-      color: var(--sec-light-blue);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-top: 4px;
-    }
-    .logo-note {
-      font-size: 0.78rem;
-      color: #888;
-      margin-top: 12px;
-      text-align: center;
-      font-style: italic;
-    }
+    .logo-lockup .wordmark-top { font-size: 1.4rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; line-height: 1; }
+    .logo-lockup .wordmark-sub { font-size: 0.72rem; font-weight: 500; color: var(--sec-light-blue); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+    .logo-note { font-size: 0.78rem; color: #888; margin-top: 12px; text-align: center; font-style: italic; }
+
+    .a11y-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    .a11y-card { background: #fff; border-radius: 10px; padding: 22px 20px; border: 1px solid #e8e8e8; }
+    .a11y-card h3 { font-size: 0.9rem; font-weight: 600; color: var(--dark-blue); margin-bottom: 8px; }
+    .a11y-card p { font-size: 0.82rem; color: #555; line-height: 1.55; }
+    .contrast-samples { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .contrast-row { padding: 8px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 500; }
+    .focus-demo { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .focus-example { padding: 8px 14px; border-radius: 6px; font-size: 0.82rem; font-weight: 500; border: 2px solid var(--dark-blue); color: var(--dark-blue); box-shadow: 0 0 0 3px rgba(0,58,107,0.3); background: transparent; }
 
     @media (max-width: 640px) {
       .type-row { grid-template-columns: 1fr; }
@@ -512,18 +255,67 @@
   </style>
 </head>
 <body>
+
 <header class="page-header">
-  <h1>Savanna Sentinel - Brand Style Guide</h1>
-  <p>Visual identity guidelines for all interfaces.</p>
+  <div class="page-wrap" style="padding-top:0;padding-bottom:0;">
+    <div class="logo-row">
+      <img
+        src="../savanna-sentinel-logo.png"
+        alt="Savanna Sentinel"
+        class="logo-img"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+      />
+      <div class="logo-fallback" style="display:none;">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2L3 6v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V6L12 2z"/></svg>
+        </div>
+        <div>
+          <div style="font-size:1.4rem;font-weight:700;color:#fff;letter-spacing:-0.5px;">Savanna Sentinel</div>
+          <div style="font-size:0.72rem;font-weight:500;color:var(--sec-light-blue);letter-spacing:2px;text-transform:uppercase;margin-top:4px;">Wildlife Intelligence</div>
+        </div>
+      </div>
+    </div>
+    <h1>Brand Style Guide</h1>
+    <p>Visual identity guidelines for all interfaces. Provided by EPI-USE.</p>
+  </div>
 </header>
 
 <div class="page-wrap">
+  <section>
+    <div class="section-label">00 · Who We Are</div>
+    <h2>About Savanna Sentinel</h2>
+    <p class="section-desc">Understanding who we are and what we stand for shapes every design decision, from the words on a button to the colour of an alert.</p>
+
+    <div class="brand-grid">
+      <div class="brand-card">
+        <div class="bc-label">Purpose</div>
+        <p>Savanna Sentinel exists to give wildlife rangers the intelligence they need to protect vulnerable species in real time, in the field, without friction. Every feature we build has to earn its place against that purpose.</p>
+      </div>
+      <div class="brand-card">
+        <div class="bc-label">Values</div>
+        <p>Precision over noise. Speed saves lives. Every sighting counts. Data must never outrun the ranger who acts on it. We believe accessibility is not a nice to have, it is part of the product.</p>
+      </div>
+      <div class="brand-card">
+        <div class="bc-label">Voice</div>
+        <p>Calm, direct, expert. Never alarmist, never bureaucratic. Our voice is the same in a dashboard label, a 404 page, and a critical incident alert, because rangers need to trust us in all three situations.</p>
+      </div>
+      <div class="brand-card">
+        <div class="bc-label">Tone</div>
+        <p>A patrol summary is measured and factual. A critical poaching alert is urgent but not panicked. An empty state message is reassuring. Same voice, different room we adjust tone to the moment without losing character.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
 
   <section>
     <div class="section-label">01 · Colours</div>
     <h2>Colour Palette</h2>
-    <p class="section-desc">Tones chosen for readability and map heavy interfaces. Provided by EPI-USE. All colours are defined as CSS custom properties in the Tailwind config.</p>
+    <p class="section-desc">Tones chosen for readability on map heavy interfaces. All colours are defined as CSS custom properties in the Tailwind config.</p>
 
+    <div class="rationale">
+      <strong>Why this palette?</strong> Rangers work in high stress, fast moving environments often outdoors, on screens with variable lighting. The palette is built around deep navy blues because they read as authoritative and calm without the aggression of pure black, and they provide strong contrast for map overlays and text. Steel blue and the secondary tones give us enough range to structure complex dashboards without reaching for unrelated hues. Spot colours are strictly reserved for status communication, green means safe, orange means caution, red means danger, so the meaning is never ambiguous.
+    </div>
 
     <div class="palette-group">
       <h3>Primary Colours</h3>
@@ -546,43 +338,17 @@
       </div>
     </div>
 
-
     <div class="palette-group">
       <h3>Secondary Colours</h3>
       <div class="swatches">
-        <div class="swatch">
-          <div class="swatch-block" style="background:#002354;"></div>
-          <span class="swatch-name">Secondary Blue 1</span>
-          <span class="swatch-hex">#002354</span>
-        </div>
-        <div class="swatch">
-          <div class="swatch-block" style="background:#174585;"></div>
-          <span class="swatch-name">Secondary Blue 2</span>
-          <span class="swatch-hex">#174585</span>
-        </div>
-        <div class="swatch">
-          <div class="swatch-block" style="background:#056595;"></div>
-          <span class="swatch-name">Secondary Teal</span>
-          <span class="swatch-hex">#056595</span>
-        </div>
-        <div class="swatch">
-          <div class="swatch-block" style="background:#4F7392;"></div>
-          <span class="swatch-name">Grey-Blue</span>
-          <span class="swatch-hex">#4F7392</span>
-        </div>
-        <div class="swatch">
-          <div class="swatch-block" style="background:#8EADC4;"></div>
-          <span class="swatch-name">Light Blue</span>
-          <span class="swatch-hex">#8EADC4</span>
-        </div>
-        <div class="swatch">
-          <div class="swatch-block outlined" style="background:#F2F2F2;"></div>
-          <span class="swatch-name">Off-White</span>
-          <span class="swatch-hex">#F2F2F2</span>
-        </div>
+        <div class="swatch"><div class="swatch-block" style="background:#002354;"></div><span class="swatch-name">Secondary Blue 1</span><span class="swatch-hex">#002354</span></div>
+        <div class="swatch"><div class="swatch-block" style="background:#174585;"></div><span class="swatch-name">Secondary Blue 2</span><span class="swatch-hex">#174585</span></div>
+        <div class="swatch"><div class="swatch-block" style="background:#056595;"></div><span class="swatch-name">Secondary Teal</span><span class="swatch-hex">#056595</span></div>
+        <div class="swatch"><div class="swatch-block" style="background:#4F7392;"></div><span class="swatch-name">Grey-Blue</span><span class="swatch-hex">#4F7392</span></div>
+        <div class="swatch"><div class="swatch-block" style="background:#8EADC4;"></div><span class="swatch-name">Light Blue</span><span class="swatch-hex">#8EADC4</span></div>
+        <div class="swatch"><div class="swatch-block outlined" style="background:#F2F2F2;"></div><span class="swatch-name">Off-White</span><span class="swatch-hex">#F2F2F2</span></div>
       </div>
     </div>
-
 
     <div class="palette-group">
       <h3>Spot Colours - Alerts, Heatmaps &amp; Status Indicators Only</h3>
@@ -602,11 +368,14 @@
   </section>
 
   <hr class="divider" />
-
   <section>
     <div class="section-label">02 · Typography</div>
     <h2>Typography</h2>
     <p class="section-desc"><strong>Inter</strong> is the primary typeface, loaded via Google Fonts. It matches shadcn/ui's default type config out of the box.</p>
+
+    <div class="rationale">
+      <strong>Why Inter?</strong> A typeface speaks before a single word is read. Inter is a humanist sans-serif designed specifically for screen readability, it performs equally well at the large sizes of a dashboard heading and the small sizes of a coordinate label. It carries a sense of calm competence rather than corporate stiffness or creative flair, which aligns with our voice. We use only three weights (400, 600, 700) because more weights introduce visual noise without adding hierarchy. Line-heights are always paired with size tokens because size without line-height is a half-decision.
+    </div>
 
     <div class="type-samples">
       <div class="type-row">
@@ -655,21 +424,30 @@
   </section>
 
   <hr class="divider" />
-
   <section>
     <div class="section-label">03 · Logo &amp; Iconography</div>
     <h2>Logo &amp; Iconography</h2>
     <p class="section-desc">Keep a clear exclusion zone around the logo of at least 50% of its height. Use Lucide React for all icons at a consistent 2px stroke weight.</p>
 
+    <div class="rationale">
+      <strong>Why these icon choices?</strong> Each icon type on the map has a distinct shape <em>and</em> a distinct spot colour, so it remains recognisable even at small sizes or for users with colour vision deficiency, colour alone never carries the full meaning. Lucide React is used throughout because its consistent 2px geometric stroke style aligns with the clean, technical character of our UI and avoids the stylistic inconsistency that comes from mixing icon libraries.
+    </div>
+
     <div class="logo-zone-demo">
       <div class="logo-exclusion">
-        <div class="logo-lockup">
+        <img
+          src="../savanna-sentinel-logo.png"
+          alt="Savanna Sentinel"
+          class="logo-img-display"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+        />
+        <div class="logo-lockup" style="display:none;">
           <div class="mark">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2L3 6v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V6L12 2z"/>
             </svg>
           </div>
-          <div class="wordmark-wrap">
+          <div>
             <div class="wordmark-top">Savanna Sentinel</div>
             <div class="wordmark-sub">Wildlife Intelligence</div>
           </div>
@@ -680,7 +458,6 @@
 
     <br />
     <div class="icon-grid">
-  
       <div class="icon-tile">
         <div class="icon-bg">
           <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="#fff" stroke="none"/></svg>
@@ -712,13 +489,13 @@
         <span class="icon-label">Patrol Route</span>
       </div>
       <div class="icon-tile">
-        <div class="icon-bg yellow">
+        <div class="icon-bg dark">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" stroke="#fff"/><rect x="14" y="3" width="7" height="7" stroke="#fff"/><rect x="14" y="14" width="7" height="7" stroke="#fff"/><rect x="3" y="14" width="7" height="7" stroke="#fff"/></svg>
         </div>
         <span class="icon-label">Heatmap Zone</span>
       </div>
     </div>
-    <p style="font-size:0.78rem;color:#888;margin-top:12px;font-style:italic;">All icons use Lucide React at 2px stroke. On the map, each icon type has a distinct shape and Spot Colour so it stays recognisable at a glance. The icons used here are for demonstration purposes, they do not reflect the exact icons used in development.</p>
+    <p style="font-size:0.78rem;color:#888;margin-top:12px;font-style:italic;">All icons use Lucide React at 2px stroke. The icons shown here are for demonstration purposes and do not reflect the exact icons used in development.</p>
   </section>
 
   <hr class="divider" />
@@ -726,40 +503,36 @@
   <section>
     <div class="section-label">04 · Principles</div>
     <h2>Design Principles</h2>
-    <p class="section-desc">These four principles guide decisions across the desktop dashboard and mobile PWA.</p>
+    <p class="section-desc">These four principles guide decisions across the desktop dashboard and mobile PWA. Every component, layout, and interaction should be traceable back to at least one of them.</p>
 
     <div class="principles-grid">
       <div class="principle-card">
         <div class="principle-icon">
-      
           <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
         </div>
         <h3>Consistency</h3>
-        <p>shadcn components and Tailwind utilities are used throughout, keeping the desktop and mobile PWA visually consistent.</p>
+        <p>shadcn components and Tailwind utilities are used throughout. When design and code share the same language, the product feels like it was built by one team with one intention, because it was.</p>
       </div>
       <div class="principle-card">
         <div class="principle-icon">
-      
           <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
         </div>
         <h3>Simplicity</h3>
-        <p>The map is the primary focus. Everything else stays out of the way so rangers aren't distracted from geospatial data.</p>
+        <p>The map is the primary focus. UI chrome exists to support the map, not compete with it. When in doubt, remove rather than add, a ranger in the field cannot afford cognitive overhead.</p>
       </div>
       <div class="principle-card">
         <div class="principle-icon">
-      
           <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         </div>
         <h3>Responsiveness</h3>
-        <p>Tailwind's responsive prefixes (<code style="font-size:0.75rem;">sm: md: lg:</code>) handle layout at every screen size, from desktop to mobile.</p>
+        <p>Tailwind's responsive prefixes (<code style="font-size:0.75rem;">sm: md: lg:</code>) handle layout at every screen size. The same content must work on a wide desktop monitor and a mobile PWA without redesigning for each.</p>
       </div>
       <div class="principle-card">
         <div class="principle-icon">
-      
           <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </div>
         <h3>Accessibility</h3>
-        <p>Contrast, font sizing, and visual cues are chosen with accessibility in mind. WCAG 2.1 AA is the minimum.</p>
+        <p>WCAG 2.1 AA is the floor, not the ceiling. Accessibility is built into every token, every component, and every guideline, it cannot be added at the end of a sprint.</p>
       </div>
     </div>
   </section>
@@ -771,19 +544,21 @@
     <h2>UI Component Styling</h2>
     <p class="section-desc">All components build on shadcn/ui with defaults overridden per component file. Do not revert to shadcn defaults.</p>
 
+    <div class="rationale">
+      <strong>Why shadcn/ui?</strong> shadcn gives us unstyled, accessible primitives built on Radix UI, which handles ARIA roles, keyboard navigation, and focus management correctly by default. We override the visual layer to match our design tokens while keeping the accessible behaviour intact. The result is components that look like Savanna Sentinel and behave correctly for every user, including those relying on keyboard navigation or screen readers.
+    </div>
+
     <div class="components-grid">
 
-  
       <div class="comp-card">
         <h4>Buttons</h4>
         <div class="btn-demo">
           <button class="btn btn-primary">Submit Report</button>
           <button class="btn btn-secondary">Cancel</button>
         </div>
-        <p style="font-size:0.75rem;color:#888;margin-top:14px;">Primary uses a solid Dark Blue fill with white text. Secondary is outlined. Both use a 6px border radius.</p>
+        <p class="comp-note">Primary uses a solid Dark Blue fill with white text. Secondary is outlined. Both use a 6px border radius and a visible focus ring for keyboard users.</p>
       </div>
 
-  
       <div class="comp-card">
         <h4>Form Inputs</h4>
         <div class="form-demo">
@@ -795,10 +570,9 @@
             <option>Snare removal</option>
           </select>
         </div>
-        <p style="font-size:0.75rem;color:#888;margin-top:10px;">The second input above shows the active focus state.</p>
+        <p class="comp-note">The second input shows the active focus state. Every input must have a visible label, placeholder text alone is not sufficient for accessibility.</p>
       </div>
 
-  
       <div class="comp-card">
         <h4>Navigation Sidebar</h4>
         <div class="nav-demo">
@@ -819,35 +593,32 @@
             Users
           </div>
         </div>
-        <p style="font-size:0.75rem;color:#888;margin-top:10px;">Dark Blue (#003A6B) background. The active item text turns fully white.</p>
+        <p class="comp-note">Dark Blue (#003A6B) background. Active item text turns fully white. The sidebar uses a dark background so the map content behind it reads as the primary surface.</p>
       </div>
 
-  
       <div class="comp-card">
         <h4>Modal / Explainability Panel</h4>
         <div class="modal-demo">
           <h5>Confirm Patrol Route</h5>
-          <p>This route covers 3 high risk zones based on the latest heatmap data. Estimated duration: 2h 40m.</p>
+          <p>This route covers 3 high-risk zones based on the latest heatmap data. Estimated duration: 2h 40m.</p>
           <div class="modal-actions">
             <button class="btn btn-secondary" style="padding:7px 16px;font-size:0.8rem;">Cancel</button>
             <button class="btn btn-primary"   style="padding:7px 16px;font-size:0.8rem;">Confirm</button>
           </div>
         </div>
-        <p style="font-size:0.75rem;color:#888;margin-top:10px;">White or Off-White background with a drop shadow to lift it off the underlying layer.</p>
+        <p class="comp-note">White or Off-White background with a drop shadow to lift it off the underlying layer. The destructive / confirming action always sits on the right.</p>
       </div>
 
-  
       <div class="comp-card">
         <h4>Dashboard Panel / Card</h4>
         <div class="dash-card">
           <div class="card-title">Active Incidents</div>
           <div class="card-value">14</div>
-          <div class="card-sub">↑ 3 since last patrol · Zone B &amp; D</div>
+          <div class="card-sub"> 3 since last patrol · Zone B &amp; D</div>
         </div>
-        <p style="font-size:0.75rem;color:#888;margin-top:10px;">Off-White background with a Primary Blue accent on the heading.</p>
+        <p class="comp-note">Off-White background with a Primary Blue accent on the heading. Cards surface key numbers at a glance, keep the data prominent and the label secondary.</p>
       </div>
 
-  
       <div class="comp-card">
         <h4>Toasts / Alerts</h4>
         <div class="toast-stack">
@@ -873,22 +644,26 @@
             </div>
           </div>
         </div>
+        <p class="comp-note">State is always communicated with both colour and an icon, never colour alone. Toast containers use <code>aria-live</code> so screen readers announce them without requiring focus.</p>
       </div>
 
     </div>
   </section>
 
   <hr class="divider" />
-
   <section>
     <div class="section-label">06 · Accessibility</div>
     <h2>Accessibility</h2>
     <p class="section-desc">All interfaces must meet WCAG 2.1 AA. Radix UI primitives (via shadcn) handle ARIA roles correctly by default. Do not disable this.</p>
 
+    <div class="rationale">
+      <strong>Why we take this seriously.</strong> Accessibility is a system property, it cannot be bolted on at the end of a sprint. It has to be baked into every token, every component, and every guideline. Rangers may use the platform in conditions that make interaction difficult: bright sunlight, gloves, or stress. Accessible design often makes the product better for everyone in those conditions, not just users with disabilities.
+    </div>
+
     <div class="a11y-grid">
       <div class="a11y-card">
         <h3>Colour Contrast</h3>
-        <p>All text and background combinations need at least a 4.5:1 contrast ratio for normal text.</p>
+        <p>All text and background combinations need at least a 4.5:1 contrast ratio for normal text, and 3:1 for large text. Never rely on colour alone to convey state, always pair with an icon or label.</p>
         <div class="contrast-samples">
           <div class="contrast-row" style="background:var(--dark-blue);color:#fff;">White on Dark Blue - Passes AA (≈10.7:1)</div>
           <div class="contrast-row" style="background:var(--off-white);color:var(--dark-blue);">Dark Blue on Off-White - Passes AA</div>
@@ -898,17 +673,17 @@
 
       <div class="a11y-card">
         <h3>Keyboard Navigability</h3>
-        <p>Every interactive element, including forms, map toggles and time sliders, must be keyboard navigable. All focusable elements need a visible <code style="font-size:0.75rem;">focus-visible:ring</code> style.</p>
+        <p>Every interactive element, forms, map toggles, time sliders, must be reachable and operable by keyboard. All focusable elements need a visible <code style="font-size:0.75rem;">focus-visible:ring</code> style. No keyboard traps.</p>
         <div class="focus-demo">
           <div class="focus-example" tabindex="0">Focused button</div>
           <div class="focus-example" tabindex="0" style="border-color:var(--sec-teal);box-shadow:0 0 0 3px rgba(5,101,149,0.3);color:var(--sec-teal);">Focused input</div>
         </div>
-        <p style="font-size:0.75rem;color:#888;margin-top:10px;">The examples above show what the <code>focus-visible:ring</code> style looks like.</p>
+        <p style="font-size:0.75rem;color:#888;margin-top:10px;">The examples above show what the <code>focus-visible:ring</code> style looks like in practice.</p>
       </div>
 
       <div class="a11y-card">
         <h3>Screen Reader Compatibility</h3>
-        <p>Radix UI primitives handle ARIA roles by default. Custom components should also include:</p>
+        <p>Radix UI primitives handle ARIA roles by default. Custom components must also include:</p>
         <ul style="margin-top:8px;padding-left:18px;font-size:0.82rem;color:#555;line-height:1.8;">
           <li>Proper ARIA labels on icon-only buttons</li>
           <li>Semantic HTML: <code>&lt;nav&gt;</code>, <code>&lt;main&gt;</code>, <code>&lt;article&gt;</code></li>

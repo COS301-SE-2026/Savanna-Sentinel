@@ -386,7 +386,7 @@ async def test_login_unknown_email_and_wrong_password_return_identical_detail():
  
     assert wrong_pw.json().get("detail") == unknown_email.json().get("detail"), (
         "Different error messages for wrong password vs unknown email allow "
-        "email enumeration — both must return identical detail text."
+        "email enumeration - both must return identical detail text."
     )
 
 #Inactive account
@@ -433,7 +433,7 @@ async def test_login_inactive_and_wrong_password_return_identical_detail():
  
     assert wrong_pw.json().get("detail") == inactive.json().get("detail"), (
         "Different error for inactive account vs wrong password reveals "
-        "account status — both must return identical detail text."
+        "account status - both must return identical detail text."
     )
 
 #Newly registered account cannot log in
