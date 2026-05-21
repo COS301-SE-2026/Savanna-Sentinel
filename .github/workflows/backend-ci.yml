@@ -1,0 +1,95 @@
+name: Backend CI pipeline
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  backend-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Create backend .env for CI
+        run: |
+          cat > backend/.env << 'EOF'
+          DATABASE_URL=postgresql+asyncpg://sentinel:sentinel_dev_password@db:5432/savanna_sentinel
+          JWT_SECRET=ci-secret-not-used-in-production
+          REDIS_URL=redis://redis:6379/0
+          EOF
+
+      - name: Start Docker services
+        run: docker compose -f docker-compose.yml -p savanna-ci up -d db redis backend
+
+      - name: Install Dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install ruff
+          pip install pytest-cov
+
+      - name: Linter
+        run: ruff check backend/
+        # run: ruff check backend/ --exit-zero # (Caution) Uncomment this to ALWAYS RETURN POSITIVES
+
+      - name: Unit Tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel
+          JWT_SECRET: ci-secret-not-used-in-production
+        run: pytest backend/tests/unit/ --cov=backend/app --cov-report=xml:backend/unit-coverage.xml --cov-report=term
+
+      - name: Wait for backend to be ready
+        run: |
+          until curl -sf http://localhost:8000/health; do
+            echo "Waiting for backend..."
+            sleep 2
+          done
+
+      - name: Integration Tests
+        env:
+          BASE_URL: http://localhost:8000
+          DATABASE_URL: postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel
+        run: pytest backend/tests/integration/ --cov=backend/app --cov-report=xml:backend/int-coverage.xml --cov-report=term
+
+      - name: Tear down Docker services
+        if: always()
+        run: docker compose -f docker-compose.yml -p savanna-ci down --volumes
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: |
+            backend/unit-coverage.xml
+            backend/int-coverage.xml
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend
+        uses: docker/build-push-action@v5
+
+        with:
+          context: ./backend
+          # Changing push: true in the workflow to send images to GitHub Container Registry or DockerHub.
+          push: false  # Don't push to a registry yet, just test the build
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,23 +1,30 @@
-FROM node:18-alpine AS build-stage
+FROM node:24-alpine AS dev
 
 WORKDIR /app
-
 COPY package*.json ./
-
 RUN npm install
+COPY . .
+EXPOSE 5173
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
+
+FROM node:24-alpine AS build
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
 COPY . .
 
-#Generate with the pwa settings
-RUN npm run build:pwa
+ARG VITE_API_URL=/v1
+ENV VITE_API_URL=$VITE_API_URL
 
-#Start new nginx environment now that everything has been compiled
-FROM nginx:stable-alpine
+RUN npm run build
 
-#Grab the compiled files
-COPY --from=build-stage /app/web-build /usr/share/nginx/html
 
-#MIGHT HAVE TO BE UPDATED TO HTTPS LATER, but for now uses HTTP port
+FROM nginx:stable-alpine AS prod
+
+COPY --from=build /app/web-build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]
