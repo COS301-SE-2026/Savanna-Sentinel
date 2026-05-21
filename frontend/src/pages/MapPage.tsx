@@ -94,7 +94,8 @@ export default function MapPage() {
         attributionControl: false,
       });
     } catch (e) {
-      setMapError(String(e));
+      const msg = String(e);
+      queueMicrotask(() => setMapError(msg));
       return;
     }
 
