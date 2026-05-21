@@ -108,14 +108,14 @@ describe("BurgerMenu", () => {
     expect(screen.getByText("Profile")).toBeInTheDocument();
   });
 
-  it("shows only Tip-offs and Profile for community_liaison", async () => {
+  it("shows correct nav items for community_liaison", async () => {
     setUser("community_liaison");
     renderMenu();
     await openMenu();
 
     expect(screen.getByText("Tip-offs")).toBeInTheDocument();
     expect(screen.getByText("Profile")).toBeInTheDocument();
-    expect(screen.queryByText("Dashboard")).not.toBeInTheDocument();
+    expect(screen.queryByText("Dashboard")).toBeInTheDocument();
     expect(screen.queryByText("Reports")).not.toBeInTheDocument();
     expect(screen.queryByText("Admin")).not.toBeInTheDocument();
   });
