@@ -24,6 +24,8 @@ export const ProfilePage: React.FC = () => {
 	const isProfileDirty =
 		!loadingProfile &&
 		(firstName.trim() !== profileFirstName.trim() || lastName.trim() !== profileLastName.trim());
+	const isSaveDisabled = savingProfile || !isProfileDirty;
+	const isResetDisabled = !isProfileDirty;
 
 	useEffect(() => {
 		let mounted = true;
@@ -146,16 +148,29 @@ export const ProfilePage: React.FC = () => {
 								<div className="mt-4 flex items-center gap-3 pt-2">
 									<button
 										type="submit"
-										className="px-4 py-2 rounded-md text-white"
-										style={{ background: '#0070BF' }}
-										disabled={savingProfile || !isProfileDirty}
+										className="px-4 py-2 rounded-md text-white transition-colors"
+										style={{
+											background: isSaveDisabled ? '#103364' : '#0070BF',
+											opacity: isSaveDisabled ? 0.72 : 1,
+											cursor: isSaveDisabled ? 'not-allowed' : 'pointer',
+											transition: 'background-color 180ms ease, color 180ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease',
+										}}
+										disabled={isSaveDisabled}
 									>
 										{savingProfile ? 'Saving…' : 'Save'}
 									</button>
 									<button
 										type="button"
-										className="px-3 py-2 rounded-md border"
-										disabled={!isProfileDirty}
+										className="px-3 py-2 rounded-md border transition-colors"
+										style={{
+											background: isResetDisabled ? '#F3F4F6' : '#FFFFFF',
+											borderColor: isResetDisabled ? '#D1D5DB' : '#D1D5DB',
+											color: isResetDisabled ? '#9CA3AF' : '#111827',
+											opacity: isResetDisabled ? 0.8 : 1,
+											cursor: isResetDisabled ? 'not-allowed' : 'pointer',
+											transition: 'background-color 180ms ease, color 180ms ease, border-color 180ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease',
+										}}
+										disabled={isResetDisabled}
 										onClick={() => {
 											setFirstName(profileFirstName);
 											setLastName(profileLastName);
