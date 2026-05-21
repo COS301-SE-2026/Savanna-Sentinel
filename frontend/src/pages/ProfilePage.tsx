@@ -10,6 +10,7 @@ export const ProfilePage: React.FC = () => {
 
 	const [currentPassword, setCurrentPassword] = useState('');
 	const [newPassword, setNewPassword] = useState('');
+	const [confirmPassword, setConfirmPassword] = useState('');
 
 	const [loadingProfile, setLoadingProfile] = useState(true);
 	const [savingProfile, setSavingProfile] = useState(false);
@@ -21,11 +22,22 @@ export const ProfilePage: React.FC = () => {
 	const logout = useAuthStore((s) => s.logout);
 	const profileFirstName = profile?.first_name ?? '';
 	const profileLastName = profile?.last_name ?? '';
+	const hasAnyProfileName = firstName.trim() !== '' || lastName.trim() !== '';
 	const isProfileDirty =
 		!loadingProfile &&
 		(firstName.trim() !== profileFirstName.trim() || lastName.trim() !== profileLastName.trim());
-	const isSaveDisabled = savingProfile || !isProfileDirty;
+	const isSaveDisabled = savingProfile || !isProfileDirty || !hasAnyProfileName;
 	const isResetDisabled = !isProfileDirty;
+	const canChangePassword =
+		currentPassword.trim() !== '' &&
+		newPassword.trim() !== '' &&
+		confirmPassword.trim() !== '' &&
+		currentPassword.length >= 8 &&
+		newPassword.length >= 8 &&
+		currentPassword !== newPassword &&
+		newPassword === confirmPassword;
+
+	const isChangePasswordDisabled = changingPassword || !canChangePassword;
 
 	useEffect(() => {
 		let mounted = true;
@@ -88,28 +100,47 @@ export const ProfilePage: React.FC = () => {
 
 	const onChangePassword = async (e: React.FormEvent) => {
 		e.preventDefault();
+		if (!canChangePassword) {
+			return;
+		}
+
 		setChangingPassword(true);
 		setMessage(null);
 		setError(null);
 
-		if (newPassword.length < 8) {
-			setError('New password must be at least 8 characters');
+		const currentPasswordShort = currentPassword.length < 8;
+		const newPasswordShort = newPassword.length < 8;
+
+		if (currentPasswordShort || newPasswordShort) {
+			if (currentPasswordShort && newPasswordShort) {
+				setError('Current and new password must be at least 8 characters');
+			} else if (currentPasswordShort) {
+				setError('Current password cannot be less than 8 characters');
+			} else {
+				setError('New password cannot be less than 8 characters');
+			}
 			setChangingPassword(false);
 			return;
 		}
 
-		if (!currentPassword) {
-			setError('Current password is required');
+		if (currentPassword === newPassword) {
+			setError('Current and New password cannot be the same');
+			setChangingPassword(false);
+			return;
+		}
+
+		if (newPassword !== confirmPassword) {
+			setError('New password and confirm password must match');
 			setChangingPassword(false);
 			return;
 		}
 
 		try {
 			await usersApi.changePassword(currentPassword, newPassword);
-			// Backend should revoke refresh tokens; log the user out so they must re-authenticate
+			// Log the user out so they must re-authenticate
 			setMessage('Password changed — you will be signed out');
-			// small delay so message is visible
-			setTimeout(() => logout(), 1200);
+			setChangingPassword(false);
+			setTimeout(() => logout(), 1400);
 		} catch (err: unknown) {
 			setError(getErrorMessage(err, 'Failed to change password'));
 		} finally {
@@ -157,7 +188,7 @@ export const ProfilePage: React.FC = () => {
 										}}
 										disabled={isSaveDisabled}
 									>
-										{savingProfile ? 'Saving…' : 'Save'}
+										{savingProfile ? 'Save' : 'Save'}
 									</button>
 									<button
 										type="button"
@@ -203,18 +234,38 @@ export const ProfilePage: React.FC = () => {
 								type="password"
 								className="mt-1 w-full p-2 border rounded-md"
 								value={newPassword}
-								onChange={(e) => setNewPassword(e.target.value)}
+									onChange={(e) => {
+										setNewPassword(e.target.value);
+										setError(null);
+									}}
 							/>
 							<p className="text-xs text-gray-500 mt-2">New password must be at least 8 characters.</p>
+
+								<label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mt-4">Confirm password</label>
+								<input
+									id="confirm_password"
+									type="password"
+									className="mt-1 w-full p-2 border rounded-md"
+									value={confirmPassword}
+									onChange={(e) => {
+										setConfirmPassword(e.target.value);
+										setError(null);
+									}}
+								/>
 
 							<div className="mt-4">
 								<button
 									type="submit"
-									className="px-4 py-2 rounded-md text-white"
-									style={{ background: '#C00000' }}
-									disabled={changingPassword}
+									className="px-4 py-2 rounded-md text-white transition-colors"
+									style={{
+										background: isChangePasswordDisabled ? '#7F1D1D' : '#C00000',
+										opacity: isChangePasswordDisabled ? 0.72 : 1,
+										cursor: isChangePasswordDisabled ? 'not-allowed' : 'pointer',
+										transition: 'background-color 180ms ease, color 180ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease',
+									}}
+									disabled={isChangePasswordDisabled}
 								>
-									{changingPassword ? 'Changing…' : 'Change password'}
+									{changingPassword ? 'Change password' : 'Change password'}
 								</button>
 							</div>
 						</form>
