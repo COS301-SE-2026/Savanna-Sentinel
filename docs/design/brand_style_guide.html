@@ -58,33 +58,39 @@
       color: #fff;
       padding: 48px 32px;
     }
-    .page-header .logo-row
+    .hero-logo-band
+    {
+      background: var(--off-white);
+      padding: 24px 32px 16px;
+    }
+    .hero-logo-band .logo-row
     {
       display: flex;
       align-items: center;
       gap: 18px;
-      margin-bottom: 24px;
     }
-    .page-header .logo-img
+    .hero-logo-band .logo-img
     {
       height: 60px;
       width: auto;
       display: block;
     }
-    .page-header .logo-fallback
+    .hero-logo-band .logo-fallback
     {
       display: flex;
       align-items: center;
       gap: 14px;
     }
-    .page-header .logo-icon
+    .hero-logo-band .logo-icon
     {
       width: 52px; height: 52px;
       background: var(--steel-blue);
       border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
     }
-    .page-header .logo-icon svg { width: 30px; height: 30px; fill: #fff; }
+    .hero-logo-band .logo-icon svg { width: 30px; height: 30px; fill: #fff; }
+    .hero-logo-band .wordmark-top { font-size: 1.4rem; font-weight: 700; color: var(--dark-blue); letter-spacing: -0.5px; }
+    .hero-logo-band .wordmark-sub { font-size: 0.72rem; font-weight: 500; color: var(--sec-grey-blue); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
     .page-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
     .page-header p { font-size: 1rem; color: var(--sec-light-blue); max-width: 640px; margin-top: 8px; }
 
@@ -228,7 +234,7 @@
     .icon-bg.dark { background: var(--spot-dark-grey); }
     .icon-label { font-size: 0.72rem; font-weight: 500; color: #666; text-align: center; line-height: 1.3; }
 
-    .logo-zone-demo { display: flex; align-items: center; justify-content: center; background: var(--dark-blue); border-radius: 10px; padding: 40px; }
+    .logo-zone-demo { display: flex; align-items: center; justify-content: center; background: #D8DAD6; border-radius: 10px; padding: 40px; }
     .logo-exclusion { outline: 2px dashed rgba(255,255,255,0.3); outline-offset: 26px; }
     .logo-img-display { height: 72px; width: auto; display: block; }
     .logo-lockup { display: flex; align-items: center; gap: 16px; }
@@ -258,6 +264,13 @@
 
 <header class="page-header">
   <div class="page-wrap" style="padding-top:0;padding-bottom:0;">
+    <h1>Brand Style Guide</h1>
+    <p>Visual identity guidelines for all interfaces. Provided by EPI-USE.</p>
+  </div>
+</header>
+
+<div class="hero-logo-band">
+  <div class="page-wrap" style="padding-top:0;padding-bottom:0;">
     <div class="logo-row">
       <img
         src="../savanna-sentinel-logo.png"
@@ -270,15 +283,13 @@
           <svg viewBox="0 0 24 24"><path d="M12 2L3 6v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V6L12 2z"/></svg>
         </div>
         <div>
-          <div style="font-size:1.4rem;font-weight:700;color:#fff;letter-spacing:-0.5px;">Savanna Sentinel</div>
-          <div style="font-size:0.72rem;font-weight:500;color:var(--sec-light-blue);letter-spacing:2px;text-transform:uppercase;margin-top:4px;">Wildlife Intelligence</div>
+          <div class="wordmark-top">Savanna Sentinel</div>
+          <div class="wordmark-sub">Wildlife Intelligence</div>
         </div>
       </div>
     </div>
-    <h1>Brand Style Guide</h1>
-    <p>Visual identity guidelines for all interfaces. Provided by EPI-USE.</p>
   </div>
-</header>
+</div>
 
 <div class="page-wrap">
   <section>
@@ -297,11 +308,11 @@
       </div>
       <div class="brand-card">
         <div class="bc-label">Voice</div>
-        <p>Calm, direct, expert. Never alarmist, never bureaucratic. Our voice is the same in a dashboard label, a 404 page, and a critical incident alert, because rangers need to trust us in all three situations.</p>
+        <p>Calm, direct, expert. Never alarmist, never bureaucratic. Our voice is the same in a dashboard label, a notification, and a critical incident alert, because rangers need to trust us in all three situations.</p>
       </div>
       <div class="brand-card">
         <div class="bc-label">Tone</div>
-        <p>A patrol summary is measured and factual. A critical poaching alert is urgent but not panicked. An empty state message is reassuring. Same voice, different room we adjust tone to the moment without losing character.</p>
+        <p>A patrol summary is measured and factual. A critical poaching alert is urgent but not panicked. An empty state message is reassuring. Same voice, different room. We adjust tone to the moment without losing character.</p>
       </div>
     </div>
   </section>
@@ -374,7 +385,7 @@
     <p class="section-desc"><strong>Inter</strong> is the primary typeface, loaded via Google Fonts. It matches shadcn/ui's default type config out of the box.</p>
 
     <div class="rationale">
-      <strong>Why Inter?</strong> A typeface speaks before a single word is read. Inter is a humanist sans-serif designed specifically for screen readability, it performs equally well at the large sizes of a dashboard heading and the small sizes of a coordinate label. It carries a sense of calm competence rather than corporate stiffness or creative flair, which aligns with our voice. We use only three weights (400, 600, 700) because more weights introduce visual noise without adding hierarchy. Line-heights are always paired with size tokens because size without line-height is a half-decision.
+      <strong>Why Inter?</strong> A typeface speaks before a single word is read. Inter is a humanist sans-serif designed specifically for screen readability, it performs equally well at the large sizes of a dashboard heading and the small sizes of a coordinate label. It carries a sense of calm competence rather than corporate stiffness or creative flair, which aligns with our voice. We use only four weights (400, 500, 600, 700) because more weights introduce visual noise without adding hierarchy. Line-heights are always paired with size tokens because size without line-height is a half-decision.
     </div>
 
     <div class="type-samples">
