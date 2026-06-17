@@ -21,7 +21,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const labelClass = "text-white md:text-primary text-sm font-medium";
 const inputClass =
-  "w-full rounded-lg bg-[#d9d9d9] px-4 py-2.5 text-sm text-black placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-white/40 md:bg-card md:text-foreground md:placeholder:text-muted-foreground md:focus:ring-ring/40";
+  "bg-input md:bg-card text-foreground placeholder:text-muted-foreground border-0 md:border md:border-border focus-visible:ring-2 focus-visible:ring-white/40 md:focus-visible:ring-ring/40";
+const errorClass = "text-xs text-red-300 md:text-destructive";
 
 function BrandPanel() {
   return (
@@ -89,7 +90,7 @@ export default function LoginPage()
 
         <img
           src="/icons/SavannaSentinelLogo.png"
-          alt="Savana Sentinel Logo"
+          alt="Savanna Sentinel Logo"
           className="w-60 h-auto mb-10 md:hidden"
         />
 
@@ -102,7 +103,7 @@ export default function LoginPage()
           {serverError && (
             <p
               role="alert"
-              className="mb-4 rounded-lg border border-red-400/40 bg-red-400/10 px-3 py-2 text-center text-xs text-red-300 md:text-destructive"
+              className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-center text-xs text-red-300 md:text-destructive"
             >
               {serverError}
             </p>
@@ -130,7 +131,7 @@ export default function LoginPage()
               />
 
               {errors.username && (
-                <p className="text-xs text-red-300 md:text-destructive">
+                <p className={errorClass}>
                   {errors.username.message}
                 </p>
               )}
@@ -164,7 +165,7 @@ export default function LoginPage()
               </div>
 
               {errors.password && (
-                <p className="text-xs text-red-300 md:text-destructive">
+                <p className={errorClass}>
                   {errors.password.message}
                 </p>
               )}
@@ -174,7 +175,7 @@ export default function LoginPage()
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 rounded-lg bg-[#a8b4c5] px-7 py-2.5 text-base text-gray-800 transition-all hover:bg-[#bcc7d6] disabled:cursor-not-allowed disabled:opacity-60 md:bg-primary md:text-primary-foreground md:hover:bg-primary/80"
+                className="bg-brand-light-blue md:bg-primary text-foreground md:text-primary-foreground hover:bg-brand-light-blue/80 md:hover:bg-primary/80 px-7 py-2.5 rounded-lg text-base transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>
