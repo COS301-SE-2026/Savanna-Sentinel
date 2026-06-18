@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff } from "lucide-react";
 import {
   Card,
-  CardContent,
   CardDescription,
+  CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -27,6 +28,7 @@ export const ProfilePage: React.FC = () => {
   const [profile, setProfile] = useState<UserResponse | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -49,6 +51,7 @@ export const ProfilePage: React.FC = () => {
   const logout = useAuthStore((s) => s.logout);
   const profileFirstName = profile?.first_name ?? "";
   const profileLastName = profile?.last_name ?? "";
+  const profileUsername = profile?.username ?? "";
   const trimmedFirstName = firstName.trim();
   const trimmedLastName = lastName.trim();
   const trimmedProfileFirstName = profileFirstName.trim();
@@ -59,7 +62,6 @@ export const ProfilePage: React.FC = () => {
     (trimmedFirstName !== trimmedProfileFirstName ||
       trimmedLastName !== trimmedProfileLastName);
   const isSaveDisabled = savingProfile || !isProfileDirty || !hasAnyProfileName;
-  const isResetDisabled = !isProfileDirty;
   const profileChanges = [
     {
       label: "First name",
@@ -146,6 +148,9 @@ export const ProfilePage: React.FC = () => {
 
       const updated = await usersApi.updateProfile(payload);
       setProfile(updated);
+      setFirstName(updated.first_name ?? "");
+      setLastName(updated.last_name ?? "");
+      setIsEditingProfile(false);
       setMessage("Profile updated");
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to update profile"));
@@ -217,10 +222,24 @@ export const ProfilePage: React.FC = () => {
 
   const onSaveProfile = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (isSaveDisabled) return;
+    if (!isEditingProfile || isSaveDisabled) return;
     setMessage(null);
     setError(null);
     setPendingAction("save-profile");
+  };
+
+  const startEditingProfile = () => {
+    setMessage(null);
+    setError(null);
+    setIsEditingProfile(true);
+  };
+
+  const cancelEditingProfile = () => {
+    setFirstName(profileFirstName);
+    setLastName(profileLastName);
+    setIsEditingProfile(false);
+    setMessage(null);
+    setError(null);
   };
 
   const onChangePassword = async (e: React.FormEvent) => {
@@ -321,35 +340,34 @@ export const ProfilePage: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        <div className="pt-12 pb-8">
-          <h1 className="text-xl font-semibold text-[#003A6B]">
+        <div className="pb-8">
+          <h1 className="text-2xl font-bold tracking-tight text-brand-dark-blue">
             Account settings
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-muted-foreground mt-1">
             Manage your profile and update your password.
           </p>
         </div>
 
-        <Card>
+        <Card className="border-brand-light-grey shadow-sm">
           <CardContent className="py-4">
             <div className="flex items-center gap-4">
-              <div className="h-11 w-11 rounded-full bg-[#003A6B] text-white flex items-center justify-center text-base font-semibold shrink-0 select-none">
+              <div className="h-12 w-12 rounded-full bg-brand-dark-blue text-white flex items-center justify-center text-lg font-semibold shrink-0 select-none">
                 {loadingProfile
-                  ? "Loading..."
-                  : profile?.first_name.charAt(0) +
-                      " " +
-                      profile?.last_name.charAt(0) || "Not set"}
+                  ? ""
+                  : `${profile?.first_name?.[0] ?? ""} ${profile?.last_name?.[0] ?? ""}`.trim() ||
+                    "?"}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-[#313131]">
+                  <span className="text-lg font-semibold text-spot-dark-grey">
                     {profile?.first_name} {profile?.last_name}
                   </span>
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className="capitalize">
                     {profile?.role || "Not set"}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                <p className="text-sm text-muted-foreground truncate">
                   {profile?.email}
                 </p>
               </div>
@@ -358,179 +376,251 @@ export const ProfilePage: React.FC = () => {
         </Card>
 
         <div className="grid grid-cols-1 gap-6 pt-6 md:grid-cols-2">
-          <section className="rounded-md border border-brand-light-grey bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-brand-dark-blue">
-              Change Profile
-            </h2>
-            {loadingProfile ? (
-              <p className="text-sm text-brand-grey-blue">Loading profile...</p>
-            ) : (
-              <form onSubmit={onSaveProfile}>
-                <Label
-                  htmlFor="first_name"
-                  className="block text-sm font-medium text-spot-dark-grey"
-                >
-                  First name
-                </Label>
-                <Input
-                  id="first_name"
-                  className="mt-1 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                />
+          <Card className="gap-0 rounded-md border border-brand-light-grey bg-white shadow-sm">
+            <CardHeader className="space-y-1 px-6 pt-6 pb-4">
+              <CardTitle className="text-lg font-semibold text-brand-dark-blue">
+                Personal details
+              </CardTitle>
+              <CardDescription className="text-sm text-brand-grey-blue">
+                Make your changes, then save to confirm.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-6 pb-8">
+              {loadingProfile ? (
+                <p className="text-sm text-brand-grey-blue">
+                  Loading profile...
+                </p>
+              ) : (
+                <form onSubmit={onSaveProfile}>
+                  <div className="space-y-4">
+                    <div>
+                      <Label
+                        htmlFor="username"
+                        className="block text-sm font-medium text-spot-dark-grey"
+                      >
+                        Username
+                      </Label>
+                      <div className="mt-1">
+                        <Input
+                          id="username"
+                          value={profileUsername}
+                          disabled
+                          className="h-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
 
-                <Label
-                  htmlFor="last_name"
-                  className="mt-4 block text-sm font-medium text-spot-dark-grey"
-                >
-                  Last name
-                </Label>
-                <Input
-                  id="last_name"
-                  className="mt-1 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                />
+                    <div>
+                      <Label
+                        htmlFor="first_name"
+                        className="block text-sm font-medium text-spot-dark-grey"
+                      >
+                        First name
+                      </Label>
+                      <div className="mt-1">
+                        <Input
+                          id="first_name"
+                          disabled={!isEditingProfile}
+                          className="h-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                        />
+                      </div>
+                    </div>
 
-                <div className="mt-4 flex items-center gap-3 pt-2">
+                    <div>
+                      <Label
+                        htmlFor="last_name"
+                        className="block text-sm font-medium text-spot-dark-grey"
+                      >
+                        Last name
+                      </Label>
+                      <div className="mt-1">
+                        <Input
+                          id="last_name"
+                          disabled={!isEditingProfile}
+                          className="h-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator className="my-5 bg-brand-light-grey" />
+
+                  <div className="flex items-center gap-3">
+                    {!isEditingProfile ? (
+                      <Button
+                        type="button"
+                        variant="default"
+                        className="bg-brand-dark-blue text-white hover:bg-brand-navy"
+                        onClick={startEditingProfile}
+                      >
+                        Edit
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          type="submit"
+                          variant="default"
+                          className="bg-brand-dark-blue text-white hover:bg-brand-navy"
+                          disabled={isSaveDisabled}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-brand-royal-blue text-brand-royal-blue hover:bg-brand-light-grey/60"
+                          onClick={cancelEditingProfile}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 rounded-md border border-brand-light-grey bg-white shadow-sm">
+            <CardHeader className="space-y-1 px-6 pt-6 pb-4">
+              <CardTitle className="text-lg font-semibold text-brand-dark-blue">
+                Change password
+              </CardTitle>
+              <CardDescription className="text-sm text-brand-grey-blue">
+                You will be signed out after a successful change.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-6 pb-8">
+              <form onSubmit={onChangePassword}>
+                <div className="space-y-4">
+                  <div>
+                    <Label
+                      htmlFor="current_password"
+                      className="block text-sm font-medium text-spot-dark-grey"
+                    >
+                      Current password
+                    </Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="current_password"
+                        type={showCurrentPassword ? "text" : "password"}
+                        className="h-10 pr-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-brand-grey-blue transition-colors hover:bg-brand-light-grey/60 hover:text-brand-dark-blue"
+                        onClick={() =>
+                          setShowCurrentPassword((visible) => !visible)
+                        }
+                        aria-label={
+                          showCurrentPassword
+                            ? "Hide current password"
+                            : "Show current password"
+                        }
+                        aria-pressed={showCurrentPassword}
+                      >
+                        {showCurrentPassword ? <EyeOff /> : <Eye />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label
+                      htmlFor="new_password"
+                      className="block text-sm font-medium text-spot-dark-grey"
+                    >
+                      New password
+                    </Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="new_password"
+                        type={showNewPassword ? "text" : "password"}
+                        className="h-10 pr-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          setError(null);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-brand-grey-blue transition-colors hover:bg-brand-light-grey/60 hover:text-brand-dark-blue"
+                        onClick={() =>
+                          setShowNewPassword((visible) => !visible)
+                        }
+                        aria-label={
+                          showNewPassword
+                            ? "Hide new password"
+                            : "Show new password"
+                        }
+                        aria-pressed={showNewPassword}
+                      >
+                        {showNewPassword ? <EyeOff /> : <Eye />}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-brand-grey-blue">
+                      Min. 8 characters & must differ from current password
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label
+                      htmlFor="confirm_password"
+                      className="block text-sm font-medium text-spot-dark-grey"
+                    >
+                      Confirm password
+                    </Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="confirm_password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        className="h-10 pr-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setError(null);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-brand-grey-blue transition-colors hover:bg-brand-light-grey/60 hover:text-brand-dark-blue"
+                        onClick={() =>
+                          setShowConfirmPassword((visible) => !visible)
+                        }
+                        aria-label={
+                          showConfirmPassword
+                            ? "Hide confirm password"
+                            : "Show confirm password"
+                        }
+                        aria-pressed={showConfirmPassword}
+                      >
+                        {showConfirmPassword ? <EyeOff /> : <Eye />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator className="my-5 bg-brand-light-grey" />
+
+                <div className="flex items-center gap-3">
                   <Button
                     type="submit"
                     variant="default"
                     className="bg-brand-dark-blue text-white hover:bg-brand-navy"
-                    disabled={isSaveDisabled}
+                    disabled={isChangePasswordDisabled}
                   >
-                    Save
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-brand-royal-blue text-brand-royal-blue hover:bg-brand-light-grey/60"
-                    disabled={isResetDisabled}
-                    onClick={() => {
-                      setFirstName(profileFirstName);
-                      setLastName(profileLastName);
-                      setMessage(null);
-                      setError(null);
-                    }}
-                  >
-                    Reset
+                    Change Password
                   </Button>
                 </div>
               </form>
-            )}
-          </section>
-
-          <section className="rounded-md border border-brand-light-grey bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-brand-dark-blue">
-              Change password
-            </h2>
-            <form onSubmit={onChangePassword}>
-              <Label
-                htmlFor="current_password"
-                className="block text-sm font-medium text-spot-dark-grey"
-              >
-                Current password
-              </Label>
-              <div className="relative mt-1">
-                <Input
-                  id="current_password"
-                  type={showCurrentPassword ? "text" : "password"}
-                  className="pr-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-brand-grey-blue transition-colors hover:bg-brand-light-grey/60 hover:text-brand-dark-blue"
-                  onClick={() => setShowCurrentPassword((visible) => !visible)}
-                  aria-label={
-                    showCurrentPassword
-                      ? "Hide current password"
-                      : "Show current password"
-                  }
-                  aria-pressed={showCurrentPassword}
-                >
-                  {showCurrentPassword ? <EyeOff /> : <Eye />}
-                </button>
-              </div>
-
-              <Label
-                htmlFor="new_password"
-                className="mt-4 block text-sm font-medium text-spot-dark-grey"
-              >
-                New password
-              </Label>
-              <div className="relative mt-1">
-                <Input
-                  id="new_password"
-                  type={showNewPassword ? "text" : "password"}
-                  className="pr-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30"
-                  value={newPassword}
-                  onChange={(e) => {
-                    setNewPassword(e.target.value);
-                    setError(null);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-brand-grey-blue transition-colors hover:bg-brand-light-grey/60 hover:text-brand-dark-blue"
-                  onClick={() => setShowNewPassword((visible) => !visible)}
-                  aria-label={
-                    showNewPassword ? "Hide new password" : "Show new password"
-                  }
-                  aria-pressed={showNewPassword}
-                >
-                  {showNewPassword ? <EyeOff /> : <Eye />}
-                </button>
-              </div>
-              <p className="mt-2 text-xs text-brand-grey-blue">
-                New password must be at least 8 characters.
-              </p>
-
-              <Label
-                htmlFor="confirm_password"
-                className="mt-4 block text-sm font-medium text-spot-dark-grey"
-              >
-                Confirm password
-              </Label>
-              <div className="relative mt-1">
-                <Input
-                  id="confirm_password"
-                  type={showConfirmPassword ? "text" : "password"}
-                  className="pr-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    setError(null);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-brand-grey-blue transition-colors hover:bg-brand-light-grey/60 hover:text-brand-dark-blue"
-                  onClick={() => setShowConfirmPassword((visible) => !visible)}
-                  aria-label={
-                    showConfirmPassword
-                      ? "Hide confirm password"
-                      : "Show confirm password"
-                  }
-                  aria-pressed={showConfirmPassword}
-                >
-                  {showConfirmPassword ? <EyeOff /> : <Eye />}
-                </button>
-              </div>
-
-              <div className="mt-4">
-                <Button
-                  type="submit"
-                  variant="default"
-                  className="bg-brand-dark-blue text-white hover:bg-brand-navy"
-                  disabled={isChangePasswordDisabled}
-                >
-                  Change Password
-                </Button>
-              </div>
-            </form>
-          </section>
+            </CardContent>
+          </Card>
         </div>
 
         {message && (
