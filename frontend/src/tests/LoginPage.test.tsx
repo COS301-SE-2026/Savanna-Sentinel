@@ -23,11 +23,11 @@ function renderLoginPage(initialPath = "/login") {
   );
 }
 
-describe("LoginPage - Savana Sentinel", () => {
+describe("LoginPage - Savanna Sentinel", () => {
 
   it("renders the logo, username field, password field, and Log In button", () => {
     renderLoginPage();
-    expect(screen.getByRole("img", { name: /savana sentinel/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /savanna sentinel/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /log in/i })).toBeInTheDocument();

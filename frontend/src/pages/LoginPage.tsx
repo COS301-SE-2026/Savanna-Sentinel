@@ -7,6 +7,10 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { AxiosError } from "axios";
 import { useAuthStore } from "@/store/authStore";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 // Validation schema
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -17,7 +21,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const labelClass = "text-white md:text-primary text-sm font-medium";
 const inputClass =
-  "w-full rounded-lg bg-[#d9d9d9] px-4 py-2.5 text-sm text-black placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-white/40 md:bg-card md:text-foreground md:placeholder:text-muted-foreground md:focus:ring-ring/40";
+  "bg-input md:bg-card text-foreground placeholder:text-muted-foreground border-0 md:border md:border-border focus-visible:ring-2 focus-visible:ring-white/40 md:focus-visible:ring-ring/40";
+const errorClass = "text-xs text-red-300 md:text-destructive";
 
 function BrandPanel() {
   return (
@@ -85,7 +90,7 @@ export default function LoginPage()
 
         <img
           src="/icons/SavannaSentinelLogo.png"
-          alt="Savana Sentinel Logo"
+          alt="Savanna Sentinel Logo"
           className="w-60 h-auto mb-10 md:hidden"
         />
 
@@ -98,7 +103,7 @@ export default function LoginPage()
           {serverError && (
             <p
               role="alert"
-              className="mb-4 rounded-lg border border-red-400/40 bg-red-400/10 px-3 py-2 text-center text-xs text-red-300 md:text-destructive"
+              className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-center text-xs text-red-300 md:text-destructive"
             >
               {serverError}
             </p>
@@ -111,14 +116,11 @@ export default function LoginPage()
           >
 
             <div className="flex flex-col gap-2">
-              <label
-                htmlFor="username"
-                className={labelClass}
-              >
+              <Label htmlFor="username" className={labelClass}>
                 Username
-              </label>
+              </Label>
 
-              <input
+              <Input
                 id="username"
                 type="text"
                 placeholder="Username"
@@ -129,22 +131,19 @@ export default function LoginPage()
               />
 
               {errors.username && (
-                <p className="text-xs text-red-300 md:text-destructive">
+                <p className={errorClass}>
                   {errors.username.message}
                 </p>
               )}
             </div>
 
             <div className="flex flex-col gap-2">
-              <label
-                htmlFor="password"
-                className={labelClass}
-              >
+              <Label htmlFor="password" className={labelClass}>
                 Password
-              </label>
+              </Label>
 
               <div className="relative">
-                <input
+                <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
@@ -153,28 +152,30 @@ export default function LoginPage()
                   {...register("password")}
                 />
 
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-sm"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-black transition-colors md:text-muted-foreground md:hover:text-foreground"
                 >
                   {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                </button>
+                </Button>
               </div>
 
               {errors.password && (
-                <p className="text-xs text-red-300 md:text-destructive">
+                <p className={errorClass}>
                   {errors.password.message}
                 </p>
               )}
             </div>
 
             <div className="flex justify-center pt-4">
-              <button
+              <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 rounded-lg bg-[#a8b4c5] px-7 py-2.5 text-base text-gray-800 transition-all hover:bg-[#bcc7d6] disabled:cursor-not-allowed disabled:opacity-60 md:bg-primary md:text-primary-foreground md:hover:bg-primary/80"
+                className="bg-brand-light-blue md:bg-primary text-foreground md:text-primary-foreground hover:bg-brand-light-blue/80 md:hover:bg-primary/80 px-7 py-2.5 rounded-lg text-base transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>
@@ -184,7 +185,7 @@ export default function LoginPage()
                 ) : (
                   "Log In"
                 )}
-              </button>
+              </Button>
             </div>
 
           </form>
