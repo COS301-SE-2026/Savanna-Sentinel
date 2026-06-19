@@ -1,424 +1,649 @@
-import React, { useEffect, useState } from 'react';
-import { usersApi } from '@/services/usersApi';
-import type { UserResponse } from '@/services/usersApi';
-import { useAuthStore } from '@/store/authStore';
-import { Button } from '@/components/ui/button';
-import { Dialog as DialogPrimitive } from 'radix-ui';
-import { XIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-	return <DialogPrimitive.Root data-slot="dialog" {...props} />;
-}
-
-function DialogPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-	return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
-}
-
-function DialogOverlay({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
-	return (
-		<DialogPrimitive.Overlay
-			data-slot="dialog-overlay"
-			className={cn(
-				'fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px] duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
-				className,
-			)}
-			{...props}
-		/>
-	);
-}
-
-function DialogContent({
-	className,
-	children,
-	showCloseButton = true,
-	...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
-	showCloseButton?: boolean;
-}) {
-	return (
-		<DialogPortal>
-			<DialogOverlay />
-			<DialogPrimitive.Content
-				data-slot="dialog-content"
-				className={cn(
-					'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[#D8DAD6] bg-white shadow-2xl outline-none duration-200 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
-					className,
-				)}
-				{...props}
-			>
-				{children}
-				{showCloseButton && (
-					<DialogPrimitive.Close asChild>
-						<Button variant="ghost" size="icon-sm" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground">
-							<XIcon />
-							<span className="sr-only">Close</span>
-						</Button>
-					</DialogPrimitive.Close>
-				)}
-			</DialogPrimitive.Content>
-		</DialogPortal>
-	);
-}
-
-function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
-	return <div data-slot="dialog-header" className={cn('flex flex-col gap-2 p-5', className)} {...props} />;
-}
-
-function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
-	return <div data-slot="dialog-footer" className={cn('flex flex-col-reverse gap-2 p-5 pt-0 sm:flex-row sm:justify-end', className)} {...props} />;
-}
-
-function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
-	return <DialogPrimitive.Title data-slot="dialog-title" className={cn('text-lg font-semibold text-[#003A6B]', className)} {...props} />;
-}
-
-function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Description>) {
-	return <DialogPrimitive.Description data-slot="dialog-description" className={cn('text-sm text-muted-foreground', className)} {...props} />;
-}
+import React, { useEffect, useState } from "react";
+import { usersApi } from "@/services/usersApi";
+import type { UserResponse } from "@/services/usersApi";
+import { useAuthStore } from "@/store/authStore";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Eye, EyeOff } from "lucide-react";
+import {
+  Card,
+  CardDescription,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const ProfilePage: React.FC = () => {
-	const [profile, setProfile] = useState<UserResponse | null>(null);
-	const [firstName, setFirstName] = useState('');
-	const [lastName, setLastName] = useState('');
+  const [profile, setProfile] = useState<UserResponse | null>(null);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
-	const [currentPassword, setCurrentPassword] = useState('');
-	const [newPassword, setNewPassword] = useState('');
-	const [confirmPassword, setConfirmPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-	const [loadingProfile, setLoadingProfile] = useState(true);
-	const [savingProfile, setSavingProfile] = useState(false);
-	const [changingPassword, setChangingPassword] = useState(false);
-	const [pendingAction, setPendingAction] = useState<'save-profile' | 'change-password' | null>(null);
-	const [isConfirming, setIsConfirming] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    "save-profile" | "change-password" | null
+  >(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
-	const [message, setMessage] = useState<string | null>(null);
-	const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-	const logout = useAuthStore((s) => s.logout);
-	const profileFirstName = profile?.first_name ?? '';
-	const profileLastName = profile?.last_name ?? '';
-	const hasAnyProfileName = firstName.trim() !== '' || lastName.trim() !== '';
-	const isProfileDirty =
-		!loadingProfile &&
-		(firstName.trim() !== profileFirstName.trim() || lastName.trim() !== profileLastName.trim());
-	const isSaveDisabled = savingProfile || !isProfileDirty || !hasAnyProfileName;
-	const isResetDisabled = !isProfileDirty;
-	const canChangePassword =
-		currentPassword.trim() !== '' &&
-		newPassword.trim() !== '' &&
-		confirmPassword.trim() !== '' &&
-		currentPassword.length >= 8 &&
-		newPassword.length >= 8 &&
-		currentPassword !== newPassword &&
-		newPassword === confirmPassword;
+  const logout = useAuthStore((s) => s.logout);
+  const profileFirstName = profile?.first_name ?? "";
+  const profileLastName = profile?.last_name ?? "";
+  const profileUsername = profile?.username ?? "";
+  const trimmedFirstName = firstName.trim();
+  const trimmedLastName = lastName.trim();
+  const trimmedProfileFirstName = profileFirstName.trim();
+  const trimmedProfileLastName = profileLastName.trim();
+  const hasAnyProfileName = trimmedFirstName !== "" || trimmedLastName !== "";
+  const isProfileDirty =
+    !loadingProfile &&
+    (trimmedFirstName !== trimmedProfileFirstName ||
+      trimmedLastName !== trimmedProfileLastName);
+  const isSaveDisabled = savingProfile || !isProfileDirty || !hasAnyProfileName;
+  const profileChanges = [
+    {
+      label: "First name",
+      from: trimmedProfileFirstName,
+      to: trimmedFirstName,
+    },
+    { label: "Last name", from: trimmedProfileLastName, to: trimmedLastName },
+  ].filter((change) => change.from !== change.to);
+  const canChangePassword =
+    currentPassword.trim() !== "" &&
+    newPassword.trim() !== "" &&
+    confirmPassword.trim() !== "" &&
+    currentPassword.length >= 8 &&
+    newPassword.length >= 8 &&
+    currentPassword !== newPassword &&
+    newPassword === confirmPassword;
 
-	const isChangePasswordDisabled = changingPassword || !canChangePassword;
-	const isConfirmDialogOpen = pendingAction !== null;
-	const confirmDialogTitle = pendingAction === 'change-password' ? 'Confirm password change' : 'Confirm profile changes';
-	const confirmDialogBody =
-		pendingAction === 'change-password'
-			? 'You are about to update your password. Confirm changes to continue.'
-			: 'You are about to update your profile details. Confirm changes to continue.';
+  const isChangePasswordDisabled = changingPassword || !canChangePassword;
+  const isConfirmDialogOpen = pendingAction !== null;
+  const confirmDialogTitle =
+    pendingAction === "change-password"
+      ? "Confirm password change"
+      : "Confirm profile changes";
+  const confirmDialogBody =
+    pendingAction === "change-password"
+      ? "You are about to update your password. Confirm changes to continue."
+      : "Review your profile updates before confirming.";
 
-	useEffect(() => {
-		let mounted = true;
-		usersApi
-			.getMe()
-			.then((p) => {
-				if (!mounted) return;
-				setProfile(p);
-				setFirstName(p.first_name ?? '');
-				setLastName(p.last_name ?? '');
-			})
-			.catch(() => {
-				if (!mounted) return;
-				setError('Failed to load profile');
-			})
-			.finally(() => mounted && setLoadingProfile(false));
+  useEffect(() => {
+    let mounted = true;
+    usersApi
+      .getMe()
+      .then((p) => {
+        if (!mounted) return;
+        setProfile(p);
+        setFirstName(p.first_name ?? "");
+        setLastName(p.last_name ?? "");
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setError("Failed to load profile");
+      })
+      .finally(() => mounted && setLoadingProfile(false));
 
-		return () => {
-			mounted = false;
-		};
-	}, []);
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-	const getErrorMessage = (err: unknown, fallback: string) => {
-		if (typeof err === 'object' && err !== null) {
-			type ErrWithResponse = { response?: { data?: unknown }; message?: string };
-			const e = err as ErrWithResponse;
-			if (e.response && typeof e.response === 'object' && e.response.data && typeof e.response.data === 'object') {
-				const data = e.response.data as Record<string, unknown>;
-				if (typeof data.detail === 'string') return data.detail;
-				if (typeof data.message === 'string') return data.message;
-			}
-			if (typeof e.message === 'string') return e.message;
-		}
+  const getErrorMessage = (err: unknown, fallback: string) => {
+    if (typeof err === "object" && err !== null) {
+      type ErrWithResponse = {
+        response?: { data?: unknown };
+        message?: string;
+      };
+      const e = err as ErrWithResponse;
+      if (
+        e.response &&
+        typeof e.response === "object" &&
+        e.response.data &&
+        typeof e.response.data === "object"
+      ) {
+        const data = e.response.data as Record<string, unknown>;
+        if (typeof data.detail === "string") return data.detail;
+        if (typeof data.message === "string") return data.message;
+      }
+      if (typeof e.message === "string") return e.message;
+    }
 
-		return fallback;
-	};
+    return fallback;
+  };
 
-	const applyProfileChanges = async () => {
-		setSavingProfile(true);
-		setMessage(null);
-		setError(null);
+  const applyProfileChanges = async () => {
+    setSavingProfile(true);
+    setMessage(null);
+    setError(null);
 
-		try {
-			const payload: { first_name?: string; last_name?: string } = {};
-			const fn = firstName.trim();
-			const ln = lastName.trim();
-			if (fn !== '') payload.first_name = fn;
-			if (ln !== '') payload.last_name = ln;
+    try {
+      const payload: { first_name?: string; last_name?: string } = {};
+      if (trimmedFirstName !== trimmedProfileFirstName)
+        payload.first_name = trimmedFirstName;
+      if (trimmedLastName !== trimmedProfileLastName)
+        payload.last_name = trimmedLastName;
 
-			const updated = await usersApi.updateProfile(payload);
-			setProfile(updated);
-			setMessage('Profile updated');
-		} catch (err: unknown) {
-			setError(getErrorMessage(err, 'Failed to update profile'));
-		} finally {
-			setSavingProfile(false);
-		}
-	};
+      const updated = await usersApi.updateProfile(payload);
+      setProfile(updated);
+      setFirstName(updated.first_name ?? "");
+      setLastName(updated.last_name ?? "");
+      setIsEditingProfile(false);
+      setMessage("Profile updated");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to update profile"));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
-	const applyPasswordChanges = async () => {
-		setChangingPassword(true);
-		setMessage(null);
-		setError(null);
+  const applyPasswordChanges = async () => {
+    setChangingPassword(true);
+    setMessage(null);
+    setError(null);
 
-		const currentPasswordShort = currentPassword.length < 8;
-		const newPasswordShort = newPassword.length < 8;
+    const currentPasswordShort = currentPassword.length < 8;
+    const newPasswordShort = newPassword.length < 8;
 
-		if (currentPasswordShort || newPasswordShort) {
-			if (currentPasswordShort && newPasswordShort) {
-				setError('Current and new password must be at least 8 characters');
-			} else if (currentPasswordShort) {
-				setError('Current password cannot be less than 8 characters');
-			} else {
-				setError('New password cannot be less than 8 characters');
-			}
-			setChangingPassword(false);
-			return;
-		}
+    if (currentPasswordShort || newPasswordShort) {
+      if (currentPasswordShort && newPasswordShort) {
+        setError("Current and new password must be at least 8 characters");
+      } else if (currentPasswordShort) {
+        setError("Current password cannot be less than 8 characters");
+      } else {
+        setError("New password cannot be less than 8 characters");
+      }
+      setChangingPassword(false);
+      return;
+    }
 
-		if (currentPassword === newPassword) {
-			setError('Current and New password cannot be the same');
-			setChangingPassword(false);
-			return;
-		}
+    if (currentPassword === newPassword) {
+      setError("Current and New password cannot be the same");
+      setChangingPassword(false);
+      return;
+    }
 
-		if (newPassword !== confirmPassword) {
-			setError('New password and confirm password must match');
-			setChangingPassword(false);
-			return;
-		}
+    if (newPassword !== confirmPassword) {
+      setError("New password and confirm password must match");
+      setChangingPassword(false);
+      return;
+    }
 
-		try {
-			await usersApi.changePassword(currentPassword, newPassword);
-			setMessage('Password changed — you will be signed out...');
-			setTimeout(() => logout(), 1500);
-			setCurrentPassword('');
-			setNewPassword('');
-			setConfirmPassword('');
-		} catch (err: unknown) {
-			setError(getErrorMessage(err, 'Failed to change password'));
-		} finally {
-			setChangingPassword(false);
-		}
-	};
+    try {
+      await usersApi.changePassword(currentPassword, newPassword);
+      setMessage("Password changed — you will be signed out...");
+      setTimeout(() => logout(), 1500);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to change password"));
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
-	const handleConfirmChanges = async () => {
-		if (!pendingAction || isConfirming) return;
-		setIsConfirming(true);
-		try {
-			if (pendingAction === 'save-profile') {
-				await applyProfileChanges();
-			} else {
-				await applyPasswordChanges();
-			}
-			setPendingAction(null);
-		} finally {
-			setIsConfirming(false);
-		}
-	};
+  const handleConfirmChanges = async () => {
+    if (!pendingAction || isConfirming) return;
+    setIsConfirming(true);
+    try {
+      if (pendingAction === "save-profile") {
+        await applyProfileChanges();
+      } else {
+        await applyPasswordChanges();
+      }
+      setPendingAction(null);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
-	const onSaveProfile = async (e?: React.FormEvent) => {
-		e?.preventDefault();
-		if (isSaveDisabled) return;
-		setMessage(null);
-		setError(null);
-		setPendingAction('save-profile');
-	};
+  const onSaveProfile = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!isEditingProfile || isSaveDisabled) return;
+    setMessage(null);
+    setError(null);
+    setPendingAction("save-profile");
+  };
 
-	const onChangePassword = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (isChangePasswordDisabled) {
-			return;
-		}
-		setMessage(null);
-		setError(null);
-		setPendingAction('change-password');
-	};
+  const startEditingProfile = () => {
+    setMessage(null);
+    setError(null);
+    setIsEditingProfile(true);
+  };
 
-	return (
-		<div className="min-h-screen" style={{ background: '#F2F2F2' }}>
-			<main className="max-w-4xl mx-auto px-4">
-				<Dialog open={isConfirmDialogOpen} onOpenChange={(open: boolean) => !open && setPendingAction(null)}>
-					<DialogContent showCloseButton={!isConfirming}>
-						<DialogHeader className="bg-[#003A6B] text-white rounded-t-xl">
-							<DialogTitle className="text-white">{confirmDialogTitle}</DialogTitle>
-							<DialogDescription className="text-[#D8DAD6]">{confirmDialogBody}</DialogDescription>
-						</DialogHeader>
-						<div className="px-5 pb-5 text-sm text-[#313131] pt-4">
-							Please click <span className="font-semibold text-[#003A6B]">Confirm changes</span> to apply the update.
-						</div>
-						<DialogFooter>
-							<Button type="button" variant="outline" onClick={() => setPendingAction(null)} disabled={isConfirming}>
-								Cancel
-							</Button>
-							<Button type="button" variant="default" onClick={handleConfirmChanges} disabled={isConfirming}>
-								{isConfirming ? 'Confirm changes' : 'Confirm changes'}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+  const cancelEditingProfile = () => {
+    setFirstName(profileFirstName);
+    setLastName(profileLastName);
+    setIsEditingProfile(false);
+    setMessage(null);
+    setError(null);
+  };
 
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8">
-					<section className="bg-white rounded-md p-6 shadow-sm border">
-						<h2 className="text-lg font-semibold mb-4">Profile</h2>
-						{loadingProfile ? (
-							<p>Loading…</p>
-						) : (
-							<form onSubmit={onSaveProfile}>
-								<label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First name</label>
-								<input
-									id="first_name"
-									className="mt-1 w-full p-2 border rounded-md"
-									value={firstName}
-									onChange={(e) => setFirstName(e.target.value)}
-								/>
+  const onChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isChangePasswordDisabled) {
+      return;
+    }
+    setMessage(null);
+    setError(null);
+    setPendingAction("change-password");
+  };
 
-								<label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mt-4">Last name</label>
-								<input
-									id="last_name"
-									className="mt-1 w-full p-2 border rounded-md"
-									value={lastName}
-									onChange={(e) => setLastName(e.target.value)}
-								/>
+  return (
+    <div className="min-h-screen bg-brand-off-white text-spot-dark-grey">
+      <main className="mx-auto max-w-4xl px-4 py-8">
+        <Dialog
+          open={isConfirmDialogOpen}
+          onOpenChange={(open: boolean) => !open && setPendingAction(null)}
+        >
+          <DialogContent
+            showCloseButton={!isConfirming}
+            className="max-w-lg rounded-xl border border-brand-light-grey bg-brand-off-white p-0 shadow-[0_18px_40px_rgba(0,35,84,0.18)]"
+          >
+            <DialogHeader className="bg-brand-dark-blue text-white rounded-t-xl p-5">
+              <DialogTitle className="text-white">
+                {confirmDialogTitle}
+              </DialogTitle>
+              <DialogDescription className="text-brand-light-grey">
+                {confirmDialogBody}
+              </DialogDescription>
+            </DialogHeader>
+            {pendingAction === "save-profile" ? (
+              <div className="px-5 pb-5 pt-4 text-sm text-spot-dark-grey">
+                <div className="mb-3 font-medium text-brand-royal-blue">
+                  Changes to be applied:
+                </div>
+                <div className="space-y-2 rounded-md border border-brand-light-grey bg-white p-3">
+                  {profileChanges.map((change) => (
+                    <div
+                      key={change.label}
+                      className="grid grid-cols-[96px_1fr_auto_1fr] items-center gap-2 text-sm"
+                    >
+                      <span className="font-medium text-brand-dark-blue">
+                        {change.label}
+                      </span>
+                      <span className="rounded bg-brand-off-white px-2 py-1 text-spot-dark-grey">
+                        {change.from === "" ? "Empty" : change.from}
+                      </span>
+                      <span
+                        className="text-brand-steel-blue"
+                        aria-hidden="true"
+                      >
+                        →
+                      </span>
+                      <span className="rounded bg-brand-light-grey/60 px-2 py-1 text-brand-dark-blue">
+                        {change.to === "" ? "Empty" : change.to}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-spot-dark-grey">
+                  Please click{" "}
+                  <span className="font-semibold text-brand-dark-blue">
+                    Confirm changes
+                  </span>{" "}
+                  to apply the update.
+                </p>
+              </div>
+            ) : (
+              <div className="px-5 pb-5 pt-4 text-sm text-spot-dark-grey">
+                Please click{" "}
+                <span className="font-semibold text-brand-dark-blue">
+                  Confirm changes
+                </span>{" "}
+                to apply the update.
+              </div>
+            )}
+            <DialogFooter className="p-5 pt-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPendingAction(null)}
+                disabled={isConfirming}
+                className="border-brand-dark-blue text-brand-dark-blue hover:bg-brand-light-grey/60"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                onClick={handleConfirmChanges}
+                disabled={isConfirming}
+                className="bg-brand-dark-blue text-white hover:bg-brand-navy"
+              >
+                {isConfirming ? "Applying changes..." : "Confirm changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-								<div className="mt-4 flex items-center gap-3 pt-2">
-									<Button
-										type="submit"
-										variant="default"
-										className="px-4 py-2"
-										style={{
-											background: isSaveDisabled ? '#103364' : '#0070BF',
-											color: '#FFFFFF',
-											opacity: isSaveDisabled ? 0.6 : 1,
-											cursor: isSaveDisabled ? 'not-allowed' : 'pointer',
-											transition: 'background-color 180ms ease, opacity 180ms ease, transform 120ms ease, box-shadow 120ms ease',
-										}}
-										disabled={isSaveDisabled}
-									>
-										{savingProfile ? 'Save' : 'Save'}
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										className="px-3 py-2"
-										style={{
-											borderColor: isResetDisabled ? '#D1D5DB' : '#174585',
-											borderWidth: '2px',
-											color: isResetDisabled ? '#9CA3AF' : '#174585',
-											opacity: isResetDisabled ? 0.85 : 1,
-											cursor: isResetDisabled ? 'not-allowed' : 'pointer',
-											transition: 'border-color 180ms ease, color 180ms ease, opacity 180ms ease, box-shadow 120ms ease',
-										}}
-										disabled={isResetDisabled}
-										onClick={() => {
-											setFirstName(profileFirstName);
-											setLastName(profileLastName);
-											setMessage(null);
-											setError(null);
-										}}
-									>
-										Reset
-									</Button>
-								</div>
-							</form>
-						)}
-					</section>
+        <div className="pb-8">
+          <h1 className="text-2xl font-bold tracking-tight text-brand-dark-blue">
+            Account settings
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Manage your profile and update your password.
+          </p>
+        </div>
 
-					<section className="bg-white rounded-md p-6 shadow-sm border">
-						<h2 className="text-lg font-semibold mb-4">Change password</h2>
-						<form onSubmit={onChangePassword}>
-								<label htmlFor="current_password" className="block text-sm font-medium text-gray-700">Current password</label>
-							<input
-									id="current_password"
-								type="password"
-								className="mt-1 w-full p-2 border rounded-md"
-								value={currentPassword}
-								onChange={(e) => setCurrentPassword(e.target.value)}
-							/>
+        <Card className="border-brand-light-grey shadow-sm">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-brand-dark-blue text-white flex items-center justify-center text-lg font-semibold shrink-0 select-none">
+                {loadingProfile
+                  ? ""
+                  : `${profile?.first_name?.[0] ?? ""} ${profile?.last_name?.[0] ?? ""}`.trim() ||
+                    "?"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-lg font-semibold text-spot-dark-grey">
+                    {profile?.first_name} {profile?.last_name}
+                  </span>
+                  <Badge variant="secondary" className="capitalize">
+                    {profile?.role || "Not set"}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground truncate">
+                  {profile?.email}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-								<label htmlFor="new_password" className="block text-sm font-medium text-gray-700 mt-4">New password</label>
-							<input
-									id="new_password"
-								type="password"
-								className="mt-1 w-full p-2 border rounded-md"
-								value={newPassword}
-									onChange={(e) => {
-										setNewPassword(e.target.value);
-										setError(null);
-									}}
-							/>
-							<p className="text-xs text-gray-500 mt-2">New password must be at least 8 characters.</p>
+        <div className="grid grid-cols-1 gap-6 pt-6 md:grid-cols-2">
+          <Card className="gap-0 rounded-md border border-brand-light-grey bg-white shadow-sm">
+            <CardHeader className="space-y-1 px-6 pt-6 pb-4">
+              <CardTitle className="text-lg font-semibold text-brand-dark-blue">
+                Personal details
+              </CardTitle>
+              <CardDescription className="text-sm text-brand-grey-blue">
+                Make your changes, then save to confirm.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-6 pb-8">
+              {loadingProfile ? (
+                <p className="text-sm text-brand-grey-blue">
+                  Loading profile...
+                </p>
+              ) : (
+                <form onSubmit={onSaveProfile}>
+                  <div className="space-y-4">
+                    <div>
+                      <Label
+                        htmlFor="username"
+                        className="block text-sm font-medium text-spot-dark-grey"
+                      >
+                        Username
+                      </Label>
+                      <div className="mt-1">
+                        <Input
+                          id="username"
+                          value={profileUsername}
+                          disabled
+                          className="h-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
 
-								<label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mt-4">Confirm password</label>
-								<input
-									id="confirm_password"
-									type="password"
-									className="mt-1 w-full p-2 border rounded-md"
-									value={confirmPassword}
-									onChange={(e) => {
-										setConfirmPassword(e.target.value);
-										setError(null);
-									}}
-								/>
+                    <div>
+                      <Label
+                        htmlFor="first_name"
+                        className="block text-sm font-medium text-spot-dark-grey"
+                      >
+                        First name
+                      </Label>
+                      <div className="mt-1">
+                        <Input
+                          id="first_name"
+                          disabled={!isEditingProfile}
+                          className="h-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                        />
+                      </div>
+                    </div>
 
-							<div className="mt-4">
-								<Button
-									type="submit"
-									variant="default"
-									className="px-4 py-2"
-									style={{
-										background: isChangePasswordDisabled ? '#103364' : '#0070BF',
-										color: '#FFFFFF',
-										opacity: isChangePasswordDisabled ? 0.6 : 1,
-										cursor: isChangePasswordDisabled ? 'not-allowed' : 'pointer',
-										transition: 'background-color 180ms ease, opacity 180ms ease, transform 120ms ease, box-shadow 120ms ease',
-									}}
-									disabled={isChangePasswordDisabled}
-								>
-									{changingPassword ? 'Change password' : 'Change password'}
-								</Button>
-							</div>
-						</form>
-					</section>
-				</div>
+                    <div>
+                      <Label
+                        htmlFor="last_name"
+                        className="block text-sm font-medium text-spot-dark-grey"
+                      >
+                        Last name
+                      </Label>
+                      <div className="mt-1">
+                        <Input
+                          id="last_name"
+                          disabled={!isEditingProfile}
+                          className="h-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-				{message && (
-					<div className="mt-6 p-3 rounded-md text-green-800 bg-green-50 border" role="status">
-						{message}
-					</div>
-				)}
+                  <Separator className="my-5 bg-brand-light-grey" />
 
-				{error && (
-					<div className="mt-6 p-3 rounded-md text-red-800 bg-red-50 border" role="alert">
-						{error}
-					</div>
-				)}
-			</main>
-		</div>
-	);
+                  <div className="flex items-center gap-3">
+                    {!isEditingProfile ? (
+                      <Button
+                        type="button"
+                        variant="default"
+                        className="bg-brand-dark-blue text-white hover:bg-brand-navy"
+                        onClick={startEditingProfile}
+                      >
+                        Edit
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          type="submit"
+                          variant="default"
+                          className="bg-brand-dark-blue text-white hover:bg-brand-navy"
+                          disabled={isSaveDisabled}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-brand-royal-blue text-brand-royal-blue hover:bg-brand-light-grey/60"
+                          onClick={cancelEditingProfile}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 rounded-md border border-brand-light-grey bg-white shadow-sm">
+            <CardHeader className="space-y-1 px-6 pt-6 pb-4">
+              <CardTitle className="text-lg font-semibold text-brand-dark-blue">
+                Change password
+              </CardTitle>
+              <CardDescription className="text-sm text-brand-grey-blue">
+                You will be signed out after a successful change.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-6 pb-8">
+              <form onSubmit={onChangePassword}>
+                <div className="space-y-4">
+                  <div>
+                    <Label
+                      htmlFor="current_password"
+                      className="block text-sm font-medium text-spot-dark-grey"
+                    >
+                      Current password
+                    </Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="current_password"
+                        type={showCurrentPassword ? "text" : "password"}
+                        className="h-10 pr-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-brand-grey-blue transition-colors hover:bg-brand-light-grey/60 hover:text-brand-dark-blue"
+                        onClick={() =>
+                          setShowCurrentPassword((visible) => !visible)
+                        }
+                        aria-label={
+                          showCurrentPassword
+                            ? "Hide current password"
+                            : "Show current password"
+                        }
+                        aria-pressed={showCurrentPassword}
+                      >
+                        {showCurrentPassword ? <EyeOff /> : <Eye />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label
+                      htmlFor="new_password"
+                      className="block text-sm font-medium text-spot-dark-grey"
+                    >
+                      New password
+                    </Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="new_password"
+                        type={showNewPassword ? "text" : "password"}
+                        className="h-10 pr-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          setError(null);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-brand-grey-blue transition-colors hover:bg-brand-light-grey/60 hover:text-brand-dark-blue"
+                        onClick={() =>
+                          setShowNewPassword((visible) => !visible)
+                        }
+                        aria-label={
+                          showNewPassword
+                            ? "Hide new password"
+                            : "Show new password"
+                        }
+                        aria-pressed={showNewPassword}
+                      >
+                        {showNewPassword ? <EyeOff /> : <Eye />}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-brand-grey-blue">
+                      Min. 8 characters & must differ from current password
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label
+                      htmlFor="confirm_password"
+                      className="block text-sm font-medium text-spot-dark-grey"
+                    >
+                      Confirm password
+                    </Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="confirm_password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        className="h-10 pr-10 border-brand-steel-blue bg-white text-spot-dark-grey placeholder:text-brand-grey-blue focus-visible:border-brand-royal-blue focus-visible:ring-brand-royal-blue/30 disabled:text-gray-400 disabled:border-brand-light-grey disabled:opacity-100 disabled:cursor-not-allowed"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setError(null);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-brand-grey-blue transition-colors hover:bg-brand-light-grey/60 hover:text-brand-dark-blue"
+                        onClick={() =>
+                          setShowConfirmPassword((visible) => !visible)
+                        }
+                        aria-label={
+                          showConfirmPassword
+                            ? "Hide confirm password"
+                            : "Show confirm password"
+                        }
+                        aria-pressed={showConfirmPassword}
+                      >
+                        {showConfirmPassword ? <EyeOff /> : <Eye />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator className="my-5 bg-brand-light-grey" />
+
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="submit"
+                    variant="default"
+                    className="bg-brand-dark-blue text-white hover:bg-brand-navy"
+                    disabled={isChangePasswordDisabled}
+                  >
+                    Change Password
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+
+        {message && (
+          <div
+            className="mt-6 rounded-md border border-spot-green/40 bg-spot-green/10 p-3 text-spot-navy"
+            role="status"
+            aria-live="polite"
+          >
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div
+            className="mt-6 rounded-md border border-spot-red/40 bg-spot-red/10 p-3 text-spot-red"
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+      </main>
+    </div>
+  );
 };
 
 export default ProfilePage;
