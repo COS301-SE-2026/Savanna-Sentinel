@@ -46,4 +46,11 @@ Savanna-Sentinel/
 |   |——Dockerfile
 |   └——.env              #Frontend environment configuration
 |——docs/
+|   |——archiecture/
+|   |——design/
+|   |——drafts/           #Contains .md drafts of docs, before formatting has occured and transformed to pdf
+|   |——non-functional/
+|   |——requirements/
+|   └——research/         #Contains reasearch of AI methods to be used
+└——docker-compose.yml
 ```
