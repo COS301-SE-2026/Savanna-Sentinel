@@ -1,164 +1,185 @@
 ```mermaid
+---
+config:
+  layout: elk
+---
+
 classDiagram
-
-    %% ── USER ────────────────────────────────────────────────────────────────
-
-    class User {
-        +UUID id
-        +String username
-        +String email
-        +String first_name
-        +String last_name
-        +Enum role
-        +Boolean is_active
-        +DateTime created_at
+    class Severity {
+        <<enumeration>>
+        None
+        Low
+        Medium
+        High
+        Urgent
     }
 
-    %% ── DOMAIN SERVICES ─────────────────────────────────────────────────────
+    class SyncStatus {
+        <<enumeration>>
+        Syncing
+        OutOfSync
+        InSync
+    }
 
-    class RiskEngine {
-        <<service>>
+    class ReportType {
+        <<enumeration>>
+        New
+        InProgress
+        Updated
+        Resolved
+    }
+
+    class Roles {
+        <<enumeration>>
+        Admin
+        Ranger
+        Analyst
+        Community_Liaison
+    }
+
+    class Incident {
+        +incident_type: String
+        +description: String
+        +severity: Severity
+    }
+
+    class Sighting {
+        +species: String
+        +count: Integer
+    }
+
+    class FieldReport {
+        +id: UUID
+        +report_type: ReportType
+        +description: String
+        +location: Geography~Point~
+        +occurred_at: DateTime
+        +sync_status: SyncStatus
+        +created_at: DateTime
+        +updated_at: DateTime
+        +deleted_at: DateTime
+    }
+
+    class TipOff {
+        +id: UUID
+        +report_type: ReportType
+        +description: String
+        +occurred_at: DateTime
+        +location: Geography~Point~
+    }
+
+    class AuditLog {
+        +id: UUID
+        +action: String
+        +target_type: String
+        +target_id: String
+        +details: JSONB
+        +created_at: DateTime
+    }
+
+    class User {
+        +id: UUID
+        +username: String
+        +email: String
+        +first_name: String
+        +last_name: String
+        +role: Roles
+        +is_active: Boolean
+        +created_at: DateTime
+    }
+
+    class PatrolRoute {
+        +id: UUID
+        +request_id: UUID
+        +start_point: Geography~Point~
+        +max_time: Float
+        +max_fuel: Float
+        +suggested_path: Geography~LineString~
+        +estimated_time: Float
+        +estimated_fuel: Float
+        +risk_coverage: Float
+        +created_at: DateTime
     }
 
     class PatrolPlanner {
         <<service>>
     }
 
-    %% ── GEOSPATIAL EVENT HIERARCHY ───────────────────────────────────────────
-
-    class GeospatialEvent {
-        <<abstract>>
-        +UUID id
-        +DateTime occurred_at
-        +Geography~Point~ location
+    class UploadWizard {
+        <<service>>
     }
 
-    class Incident {
-        +String incident_type
-        +String description
-        +Enum severity
+    class GeoSpatialEvent {
+        +id: UUID
+        +occurred_at: DateTime
+        +location: Geography~Point~
     }
 
-    class Sighting {
-        +String species
-        +Int count
+    class Photo {
+        +id: UUID
+        +image_url: String
+        +uploaded_at: DateTime
     }
 
     class PatrolTrack {
-        +Geography~LineString~ route_line
-        +Float distance_covered
+        +route_line: Geography~LineString~
+        +distance_covered: Float
     }
-
-    GeospatialEvent <|-- Incident
-    GeospatialEvent <|-- Sighting
-    GeospatialEvent <|-- PatrolTrack
-
-    %% ── FIELD REPORT ────────────────────────────────────────────────────────
-
-    class FieldReport {
-        +UUID id
-        +Enum report_type
-        +String description
-        +Geography~Point~ location
-        +DateTime occurred_at
-        +Enum sync_status
-        +DateTime created_at
-        +DateTime updated_at
-        +DateTime deleted_at
-    }
-
-    %% ── TIP-OFF ─────────────────────────────────────────────────────────────
-
-    class TipOff {
-        +UUID id
-        +Enum report_type
-        +String description
-        +DateTime occurred_at
-        +Geography~Point~ location
-    }
-
-    %% ── MEDIA ───────────────────────────────────────────────────────────────
-
-    class Photo {
-        +UUID id
-        +String image_url
-        +DateTime uploaded_at
-    }
-
-
-    %% ── RISK ENGINE ─────────────────────────────────────────────────────────
 
     class RiskHeatmap {
-        +UUID id
-        +String grid_resolution
-        +String time_interval
-        +DateTime computed_at
+        +id: UUID
+        +grid_resolution: String
+        +time_interval: String
+        +computed_at: DateTime
     }
 
     class GridCell {
-        +UUID id
-        +Geography~Polygon~ polygon_bounds
-        +Float risk_score
+        +id: UUID
+        +polygon_bounds: Geography~Polygon~
+        +risk_score: Float
     }
 
     class ExplainabilityMetric {
-        +UUID id
-        +String key_reason
-        +Float confidence_level
+        +id: UUID
+        +key_reason: String
+        +confidence_level: Float
     }
 
-    %% ── PATROL PLANNING ─────────────────────────────────────────────────────
-
-    class PatrolRoute {
-        +UUID id
-        +UUID request_id
-        +Geography~Point~ start_point
-        +Float max_time
-        +Float max_fuel
-        +Geography~LineString~ suggested_path
-        +Float estimated_time
-        +Float estimated_fuel
-        +Float risk_coverage
-        +DateTime created_at
+    class RiskEngine {
+        <<service>>
     }
 
-    %% ── AUDIT ───────────────────────────────────────────────────────────────
+    User "1" --> "*" FieldReport: Captures
+    User "1" --> "*" TipOff: Submits
+    User "1" --> "*" AuditLog: Views
+    User "1" --> "*" PatrolRoute: Requests
+    User --> UploadWizard: Uploads
 
-    class AuditLog {
-        +UUID id
-        +String action
-        +String target_type
-        +String target_id
-        +JSONB details
-        +DateTime created_at
-    }
+    FieldReport "1" --> "0..1" Incident: Creates
+    FieldReport "1" --> "0..1" Sighting: Creates
+    TipOff "1" --> "0..1" Incident: Creates
+    TipOff "1" --> "0..1" Sighting: Creates
 
-    %% ── RELATIONSHIPS ───────────────────────────────────────────────────────
+    GeoSpatialEvent <|-- PatrolTrack
+    GeoSpatialEvent <|-- Incident
+    GeoSpatialEvent <|-- Sighting
+    GeoSpatialEvent <-- UploadWizard: Creates
+    GeoSpatialEvent "1" --> "*" Photo: Includes
 
-    %% User interactions
-    User "1" --> "*" FieldReport : captures
-    User "1" --> "*" TipOff : submits
-    User "1" --> "*" PatrolRoute : requests
-    User "1" --> "*" AuditLog : actor
+    RiskEngine ..> GeoSpatialEvent: Processes
+    RiskEngine --> RiskHeatmap: Produces
 
-    %% FieldReport and TipOff produce geospatial events
-    FieldReport "1" --> "0..1" Incident : creates
-    FieldReport "1" --> "0..1" Sighting : creates
-    TipOff "1" --> "0..1" Incident : creates
-    TipOff "1" --> "0..1" Sighting : creates
+    PatrolPlanner --> PatrolRoute: Generates
+    PatrolPlanner ..> RiskHeatmap: Uses
 
-    %% Risk engine domain service
-    RiskEngine ..> GeospatialEvent : processes
-    RiskEngine --> RiskHeatmap : produces
+    RiskHeatmap "1" *-- "*" GridCell: Contains
+    GridCell "1" *-- "*" ExplainabilityMetric: Clarifies
 
-    %% Patrol planner domain service
-    PatrolPlanner ..> RiskHeatmap : uses
-    PatrolPlanner --> PatrolRoute : generates
 
-    %% Risk heatmap structure
-    RiskHeatmap "1" *-- "*" GridCell : contains
-    GridCell "1" *-- "*" ExplainabilityMetric : clarifies
+    %% Enums
 
-    %% Photo evidence
-    GeospatialEvent "1" --> "*" Photo : includes
+    Severity -- Incident
+    FieldReport -- ReportType
+    TipOff -- ReportType
+    User -- Roles
 ```
