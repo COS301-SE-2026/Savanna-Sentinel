@@ -24,5 +24,26 @@ Savanna-Sentinel/
 |   |——Dockerfile
 |   |——requirements.txt  #Contains Package information
 |   └——.env              #User-generated file, contains keys and secrets.
-
+|——frontend/
+|   |——public/
+|      └——icons/         #Contains static content used throughout the dashboard
+|   |——src/              #Contains most frontend functionality
+|      |——components/
+|         |——ui/         #Contains general re-usable components that are used on multiple pages
+|         └——{page_name}/#Contains reusable components specific to that page
+|      |——hooks/         #Contains interceptors for every request when activated for the page.
+|      |——lib/           #Contains helper functions
+|      |——offline/       #Contains offline functionality for PWA
+|      |——pages/         #Contains the raw page code for each route
+|      |——services/      #Contains API call functions and helper functions
+|      |——store/         #Contains persistent data for the session
+|      |——styles/        #Contains scss files
+|      |——tests/         #Contains frontend testing files
+|         |——mocks/      #Contains mocks for unit tests
+|         └——{file.test.tsx}
+|      |——App.tsx        #The containing page of the SPA and also routing
+|      └——main.tsx       #Wrapper for the App page
+|   |——Dockerfile
+|   └——.env              #Frontend environment configuration
+|——docs/
 ```
