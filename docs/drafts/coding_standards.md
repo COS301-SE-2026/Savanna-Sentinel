@@ -73,3 +73,73 @@ Savanna-Sentinel/
 - **Folders** - Attempt 1 word folder names, otherwise kebab case
 - **Constant Globals** - UPPER SNAKE CASE (Otherwise follow Camel Case like a normal variable)
 
+---
+## Coding Style
+Adapted from [PEP 8](https://peps.python.org/pep-0008/), althrough with modifications.
+- Never exceed 80 characters on a line
+  - Make a new line at a logicial location if threatening to exceed the limit.
+- Either define all formal parameters on the same line, or each one on a new line with extra indentation from the body to ensure readability. e.g.
+
+**Correct**
+```
+async def admin_delete_user(
+        user_id: str,
+        db: AsyncSession = Depends(get_db),
+        current_admin: User = Depends(require_admin)
+        ):
+    repo = UserRepository(db)
+    service = UserService(repo)
+```
+```
+async def change_role(self, user_id: str, new_role: str):
+    result = await self.repo.update_role(user_id, new_role)
+    return result
+```
+- Seperate logical sections inside a method with a single blank line.
+- Seperate method definitions with a single blank line.
+  - This can be ignored if methods are related and minimal, such as getters or setters.
+- Seperate logicial groups of methods with 2 blank lines.
+- All boolean variables must contain a prefix that phrases the variable as a question. (e.g. is_correct/isCorrect)
+- Imports must only be at the very top of the file.
+- Include all method imports from a single package onto a single line or encapusulate in brackets
+- All Globals must be defined under imports
+- All strings must be encapsulated with double quotes("), using ` for template strings when necessary. Single quotes(') should be avoided to list a string.
+  -  Triple double quotes(""") must be used for docstrings
+- Arrays or similar data structures must include a trailing comma, for easy expansion later. e.g.
+```
+example_array = {
+    "data_item_1": "test",
+    "data_item_2": "test2", <-- trailing comma
+}
+```
+- All arrays must use the above syntax, with 1 item being included per line
+- All functions must define a return type, with typed Python or TypeScript interfaces.
+  - The use of the any type should be avoided.
+- Strict Equality should be used when possible (=== over ==)
+- The use of the var word in the frontend is forbidden, use modern JS syntax such as let or const, preferring const unless the variable is designed to be changing.
+- Binary operators must be surrounded by 2 empty spaces (1 + 2)
+- Attempt to keep all variable declarations at the top of their respective block scope.
+- Comments must be placed above the method/line they are explaining
+  - Inline comments are forbidden.
+- Arrow syntax (=>) is preferred for Javascript function definitions.
+- A frontend file that contains Markdown language (\<tag>) must use the .tsx file extension. Else .ts must be used.
+- All props must be destructured inside their component definition
+
+**Correct**
+```
+const ExampleComp = ({itemId: string, isValid: boolean}) => {
+    ...
+}
+```
+**Incorrect**
+```
+const ExampleComp = (props: ExampleCompProps) => {
+    const itemId: string = props.itemId
+}
+```
+---
+
+
+
+
+
