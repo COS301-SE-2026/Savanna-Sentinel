@@ -8,7 +8,7 @@
 Savanna-Sentinel/
 |
 |——backend/
-|   |——init-db/          #Contains files to seed and initalise the database
+|   |——init-db/          #Contains files to seed and initialise the database
 |   |——tests/            #Contains the test files for the backend
 |      |——integration/   #Contains the integration test files
 |      └——unit/          #Contains the unit test files
@@ -46,12 +46,12 @@ Savanna-Sentinel/
 |   |——Dockerfile
 |   └——.env              #Frontend environment configuration
 |——docs/
-|   |——archiecture/
+|   |——architecture/
 |   |——design/
-|   |——drafts/           #Contains .md drafts of docs, before formatting has occured and transformed to pdf
+|   |——drafts/           #Contains .md drafts of docs, before formatting has occurred and transformed to pdf
 |   |——non-functional/
 |   |——requirements/
-|   └——research/         #Contains reasearch of AI methods to be used
+|   └——research/         #Contains research of AI methods to be used
 └——docker-compose.yml
 ```
 
@@ -75,9 +75,9 @@ Savanna-Sentinel/
 
 ---
 ## Coding Style
-Adapted from [PEP 8](https://peps.python.org/pep-0008/), althrough with modifications.
+Adapted from [PEP 8](https://peps.python.org/pep-0008/), although with modifications.
 - Never exceed 80 characters on a line
-  - Make a new line at a logicial location if threatening to exceed the limit.
+  - Make a new line at a logical location if threatening to exceed the limit.
 - Either define all formal parameters on the same line, or each one on a new line with extra indentation from the body to ensure readability. e.g.
 
 **Correct**
@@ -95,13 +95,13 @@ async def change_role(self, user_id: str, new_role: str):
     result = await self.repo.update_role(user_id, new_role)
     return result
 ```
-- Seperate logical sections inside a method with a single blank line.
-- Seperate method definitions with a single blank line.
+- separate logical sections inside a method with a single blank line.
+- Separate method definitions with a single blank line.
   - This can be ignored if methods are related and minimal, such as getters or setters.
-- Seperate logicial groups of methods with 2 blank lines.
+- Separate logical groups of methods with 2 blank lines.
 - All boolean variables must contain a prefix that phrases the variable as a question. (e.g. is_correct/isCorrect)
 - Imports must only be at the very top of the file.
-- Include all method imports from a single package onto a single line or encapusulate in brackets
+- Include all method imports from a single package onto a single line or encapsulate in brackets
 - All Globals must be defined under imports
 - All strings must be encapsulated with double quotes("), using ` for template strings when necessary. Single quotes(') should be avoided to list a string.
   -  Triple double quotes(""") must be used for docstrings
@@ -127,7 +127,7 @@ example_array = {
 
 **Correct**
 ```
-const ExampleComp = ({itemId: string, isValid: boolean}) => {
+const ExampleComp = ({itemId, isValid}) => {
     ...
 }
 ```
@@ -171,7 +171,7 @@ This is a stub, expand later when config is decided.
 ---
 ## Github/Git
 - All commits and pushes made directly to github must be made on a branch of dev
-  - Dev and main are not allowed to be pushed to directly, code can only enter through PR's through review of a seperate developer.
+  - Dev and main are not allowed to be pushed to directly, code can only enter through PR's through review of a separate developer.
 - All branch names must follow the following convention type/name
   - Type consists of
     - fix
