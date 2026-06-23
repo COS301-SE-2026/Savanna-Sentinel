@@ -138,8 +138,47 @@ const ExampleComp = (props: ExampleCompProps) => {
 }
 ```
 ---
-
-
-
-
-
+## Linters and Configuration
+### EsLint
+```
+export default defineConfig([
+  globalIgnores(['dist', 'coverage', 'web-build']),
+  {
+    ignores: ["src/components/ui"]
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
+])
+```
+### Prettier
+```
+This is a stub, expand later when config is decided.
+```
+---
+## Before Commits
+- Ensure all testing and linting is run locally before committing, to improve CI success rate.
+- Ensure PR have a clear description, and also mention parts that might need to be investigated further.
+---
+## Github/Git
+- All commits and pushes made directly to github must be made on a branch of dev
+  - Dev and main are not allowed to be pushed to directly, code can only enter through PR's through review of a seperate developer.
+- All branch names must follow the following convention type/name
+  - Type consists of
+    - fix
+    - task
+    - feature
+  - Name is a short description of what is being done in snake case.
+- All CI must succeed before a PR can be accepted
+  - In rare circumstances, such as SonarQube failing, the team leader may make an executive decision to ignore it after careful review
+  - Failing test cases cannot be ignored nor bypassed.
+- All commits must have a short but descriptive message as to the commits contents.
