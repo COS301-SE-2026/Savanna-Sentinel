@@ -54,3 +54,22 @@ Savanna-Sentinel/
 |   └——research/         #Contains reasearch of AI methods to be used
 └——docker-compose.yml
 ```
+
+---
+## Naming Conventions (Backend)
+- **Files** - Snake Case (e.g. user_service.py)
+- **Methods** - Snake Case
+- **Variables** - Snake Case
+- **Classes & Interfaces** - Pascal Case
+- **Folders** - Attempt 1 word folder names, otherwise kebab case (e.g. init-db)
+- **Constants** - Upper Snake Case (e.g. CONSTANT_VARIABLE)
+
+## Naming Conventions (Frontend)
+- **Files w/ Components** - Pascal Case (e.g. DataPreview.tsx)
+- **Files w/ Helpers** - Camel Case
+- **Methods** - Camel Case (Matching React Syntax)
+- **Variables** - Camel Case
+- **Components** - Pascal Case
+- **Folders** - Attempt 1 word folder names, otherwise kebab case
+- **Constant Globals** - UPPER SNAKE CASE (Otherwise follow Camel Case like a normal variable)
+
