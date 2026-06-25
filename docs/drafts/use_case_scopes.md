@@ -5,12 +5,12 @@
 - TUCEW - This Use Case Ends With
 ---
 ## Use Cases
-
+---
 ### Subsystem 1: Authentication
 **NOTE:** This subsystem is included for completeness, even if they do not count towards the total use case count
 
 #### Image
-![Authoritzation Subsystem Dark Mode](sav_sent_use_cases_auth_light.png)
+![Authoritzation Subsystem](sav_sent_use_cases_auth_light.png)
 
 #### Use Case Scope
 | Use Case Number | Starts With/Ends With |
@@ -23,6 +23,19 @@
 | UC 1.6 Activate User | TUCBW the admin clicking the activate button next to the corresponding pending user <br /> TUCEW the admin being shown a confirmation message, and the user being sent a welcome email. |
 | UC 1.7 Deactivate User | TUCBW the admin clicking the deactivate button next to the corresponding active user <br /> TUCEW the admin being shown a confirmation message, and the user being sent a deactivation email. Important to note the account is not removed from the DB, just access to the service is revoked. |
 | UC 1.8 Delete Pending User | TUCBW the admin clicking the reject button next to the corresponding pending user. <br /> TUCEW with the admin being shown a confirmation message, and the user being sent a rejection email. |
+---
+### Subsytem 2: Ingestion
+
+#### Image
+![Ingestion Subsystem](sav_sent_use_cases_ingest_light.drawio.png)
+
+#### Use case scope
+| Use Case Number | Starts With/Ends With |
+| --------------- | --------------------- |
+| UC2.1 Upload CSV Historical File | TUCBW the user clicking the upload file button and choosing a csv file to upload. <br /> TUCEW the system displaying the parsed CSV file and any errors that it could not remedy. |
+| UC2.2 Modify Uploaded CSV File | TUCBW the user selecting a malformed record from the uploaded file. <br /> TUCEW the system confirming the new details are parseable and in a valid format. |
+| UC2.3 Clear Uploaded CSV File | TUCBW the user clicking the clear button, after uploading a CSV file. <br /> TUCEW the user being redirected to the beginning of UC2.1. |
+| UC2.4 Finalise Uploaded CSV File | TUCBW the user clicking the Upload button. <br /> TUCEW the system confirming the file has been uploaded to the database to be analysed by the risk engine, and the user being riedirected to the beginning of UC2.1 | 
 
 ---
 ## Changelog
@@ -36,4 +49,5 @@
 - Updated the following use cases
   - Reset Password via Email -> Reset Password - Simpler name that does not restrict the method as much, details can be added in other documentation.
   - Activate / Deactive User -> Split into 2 use cases - These have different outcomes internally
+  - Split US2 into various use cases to make them more granullar, and added scope to help detail the process, as requested from feedback
 - Minor improvements
