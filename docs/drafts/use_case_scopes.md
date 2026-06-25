@@ -10,7 +10,7 @@
 **NOTE:** This subsystem is included for completeness, even if they do not count towards the total use case count
 
 #### Image
-![Authoritzation Subsystem](sav_sent_use_cases.png)
+![Authoritzation Subsystem Dark Mode](sav_sent_use_cases_auth_light.png)
 
 #### Use Case Scope
 | Use Case Number | Starts With/Ends With |
