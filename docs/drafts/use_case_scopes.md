@@ -65,7 +65,28 @@
 | UC4.5 View Historical Patrols | TUCBW the user **UNKNOWN FILL IN** <br /> TUCEW the user being shown their previous generated patrol routes. |
 | UC4.6 Sync Field Reports | TUCBW automatically, or the user pressing the sync button. <br /> TUCEW the user being notified that all pending field reports have been uploaded. |
 ---
+### Subsystem 5: Tip-off
 
+#### Image
+![Tip Off Subsystem](sav_sent_use_cases_tip_light.png)
+
+#### Use Case Scope
+| Use Case Number | Starts With/Ends With |
+| --------------- | --------------------- |
+| UC5.1 Submit Tipoff | TUCBW the user enterring tip off details and clicking the submit button. <br /> TUCEW the user being informed that a tip off has been made, and that it will be processed by the risk engine. |
+
+---
+### Subsystem 6: Dashboard
+
+#### Image
+![Dashboard Subsystem](sav_sent_use_cases_dash_light.png)
+
+#### Use Case Scope
+| Use Case Number | Starts With/Ends With |
+| --------------- | --------------------- |
+| UC6.1 View Dashboard | TUCBW the user viewing the dashboard page. <br /> TUCEW the user being presented their respective role's dashboard. |
+| UC6.2 View Model Metrics | TUCBW with the user expanding the model section on the dashboard. <br /> TUCEW the user being shown the risk engines performance. |
+---
 
 
 ## Changelog
