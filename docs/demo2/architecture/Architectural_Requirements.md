@@ -6,7 +6,7 @@
 
 ## ARCHITECTURAL DIAGRAM
 
-_[Insert architectural diagram here - Demo 2, Version 2 diagram]_
+[Insert architectural diagram here]
 
 ---
 
@@ -16,54 +16,45 @@ LAYERED PATTERN (N-TIER ARCHITECTURE)
 
 The Layered architectural pattern organizes the system into horizontal layers, with each layer interacting only with the one immediately adjacent to it, promoting separation of concerns and modularity.
 
-The architecture diagram is divided into distinct layers: Presentation Layer, Reverse Proxy, Application Layer, Async Processing Layer and Data Layer with each layer having specific responsibilities. The user interacts only with the Presentation Layer which forwards all requests over HTTPS through the Reverse Proxy into the Application Layer.
+The architecture diagram is divided into distinct layers: Presentation Layer, Reverse Proxy, Application Layer, Async Processing Layer and Data Layer, with each layer having specific responsibilities. The user interacts only with the Presentation Layer which forwards all requests over HTTPS through the Reverse Proxy into the Application Layer.
 
-MICROSERVICES-STYLE PATTERN
+Within the Application Layer, responsibilities are further organized into five distinct module groupings - Auth & Access Control, Field Operations, Sync Service, Analytics & Intelligence and Data Ingestion - each owning a clearly bounded area of functionality. These are internal divisions of a single deployable backend, not independently deployable services: they run in one process/container and do not start, scale or fail independently of one another. This grouping supports the project's single-responsibility ownership per developer while keeping the system within one application layer.
 
-The Application Layer is broken into five independently grouped services - Auth & Access Control, Field Operations, Sync Service, Analytics & Intelligence and Data Ingestion - each handling a distinct area of system functionality and communicating with the Async Processing and Data layers as needed, rather than through one another.
-
-This grouping allows each service area to be developed and tested largely in isolation, consistent with the project's single-responsibility ownership per developer.
-
-EVENT-DRIVEN / ASYNC PROCESSING PATTERN
+ASYNCHRONOUS TASK PROCESSING PATTERN
 
 The system offloads long running or compute heavy work - Risk Scoring, Route Planning, CSV Ingestion and Explainability generation - to a Worker Pool that consumes tasks from a Message Broker rather than processing them inline within a request.
 
-Application Layer services enqueue tasks to the Message Broker (for example, Data Ingestion enqueues a task with a file reference rather than the file itself) and the Worker Pool processes these asynchronously, reading and writing the Data Layer directly.
+Application Layer services enqueue tasks to the Message Broker (for example, Data Ingestion enqueues a task with a file reference rather than the file itself) and the Worker Pool processes these asynchronously reading and writing the Data Layer directly. This is a task-offloading pattern rather than an event-driven one: there is no broader set of system states that changes how a request is handled. The only state-like condition is the queue/buffer being full, in which case a task is queued or rejected - the request-handling behaviour itself does not change based on internal system state.
 
 ---
 
 ## ARCHITECTURAL CONSTRAINTS
 
+A constraint restricts the space of possible solutions, it is not itself the solution chosen within that space. The items below describe restrictions the team had to design around, separate from the specific technologies picked to satisfy them.
+
 TECHNICAL CONSTRAINTS
 
-The backend is built with FastAPI (Python), structured around a stub-first repository pattern to permit parallel frontend/backend development before the database is fully wired up.
-
-The database is PostgreSQL, run in Docker for local development, all access goes through the Data Layer rather than being called directly from Application Layer services.
-
-The frontend is React + TypeScript + Vite, styled exclusively via Tailwind utility classes mapped to CSS custom properties, with no hardcoded hex values in components.
-
-Authentication is JWT-based. JWT issuance and verification is owned by a separate team member and is marked at integration points with `JWT NOTE` comments rather than being re-implemented elsewhere.
-
-All long running or compute heavy operations (risk scoring, route planning, CSV ingestion, explainability generation) must be processed via the Message Broker and Worker Pool rather than synchronously within a request handler, to keep the Application Layer responsive.
+- The system must remain usable by rangers in the field with little or no connectivity, which constrains the frontend to support offline data capture and deferred sync rather than assuming a constant network connection. (Addressed via a Progressive Web App implementation.)
+- Frontend styling must be maintainable and consistent across a five-person team working in parallel which constrains the styling approach to a single shared design-token system rather than per-component hardcoded values.
+- Authentication and authorization logic must be implemented once and reused everywhere it's needed which constrains the system to a single, centrally owned auth mechanism rather than allowing each feature area to handle identity independently.
+- Long running or compute heavy operations (risk scoring, route planning, CSV ingestion, explainability generation) must not block request handling, which constrains these operations to be processed outside the synchronous request/response cycle.
+- The application layer must remain testable and runnable before the database is fully available, which constrains backend interfaces to be defined and stable ahead of their underlying implementations.
+- The system must be deployable and verifiable with minimal manual setup, and every change must be validated before it reaches the main branch, which constrains the deployment process to be fully automatable and the build/test cycle to run unattended. (Addressed via Docker, Docker Compose, and GitHub Actions CI/CD.)
 
 ORGANISATIONAL CONSTRAINTS
 
-Each core feature area (e.g login, risk engine, patrol planning) is owned by one team member, which constrains the architecture toward clearly bounded services that can be developed and tested in isolation, reflected in the Application Layer's service grouping.
-
-Backend services must function without a live database connection during early development, with explicit `DB NOTE` comments marking the points where stub data is swapped for real PostgreSQL queries. This constrains the Data Layer's interfaces to be defined and stable before their implementations are finalised.
+- Each core feature area (e.g login, risk engine, patrol planning) must be ownable and deliverable by a single team member working largely independently which constrains the system's internal boundaries to be clearly separated, low-coupling areas of responsibility.
+- Development must be able to proceed without every team member waiting on a live, fully populated database, which constrains backend components to function against stub data during early development, with the points where stub data is replaced by real queries explicitly marked.
+- Total spend across cloud services, third-party integrations and tooling is capped at R5000 which is provided by EPI-USE, which constrains all infrastructure and service choices to fit within that budget.
 
 LEGAL / DATA CONSTRAINTS
 
-Field reports and tip-offs may include user-submitted photo evidence, which constrains Object Storage to handle file uploads with appropriate access control, separate from the Primary Database.
-
-Audit log entries must be immutable once written, which constrains the Primary Database schema and the Application Layer's audit-logging logic to be append-only for that data.
+- Field reports and tip-offs may include user-submitted photo evidence of a sensitive nature, which constrains file storage to enforce access control separate from and stricter than general application data.
+- Audit log entries must be legally defensible and tamper-evident once written, which constrains the audit-logging data and logic to be append-only, with no update or delete path for existing entries.
+- The system handles sensitive conservation data, including poaching incident locations, patrol routes, and informant tip-offs, the exposure of which could cause real-world harm, which constrains all data in transit to be encrypted and constrains sensitive map layers to be restricted by authenticated user role. (Addressed via HTTPS and role-based access control.)
 
 ---
 
 ## DESIGN PATTERNS
 
-ADAPTER DESIGN PATTERN
-
-The Adapter Design Pattern can be found in `security.py`, which defines a `_JWTAdapter` wrapping the custom JWT encode/decode behaviour behind a simple, stable interface.
-
-Purpose: The Adapter pattern allows the rest of the codebase to depend on a consistent internal interface for JWT operations, rather than depending directly on the underlying JWT library's API. This means the underlying JWT library could be swapped without changing any calling code.
+No design patterns yet
