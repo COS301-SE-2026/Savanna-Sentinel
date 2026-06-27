@@ -1,20 +1,21 @@
 <div align="center">
-  <img src="docs/savanna-sentinel-logo.png" alt="Savanna Sentinel" width="420"/>
+  <img src="docs/assets/savanna-sentinel-logo.png" alt="Savanna Sentinel" width="420"/>
 
   <p>Wildlife conservation anti-poaching intelligence platform.<br/>
   Helping game reserve rangers, analysts, and community liaisons detect poaching hotspots,<br/>
   plan optimal patrols, and capture field data - even while offline.</p>
 
-  [![Codecov](https://img.shields.io/codecov/c/gh/COS301-SE-2026/Savanna-Sentinel/dev?style=for-the-badge&logo=codecov&label=Coverage&color=F01F7A)](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel)
-  [![Backend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/backend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Backend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/backend-ci.yml)
-  [![Frontend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/frontend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Frontend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/frontend-ci.yml)
+[![Codecov](https://img.shields.io/codecov/c/gh/COS301-SE-2026/Savanna-Sentinel/dev?style=for-the-badge&logo=codecov&label=Coverage&color=F01F7A)](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel)
+[![Backend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/backend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Backend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/frontend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Frontend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/frontend-ci.yml)
 
-  [![Open Issues](https://img.shields.io/github/issues/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=F0883E&label=Open%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)
-  [![Closed Issues](https://img.shields.io/github/issues-closed/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=A371F7&label=Closed%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues?q=is%3Aissue+is%3Aclosed)
+[![Open Issues](https://img.shields.io/github/issues/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=F0883E&label=Open%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)
+[![Closed Issues](https://img.shields.io/github/issues-closed/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=A371F7&label=Closed%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues?q=is%3Aissue+is%3Aclosed)
 
-  <br/><br/>
-  <img src="docs/epiuse-logo.png" alt="EPI-USE" width="110"/>
-  <br/><br/>
+<br/><br/>
+<img src="docs/assets/epiuse-logo.png" alt="EPI-USE" width="110"/>
+<br/><br/>
+
 </div>
 
 ## Documentation
@@ -25,18 +26,18 @@
 ## Team
 
 <div align="left">
-  <img src="docs/sigill-logo.png" alt="Sigill" width="200"/>
+  <img src="docs/assets/sigill-logo.png" alt="Sigill" width="200"/>
 </div>
 
 <br/>
 
-| Name | Role | GitHub | LinkedIn |
-|---|---|---|---|
-| David van Rooijen | Project Lead | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/davidvrjn) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/david-van-rooijen/) |
-| Stephan Kritzinger | Developer | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Stephan-Kritzinger) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/stephan-kritzinger-134702375/) |
-| Daniel Cohen | Developer | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Sashumi-6) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/daniel-cohen-057640235) |
-| Michael Koch | Developer | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/MichaelKoch23) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/michael-koch-6a8599240/) |
-| Dandré Nel | Developer | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DandreNel7) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/dandr%C3%A9-nel-065b70183/) |
+| Name               | Role         | GitHub                                                                                                                                         | LinkedIn                                                                                                                                                                 |
+| ------------------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| David van Rooijen  | Project Lead | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/davidvrjn)          | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/david-van-rooijen/)            |
+| Stephan Kritzinger | Developer    | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Stephan-Kritzinger) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/stephan-kritzinger-134702375/) |
+| Daniel Cohen       | Developer    | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Sashumi-6)          | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/daniel-cohen-057640235)        |
+| Michael Koch       | Developer    | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/MichaelKoch23)      | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/michael-koch-6a8599240/)       |
+| Dandré Nel         | Developer    | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DandreNel7)         | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/dandr%C3%A9-nel-065b70183/)    |
 
 ## Tech Stack
 
@@ -91,23 +92,23 @@ cp backend/.env.example backend/.env
 docker compose up --build
 ```
 
-| Service | URL |
-|---|---|
-| Frontend (dev) | http://localhost:5173 |
-| Backend API | http://localhost:8000 |
-| API docs | http://localhost:8000/docs |
-| MinIO console | http://localhost:9001 |
+| Service        | URL                        |
+| -------------- | -------------------------- |
+| Frontend (dev) | http://localhost:5173      |
+| Backend API    | http://localhost:8000      |
+| API docs       | http://localhost:8000/docs |
+| MinIO console  | http://localhost:9001      |
 
 ### Seed accounts
 
 All seed accounts use the password **`SentinelSeed1!`**
 
-| Username | Role |
-|---|---|
-| `ranger1` | Ranger |
-| `analyst1` | Analyst |
+| Username   | Role              |
+| ---------- | ----------------- |
+| `ranger1`  | Ranger            |
+| `analyst1` | Analyst           |
 | `liaison1` | Community Liaison |
-| `admin1` | Admin |
+| `admin1`   | Admin             |
 
 ## Development
 
