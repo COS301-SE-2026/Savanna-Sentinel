@@ -27,7 +27,7 @@
 ### Subsytem 2: Ingestion
 
 #### Image
-![Ingestion Subsystem](sav_sent_use_cases_ingest_light.drawio.png)
+![Ingestion Subsystem](sav_sent_use_cases_ingest_light.png)
 
 #### Use case scope
 | Use Case Number | Starts With/Ends With |
