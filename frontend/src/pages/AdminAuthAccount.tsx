@@ -1,29 +1,29 @@
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import { usersApi } from "@/services/usersApi";
 import { useEffect, useState } from "react";
 
 export interface UserResponse {
-  id: string;
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-  is_active: boolean;
-  created_at: string;
+    id: string;
+    username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+    is_active: boolean;
+    created_at: string;
 }
 interface UserRowProps {
-  user: UserResponse;
-  refreshList: () => void;
+    user: UserResponse;
+    refreshList: () => void;
 }
 const AuthPage = () => {
     const [users, setUsers] = useState<UserResponse[]>([]);
@@ -34,15 +34,13 @@ const AuthPage = () => {
         setIsLoading(true);
         setPageError(null);
 
-        try{
+        try {
             const data = await usersApi.getPendingUsers();
             setUsers(data.results);
-        }
-        catch (error){
+        } catch (error) {
             console.error("Failed to fetch users:", error);
             setPageError("Failed to load pending registrations.");
-        }
-        finally{
+        } finally {
             setIsLoading(false);
         }
     };
@@ -53,14 +51,22 @@ const AuthPage = () => {
         });
     }, []);
 
-    if(isLoading){
-        return <div className="p-6 md:p-10 text-sm text-muted-foreground">Loading pending users...</div>
+    if (isLoading) {
+        return (
+            <div className="p-6 md:p-10 text-sm text-muted-foreground">
+                Loading pending users...
+            </div>
+        );
     }
-    if(pageError){
-        return <div className="p-6 md:p-10 text-sm text-destructive">{pageError}</div>
+    if (pageError) {
+        return (
+            <div className="p-6 md:p-10 text-sm text-destructive">
+                {pageError}
+            </div>
+        );
     }
 
-    return(
+    return (
         <div className="max-w-7xl mx-auto p-6 md:p-10 space-y-6">
             <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
                 Pending Registrations
@@ -73,31 +79,35 @@ const AuthPage = () => {
                             <TableHead>Name</TableHead>
                             <TableHead>Role Claim</TableHead>
                             <TableHead>Created At</TableHead>
-                            <TableHead className="text-center">Actions</TableHead>
+                            <TableHead className="text-center">
+                                Actions
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.length === 0 ?
-                            (
+                        {users.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5}>No Pending Registrations found</TableCell>
+                                <TableCell colSpan={5}>
+                                    No Pending Registrations found
+                                </TableCell>
                             </TableRow>
-                            ) : 
-                            (
-                                users.map((user) => (
-                                    <UserRow key={user.id} user={user} refreshList={fetchPendingUsers} />
-                                ))
-                            )
-                        }
+                        ) : (
+                            users.map((user) => (
+                                <UserRow
+                                    key={user.id}
+                                    user={user}
+                                    refreshList={fetchPendingUsers}
+                                />
+                            ))
+                        )}
                     </TableBody>
                 </Table>
             </div>
-            
         </div>
-    )
-}
+    );
+};
 
-const UserRow = ({ user, refreshList}: UserRowProps) => {
+const UserRow = ({ user, refreshList }: UserRowProps) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [rowError, setRowError] = useState<string | null>(null);
 
@@ -105,21 +115,20 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
         setIsProcessing(true);
         setRowError(null);
 
-        try{
+        try {
             await usersApi.setUserStatus(user.id, true);
-            refreshList(); //Refresh the list
-        }
-        catch (error: unknown){
+            //Refresh the list
+            refreshList();
+        } catch (error: unknown) {
             console.error("Failed to activate user:", error);
 
             const err = error as { response?: { status?: number } };
             if (err.response?.status === 401) {
                 setRowError("Permission denied. Cannot modify admins");
-            } 
-            else {
+            } else {
                 setRowError("Failed to accept user.");
             }
-            setIsProcessing(false)
+            setIsProcessing(false);
         }
     };
 
@@ -127,18 +136,17 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
         setIsProcessing(true);
         setRowError(null);
 
-        try{
+        try {
             await usersApi.deleteUser(user.id);
             refreshList();
-        }
-        catch(error){
+        } catch (error) {
             console.error("Failed to reject user:", error);
             setRowError("Failed to reject user.");
             setIsProcessing(false);
         }
     };
 
-    return(
+    return (
         <>
             <TableRow>
                 <TableCell className="font-medium">{user.username}</TableCell>
@@ -146,8 +154,11 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
                 <TableCell>
                     <span className="capitalize px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
                         {user.role}
-                    </span></TableCell>
-                <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    </span>
+                </TableCell>
+                <TableCell>
+                    {new Date(user.created_at).toLocaleDateString()}
+                </TableCell>
                 <TableCell className="text-center">
                     <Button
                         variant="default"
@@ -168,16 +179,16 @@ const UserRow = ({ user, refreshList}: UserRowProps) => {
 
             {rowError && (
                 <TableRow>
-                    <TableCell colSpan={5} className="text-sm text-red-500 bg-red-50/50 dark:bg-red-950/20 py-2 px-4 italic">
+                    <TableCell
+                        colSpan={5}
+                        className="text-sm text-red-500 bg-red-50/50 dark:bg-red-950/20 py-2 px-4 italic"
+                    >
                         {rowError}
                     </TableCell>
                 </TableRow>
             )}
         </>
-        
+    );
+};
 
-
-    )
-}
-
-export default AuthPage
+export default AuthPage;
