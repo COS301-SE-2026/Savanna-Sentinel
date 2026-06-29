@@ -27,6 +27,10 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
+      - name: Prettier
+        working-directory: ./frontend
+        run: npx prettier --check "src/**/*/*.{ts.tsx}"
+
       - name: Linter
         working-directory: ./frontend
         run: npx eslint . # --max-warnings 0 # Strict linting
