@@ -12,7 +12,7 @@ FROM node:24-alpine AS build
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 COPY . .
 
 ARG VITE_API_URL=/v1
