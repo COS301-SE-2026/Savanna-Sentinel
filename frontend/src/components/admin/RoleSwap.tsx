@@ -207,3 +207,5 @@ export const RoleSwap = () => {
         </div>
     );
 };
+
+export default RoleSwap;

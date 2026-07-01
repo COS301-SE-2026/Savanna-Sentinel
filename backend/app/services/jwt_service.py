@@ -1,10 +1,12 @@
 import os
-from datetime import datetime, timedelta, timezone
-import jwt
 import uuid
+from datetime import datetime, timedelta, timezone
+
+import jwt
 from dotenv import load_dotenv
-from app.models.token import Token_Body, Refresh_Token_Body
 from pydantic import ValidationError
+
+from app.models.token import RefreshTokenBody, TokenBody
 
 load_dotenv()
 
@@ -21,7 +23,8 @@ def _require_secret_key() -> str:
 
 def encode(body: dict) -> str:
     now = datetime.now(timezone.utc)
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc)
+    + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     body_with_claims = body.copy()
     body_with_claims["exp"] = int(expire.timestamp())
@@ -30,30 +33,39 @@ def encode(body: dict) -> str:
 
     raw_id = body.get("id") or body.get("sub")
     if raw_id is None:
-        raise ValueError("Access Token Generation failed: 'id' or 'sub' is missing from payload data.")
-    
+        raise ValueError("Token Generation failed: 'id' or 'sub' is missing.")
+
     body_with_claims["sub"] = str(raw_id)
 
     try:
-        validated_data = Token_Body(**body_with_claims)
-        return jwt.encode(validated_data.model_dump(), _require_secret_key(), algorithm=ALGORITHM)
+        validated_data = TokenBody(**body_with_claims)
+        return jwt.encode(
+            validated_data.model_dump(),
+            _require_secret_key(),
+            algorithm=ALGORITHM,
+            )
     except ValidationError as e:
         raise ValueError(f"Access Token Generation failed: {e.errors()}")
-    
+
 def encode_refresh(userid: int, jti: str) -> str:
     now = datetime.now(timezone.utc)
-    expire = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc)
+    + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
     refresh_body = {
         "sub": str(userid),
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
         "jti": jti,
-        "type": "refresh"
+        "type": "refresh",
     }
     try:
-        validated_refresh_body = Refresh_Token_Body(**refresh_body)
-        return jwt.encode(validated_refresh_body.model_dump(), _require_secret_key(), algorithm=ALGORITHM)
+        validated_refresh_body = RefreshTokenBody(**refresh_body)
+        return jwt.encode(
+            validated_refresh_body.model_dump(),
+            _require_secret_key(),
+            algorithm=ALGORITHM,
+            )
     except ValidationError as e:
         raise ValueError(f"Refresh Token Generation failed: {e.errors()}")
 
@@ -70,30 +82,31 @@ def decode(token):
         print(f"Invalid token sequence: {e}")
         return None
 
-def verify(token) -> Token_Body:
+def verify(token) -> TokenBody:
     payload = decode(token)
     if not payload:
         return None
     try:
-        return Token_Body(**payload)
+        return TokenBody(**payload)
     except ValidationError as e:
         print(f"Token payload structure is corrupt: {e}")
         return None
-    
+
 def verify_refresh(token):
-    #Stubbed but will interface with the DB to determine if a new JWT should be generated when database is setup.
+    #Stubbed but will interface with the DB to determine if
+    #a new JWT should be generated when database is setup.
     return None
 
 def rotate_refresh(uuid):
     #Stubbed
     return None
-    
+
 def generate_token_pair(body: dict):
 
     user_id = body.get("id")
     if user_id is None:
-        raise ValueError("Token generation failed: 'id' is missing from the input data.")
-    
+        raise ValueError("Token generation failed: 'id' is missing.")
+
     access_token = encode(body)
 
     jti = str(uuid.uuid4())
@@ -105,5 +118,5 @@ def generate_token_pair(body: dict):
     return {
         "access_token": access_token,
         "refresh_token" : refresh_token,
-        "jti": jti
+        "jti": jti,
     }

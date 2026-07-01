@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import uuid
-from typing import Optional
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import select, update, func, delete
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.security import decode_token, JWTError
+from sqlalchemy import delete, func, select, update
+
+from app.core.security import JWTError, decode_token
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
-from app.schemas.auth import RegisterRequest
-from app.schemas.user import UsersRequest, UsersResponse
+
+if TYPE_CHECKING:
+    from app.schemas.auth import RegisterRequest
+    from app.schemas.user import UsersRequest, UsersResponse
 
 
 class UserRepository:
@@ -20,39 +22,38 @@ class UserRepository:
 
     def __init__(self, db):
         if db is None:
-            raise ValueError("UserRepository requires an async database session")
+            raise ValueError("UserRepository needs an async database session")
         self.db = db
 
     async def get_by_username(self, username: str) -> Optional[object]:
         """Return the matching user row by username only."""
-        
         stmt = select(User).where(User.username == username)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_id(self, user_id: str) -> Optional[User]:
         """Return the matching user row by primary key."""
-
         stmt = select(User).where(User.id == str(user_id))
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def save_refresh_token(self, user_id: str, token: str) -> None:
         """Persist a refresh token in the refresh_tokens table."""
-        
         payload = decode_token(token)
         self.db.add(
             RefreshToken(
                 jti=uuid.UUID(payload["jti"]),
                 user_id=uuid.UUID(str(user_id)),
-                expires_at=datetime.fromtimestamp(int(payload["exp"]), tz=timezone.utc),
-            )
+                expires_at=datetime.fromtimestamp(
+                    int(payload["exp"]),
+                    tz=timezone.utc,
+                ),
+            ),
         )
         await self.db.commit()
 
     async def get_user_by_refresh_token(self, token: str) -> Optional[object]:
         """Return the user that owns a valid refresh token."""
-        
         payload = decode_token(token)
         stmt = (
             select(User)
@@ -65,7 +66,7 @@ class UserRepository:
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     async def get_user_by_id(self, user_id: str) -> Optional[User]:
         stmt = select(User).where(User.id == user_id)
         result = await self.db.execute(stmt)
@@ -77,18 +78,23 @@ class UserRepository:
             payload = decode_token(token)
         except JWTError:
             return
-        stmt = update(RefreshToken).where(RefreshToken.jti == uuid.UUID(payload["jti"])).values(
-            revoked_at=datetime.now(timezone.utc)
-        )
+        stmt = update(
+                RefreshToken,
+            ).where(
+                RefreshToken.jti == uuid.UUID(payload["jti"]),
+            ).values(
+                revoked_at=datetime.now(timezone.utc),
+            )
         await self.db.execute(stmt)
         await self.db.commit()
 
     async def revoke_all_refresh_tokens(self, user_id: str) -> None:
         """Revoke every refresh token for a given user."""
-
-        stmt = update(RefreshToken).where(RefreshToken.user_id == uuid.UUID(str(user_id))).values(
-            revoked_at=datetime.now(timezone.utc)
-        )
+        stmt = update(RefreshToken).where(
+            RefreshToken.user_id == uuid.UUID(str(user_id)),
+            ).values(
+                revoked_at=datetime.now(timezone.utc),
+            )
         await self.db.execute(stmt)
         await self.db.commit()
 
@@ -113,17 +119,16 @@ class UserRepository:
 
     async def save_user(self, user: User) -> User:
         """Persist an in-memory user instance and refresh it from the DB."""
-
         await self.db.commit()
         await self.db.refresh(user)
         return user
-    
+
     async def get_users(self, req: UsersRequest ) -> list[UsersResponse]:
         stmt = select(User).where(User.role != "admin")
 
         if req.is_active is not None:
             stmt = stmt.where(User.is_active == req.is_active)
-        
+
         if req.role is not None:
             stmt = stmt.where(User.role == req.role.value)
 
@@ -134,9 +139,10 @@ class UserRepository:
         result = await self.db.execute(stmt)
 
         return result.scalars().all()
-    
+
     async def count_users(self, req: UsersRequest) -> int:
-        stmt = select(func.count()).select_from(User).where(User.role != "admin")
+        stmt = select(func.count(),
+                      ).select_from(User).where(User.role != "admin")
 
         if req.is_active is not None:
             stmt = stmt.where(User.is_active == req.is_active)
@@ -146,22 +152,26 @@ class UserRepository:
 
         result = await self.db.execute(stmt)
         return result.scalar()
-    
-    async def switch_status(self, is_active: bool, user_id: str) -> UsersResponse:
+
+    async def switch_status(
+            self,
+            is_active: bool,
+            user_id: str,
+            ) -> UsersResponse:
         stmt = select(User).where(User.id == user_id)
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
 
         if not user:
             return None
-    
+
         user.is_active = is_active
 
         await self.db.commit()
         await self.db.refresh(user)
 
         return user
-    
+
     async def admin_delete(self, user_id: str) -> UsersResponse:
         stmt = select(User).where(User.id == user_id)
         result = await self.db.execute(stmt)
@@ -169,7 +179,7 @@ class UserRepository:
 
         if not user:
             return None
-        
+
         del_stmt = delete(User).where(User.id == user_id)
         await self.db.execute(del_stmt)
 
@@ -189,7 +199,3 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user)
         return user
-    
-
-        
-

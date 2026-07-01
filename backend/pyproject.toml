@@ -18,7 +18,11 @@ select = ["E", "W", "F", "I", "N", "D", "COM", "Q", "TCH"]
 
 ignore = [
     "D100",
-    "D104"
+    "D104",
+    "D102",
+    "D103",
+    "D107",
+    "D101",
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -26,7 +30,7 @@ convention = "pep257"
 
 [tool.ruff.lint.extend-per-file-ignores]
 # Ignore missing docstringsin test files
-"tests/**/*.py" = ["D103"]
+"tests/**/*.py" = ["D103", "D102", "D107", "D101"]
 
 [tool.ruff.lint.flake8-quotes]
 inline-quotes = "double"

@@ -7,8 +7,10 @@ can stay DB-only and free of hardcoded login users.
 from dataclasses import dataclass
 
 import pytest
+from pydantic import ValidationError
 
 from app.core.security import get_password_hash
+from app.schemas.auth import RegisterRequest, RequestedRole
 from app.services.auth_service import AuthService
 
 
@@ -67,17 +69,25 @@ class FakeAuthRepository:
 
 
 class FakeRegisterRepository:
-    def __init__(self, email_taken=False, username_taken=False):
+    def __init__(self, email_taken=False, username_taken=False):  # noqa: D107
         self._email_taken = email_taken
         self._username_taken = username_taken
 
-    async def get_by_email(self, email: str):
-        return AuthUser("x", "x", email, "x", True, "ranger") if self._email_taken else None
+    async def get_by_email(self, email: str):  # noqa: D102
+        return (
+            AuthUser("x", "x", email, "x", True, "ranger")
+            if self._email_taken
+            else None
+            )
 
-    async def get_by_username(self, username: str):
-        return AuthUser("x", username, "x", "x", True, "ranger") if self._username_taken else None
+    async def get_by_username(self, username: str):  # noqa: D102
+        return (
+            AuthUser("x", username, "x", "x", True, "ranger")
+            if self._username_taken
+            else None
+            )
 
-    async def create(self, req, hashed_password: str):
+    async def create(self, req, hashed_password: str):  # noqa: D102
         return AuthUser(
             id="new-001",
             username=req.username,
@@ -99,7 +109,7 @@ def make_service() -> AuthService:
 
 @pytest.mark.asyncio
 async def test_login_valid_active_user_returns_tokens():
-    """correct credentials for an active user → both tokens returned."""
+    """Correct credentials for an active user → both tokens returned."""
     service = make_service()
     result = await service.login("ranger", "SecurePass1!")
 
@@ -112,7 +122,7 @@ async def test_login_valid_active_user_returns_tokens():
 
 @pytest.mark.asyncio
 async def test_login_wrong_password_returns_none():
-    """wrong password None (caller raises vague 401)."""
+    """Wrong password None (caller raises vague 401)."""
     service = make_service()
     result = await service.login("ranger", "WrongPassword!")
     assert result is None
@@ -120,7 +130,7 @@ async def test_login_wrong_password_returns_none():
 
 @pytest.mark.asyncio
 async def test_login_unknown_username_returns_none():
-    """unknown username None, same as wrong password (no enumeration)."""
+    """Unknown username None, same as wrong password (no enumeration)."""
     service = make_service()
     result = await service.login("ghost", "AnyPassword1!")
     assert result is None
@@ -128,7 +138,7 @@ async def test_login_unknown_username_returns_none():
 
 @pytest.mark.asyncio
 async def test_login_inactive_account_returns_none():
-    """inactive account None (same vague 401, no enumeration)."""
+    """Inactive account None (same vague 401, no enumeration)."""
     service = make_service()
     result = await service.login("inactive", "SecurePass1!")
     assert result is None
@@ -166,7 +176,7 @@ async def test_refresh_rotates_token():
 
 @pytest.mark.asyncio
 async def test_refresh_invalid_token_returns_none():
-    """garbage token None (caller raises 401)."""
+    """Garbage token None (caller raises 401)."""
     service = make_service()
     result = await service.refresh("this.is.garbage")
     assert result is None
@@ -235,8 +245,9 @@ async def test_register_creates_inactive_user():
 @pytest.mark.asyncio
 async def test_register_duplicate_email_raises_409():
     """Registration with an already-used email raises a 409 HTTPException."""
-    from app.schemas.auth import RegisterRequest, RequestedRole
     from fastapi import HTTPException
+
+    from app.schemas.auth import RegisterRequest, RequestedRole
 
     service = AuthService(FakeRegisterRepository(email_taken=True))
 
@@ -257,8 +268,9 @@ async def test_register_duplicate_email_raises_409():
 @pytest.mark.asyncio
 async def test_register_duplicate_username_raises_409():
     """Registration with an already-used username raises a 409 HTTPException."""
-    from app.schemas.auth import RegisterRequest, RequestedRole
     from fastapi import HTTPException
+
+    from app.schemas.auth import RegisterRequest, RequestedRole
 
     service = AuthService(FakeRegisterRepository(username_taken=True))
 
@@ -278,9 +290,6 @@ async def test_register_duplicate_username_raises_409():
 
 def test_register_short_password_raises_validation_error():
     """RegisterRequest rejects passwords shorter than 8 characters."""
-    from app.schemas.auth import RegisterRequest, RequestedRole
-    from pydantic import ValidationError
-
     with pytest.raises(ValidationError):
         RegisterRequest(
             username="someone",

@@ -1,5 +1,5 @@
 """
-Auth router POST /v1/auth/login, /v1/auth/refresh, /v1/auth/logout
+Auth router POST /v1/auth/login, /v1/auth/refresh, /v1/auth/logout.
 
 This file is the HTTP layer only. Business logic lives in AuthService.
 """
@@ -7,9 +7,16 @@ This file is the HTTP layer only. Business logic lives in AuthService.
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.dependencies import get_db
-from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, LogoutRequest, RegisterRequest, UserResponse
-from app.services.auth_service import AuthService
 from app.repositories.user_repository import UserRepository
+from app.schemas.auth import (
+    LoginRequest,
+    LogoutRequest,
+    RefreshRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+)
+from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -31,12 +38,6 @@ async def register(
     body: RegisterRequest,
     db=Depends(get_db),
 ):
-    """
-    Creates a new inactive account.
-    Returns 201 on success.
-    Returns 409 if the email or username is already in use.
-    The account cannot be used to log in until an Admin activates it.
-    """
     service = AuthService(UserRepository(db))
     user = await service.register(body)
     return UserResponse(
@@ -58,13 +59,6 @@ async def login(
     body: LoginRequest,
     db=Depends(get_db),
 ):
-    """
-    Validates username and password.
-    Returns access + refresh tokens on success.
-    Returns a single vague 401 on ANY failure,
-    the response must not reveal whether the username exists, the password
-    is wrong, or the account is inactive.
-    """
     service = AuthService(UserRepository(db))
     result = await service.login(body.username, body.password)
     if result is None:
@@ -81,11 +75,6 @@ async def refresh(
     body: RefreshRequest,
     db=Depends(get_db),
 ):
-    """
-    Accepts a valid refresh token and returns a new access token
-    Rotates the refresh token on every call
-    Returns 401 if the token is invalid, expired, or revoked
-    """
     service = AuthService(UserRepository(db))
     result = await service.refresh(body.refresh_token)
     if result is None:
@@ -103,7 +92,8 @@ async def logout(
     db=Depends(get_db),
 ):
     """
-    Revokes the supplied refresh token server-side
+    Revokes the supplied refresh token server-side.
+
     Always returns 204 even if the token was already revoked or never existed
     """
     service = AuthService(UserRepository(db))

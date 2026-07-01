@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { NAV_ITEMS } from "./navLinks";
 
-export const BurgerMenu = () => {
+const BurgerMenu = () => {
     const [isOpen, setOpen] = useState(false);
     const user = useAuthStore((s) => s.user);
     const logout = useAuthStore((s) => s.logout);
@@ -101,3 +101,5 @@ export const BurgerMenu = () => {
         </Sheet>
     );
 };
+
+export default BurgerMenu;
