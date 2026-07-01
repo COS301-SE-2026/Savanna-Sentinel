@@ -94,12 +94,12 @@ def verify(token) -> TokenBody:
         print(f"Token payload structure is corrupt: {e}")
         return None
 
-def verify_refresh(token):
+def verify_refresh():
     #Stubbed but will interface with the DB to determine if
     #a new JWT should be generated when database is setup.
     return None
 
-def rotate_refresh(uuid):
+def rotate_refresh():
     #Stubbed
     return None
 

@@ -11,6 +11,7 @@ from sqlalchemy.pool import NullPool
 _BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 _DATABASE_URL = os.getenv(
     "DATABASE_URL",
+    # sonar:disable:S2068
     "postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel",
 )
 

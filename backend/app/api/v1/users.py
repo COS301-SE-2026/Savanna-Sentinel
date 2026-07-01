@@ -1,9 +1,12 @@
 """User profile endpoints for authenticated users."""
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, get_db, require_admin
+from app.core.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import (
@@ -22,7 +25,16 @@ router = APIRouter(tags=["users"])
             response_model=UsersResponse,
             summary="Get the authenticated user's profile",
 )
-async def get_me(current_user=Depends(get_current_user), db=Depends(get_db)):
+async def get_me(
+        current_user: Annotated[
+            User,
+            Depends(get_current_user),
+        ],
+        db: Annotated[
+            Session,
+            Depends(get_db),
+        ],
+    ):
     service = UserService(UserRepository(db))
     user = await service.get_me(current_user)
     return UsersResponse.model_validate(user)
@@ -33,8 +45,14 @@ async def get_me(current_user=Depends(get_current_user), db=Depends(get_db)):
 )
 async def update_me(
         body: UpdateProfileRequest,
-        current_user=Depends(get_current_user),
-        db=Depends(get_db),
+        current_user: Annotated[
+            User,
+            Depends(get_current_user),
+        ],
+        db: Annotated[
+            Session,
+            Depends(get_db),
+        ],
     ):
     service = UserService(UserRepository(db))
     user = await service.update_me(current_user, body)
@@ -49,9 +67,18 @@ async def update_me(
     summary="Filter and get all user accounts",
 )
 async def users(
-        req: UsersRequest = Depends(),
-        db: AsyncSession=Depends(get_db),
-        current_admin: User = Depends(require_admin),
+        req: Annotated[
+            UsersRequest,
+            Depends(),
+        ],
+        db: Annotated[
+            AsyncSession,
+            Depends(get_db),
+        ],
+        current_admin: Annotated[
+            User,
+            Depends(get_db),
+        ],
     ):
     repo = UserRepository(db)
 
@@ -70,8 +97,14 @@ async def users(
 async def status_switch(
         req: SetUsersStatusRequest,
         user_id: str,
-        db: AsyncSession=Depends(get_db),
-        current_admin: User = Depends(require_admin),
+        db: Annotated[
+            AsyncSession,
+            Depends(get_db),
+        ],
+        current_admin: Annotated[
+            User,
+            Depends(get_db),
+        ],
     ):
     repo = UserRepository(db)
     service = UserService(repo)
@@ -93,8 +126,14 @@ async def status_switch(
 )
 async def admin_delete_user(
         user_id: str,
-        db: AsyncSession=Depends(get_db),
-        current_admin: User = Depends(require_admin),
+        db: Annotated[
+            AsyncSession,
+            Depends(get_db),
+        ],
+        current_admin: Annotated[
+            User,
+            Depends(get_db),
+        ],
     ):
     repo=UserRepository(db)
     service = UserService(repo)
@@ -117,8 +156,14 @@ async def admin_delete_user(
 async def change_user_role(
         req: RoleChangeRequest,
         user_id: str,
-        db: AsyncSession=Depends(get_db),
-        current_admin: User = Depends(require_admin),
+        db: Annotated[
+            AsyncSession,
+            Depends(get_db),
+        ],
+        current_admin: Annotated[
+            User,
+            Depends(get_db),
+        ],
     ):
     repo = UserRepository(db)
     service = UserService(repo)

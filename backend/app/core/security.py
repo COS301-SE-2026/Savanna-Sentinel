@@ -9,6 +9,7 @@ from typing import Optional
 
 from app.core.config import settings
 
+UNSUPPORTED = "Unsupported Algorithm"
 
 class JWTError(Exception):
     """Raised when a token cannot be decoded or validated."""
@@ -37,7 +38,7 @@ class _JWTAdapter:
     @staticmethod
     def encode(payload: dict, secret_key: str, algorithm: str = "HS256") -> str:
         if algorithm != "HS256":
-            raise JWTError("Unsupported algorithm")
+            raise JWTError(UNSUPPORTED)
 
         header = {"alg": "HS256", "typ": "JWT"}
         header_segment = _b64url_encode(json.dumps(
@@ -66,7 +67,7 @@ class _JWTAdapter:
         algorithms: Optional[list[str]] = None,
     ) -> dict:
         if algorithms is not None and "HS256" not in algorithms:
-            raise JWTError("Unsupported algorithm")
+            raise JWTError(UNSUPPORTED)
 
         try:
             header_segment, payload_segment, signature_segment = token.split(
@@ -88,7 +89,7 @@ class _JWTAdapter:
 
             header = json.loads(_b64url_decode(header_segment))
             if header.get("alg") != "HS256":
-                raise JWTError("Unsupported algorithm")
+                raise JWTError(UNSUPPORTED)
 
             payload = json.loads(_b64url_decode(payload_segment))
             expires_at = payload.get("exp")

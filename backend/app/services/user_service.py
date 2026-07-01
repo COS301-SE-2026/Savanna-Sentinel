@@ -14,7 +14,7 @@ class UserService:  # noqa: D101
     def __init__(self, repo: UserRepository):  # noqa: D107
         self.repo = repo
 
-    async def get_me(self, user: User) -> User:  # noqa: D102
+    def get_me(self, user: User) -> User:  # noqa: D102
         return user
 
     async def update_me(self, user: User, body: UpdateProfileRequest) -> User:  # noqa: D102

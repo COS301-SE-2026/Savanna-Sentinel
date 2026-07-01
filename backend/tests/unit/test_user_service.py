@@ -115,7 +115,7 @@ async def test_get_me_returns_current_user():
         )
 
     service = UserService(repo=mock_repo)
-    result = await service.get_me(mock_user)
+    result = service.get_me(mock_user)
 
     assert result is mock_user
 

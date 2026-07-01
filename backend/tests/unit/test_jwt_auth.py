@@ -118,7 +118,7 @@ async def test_require_admin_allows_admin_role():
         hashed_password="HashedPassword",
     )
 
-    result = await require_admin(current_user=mock_user)
+    result = require_admin(current_user=mock_user)
 
     assert result == mock_user
 
