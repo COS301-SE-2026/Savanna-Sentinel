@@ -29,7 +29,7 @@ jobs:
 
       - name: Prettier
         working-directory: ./frontend
-        run: npx prettier --check "src/**/*/*.{ts.tsx}"
+        run: npx prettier --check "src/**/*/*.{ts,tsx}"
 
       - name: Linter
         working-directory: ./frontend
