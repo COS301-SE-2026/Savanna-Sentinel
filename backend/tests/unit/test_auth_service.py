@@ -73,21 +73,21 @@ class FakeRegisterRepository:
         self._email_taken = email_taken
         self._username_taken = username_taken
 
-    def get_by_email(self, email: str):  # noqa: D102
+    async def get_by_email(self, email: str):  # noqa: D102
         return (
             AuthUser("x", "x", email, "x", True, "ranger")
             if self._email_taken
             else None
             )
 
-    def get_by_username(self, username: str):  # noqa: D102
+    async def get_by_username(self, username: str):  # noqa: D102
         return (
             AuthUser("x", username, "x", "x", True, "ranger")
             if self._username_taken
             else None
             )
 
-    def create(self, req, hashed_password: str):  # noqa: D102
+    async def create(self, req, hashed_password: str):  # noqa: D102
         return AuthUser(
             id="new-001",
             username=req.username,
