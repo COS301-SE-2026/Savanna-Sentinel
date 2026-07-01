@@ -26,7 +26,7 @@ FROM nginx:stable-alpine AS prod
 RUN addgroup -g 10001 sentinel && \
     adduser -G sentinel -u 10001 -D -H sentinel && \
     chown -R sentinel:sentinel /usr/share/nginx/html && \
-    chown -R sentinel:sentinel /usr/cache/nginx && \
+    chown -R sentinel:sentinel /var/cache/nginx && \
     chown -R sentinel:sentinel /var/log/nginx && \
     chown -R sentinel:sentinel /etc/nginx/conf.d && \
     touch /var/run/nginx.pid && \
