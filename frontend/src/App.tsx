@@ -15,33 +15,35 @@ import AdminPage from "@/pages/AdminPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFoundPage from "@/pages/NotFoundPage";
 
-export default function App() {
-	return (
-		<BrowserRouter>
-			<Routes>
-				{/* Public routes */}
-				<Route path="/login" element={<LoginPage />} />
-				<Route path="/register" element={<RegisterPage />} />
+const App = () => {
+    return (
+        <BrowserRouter>
+            <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
 
-				{/* Protected routes - AppLayout renders TopBar + BurgerMenu for all children */}
-				<Route element={<ProtectedRoute />}>
-					<Route element={<AppLayout />}>
-						<Route path="/dashboard" element={<DashboardPage />} />
-						<Route path="/admin" element={<AdminPage />} />
-						<Route path="/map" element={<MapPage />} />
-						<Route path="/reports" element={<ReportsPage />} />
-						<Route path="/patrol" element={<PatrolPlannerPage />} />
-						<Route path="/ingestion" element={<IngestionPage />} />
-						<Route path="/tipoffs" element={<TipoffPage />} />
-						<Route path="/profile" element={<ProfilePage />} />
-					</Route>
-				</Route>
+                {/* Protected routes - AppLayout renders TopBar + BurgerMenu for all children */}
+                <Route element={<ProtectedRoute />}>
+                    <Route element={<AppLayout />}>
+                        <Route path="/dashboard" element={<DashboardPage />} />
+                        <Route path="/admin" element={<AdminPage />} />
+                        <Route path="/map" element={<MapPage />} />
+                        <Route path="/reports" element={<ReportsPage />} />
+                        <Route path="/patrol" element={<PatrolPlannerPage />} />
+                        <Route path="/ingestion" element={<IngestionPage />} />
+                        <Route path="/tipoffs" element={<TipoffPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
+                    </Route>
+                </Route>
 
-				{/* authed users see 404, non logged in are redirected to login page */}
-				<Route element={<ProtectedRoute />}>
-					<Route path="*" element={<NotFoundPage />} />
-				</Route>
-			</Routes>
-		</BrowserRouter>
-	);
-}
+                {/* authed users see 404, non logged in are redirected to login page */}
+                <Route element={<ProtectedRoute />}>
+                    <Route path="*" element={<NotFoundPage />} />
+                </Route>
+            </Routes>
+        </BrowserRouter>
+    );
+};
+
+export default App;
