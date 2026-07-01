@@ -10,7 +10,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 export default defineConfig([
     globalIgnores(["dist", "coverage", "web-build"]),
     {
-        ignores: ["src/components/ui"],
+        ignores: ["src/components/ui", "vite.config.ts"],
     },
     {
         files: ["**/*.{ts,tsx}"],

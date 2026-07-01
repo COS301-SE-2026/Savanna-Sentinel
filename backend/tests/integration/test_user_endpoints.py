@@ -41,9 +41,9 @@ def cleanup_test_users():
 
     async def _delete():
         async with _engine.begin() as conn:
-            await conn.execute(text("" \
-            "DELETE " \
-            "FROM users " \
+            await conn.execute(text(
+            "DELETE "
+            "FROM users "
             "WHERE username LIKE 'test_%'",
             ))
 
@@ -57,8 +57,8 @@ async def _login_headers(client: AsyncClient) -> dict[str, str]:
     await client.post("/v1/auth/register", json=_register_payload())
     async with _engine.begin() as conn:
         await conn.execute(text(
-            "UPDATE users " \
-            "SET is_active = TRUE " \
+            "UPDATE users "
+            "SET is_active = TRUE "
             "WHERE username = 'test_profile_user'",
             ))
 
@@ -345,7 +345,7 @@ async def _promote_and_activate(username: str, role: str = "admin") -> None:
     async with _engine.begin() as conn:
         await conn.execute(
             text(
-                 "UPDATE users" \
+                 "UPDATE users " \
                  "SET role = :role, is_active = true " \
                  "WHERE username = :username",
                  ),
