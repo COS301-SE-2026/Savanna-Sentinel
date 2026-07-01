@@ -23,8 +23,9 @@ def _require_secret_key() -> str:
 
 def encode(body: dict) -> str:
     now = datetime.now(timezone.utc)
-    expire = datetime.now(timezone.utc)
-    + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES,
+    )
 
     body_with_claims = body.copy()
     body_with_claims["exp"] = int(expire.timestamp())
@@ -49,8 +50,9 @@ def encode(body: dict) -> str:
 
 def encode_refresh(userid: int, jti: str) -> str:
     now = datetime.now(timezone.utc)
-    expire = datetime.now(timezone.utc)
-    + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=REFRESH_TOKEN_EXPIRE_MINUTES,
+    )
 
     refresh_body = {
         "sub": str(userid),
