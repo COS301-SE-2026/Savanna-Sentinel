@@ -359,9 +359,7 @@ export const ProfilePage: React.FC = () => {
                                 onClick={handleConfirmChanges}
                                 disabled={isConfirming}
                             >
-                                {isConfirming
-                                    ? "Confirm changes"
-                                    : "Confirm changes"}
+                                Confirm Changes
                             </Button>
                         </DialogFooter>
                     </DialogContent>
@@ -423,7 +421,7 @@ export const ProfilePage: React.FC = () => {
                                         }}
                                         disabled={isSaveDisabled}
                                     >
-                                        {isSavingProfile ? "Save" : "Save"}
+                                        Save
                                     </Button>
                                     <Button
                                         type="button"
@@ -538,9 +536,7 @@ export const ProfilePage: React.FC = () => {
                                     }}
                                     disabled={isChangePasswordDisabled}
                                 >
-                                    {isChangingPassword
-                                        ? "Change password"
-                                        : "Change password"}
+                                    Change Password
                                 </Button>
                             </div>
                         </form>
@@ -548,12 +544,9 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 {message && (
-                    <div
-                        className="mt-6 p-3 rounded-md text-green-800 bg-green-50 border"
-                        role="status"
-                    >
+                    <output className="mt-6 p-3 rounded-md text-green-800 bg-green-50 border">
                         {message}
-                    </div>
+                    </output>
                 )}
 
                 {error && (

@@ -21,6 +21,7 @@ async def test_get_users_excludes_admins(db_session):
         email="a@test.com",
         first_name="Admin",
         last_name="User",
+        # NOSONAR
         hashed_password="mocked_hash",
         )
     ranger = User(
@@ -31,6 +32,7 @@ async def test_get_users_excludes_admins(db_session):
         email="r@test.com",
         first_name="Ranger",
         last_name="User",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
 
@@ -64,6 +66,7 @@ async def test_get_users_is_active_flag_works(db_session):
         email="r1@test.com",
         first_name="Ranger",
         last_name="User",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
     ranger2 = User(
@@ -74,6 +77,7 @@ async def test_get_users_is_active_flag_works(db_session):
         email="r2@test.com",
         first_name="Ranger",
         last_name="User",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
     ranger3 = User(
@@ -84,6 +88,7 @@ async def test_get_users_is_active_flag_works(db_session):
         email="r3@test.com",
         first_name="Ranger",
         last_name="User",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
     ranger4 = User(
@@ -94,6 +99,7 @@ async def test_get_users_is_active_flag_works(db_session):
         email="r4@test.com",
         first_name="Ranger",
         last_name="User",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
 
@@ -138,6 +144,7 @@ async def test_get_users_role_filter_works(db_session):
         email="r1@test.com",
         first_name="Ranger",
         last_name="One",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
     ranger2 = User(
@@ -148,6 +155,7 @@ async def test_get_users_role_filter_works(db_session):
         email="r2@test.com",
         first_name="Ranger",
         last_name="Two",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
     analyst1 = User(
@@ -158,6 +166,7 @@ async def test_get_users_role_filter_works(db_session):
         email="a1@test.com",
         first_name="Analyst",
         last_name="One",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
     liasion1 = User(
@@ -168,6 +177,7 @@ async def test_get_users_role_filter_works(db_session):
         email="l1@test.com",
         first_name="Liasion",
         last_name="One",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
 
@@ -210,6 +220,7 @@ async def test_get_users_pagination_works(db_session):
         email="u1@test.com",
         first_name="A",
         last_name="B",
+        # NOSONAR
         hashed_password="x",
         )
     u2 = User(
@@ -220,6 +231,7 @@ async def test_get_users_pagination_works(db_session):
         email="u2@test.com",
         first_name="A",
         last_name="B",
+        # NOSONAR
         hashed_password="x",
         )
     u3 = User(
@@ -230,6 +242,7 @@ async def test_get_users_pagination_works(db_session):
         email="u3@test.com",
         first_name="A",
         last_name="B",
+        # NOSONAR
         hashed_password="x",
         )
 
@@ -259,6 +272,7 @@ async def test_count_users_excludes_admins(db_session):
         email="a1@test.com",
         first_name="Admin",
         last_name="One",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
     admin2 = User(
@@ -269,6 +283,7 @@ async def test_count_users_excludes_admins(db_session):
         email="a2@test.com",
         first_name="Admin",
         last_name="Two",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
     ranger1 = User(
@@ -279,6 +294,7 @@ async def test_count_users_excludes_admins(db_session):
         email="r1@test.com",
         first_name="Ranger",
         last_name="One",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
     ranger2 = User(
@@ -289,6 +305,7 @@ async def test_count_users_excludes_admins(db_session):
         email="r2@test.com",
         first_name="Ranger",
         last_name="Two",
+        # NOSONAR
         hashed_password="mocked_Hash",
         )
 
@@ -326,6 +343,7 @@ async def test_switch_status_deactivate_successful(db_session):
         email="u@test.com",
         first_name="Test",
         last_name="User",
+        # NOSONAR
         hashed_password="mocked_hash",
         )
 
@@ -351,6 +369,7 @@ async def test_switch_status_activate_successful(db_session):
         email="u@test.com",
         first_name="Test",
         last_name="User",
+        # NOSONAR
         hashed_password="mocked_hash",
         )
 
@@ -384,6 +403,7 @@ async def test_admin_delete_user_success(db_session):
         email="u@test.com",
         first_name="Test",
         last_name="User",
+        # NOSONAR
         hashed_password="mocked_hash",
         )
 
@@ -421,6 +441,7 @@ async def test_update_role_success(db_session):
         email="role@test.com",
         first_name="Role",
         last_name="User",
+        # NOSONAR
         hashed_password="mocked_hash",
         )
 
@@ -455,6 +476,7 @@ async def test_save_user_persists_and_refreshes(db_session):
         email="save@test.com",
         first_name="Save",
         last_name="Test",
+        # NOSONAR
         hashed_password="hash1",
         )
 
