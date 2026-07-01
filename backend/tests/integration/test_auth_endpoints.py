@@ -69,7 +69,7 @@ async def _create_user(
                      :password_hash, :role, :is_active)
                 ON CONFLICT (email) DO NOTHING
             """),
-            {
+            [{
                 "email": email,
                 "username": username,
                 "first_name": "Test",
@@ -77,7 +77,7 @@ async def _create_user(
                 "password_hash": get_password_hash(password),
                 "role": role,
                 "is_active": is_active,
-            },
+            }],
         )
 
 @pytest.fixture(autouse=True)
