@@ -99,7 +99,8 @@ class UserRepository:
         await self.db.commit()
 
     async def get_by_email(self, email: str) -> Optional[User]:
-        result = await self.db.execute(select(User).where(User.email == email))
+        stmt = select(User).where(User.email == email)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def create(self, req: RegisterRequest, hashed_password: str) -> User:

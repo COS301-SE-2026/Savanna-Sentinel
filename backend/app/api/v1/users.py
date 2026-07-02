@@ -4,7 +4,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, get_db, require_admin
 from app.models.user import User
@@ -31,12 +30,12 @@ async def get_me(
             Depends(get_current_user),
         ],
         db: Annotated[
-            Session,
+            AsyncSession,
             Depends(get_db),
         ],
     ):
     service = UserService(UserRepository(db))
-    user = await service.get_me(current_user)
+    user = service.get_me(current_user)
     return UsersResponse.model_validate(user)
 
 @router.patch("/users/me",
@@ -50,7 +49,7 @@ async def update_me(
             Depends(get_current_user),
         ],
         db: Annotated[
-            Session,
+            AsyncSession,
             Depends(get_db),
         ],
     ):

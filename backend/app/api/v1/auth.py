@@ -7,6 +7,7 @@ This file is the HTTP layer only. Business logic lives in AuthService.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db
@@ -39,7 +40,7 @@ _INVALID_CREDENTIALS = HTTPException(
 )
 async def register(
     body: RegisterRequest,
-    db=Annotated[Session, Depends(get_db)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     service = AuthService(UserRepository(db))
     user = await service.register(body)
@@ -60,7 +61,7 @@ async def register(
 )
 async def login(
     body: LoginRequest,
-    db=Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = AuthService(UserRepository(db))
     result = await service.login(body.username, body.password)
@@ -76,7 +77,7 @@ async def login(
 )
 async def refresh(
     body: RefreshRequest,
-    db=Annotated[Session, Depends(get_db)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     service = AuthService(UserRepository(db))
     result = await service.refresh(body.refresh_token)
@@ -92,7 +93,7 @@ async def refresh(
 )
 async def logout(
     body: LogoutRequest,
-    db=Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Revokes the supplied refresh token server-side.
