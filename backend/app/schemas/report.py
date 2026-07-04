@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -21,3 +22,34 @@ class ReportResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     images: list[str] = []
+
+
+class LocationLatLon(BaseModel):
+    lat: float
+    lon: float
+
+
+class ReportListItem(BaseModel):
+    report_id: str
+    report_type: str
+    location: LocationLatLon
+    occurred_at: datetime
+    description: str
+    incident_type: Optional[str] = None
+    severity: Optional[str] = None
+    species: Optional[str] = None
+    count: Optional[int] = None
+    images: list[str] = []
+    route_id: Optional[str] = None
+    sync_status: str
+    submitted_by: str
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
+
+
+class ReportListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    results: list[ReportListItem]
