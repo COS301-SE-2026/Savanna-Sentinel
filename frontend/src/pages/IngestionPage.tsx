@@ -1,3 +1,11 @@
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import React, { useState } from "react";
 import { type ChangeEvent } from "react";
 
@@ -13,6 +21,12 @@ const FILE_SCHEMA = [
     "is_encrypted",
     "status",
 ];
+
+interface DataRowProps {
+    data: string;
+    index: number;
+    length: number;
+}
 
 const IngestionPage = () => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -114,7 +128,62 @@ const IngestionPage = () => {
             {/* File type should always be .csv but adding it for dynamic reasons*/}
             <input type="file" accept=".csv" onChange={handleFileUpload} />
             {errorMessage && <p>{errorMessage}</p>}
+
+            <h1>File contents</h1>
+            {selectedFile && fileContents ? (
+                <div>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                {FILE_SCHEMA.map((col, i) => (
+                                    <TableHead key={i}>{col}</TableHead>
+                                ))}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {
+                                //Skip first line of text
+                                fileContents
+                                    .split(/\r?\n/)
+                                    .slice(1)
+                                    .map((row, i) => {
+                                        if (!row.trim()) {
+                                            return null;
+                                        }
+                                        return (
+                                            <DataRow
+                                                key={i}
+                                                data={row}
+                                                index={i}
+                                                length={FILE_SCHEMA.length}
+                                            />
+                                        );
+                                    })
+                            }
+                        </TableBody>
+                    </Table>
+                </div>
+            ) : (
+                "No data loaded"
+            )}
         </div>
+    );
+};
+
+const DataRow: React.FC<DataRowProps> = ({ data, index, length }) => {
+    const cells = data.split(",").map((cell: string) => cell.trim());
+    //Determine if a row is malformed
+    const isMalformed = cells.length !== length;
+
+    return (
+        <TableRow
+            key={index}
+            style={{ backgroundColor: isMalformed ? "red" : "transparent" }}
+        >
+            {cells.map((cell: string, i: number) => {
+                return <TableCell key={i}>{cell}</TableCell>;
+            })}
+        </TableRow>
     );
 };
 
