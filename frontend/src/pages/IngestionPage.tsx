@@ -16,61 +16,68 @@ const FILE_SCHEMA = [
 
 const IngestionPage = () => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [fileContents, setFileContents] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    const validateSchema = (file: File) => {
-        const reader = new FileReader();
+    const validateSchema = (file: File): Promise<boolean> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
 
-        reader.onload = (e) => {
-            const text = e.target?.result;
-            if (typeof text !== "string") {
-                return;
-            }
+            reader.onload = (e) => {
+                const text = e.target?.result;
+                if (typeof text !== "string") {
+                    return resolve(false);
+                }
 
-            //Use regex to get the first line of text
-            const firstLine = text.split(/\r?\n/)[0];
+                //Use regex to get the first line of text
+                const firstLine = text.split(/\r?\n/)[0];
 
-            if (!firstLine) {
+                if (!firstLine) {
+                    setErrorMessage(
+                        "The uploaded file is empty, please ensure the first row of the file indicates column headings.",
+                    );
+                    setSelectedFile(null);
+                    setFileContents(null);
+                    return resolve(false);
+                }
+
+                //Check first row matches
+                //trim is to trim the <CR><LF> character at the end of the row
+                const headers = firstLine
+                    .split(",")
+                    .map((header) => header.trim());
+                if (
+                    headers.length !== FILE_SCHEMA.length ||
+                    !FILE_SCHEMA.every((col, i) => headers[i] === col)
+                ) {
+                    setErrorMessage(
+                        "Invalid first row, please ensure that the first row matches the expected schema.",
+                    );
+                    setSelectedFile(null);
+                    setFileContents(null);
+                    return resolve(false);
+                }
+
+                //no error
+                setErrorMessage(null);
+                setFileContents(text);
+                resolve(true);
+            };
+
+            reader.onerror = () => {
                 setErrorMessage(
-                    "The uploaded file is empty, please ensure the first row of the file indicates column headings.",
+                    "Error reading the file. Please contact support.",
                 );
                 setSelectedFile(null);
-                return;
-            }
+                setFileContents(null);
+                resolve(false);
+            };
 
-            const headers = firstLine.split(",");
-
-            if (headers.length !== FILE_SCHEMA.length) {
-                setErrorMessage(
-                    "Invalid first row, please ensure that the first row matches the expected schema.",
-                );
-                setSelectedFile(null);
-                return;
-            }
-
-            //Check if the first row matches with the schema;
-            if (
-                !FILE_SCHEMA.every((col, i) => {
-                    return headers[i] === col;
-                })
-            ) {
-                setErrorMessage(
-                    "Invalid first row, please ensure that the first row matches the expected schema.",
-                );
-                setSelectedFile(null);
-                return;
-            }
-        };
-
-        reader.onerror = () => {
-            setErrorMessage("Error reading the file. Please contact support.");
-            setSelectedFile(null);
-        };
-
-        reader.readAsText(file);
+            reader.readAsText(file);
+        });
     };
 
-    const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         //Use only the first selected file
         if (!files || files.length === 0) {
@@ -93,8 +100,13 @@ const IngestionPage = () => {
 
         //Clear error messages
         setErrorMessage(null);
+        const isValid = await validateSchema(file);
+        if (!isValid) {
+            event.target.value = "";
+            return;
+        }
+
         setSelectedFile(file);
-        validateSchema(file);
     };
     return (
         <div>
