@@ -43,6 +43,9 @@ def _make_list_service(results, total):
     return ReportService(repo)
 
 
+# get_report_by_id
+
+
 @pytest.mark.asyncio
 async def test_ranger_gets_own_report():
     service = _make_service(dict(_REPORT))

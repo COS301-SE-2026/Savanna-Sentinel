@@ -117,6 +117,9 @@ def cleanup():
     asyncio.run(_delete())
 
 
+# GET /v1/reports/{report_id}
+
+
 @pytest.mark.asyncio
 async def test_ranger_gets_own_report_returns_200():
     uid = await _create_user("test_ranger_sc21")
@@ -187,3 +190,108 @@ async def test_analyst_blocked_returns_403():
     async with _client() as c:
         r = await c.get(f"/v1/reports/{rid}", headers=_auth_header(analyst_id))
     assert r.status_code == 403
+
+
+# GET /v1/reports
+
+
+@pytest.mark.asyncio
+async def test_list_returns_200_with_pagination_envelope():
+    uid = await _create_user("test_ranger_sc20a")
+    await _create_report(uid)
+    async with _client() as c:
+        r = await c.get("/v1/reports", headers=_auth_header(uid))
+    assert r.status_code == 200
+    body = r.json()
+    assert "total" in body
+    assert "page" in body
+    assert "page_size" in body
+    assert "results" in body
+    assert isinstance(body["results"], list)
+
+
+@pytest.mark.asyncio
+async def test_list_ranger_sees_only_own_reports():
+    uid = await _create_user("test_ranger_sc20b")
+    other_id = await _create_user("test_other_sc20b")
+    await _create_report(uid)
+    await _create_report(other_id)
+    async with _client() as c:
+        r = await c.get("/v1/reports", headers=_auth_header(uid))
+    body = r.json()
+    assert all(item["submitted_by"] == uid for item in body["results"])
+
+
+@pytest.mark.asyncio
+async def test_list_admin_sees_all_reports():
+    ranger_id = await _create_user("test_ranger_sc20c")
+    admin_id = await _create_user("test_admin_sc20c", role="admin")
+    await _create_report(ranger_id)
+    async with _client() as c:
+        r = await c.get("/v1/reports", headers=_auth_header(admin_id))
+    assert r.status_code == 200
+    assert r.json()["total"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_list_response_item_shape():
+    uid = await _create_user("test_ranger_sc20d")
+    await _create_report(uid)
+    async with _client() as c:
+        r = await c.get("/v1/reports", headers=_auth_header(uid))
+    item = r.json()["results"][0]
+    assert "report_id" in item
+    assert "location" in item
+    assert "lat" in item["location"]
+    assert "lon" in item["location"]
+    assert "sync_status" in item
+    assert item["sync_status"] == "synced"
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_report_type():
+    uid = await _create_user("test_ranger_sc20e")
+    await _create_report(uid)
+    async with _client() as c:
+        r = await c.get("/v1/reports?report_type=incident", headers=_auth_header(uid))
+    assert r.status_code == 200
+    assert all(item["report_type"] == "incident" for item in r.json()["results"])
+
+
+@pytest.mark.asyncio
+async def test_list_pagination():
+    uid = await _create_user("test_ranger_sc20f")
+    for _ in range(3):
+        await _create_report(uid)
+    async with _client() as c:
+        r = await c.get("/v1/reports?page=1&page_size=2", headers=_auth_header(uid))
+    body = r.json()
+    assert body["page"] == 1
+    assert body["page_size"] == 2
+    assert len(body["results"]) <= 2
+
+
+@pytest.mark.asyncio
+async def test_list_no_token_returns_401():
+    async with _client() as c:
+        r = await c.get("/v1/reports")
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_list_analyst_returns_403():
+    analyst_id = await _create_user("test_analyst_sc20", role="analyst")
+    async with _client() as c:
+        r = await c.get("/v1/reports", headers=_auth_header(analyst_id))
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_list_sync_status_offline_returns_empty():
+    uid = await _create_user("test_ranger_sc20g")
+    await _create_report(uid)
+    async with _client() as c:
+        r = await c.get("/v1/reports?sync_status=offline", headers=_auth_header(uid))
+    body = r.json()
+    assert body["total"] == 0
+    assert body["results"] == []
