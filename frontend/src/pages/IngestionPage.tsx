@@ -29,6 +29,8 @@ const IngestionPage = () => {
         //Clear error messages
         setErrorMessage(null);
         setSelectedFile(file);
+        //Temporary log for debugging and testing purposes
+        console.log(file);
     };
     return (
         <div>
