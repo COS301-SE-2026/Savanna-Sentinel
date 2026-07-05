@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from fastapi import HTTPException, status
 
-from app.models.user import User
-from app.repositories.report_repository import ReportRepository
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from app.models.user import User
+    from app.repositories.report_repository import ReportRepository
 
 
 class ReportService:
@@ -36,11 +38,18 @@ class ReportService:
             page_size=page_size,
         )
 
-    async def get_report(self, report_id: str, current_user: User) -> Optional[dict]:
+    async def get_report(
+        self,
+        report_id: str,
+        current_user: User,
+    ) -> Optional[dict]:
         report = await self.repo.get_by_id(report_id)
         if report is None:
             return None
-        if current_user.role == "ranger" and report["submitted_by"] != current_user.id:
+        if (
+            current_user.role == "ranger"
+            and report["submitted_by"] != current_user.id
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",

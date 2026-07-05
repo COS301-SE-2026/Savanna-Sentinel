@@ -25,14 +25,19 @@ class FieldReport(_Base):
     __tablename__ = "field_reports"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4())
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
     )
     submitted_by: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("users.id"), nullable=False
+        UUID(as_uuid=False),
+        ForeignKey("users.id"),
+        nullable=False,
     )
 
     route_id: Mapped[Optional[str]] = mapped_column(
-        UUID(as_uuid=False), nullable=True
+        UUID(as_uuid=False),
+        nullable=True,
     )
     report_type: Mapped[str] = mapped_column(
         Enum("incident", "sighting", name="report_type", create_type=False),
@@ -41,7 +46,8 @@ class FieldReport(_Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     location: Mapped[str] = mapped_column(GeographyPoint, nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
+        DateTime(timezone=True),
+        nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -54,5 +60,6 @@ class FieldReport(_Base):
         nullable=False,
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True),
+        nullable=True,
     )

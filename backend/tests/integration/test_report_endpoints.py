@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -29,15 +28,19 @@ def _client() -> AsyncClient:
 
 
 async def _create_user(
-    username: str, role: str = "ranger", is_active: bool = True
+    username: str,
+    role: str = "ranger",
+    is_active: bool = True,
 ) -> str:
     async with _engine.begin() as conn:
         result = await conn.execute(
             text("""
                 INSERT INTO users
-                    (email, username, first_name, last_name, password_hash, role, is_active)
+                    (email, username, first_name, last_name, password_hash, role
+                 , is_active)
                 VALUES
-                    (:email, :username, 'Test', 'User', :pw_hash, :role, :is_active)
+                    (:email, :username, 'Test', 'User', :pw_hash, :role,
+                  :is_active)
                 ON CONFLICT (username) DO NOTHING
                 RETURNING id
             """),
@@ -54,18 +57,24 @@ async def _create_user(
             return str(row[0])
         # user already existed
         r2 = await conn.execute(
-            text("SELECT id FROM users WHERE username = :u"), {"u": username}
+            text("SELECT id FROM users WHERE username = :u"),
+            {"u": username},
         )
         return str(r2.fetchone()[0])
 
 
-async def _create_report(user_id: str, lng: float = 28.1, lat: float = -25.7) -> str:
+async def _create_report(
+    user_id: str,
+    lng: float = 28.1,
+    lat: float = -25.7,
+) -> str:
     wkt = f"POINT({lng} {lat})"
     async with _engine.begin() as conn:
         result = await conn.execute(
             text("""
                 INSERT INTO field_reports
-                    (submitted_by, report_type, description, location, occurred_at)
+                    (submitted_by, report_type, description, location,
+                  occurred_at)
                 VALUES
                     (:uid, 'incident', 'Test incident',
                      ST_GeogFromText(:wkt),
@@ -102,7 +111,7 @@ def cleanup():
                     WHERE submitted_by IN (
                         SELECT id FROM users WHERE username LIKE 'test_%'
                     )
-                """)
+                """),
             )
             await conn.execute(
                 text("""
@@ -110,9 +119,11 @@ def cleanup():
                     WHERE user_id IN (
                         SELECT id FROM users WHERE username LIKE 'test_%'
                     )
-                """)
+                """),
             )
-            await conn.execute(text("DELETE FROM users WHERE username LIKE 'test_%'"))
+            await conn.execute(
+                text("DELETE FROM users WHERE username LIKE 'test_%'"),
+            )
 
     asyncio.run(_delete())
 
@@ -253,9 +264,14 @@ async def test_list_filter_by_report_type():
     uid = await _create_user("test_ranger_sc20e")
     await _create_report(uid)
     async with _client() as c:
-        r = await c.get("/v1/reports?report_type=incident", headers=_auth_header(uid))
+        r = await c.get(
+            "/v1/reports?report_type=incident",
+            headers=_auth_header(uid),
+        )
     assert r.status_code == 200
-    assert all(item["report_type"] == "incident" for item in r.json()["results"])
+    assert all(
+        item["report_type"] == "incident" for item in r.json()["results"]
+    )
 
 
 @pytest.mark.asyncio
@@ -264,7 +280,10 @@ async def test_list_pagination():
     for _ in range(3):
         await _create_report(uid)
     async with _client() as c:
-        r = await c.get("/v1/reports?page=1&page_size=2", headers=_auth_header(uid))
+        r = await c.get(
+            "/v1/reports?page=1&page_size=2",
+            headers=_auth_header(uid),
+        )
     body = r.json()
     assert body["page"] == 1
     assert body["page_size"] == 2
@@ -291,7 +310,10 @@ async def test_list_sync_status_offline_returns_empty():
     uid = await _create_user("test_ranger_sc20g")
     await _create_report(uid)
     async with _client() as c:
-        r = await c.get("/v1/reports?sync_status=offline", headers=_auth_header(uid))
+        r = await c.get(
+            "/v1/reports?sync_status=offline",
+            headers=_auth_header(uid),
+        )
     body = r.json()
     assert body["total"] == 0
     assert body["results"] == []

@@ -23,12 +23,17 @@ _REPORT = {
 }
 
 
-def _ranger(user_id: str = "bbbbbbbb-0000-0000-0000-000000000001") -> SimpleNamespace:
+def _ranger(
+    user_id: str = "bbbbbbbb-0000-0000-0000-000000000001",
+) -> SimpleNamespace:
     return SimpleNamespace(id=user_id, role="ranger")
 
 
 def _admin() -> SimpleNamespace:
-    return SimpleNamespace(id="cccccccc-0000-0000-0000-000000000001", role="admin")
+    return SimpleNamespace(
+        id="cccccccc-0000-0000-0000-000000000001",
+        role="admin",
+    )
 
 
 def _make_service(report):
@@ -58,7 +63,8 @@ async def test_ranger_blocked_from_other_report():
     service = _make_service(dict(_REPORT))
     with pytest.raises(HTTPException) as exc:
         await service.get_report(
-            _REPORT["id"], _ranger("dddddddd-0000-0000-0000-000000000001")
+            _REPORT["id"],
+            _ranger("dddddddd-0000-0000-0000-000000000001"),
         )
     assert exc.value.status_code == 403
 
@@ -117,7 +123,11 @@ async def test_get_reports_returns_results_and_total():
 async def test_get_reports_passes_filters_to_repo():
     service = _make_list_service([], 0)
     await service.get_reports(
-        _admin(), report_type="incident", severity="high", page=2, page_size=10
+        _admin(),
+        report_type="incident",
+        severity="high",
+        page=2,
+        page_size=10,
     )
     call_kwargs = service.repo.get_list.call_args.kwargs
     assert call_kwargs["report_type"] == "incident"

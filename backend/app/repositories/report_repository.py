@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.report import FieldReport
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class ReportRepository:
@@ -82,7 +86,8 @@ class ReportRepository:
                 (
                     SELECT COALESCE(array_agg(p.image_url), ARRAY[]::text[])
                     FROM photos p
-                    WHERE p.geospatial_event_id = i.id OR p.geospatial_event_id = s.id
+                    WHERE p.geospatial_event_id = i.id OR p.geospatial_event_id
+                        = s.id
                 ) AS images
             FROM field_reports fr
             LEFT JOIN incidents i ON i.field_report_id = fr.id
@@ -92,7 +97,11 @@ class ReportRepository:
             LIMIT :limit OFFSET :offset
         """)
 
-        data_params = {**params, "limit": page_size, "offset": (page - 1) * page_size}
+        data_params = {
+            **params,
+            "limit": page_size,
+            "offset": (page - 1) * page_size,
+        }
 
         total = (await self.db.execute(count_sql, params)).scalar() or 0
         rows = (await self.db.execute(data_sql, data_params)).mappings().all()

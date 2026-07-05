@@ -24,7 +24,9 @@ async def list_reports(
     severity: Optional[Literal["low", "medium", "high"]] = Query(None),
     from_dt: Optional[datetime] = Query(None, alias="from"),
     to: Optional[datetime] = Query(None),
-    sync_status: Optional[Literal["offline", "pending", "synced"]] = Query(None),
+    sync_status: Optional[Literal["offline", "pending", "synced"]] = Query(
+        None,
+    ),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -32,7 +34,7 @@ async def list_reports(
 ):
     if current_user.role not in ("ranger", "admin"):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied",
         )
 
     service = ReportService(ReportRepository(db))
@@ -47,7 +49,7 @@ async def list_reports(
         page_size=page_size,
     )
     return ReportListResponse(
-        total=total, page=page, page_size=page_size, results=results
+        total=total, page=page, page_size=page_size, results=results,
     )
 
 
@@ -64,7 +66,8 @@ async def get_report(
 ):
     if current_user.role not in ("ranger", "admin"):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
         )
 
     service = ReportService(ReportRepository(db))
@@ -72,7 +75,8 @@ async def get_report(
 
     if report is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found",
         )
 
     return ReportResponse(**report)
