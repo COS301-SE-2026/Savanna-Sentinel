@@ -23,8 +23,41 @@ const IngestionPage = () => {
 
         reader.onload = (e) => {
             const text = e.target?.result;
-            if (typeof text === "string") {
-                //Temporary since want to parse things
+            if (typeof text !== "string") {
+                return;
+            }
+
+            //Use regex to get the first line of text
+            const firstLine = text.split(/\r?\n/)[0];
+
+            if (!firstLine) {
+                setErrorMessage(
+                    "The uploaded file is empty, please ensure the first row of the file indicates column headings.",
+                );
+                setSelectedFile(null);
+                return;
+            }
+
+            const headers = firstLine.split(",");
+
+            if (headers.length !== FILE_SCHEMA.length) {
+                setErrorMessage(
+                    "Invalid first row, please ensure that the first row matches the expected schema.",
+                );
+                setSelectedFile(null);
+                return;
+            }
+
+            //Check if the first row matches with the schema;
+            if (
+                !FILE_SCHEMA.every((col, i) => {
+                    return headers[i] === col;
+                })
+            ) {
+                setErrorMessage(
+                    "Invalid first row, please ensure that the first row matches the expected schema.",
+                );
+                setSelectedFile(null);
                 return;
             }
         };
