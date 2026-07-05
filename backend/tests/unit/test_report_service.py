@@ -61,11 +61,9 @@ async def test_ranger_gets_own_report():
 @pytest.mark.asyncio
 async def test_ranger_blocked_from_other_report():
     service = _make_service(dict(_REPORT))
+    other = _ranger("dddddddd-0000-0000-0000-000000000001")
     with pytest.raises(HTTPException) as exc:
-        await service.get_report(
-            _REPORT["id"],
-            _ranger("dddddddd-0000-0000-0000-000000000001"),
-        )
+        await service.get_report(_REPORT["id"], other)
     assert exc.value.status_code == 403
 
 

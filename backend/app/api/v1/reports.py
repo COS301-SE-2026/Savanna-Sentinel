@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,17 +20,17 @@ router = APIRouter(tags=["reports"])
     summary="List field reports (SC-20)",
 )
 async def list_reports(
-    report_type: Optional[Literal["incident", "sighting"]] = Query(None),
-    severity: Optional[Literal["low", "medium", "high"]] = Query(None),
-    from_dt: Optional[datetime] = Query(None, alias="from"),
-    to: Optional[datetime] = Query(None),
-    sync_status: Optional[Literal["offline", "pending", "synced"]] = Query(
-        None,
-    ),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    report_type: Annotated[Optional[Literal["incident", "sighting"]], Query()] = None,
+    severity: Annotated[Optional[Literal["low", "medium", "high"]], Query()] = None,
+    from_dt: Annotated[Optional[datetime], Query(alias="from")] = None,
+    to: Annotated[Optional[datetime], Query()] = None,
+    sync_status: Annotated[
+        Optional[Literal["offline", "pending", "synced"]], Query()
+    ] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     if current_user.role not in ("ranger", "admin"):
         raise HTTPException(
@@ -61,8 +61,8 @@ async def list_reports(
 )
 async def get_report(
     report_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     if current_user.role not in ("ranger", "admin"):
         raise HTTPException(

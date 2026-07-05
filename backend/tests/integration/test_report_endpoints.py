@@ -24,7 +24,7 @@ app.dependency_overrides[get_db] = _override_get_db
 
 
 def _client() -> AsyncClient:
-    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    return AsyncClient(transport=ASGITransport(app=app), base_url="https://test")
 
 
 async def _create_user(
