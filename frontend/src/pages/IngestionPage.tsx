@@ -9,23 +9,29 @@ import {
 import React, { useState } from "react";
 import { type ChangeEvent } from "react";
 
-const FILE_SCHEMA = [
-    "record_id",
-    "ingestion_timestamp",
-    "source_system",
-    "data_domain",
-    "event_type",
-    "payload_size_kb",
-    "priority_level",
-    "retry_count",
-    "is_encrypted",
-    "status",
+type Expectation = "string" | "number" | "boolean" | "date";
+
+interface ColDef {
+    name: string;
+    type: Expectation;
+}
+
+const FILE_SCHEMA: ColDef[] = [
+    { name: "record_id", type: "number" },
+    { name: "ingestion_timestamp", type: "date" },
+    { name: "source_system", type: "string" },
+    { name: "data_domain", type: "string" },
+    { name: "event_type", type: "string" },
+    { name: "payload_size_kb", type: "number" },
+    { name: "priority_level", type: "string" },
+    { name: "retry_count", type: "number" },
+    { name: "is_encrypted", type: "boolean" },
+    { name: "status", type: "string" },
 ];
 
 interface DataRowProps {
     data: string;
-    index: number;
-    length: number;
+    schema: ColDef[];
 }
 
 const IngestionPage = () => {
@@ -62,7 +68,7 @@ const IngestionPage = () => {
                     .map((header) => header.trim());
                 if (
                     headers.length !== FILE_SCHEMA.length ||
-                    !FILE_SCHEMA.every((col, i) => headers[i] === col)
+                    !FILE_SCHEMA.every((col, i) => headers[i] === col.name)
                 ) {
                     setErrorMessage(
                         "Invalid first row, please ensure that the first row matches the expected schema.",
@@ -136,7 +142,9 @@ const IngestionPage = () => {
                         <TableHeader>
                             <TableRow>
                                 {FILE_SCHEMA.map((col, i) => (
-                                    <TableHead key={i}>{col}</TableHead>
+                                    <TableHead key={i}>
+                                        {col.name} ({col.type})
+                                    </TableHead>
                                 ))}
                             </TableRow>
                         </TableHeader>
@@ -154,8 +162,7 @@ const IngestionPage = () => {
                                             <DataRow
                                                 key={i}
                                                 data={row}
-                                                index={i}
-                                                length={FILE_SCHEMA.length}
+                                                schema={FILE_SCHEMA}
                                             />
                                         );
                                     })
@@ -170,18 +177,62 @@ const IngestionPage = () => {
     );
 };
 
-const DataRow: React.FC<DataRowProps> = ({ data, index, length }) => {
+const validateData = (value: string, expected: Expectation): boolean => {
+    if (!value) {
+        return false;
+    }
+
+    switch (expected) {
+        case "number":
+            return !isNaN(Number(value));
+        case "boolean":
+            return (
+                value.toLowerCase() === "true" ||
+                value.toLowerCase() === "false" ||
+                value.toLowerCase() === "1" ||
+                value.toLowerCase() === "0"
+            );
+        case "date":
+            return !isNaN(Date.parse(value));
+        //Add more data types as needed here
+        case "string":
+        default:
+            return true;
+    }
+};
+
+const DataRow: React.FC<DataRowProps> = ({ data, schema }) => {
     const cells = data.split(",").map((cell: string) => cell.trim());
     //Determine if a row is malformed
-    const isMalformed = cells.length !== length;
+    const isRowMalformed = cells.length !== schema.length;
 
     return (
         <TableRow
-            key={index}
-            style={{ backgroundColor: isMalformed ? "red" : "transparent" }}
+            style={{ backgroundColor: isRowMalformed ? "red" : "transparent" }}
         >
             {cells.map((cell: string, i: number) => {
-                return <TableCell key={i}>{cell}</TableCell>;
+                const typeDef = schema[i];
+
+                //Mark something out of bounds invalid automatically
+                const isTypeValid = typeDef
+                    ? validateData(cell, typeDef.type)
+                    : false;
+                return (
+                    <TableCell
+                        key={i}
+                        style={{
+                            color: !isTypeValid ? "red" : "inherit",
+                            fontWeight: !isTypeValid ? "bold" : "normal",
+                        }}
+                        title={
+                            !isTypeValid && typeDef
+                                ? `Expected ${typeDef.type} but got "${cell}"`
+                                : undefined
+                        }
+                    >
+                        {cell}
+                    </TableCell>
+                );
             })}
         </TableRow>
     );
