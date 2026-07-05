@@ -20,12 +20,19 @@ router = APIRouter(tags=["reports"])
     summary="List field reports (SC-20)",
 )
 async def list_reports(
-    report_type: Annotated[Optional[Literal["incident", "sighting"]], Query()] = None,
-    severity: Annotated[Optional[Literal["low", "medium", "high"]], Query()] = None,
+    report_type: Annotated[
+        Optional[Literal["incident", "sighting"]],
+        Query(),
+    ] = None,
+    severity: Annotated[
+        Optional[Literal["low", "medium", "high"]],
+        Query(),
+    ] = None,
     from_dt: Annotated[Optional[datetime], Query(alias="from")] = None,
     to: Annotated[Optional[datetime], Query()] = None,
     sync_status: Annotated[
-        Optional[Literal["offline", "pending", "synced"]], Query()
+        Optional[Literal["offline", "pending", "synced"]],
+        Query(),
     ] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
@@ -34,7 +41,8 @@ async def list_reports(
 ):
     if current_user.role not in ("ranger", "admin"):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
         )
 
     service = ReportService(ReportRepository(db))
@@ -49,7 +57,10 @@ async def list_reports(
         page_size=page_size,
     )
     return ReportListResponse(
-        total=total, page=page, page_size=page_size, results=results,
+        total=total,
+        page=page,
+        page_size=page_size,
+        results=results,
     )
 
 

@@ -10,6 +10,7 @@ from app.models.report import FieldReport
 
 if TYPE_CHECKING:
     from datetime import datetime
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
