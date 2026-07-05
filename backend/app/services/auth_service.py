@@ -11,16 +11,14 @@ from fastapi import HTTPException, status
 
 from app.core.security import (
     JWTError,
-    get_password_hash,
-    verify_password,
     create_access_token,
     create_refresh_token,
     decode_token,
+    get_password_hash,
+    verify_password,
 )
 from app.models.user import User
-from app.repositories.user_repository import UserRepository
-from app.schemas.auth import TokenResponse, TokenUser, RegisterRequest
-
+from app.schemas.auth import RegisterRequest, TokenResponse, TokenUser
 
 # A dummy hash used when the user does not exist.
 # This ensures verify_password always runs and response time does not
@@ -32,14 +30,11 @@ class AuthService:
     def __init__(self, repo):
         self.repo = repo
 
-    async def login(self, username: str, password: str) -> Optional[TokenResponse]:
-        """
-        Validates credentials and returns tokens on success.
-
-        Returns None on ANY failure wrong password, unknown username,
-        or inactive account. The router converts None into a single
-        vague 401 response.
-        """
+    async def login(
+            self,
+            username: str,
+            password: str,
+            ) -> Optional[TokenResponse]:
         user = await self.repo.get_by_username(username)
 
         # Always run bcrypt even if user not found prevents timing based
@@ -59,15 +54,14 @@ class AuthService:
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
-            user=TokenUser(id=str(user.id), username=user.username, role=user.role),
+            user=TokenUser(
+                id=str(user.id),
+                username=user.username,
+                role=user.role,
+                ),
         )
 
     async def refresh(self, refresh_token: str) -> Optional[TokenResponse]:
-        """
-        Validates a refresh token and issues a new access token.
-
-        Returns None if the token is invalid, expired, or revoked.
-        """
         try:
             payload = decode_token(refresh_token)
         except JWTError:
@@ -91,22 +85,17 @@ class AuthService:
         return TokenResponse(
             access_token=new_access,
             refresh_token=new_refresh,
-            user=TokenUser(id=str(user.id), username=user.username, role=user.role),
+            user=TokenUser(
+                id=str(user.id),
+                username=user.username,
+                role=user.role,
+                ),
         )
 
     async def logout(self, refresh_token: str) -> None:
-        """
-        Revokes the refresh token so it cannot be used again.
-        Silently succeeds even if the token was already revoked or invalid.
-        """
         await self.repo.revoke_refresh_token(refresh_token)
 
     async def register(self, req: RegisterRequest) -> User:
-        """
-        Creates a new inactive user account.
-
-        Raises 409 if the email or username is already in use.
-        """
         if await self.repo.get_by_email(req.email):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

@@ -11,15 +11,13 @@ import { useAuthStore } from "@/store/authStore";
  * check the 'exp' claim to detect expiry before a network round trip.
  * The server still rejects expired tokens this is a UX optimisation only.
  */
-export default function ProtectedRoute()
-{
-  const accessToken = useAuthStore((s) => s.accessToken);
-  const location = useLocation();
+export default function ProtectedRoute() {
+    const accessToken = useAuthStore((s) => s.accessToken);
+    const location = useLocation();
 
-  if(!accessToken)
-  {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
+    if (!accessToken) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
 
-  return <Outlet />;
+    return <Outlet />;
 }

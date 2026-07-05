@@ -1,5 +1,6 @@
 import asyncio
 import os
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -10,6 +11,7 @@ from sqlalchemy.pool import NullPool
 _BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 _DATABASE_URL = os.getenv(
     "DATABASE_URL",
+    # sonar:disable:S2068
     "postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel",
 )
 
@@ -35,29 +37,37 @@ def _register_payload(**overrides):
 
 @pytest.fixture(autouse=True)
 def cleanup_test_users():
-	yield
+    yield
 
-	async def _delete():
-		async with _engine.begin() as conn:
-			await conn.execute(text("DELETE FROM users WHERE username LIKE 'test_%'"))
+    async def _delete():
+        async with _engine.begin() as conn:
+            await conn.execute(text(
+            "DELETE "
+            "FROM users "
+            "WHERE username LIKE 'test_%'",
+            ))
 
-	asyncio.run(_delete())
+    asyncio.run(_delete())
 
 
 
 """Integration tests for authenticated user profile endpoints."""
 
 async def _login_headers(client: AsyncClient) -> dict[str, str]:
-	await client.post("/v1/auth/register", json=_register_payload())
-	async with _engine.begin() as conn:
-		await conn.execute(text("UPDATE users SET is_active = TRUE WHERE username = 'test_profile_user'"))
+    await client.post("/v1/auth/register", json=_register_payload())
+    async with _engine.begin() as conn:
+        await conn.execute(text(
+            "UPDATE users "
+            "SET is_active = TRUE "
+            "WHERE username = 'test_profile_user'",
+            ))
 
-	response = await client.post(
-		"/v1/auth/login",
-		json={"username": "test_profile_user", "password": "SecurePass1!"},
-	)
-	token = response.json()["access_token"]
-	return {"Authorization": f"Bearer {token}"}
+    response = await client.post(
+        "/v1/auth/login",
+        json={"username": "test_profile_user", "password": "SecurePass1!"},
+    )
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
 
@@ -65,44 +75,44 @@ async def _login_headers(client: AsyncClient) -> dict[str, str]:
 
 @pytest.mark.asyncio
 async def test_get_me_returns_profile():
-	async with _client() as client:
-		headers = await _login_headers(client)
-		response = await client.get("/v1/users/me", headers=headers)
+    async with _client() as client:
+        headers = await _login_headers(client)
+        response = await client.get("/v1/users/me", headers=headers)
 
-	assert response.status_code == 200
-	data = response.json()
-	assert data["username"] == "test_profile_user"
-	assert data["email"] == "test_profile_user@example.com"
-	assert data["first_name"] == "Test"
-	assert data["last_name"] == "Ranger"
-	assert data["role"] == "ranger"
-	assert data["is_active"] is True
-	assert "created_at" in data
+    assert response.status_code == 200
+    data = response.json()
+    assert data["username"] == "test_profile_user"
+    assert data["email"] == "test_profile_user@example.com"
+    assert data["first_name"] == "Test"
+    assert data["last_name"] == "Ranger"
+    assert data["role"] == "ranger"
+    assert data["is_active"] is True
+    assert "created_at" in data
 
 
 @pytest.mark.asyncio
 async def test_patch_me_updates_names():
-	async with _client() as client:
-		headers = await _login_headers(client)
-		response = await client.patch(
-			"/v1/users/me",
-			headers=headers,
-			json={"first_name": "New", "last_name": "Name"},
-		)
+    async with _client() as client:
+        headers = await _login_headers(client)
+        response = await client.patch(
+            "/v1/users/me",
+            headers=headers,
+            json={"first_name": "New", "last_name": "Name"},
+        )
 
-	assert response.status_code == 200
-	data = response.json()
-	assert data["first_name"] == "New"
-	assert data["last_name"] == "Name"
+    assert response.status_code == 200
+    data = response.json()
+    assert data["first_name"] == "New"
+    assert data["last_name"] == "Name"
 
 
 @pytest.mark.asyncio
 async def test_patch_me_rejects_empty_payload():
-	async with _client() as client:
-		headers = await _login_headers(client)
-		response = await client.patch("/v1/users/me", headers=headers, json={})
+    async with _client() as client:
+        headers = await _login_headers(client)
+        response = await client.patch("/v1/users/me", headers=headers, json={})
 
-	assert response.status_code == 400
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -262,7 +272,8 @@ async def test_patch_me_rejects_password_without_new():
         )
 
     # service will not perform a password change if new_password is None, and
-    # since no other fields were provided this should be treated as empty payload
+    # since no other fields were provided
+    # this should be treated as empty payload
     assert response.status_code == 400
 
 
@@ -286,7 +297,10 @@ async def test_patch_me_rejects_incorrect_current_password():
         response = await client.patch(
             "/v1/users/me",
             headers=headers,
-            json={"current_password": "WrongPass!", "new_password": "ValidNewPass1!"},
+            json={
+                 "current_password": "WrongPass!",
+                "new_password": "ValidNewPass1!",
+                },
         )
 
     assert response.status_code == 403
@@ -294,28 +308,34 @@ async def test_patch_me_rejects_incorrect_current_password():
 
 @pytest.mark.asyncio
 async def test_patch_me_changes_password_and_revokes_old_login():
-	async with _client() as client:
-		headers = await _login_headers(client)
-		response = await client.patch(
-			"/v1/users/me",
-			headers=headers,
-			json={"current_password": "SecurePass1!", "new_password": "NewSecurePass2!"},
-		)
+    async with _client() as client:
+        headers = await _login_headers(client)
+        response = await client.patch(
+            "/v1/users/me",
+            headers=headers,
+            json={
+                 "current_password": "SecurePass1!",
+                "new_password": "NewSecurePass2!",
+                },
+        )
 
-		assert response.status_code == 200
+        assert response.status_code == 200
 
-		old_login = await client.post(
-			"/v1/auth/login",
-			json={"username": "test_profile_user", "password": "SecurePass1!"},
-		)
-		assert old_login.status_code == 401
+        old_login = await client.post(
+            "/v1/auth/login",
+            json={"username": "test_profile_user", "password": "SecurePass1!"},
+        )
+        assert old_login.status_code == 401
 
-		new_login = await client.post(
-			"/v1/auth/login",
-			json={"username": "test_profile_user", "password": "NewSecurePass2!"},
-		)
+        new_login = await client.post(
+            "/v1/auth/login",
+            json={
+                 "username": "test_profile_user",
+                "password": "NewSecurePass2!",
+                },
+        )
 
-	assert new_login.status_code == 200
+    assert new_login.status_code == 200
 
 
 
@@ -324,7 +344,11 @@ async def test_patch_me_changes_password_and_revokes_old_login():
 async def _promote_and_activate(username: str, role: str = "admin") -> None:
     async with _engine.begin() as conn:
         await conn.execute(
-            text("UPDATE users SET role = :role, is_active = true WHERE username = :username"),
+            text(
+                 "UPDATE users " \
+                 "SET role = :role, is_active = true " \
+                 "WHERE username = :username",
+                 ),
             {"role": role, "username": username},
         )
 
@@ -332,14 +356,23 @@ async def _promote_and_activate(username: str, role: str = "admin") -> None:
 async def _activate(username: str) -> None:
     async with _engine.begin() as conn:
         await conn.execute(
-            text("UPDATE users SET is_active = true WHERE username = :username"),
+            text("UPDATE users " \
+            "SET is_active = true " \
+            "WHERE username = :username",
+            ),
             {"username": username},
         )
 
 
 async def _login(username: str, password: str) -> str:
     async with _client() as c:
-        r = await c.post("/v1/auth/login", json={"username": username, "password": password})
+        r = await c.post(
+            "/v1/auth/login",
+            json={
+                "username": username,
+                "password": password,
+                },
+            )
     assert r.status_code == 200, f"Login failed: {r.text}"
     return r.json()["access_token"]
 
@@ -431,7 +464,7 @@ async def test_change_role_user_not_found_404(admin_token):
 
 
 @pytest.mark.asyncio
-async def test_change_role_non_admin_forbidden_403(ranger_token, target_user_id):
+async def test_change_role_non_admin_forbidden(ranger_token, target_user_id):
     async with _client() as c:
         r = await c.patch(
             f"/v1/users/{target_user_id}/role",
