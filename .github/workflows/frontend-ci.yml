@@ -2,16 +2,16 @@ name: Frontend CI pipeline
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
     paths:
-      - 'frontend/**'
-      - '.github/workflows/**'
+      - "frontend/**"
+      - ".github/workflows/**"
 
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
     paths:
-      - 'frontend/**'
-      - '.github/workflows/**'
+      - "frontend/**"
+      - ".github/workflows/**"
 
 permissions:
   contents: read
@@ -26,6 +26,10 @@ jobs:
       - name: Install Dependencies
         working-directory: ./frontend
         run: npm ci
+
+      - name: Prettier
+        working-directory: ./frontend
+        run: npx prettier --check "src/**/*/*.{ts,tsx}"
 
       - name: Linter
         working-directory: ./frontend
@@ -54,7 +58,7 @@ jobs:
           load: true
           # leaving as commented for now until we use any API's in frontend, but this is a template
           # API_URL = ARG API_URL in dockerfile
-          # secrets.API_URL = ENV VITE_API_URL=$API_URL in dockerfile 
+          # secrets.API_URL = ENV VITE_API_URL=$API_URL in dockerfile
           # So 'build:pwa' command has context
           # build-args: |
           #   API_URL=${{ secrets.API_URL }}

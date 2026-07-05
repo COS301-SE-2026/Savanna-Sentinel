@@ -2,7 +2,16 @@ import asyncio
 import inspect
 import os
 
+import pytest
+import pytest_asyncio
 from dotenv import load_dotenv
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+from app.models.user import Base
 
 _ENV_PATH = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(_ENV_PATH)
@@ -10,10 +19,8 @@ load_dotenv(_ENV_PATH)
 os.environ.setdefault("JWT_SECRET", "Testing-secret-not-used-in-production")
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://localhost/savanna_sentinel")
 
-import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from app.models.user import Base
+
+
 
 
 def pytest_configure(config):
@@ -49,7 +56,7 @@ async def db_session():
         await conn.run_sync(Base.metadata.create_all)
 
     testing_session_local = async_sessionmaker(
-        bind=engine, class_=AsyncSession, expire_on_commit=False
+        bind=engine, class_=AsyncSession, expire_on_commit=False,
     )
 
     async with testing_session_local() as session:
