@@ -30,13 +30,43 @@ const FILE_SCHEMA: ColDef[] = [
 ];
 
 interface DataRowProps {
-    data: string;
+    rowIndex: number;
+    cells: string[];
     schema: ColDef[];
+    onCellChange: (
+        rowIndex: number,
+        cellIndex: number,
+        newValue: string,
+    ) => void;
 }
+
+const validateData = (value: string, expected: Expectation): boolean => {
+    if (!value) {
+        return false;
+    }
+
+    switch (expected) {
+        case "number":
+            return !isNaN(Number(value));
+        case "boolean":
+            return (
+                value.toLowerCase() === "true" ||
+                value.toLowerCase() === "false" ||
+                value.toLowerCase() === "1" ||
+                value.toLowerCase() === "0"
+            );
+        case "date":
+            return !isNaN(Date.parse(value));
+        //Add more data types as needed here
+        case "string":
+        default:
+            return true;
+    }
+};
 
 const IngestionPage = () => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [fileContents, setFileContents] = useState<string | null>(null);
+    const [parsedRows, setParsedRows] = useState<string[][]>([]);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const validateSchema = (file: File): Promise<boolean> => {
@@ -50,14 +80,15 @@ const IngestionPage = () => {
                 }
 
                 //Use regex to get the first line of text
-                const firstLine = text.split(/\r?\n/)[0];
+                const lines = text.split(/\r?\n/);
+                const firstLine = lines[0];
 
                 if (!firstLine) {
                     setErrorMessage(
                         "The uploaded file is empty, please ensure the first row of the file indicates column headings.",
                     );
                     setSelectedFile(null);
-                    setFileContents(null);
+                    setParsedRows([]);
                     return resolve(false);
                 }
 
@@ -74,13 +105,17 @@ const IngestionPage = () => {
                         "Invalid first row, please ensure that the first row matches the expected schema.",
                     );
                     setSelectedFile(null);
-                    setFileContents(null);
+                    setParsedRows([]);
                     return resolve(false);
                 }
 
                 //no error
+                const data = lines
+                    .slice(1)
+                    .filter((line) => line.trim() !== "")
+                    .map((line) => line.split(",").map((cell) => cell.trim()));
                 setErrorMessage(null);
-                setFileContents(text);
+                setParsedRows(data);
                 resolve(true);
             };
 
@@ -89,7 +124,7 @@ const IngestionPage = () => {
                     "Error reading the file. Please contact support.",
                 );
                 setSelectedFile(null);
-                setFileContents(null);
+                setParsedRows([]);
                 resolve(false);
             };
 
@@ -128,6 +163,36 @@ const IngestionPage = () => {
 
         setSelectedFile(file);
     };
+
+    const handleCellChange = (
+        rowIndex: number,
+        colIndex: number,
+        newValue: string,
+    ) => {
+        setParsedRows((prevRows) => {
+            const updatedRows = [...prevRows];
+            updatedRows[rowIndex] = [...updatedRows[rowIndex]];
+            updatedRows[rowIndex][colIndex] = newValue;
+            return updatedRows;
+        });
+    };
+
+    //Revalidate data after edit
+    const isDataValid = () => {
+        return parsedRows.every((row) => {
+            if (row.length !== FILE_SCHEMA.length) {
+                return false;
+            }
+            return row.every((cell, i) =>
+                validateData(cell, FILE_SCHEMA[i].type),
+            );
+        });
+    };
+    const handleDataSubmission = () => {
+        if (!isDataValid()) {
+            alert("Cannot submit, validation errors exist");
+        }
+    };
     return (
         <div>
             <h1>Example File Upload location</h1>
@@ -136,8 +201,11 @@ const IngestionPage = () => {
             {errorMessage && <p>{errorMessage}</p>}
 
             <h1>File contents</h1>
-            {selectedFile && fileContents ? (
+            {selectedFile && parsedRows.length > 0 ? (
                 <div>
+                    <button onClick={handleDataSubmission}>
+                        Submit (Non functional)
+                    </button>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -149,24 +217,15 @@ const IngestionPage = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {
-                                //Skip first line of text
-                                fileContents
-                                    .split(/\r?\n/)
-                                    .slice(1)
-                                    .map((row, i) => {
-                                        if (!row.trim()) {
-                                            return null;
-                                        }
-                                        return (
-                                            <DataRow
-                                                key={i}
-                                                data={row}
-                                                schema={FILE_SCHEMA}
-                                            />
-                                        );
-                                    })
-                            }
+                            {parsedRows.map((row, i) => (
+                                <DataRow
+                                    key={i}
+                                    rowIndex={i}
+                                    cells={row}
+                                    schema={FILE_SCHEMA}
+                                    onCellChange={handleCellChange}
+                                />
+                            ))}
                         </TableBody>
                     </Table>
                 </div>
@@ -177,32 +236,12 @@ const IngestionPage = () => {
     );
 };
 
-const validateData = (value: string, expected: Expectation): boolean => {
-    if (!value) {
-        return false;
-    }
-
-    switch (expected) {
-        case "number":
-            return !isNaN(Number(value));
-        case "boolean":
-            return (
-                value.toLowerCase() === "true" ||
-                value.toLowerCase() === "false" ||
-                value.toLowerCase() === "1" ||
-                value.toLowerCase() === "0"
-            );
-        case "date":
-            return !isNaN(Date.parse(value));
-        //Add more data types as needed here
-        case "string":
-        default:
-            return true;
-    }
-};
-
-const DataRow: React.FC<DataRowProps> = ({ data, schema }) => {
-    const cells = data.split(",").map((cell: string) => cell.trim());
+const DataRow: React.FC<DataRowProps> = ({
+    rowIndex,
+    cells,
+    schema,
+    onCellChange,
+}) => {
     //Determine if a row is malformed
     const isRowMalformed = cells.length !== schema.length;
 
@@ -218,19 +257,27 @@ const DataRow: React.FC<DataRowProps> = ({ data, schema }) => {
                     ? validateData(cell, typeDef.type)
                     : false;
                 return (
-                    <TableCell
-                        key={i}
-                        style={{
-                            color: !isTypeValid ? "red" : "inherit",
-                            fontWeight: !isTypeValid ? "bold" : "normal",
-                        }}
-                        title={
-                            !isTypeValid && typeDef
-                                ? `Expected ${typeDef.type} but got "${cell}"`
-                                : undefined
-                        }
-                    >
-                        {cell}
+                    <TableCell key={i}>
+                        <div>
+                            <input
+                                type="text"
+                                value={cell}
+                                onChange={(e) =>
+                                    onCellChange(rowIndex, i, e.target.value)
+                                }
+                                style={{
+                                    color: !isTypeValid ? "red" : "inherit",
+                                    fontWeight: !isTypeValid
+                                        ? "bold"
+                                        : "normal",
+                                }}
+                                title={
+                                    !isTypeValid && typeDef
+                                        ? `Expected ${typeDef.type} but got "${cell}"`
+                                        : undefined
+                                }
+                            />
+                        </div>
                     </TableCell>
                 );
             })}
