@@ -25,7 +25,7 @@ jobs:
 
       - name: Install Dependencies
         working-directory: ./frontend
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Prettier
         working-directory: ./frontend
