@@ -37,6 +37,12 @@ def _make_service(report):
     return ReportService(repo)
 
 
+def _make_list_service(results, total):
+    repo = AsyncMock()
+    repo.get_list.return_value = (results, total)
+    return ReportService(repo)
+
+
 @pytest.mark.asyncio
 async def test_ranger_gets_own_report():
     service = _make_service(dict(_REPORT))
@@ -73,3 +79,45 @@ async def test_admin_gets_none_for_missing_report():
     service = _make_service(None)
     result = await service.get_report("nonexistent-id", _admin())
     assert result is None
+
+
+# get_reports
+
+
+@pytest.mark.asyncio
+async def test_get_reports_ranger_passes_own_id_to_repo():
+    service = _make_list_service([], 0)
+    await service.get_reports(_ranger())
+    service.repo.get_list.assert_called_once()
+    call_kwargs = service.repo.get_list.call_args.kwargs
+    assert call_kwargs["owner_id"] == "bbbbbbbb-0000-0000-0000-000000000001"
+
+
+@pytest.mark.asyncio
+async def test_get_reports_admin_passes_none_owner_to_repo():
+    service = _make_list_service([], 0)
+    await service.get_reports(_admin())
+    call_kwargs = service.repo.get_list.call_args.kwargs
+    assert call_kwargs["owner_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_reports_returns_results_and_total():
+    items = [{"report_id": "x", "report_type": "incident"}]
+    service = _make_list_service(items, 1)
+    results, total = await service.get_reports(_ranger())
+    assert total == 1
+    assert results == items
+
+
+@pytest.mark.asyncio
+async def test_get_reports_passes_filters_to_repo():
+    service = _make_list_service([], 0)
+    await service.get_reports(
+        _admin(), report_type="incident", severity="high", page=2, page_size=10
+    )
+    call_kwargs = service.repo.get_list.call_args.kwargs
+    assert call_kwargs["report_type"] == "incident"
+    assert call_kwargs["severity"] == "high"
+    assert call_kwargs["page"] == 2
+    assert call_kwargs["page_size"] == 10
