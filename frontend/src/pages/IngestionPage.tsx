@@ -99,7 +99,19 @@ const IngestionPage = () => {
                     .slice(1)
                     .filter((line) => line.trim() !== "")
                     .map((line) => line.split(",").map((cell) => cell.trim()));
-                setErrorMessage(null);
+
+                let truncationNotice = "";
+                data.forEach((row, i) => {
+                    if (row.length > FILE_SCHEMA.length) {
+                        const extraCount = row.length - FILE_SCHEMA.length;
+                        truncationNotice += `Row ${i + 1}: Removed ${extraCount} extra column(s) for exerting schema length.\n`;
+                    }
+                });
+                setErrorMessage(
+                    truncationNotice
+                        ? `Upload Successful but some errors occured:\n${truncationNotice.trim()}`
+                        : null,
+                );
                 setParsedRows(data);
                 resolve(true);
             };
@@ -254,39 +266,46 @@ const DataRow: React.FC<DataRowProps> = ({
     schema,
     onCellChange,
 }) => {
-    //Determine if a row is malformed
-    const isRowMalformed = cells.length !== schema.length;
-
     return (
-        <TableRow
-            style={{ backgroundColor: isRowMalformed ? "red" : "transparent" }}
-        >
-            {cells.map((cell: string, i: number) => {
-                const typeDef = schema[i];
+        <TableRow>
+            {schema.map((typeDef, i) => {
+                //Mark missing data as empty
+                const cellValue = cells[i] !== undefined ? cells[i] : "";
 
                 //Mark something out of bounds invalid automatically
                 const isTypeValid = typeDef
-                    ? validateData(cell, typeDef.type)
+                    ? validateData(cellValue, typeDef.type)
                     : false;
+
+                const isEmpty = cellValue === "";
                 return (
                     <TableCell key={i}>
                         <div>
                             <input
                                 type="text"
-                                value={cell}
+                                value={cellValue}
                                 onChange={(e) =>
                                     onCellChange(rowIndex, i, e.target.value)
                                 }
                                 style={{
-                                    color: !isTypeValid ? "red" : "inherit",
-                                    fontWeight: !isTypeValid
-                                        ? "bold"
-                                        : "normal",
+                                    backgroundColor: isEmpty
+                                        ? "rgb(239, 30, 30, 0.15)"
+                                        : "transparent",
+                                    color:
+                                        !isTypeValid || isEmpty
+                                            ? "red"
+                                            : "inherit",
+                                    fontWeight:
+                                        !isTypeValid || isEmpty
+                                            ? "bold"
+                                            : "normal",
                                 }}
                                 title={
-                                    !isTypeValid && typeDef
-                                        ? `Expected ${typeDef.type} but got "${cell}"`
-                                        : undefined
+                                    isEmpty
+                                        ? `Field "${typeDef.name} is missing/empty`
+                                        : !isTypeValid
+                                          ? `Expected ${typeDef.type} but got "${cellValue}"`
+                                          : undefined
                                 }
                             />
                         </div>

@@ -166,4 +166,44 @@ describe("Rendering tests - File validation tests, test various files that succe
         expect(inputs[0]).toHaveValue("1");
         expect(inputs[1]).toHaveValue("active");
     });
+
+    it("Invalid file, should display table with error message saying exerted length", async () => {
+        const user = userEvent.setup();
+        renderIngestionPage();
+
+        const csvFile = new File(
+            ["id,status\n1,active,extra_data"],
+            "valid.csv",
+            {
+                type: "text/csv",
+            },
+        );
+        const fileInput = screen.getByLabelText("CSV file upload");
+
+        if (!fileInput) {
+            throw new Error(
+                "Could not find the file input element - Failing at 'Invalid file format, incorrect file type...'",
+            );
+        }
+
+        await user.upload(fileInput, csvFile);
+
+        const inputs = await screen.findAllByRole("textbox");
+        const expectedError =
+            "Upload Successful but some errors occured: Row 1: Removed 1 extra column(s) for exerting schema length.";
+        const error = await screen.findByText(expectedError);
+
+        expect(error).toBeInTheDocument();
+        expect(error).toHaveStyle({ color: "rgb(255, 0, 0)" });
+
+        expect(screen.getByRole("table")).toBeInTheDocument();
+        expect(
+            screen.getByRole("columnheader", { name: "id (number)" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("columnheader", { name: "status (string)" }),
+        ).toBeInTheDocument();
+        expect(inputs[0]).toHaveValue("1");
+        expect(inputs[1]).toHaveValue("active");
+    });
 });
