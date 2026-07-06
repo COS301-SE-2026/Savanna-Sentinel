@@ -1,7 +1,17 @@
 import IngestionPage from "@/pages/IngestionPage";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+//Intercept the schema and replace it with a consistent schema that is seperate from the file
+vi.mock("@/lib/ingestionSchema", () => {
+    return {
+        FILE_SCHEMA: [
+            { name: "id", type: "number" },
+            { name: "status", type: "string" },
+        ],
+    };
+});
 
 const renderIngestionPage = () => {
     return render(<IngestionPage />);
