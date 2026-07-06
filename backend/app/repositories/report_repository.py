@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Optional
 
+from fastapi import HTTPException, status
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -114,6 +115,128 @@ class ReportRepository:
             results.append(d)
 
         return results, total
+
+    async def create(
+        self,
+        user_id: str,
+        report_type: str,
+        location_wkt: str,
+        occurred_at: "datetime",
+        description: str,
+        route_id: Optional[str] = None,
+        incident_type: Optional[str] = None,
+        severity: Optional[str] = None,
+        species: Optional[str] = None,
+        count: Optional[int] = None,
+        images: Optional[list] = None,
+    ) -> dict:
+        if route_id is not None:
+            exists = (
+                await self.db.execute(
+                    text("SELECT 1 FROM patrol_routes WHERE id::text = :rid"),
+                    {"rid": route_id},
+                )
+            ).fetchone()
+            if exists is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="route_id does not refer to an existing patrol "
+                    "route",
+                )
+
+        fr_row = (
+            await self.db.execute(
+                text("""
+                INSERT INTO field_reports
+                    (submitted_by, report_type, description, location,
+                     occurred_at, route_id)
+                VALUES
+                    (:uid, CAST(:rtype AS report_type), :desc,
+                     ST_GeogFromText(:wkt), :occurred_at, :route_id)
+                RETURNING id, created_at
+            """),
+                {
+                    "uid": user_id,
+                    "rtype": report_type,
+                    "desc": description,
+                    "wkt": location_wkt,
+                    "occurred_at": occurred_at,
+                    "route_id": route_id,
+                },
+            )
+        ).fetchone()
+
+        field_report_id = str(fr_row[0])
+        created_at = fr_row[1]
+
+        ev_row = (
+            await self.db.execute(
+                text("""
+                INSERT INTO geospatial_events
+                    (event_type, location, occurred_at)
+                VALUES
+                    (CAST(:etype AS event_type), ST_GeogFromText(:wkt)
+                     , :occurred_at)
+                RETURNING id
+            """),
+                {
+                    "etype": report_type,
+                    "wkt": location_wkt,
+                    "occurred_at": occurred_at,
+                },
+            )
+        ).fetchone()
+        event_id = str(ev_row[0])
+
+        if report_type == "incident":
+            await self.db.execute(
+                text("""
+                    INSERT INTO incidents
+                        (id, field_report_id, incident_type, severity)
+                    VALUES
+                        (:id, :fr_id, :itype, CAST(:sev AS severity_level))
+                """),
+                {
+                    "id": event_id,
+                    "fr_id": field_report_id,
+                    "itype": incident_type,
+                    "sev": severity,
+                },
+            )
+        else:
+            await self.db.execute(
+                text("""
+                    INSERT INTO sightings
+                        (id, field_report_id, species, count)
+                    VALUES
+                        (:id, :fr_id, :species, :cnt)
+                """),
+                {
+                    "id": event_id,
+                    "fr_id": field_report_id,
+                    "species": species,
+                    "cnt": count,
+                },
+            )
+
+        for url in images or []:
+            await self.db.execute(
+                text("""
+                    INSERT INTO photos (geospatial_event_id, image_url)
+                    VALUES (:eid, :url)
+                """),
+                {"eid": event_id, "url": url},
+            )
+
+        await self.db.commit()
+
+        return {
+            "report_id": field_report_id,
+            "report_type": report_type,
+            "status": "submitted",
+            "submitted_by": user_id,
+            "created_at": created_at,
+        }
 
     async def get_by_id(self, report_id: str) -> Optional[dict]:
         stmt = select(
