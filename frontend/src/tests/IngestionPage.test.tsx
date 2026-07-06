@@ -4,12 +4,17 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 //Intercept the schema and replace it with a consistent schema that is seperate from the file
+//Disabled since it must match vi standards
+// eslint-disable-next-line @typescript-eslint/naming-convention
+let vi_mockSchema = [
+    { name: "id", type: "number" },
+    { name: "status", type: "string" },
+];
 vi.mock("@/lib/ingestionSchema", () => {
     return {
-        FILE_SCHEMA: [
-            { name: "id", type: "number" },
-            { name: "status", type: "string" },
-        ],
+        get FILE_SCHEMA() {
+            return vi_mockSchema;
+        },
     };
 });
 
@@ -242,13 +247,23 @@ describe("Rendering tests - File validation tests, test various files that succe
         });
     });
 
-    it("Invalid file, invalid data types w/ integer, show highlight text entries", async () => {
+    it("Invalid file, invalid data types, show highlight text entries", async () => {
+        vi_mockSchema = [
+            { name: "id", type: "number" },
+            { name: "status", type: "string" },
+            { name: "is_active", type: "boolean" },
+            { name: "submitted_date", type: "date" },
+        ];
         const user = userEvent.setup();
         renderIngestionPage();
 
-        const csvFile = new File(["id,status\ntest,active"], "test.csv", {
-            type: "text/csv",
-        });
+        const csvFile = new File(
+            ["id,status,is_active,submitted_date\ntest,active,incorrect,today"],
+            "test.csv",
+            {
+                type: "text/csv",
+            },
+        );
 
         const fileInput = screen.getByLabelText("CSV file upload");
 
@@ -259,6 +274,54 @@ describe("Rendering tests - File validation tests, test various files that succe
         }
         await user.upload(fileInput, csvFile);
         const inputs = await screen.findAllByRole("textbox");
+
+        expect(screen.getByRole("table")).toBeInTheDocument();
+        expect(
+            screen.getByRole("columnheader", { name: "id (number)" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("columnheader", { name: "status (string)" }),
+        ).toBeInTheDocument();
+        expect(inputs[0]).toHaveValue("test");
+        expect(inputs[1]).toHaveValue("active");
+        expect(inputs[2]).toHaveValue("incorrect");
+        expect(inputs[3]).toHaveValue("today");
+        expect(inputs[0]).toHaveStyle({
+            color: "rgb(255,0,0)",
+            fontWeight: "bold",
+        });
+        expect(inputs[2]).toHaveStyle({
+            color: "rgb(255,0,0)",
+            fontWeight: "bold",
+        });
+        expect(inputs[3]).toHaveStyle({
+            color: "rgb(255,0,0)",
+            fontWeight: "bold",
+        });
+
+        //Reset
+        vi_mockSchema = [
+            { name: "id", type: "number" },
+            { name: "status", type: "string" },
+        ];
+    });
+    it("Invalid file, invalid data types, style updates correctly when editted", async () => {
+        const user = userEvent.setup();
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\ntest,active"], "test.csv", {
+            type: "text/csv",
+        });
+        const fileInput = screen.getByLabelText("CSV file upload");
+
+        if (!fileInput) {
+            throw new Error(
+                "Could not find the file input element - Failing at 'Invalid file, should display table with higlighted cells...'",
+            );
+        }
+        await user.upload(fileInput, csvFile);
+        const inputs = await screen.findAllByRole("textbox");
+
         expect(screen.getByRole("table")).toBeInTheDocument();
         expect(
             screen.getByRole("columnheader", { name: "id (number)" }),
@@ -271,6 +334,16 @@ describe("Rendering tests - File validation tests, test various files that succe
         expect(inputs[0]).toHaveStyle({
             color: "rgb(255,0,0)",
             fontWeight: "bold",
+        });
+
+        //simulate user typing
+        await user.clear(inputs[0]);
+        await user.type(inputs[0], "1");
+
+        expect(inputs[0]).toHaveValue("1");
+        expect(inputs[0]).toHaveStyle({
+            color: "rgb(0, 0, 0)",
+            fontWeight: "normal",
         });
     });
 });
