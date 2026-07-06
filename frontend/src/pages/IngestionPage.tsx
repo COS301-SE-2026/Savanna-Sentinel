@@ -192,6 +192,28 @@ const IngestionPage = () => {
         if (!isDataValid()) {
             alert("Cannot submit, validation errors exist");
         }
+
+        const body = parsedRows.map((row) => {
+            //unknown currently used for dynamic reasons, switch to interface once interface is decided
+            const record: Record<string, unknown> = {};
+            FILE_SCHEMA.forEach((col, i) => {
+                const value = row[i];
+                //Convert to JSON correctly
+                if (col.type === "number") {
+                    record[col.name] = Number(value);
+                } else if (col.type === "boolean") {
+                    record[col.name] =
+                        value.toLowerCase() === "true" ||
+                        value.toLowerCase() === "1";
+                } else {
+                    record[col.name] = value;
+                }
+            });
+            return record;
+        });
+
+        //Publish code here
+        console.log(body);
     };
     return (
         <div>
