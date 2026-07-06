@@ -123,7 +123,7 @@ const IngestionPage = () => {
         if (!files || files.length === 0) {
             return;
         }
-
+        //Possibly redundant, since OS prevents multiple files from being uploaded.
         if (files.length > 1) {
             setErrorMessage("Please only upload 1 file");
             event.target.value = "";

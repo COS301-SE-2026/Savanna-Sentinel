@@ -1,6 +1,6 @@
 import IngestionPage from "@/pages/IngestionPage";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 //Intercept the schema and replace it with a consistent schema that is seperate from the file
@@ -56,7 +56,7 @@ describe("Rendering tests - File upload errors (not content) ", () => {
 
         if (!fileInput) {
             throw new Error(
-                "Could not find the file input element - Invalid file format, first row is malformed...'",
+                "Could not find the file input element - Failing at 'Invalid file format, first row is malformed...'",
             );
         }
 
@@ -95,7 +95,7 @@ describe("Rendering tests - File upload errors (not content) ", () => {
 
         if (!fileInput) {
             throw new Error(
-                "Could not find the file input element - Valid file format, browser experiences error reading file'",
+                "Could not find the file input element - Failing at 'Valid file format, browser experiences error reading file'",
             );
         }
 
@@ -107,5 +107,31 @@ describe("Rendering tests - File upload errors (not content) ", () => {
         expect(error).toHaveStyle({ color: "rgb(255, 0, 0)" });
 
         readAsTextSpy.mockRestore();
+    });
+
+    it("Invalid file format, incorrect file type, should show only supports csv message", async () => {
+        renderIngestionPage();
+
+        const file = new File(["id,status\n1,active"], "test.txt", {
+            type: "text/plain",
+        });
+        const fileInput = screen.getByLabelText("CSV file upload");
+
+        if (!fileInput) {
+            throw new Error(
+                "Could not find the file input element - Failing at 'Invalid file format, incorrect file type...'",
+            );
+        }
+
+        //Cant use user agent to try and bypass safeguards by its file handler for this test case
+        fireEvent.change(fileInput, {
+            target: { files: [file] },
+        });
+
+        const expectedError = "The program only accepts .csv files.";
+        const error = await screen.findByText(expectedError);
+
+        expect(error).toBeInTheDocument();
+        expect(error).toHaveStyle({ color: "rgb(255, 0, 0)" });
     });
 });
