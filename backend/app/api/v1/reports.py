@@ -7,10 +7,39 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.repositories.report_repository import ReportRepository
-from app.schemas.report import ReportListResponse, ReportResponse
+from app.schemas.report import (
+    ReportCreate,
+    ReportListResponse,
+    ReportResponse,
+    ReportSubmitResponse,
+)
 from app.services.report_service import ReportService
 
 router = APIRouter(tags=["reports"])
+
+_ROLE_DENIED = "Access denied"
+
+
+@router.post(
+    "/reports",
+    response_model=ReportSubmitResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit field report (SC-11)",
+)
+async def submit_report(
+    body: ReportCreate,
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    if current_user.role not in ("ranger", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_ROLE_DENIED,
+        )
+
+    service = ReportService(ReportRepository(db))
+    result = await service.create_report(current_user, body)
+    return ReportSubmitResponse(**result)
 
 
 @router.get(
@@ -42,7 +71,7 @@ async def list_reports(
     if current_user.role not in ("ranger", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
+            detail=_ROLE_DENIED,
         )
 
     service = ReportService(ReportRepository(db))
@@ -78,7 +107,7 @@ async def get_report(
     if current_user.role not in ("ranger", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
+            detail=_ROLE_DENIED,
         )
 
     service = ReportService(ReportRepository(db))
