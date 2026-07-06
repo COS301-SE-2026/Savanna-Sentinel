@@ -182,7 +182,7 @@ describe("Rendering tests - File validation tests, test various files that succe
 
         if (!fileInput) {
             throw new Error(
-                "Could not find the file input element - Failing at 'Invalid file format, incorrect file type...'",
+                "Could not find the file input element - Failing at 'Invalid file, should display table with error message saying exerted length'",
             );
         }
 
@@ -205,5 +205,72 @@ describe("Rendering tests - File validation tests, test various files that succe
         ).toBeInTheDocument();
         expect(inputs[0]).toHaveValue("1");
         expect(inputs[1]).toHaveValue("active");
+    });
+
+    it("Invalid file, should display table with higlighted cells showing missing data", async () => {
+        const user = userEvent.setup();
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\n1"], "valid.csv", {
+            type: "text/csv",
+        });
+
+        const fileInput = screen.getByLabelText("CSV file upload");
+
+        if (!fileInput) {
+            throw new Error(
+                "Could not find the file input element - Failing at 'Invalid file, should display table with higlighted cells...'",
+            );
+        }
+        await user.upload(fileInput, csvFile);
+
+        const inputs = await screen.findAllByRole("textbox");
+
+        expect(screen.getByRole("table")).toBeInTheDocument();
+        expect(
+            screen.getByRole("columnheader", { name: "id (number)" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("columnheader", { name: "status (string)" }),
+        ).toBeInTheDocument();
+        expect(inputs[0]).toHaveValue("1");
+        expect(inputs[1]).toHaveValue("");
+        expect(inputs[1]).toHaveStyle({
+            backgroundColor: "rgba(239,30,30,0.15)",
+            color: "rgb(255,0,0)",
+            fontWeight: "bold",
+        });
+    });
+
+    it("Invalid file, invalid data types w/ integer, show highlight text entries", async () => {
+        const user = userEvent.setup();
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\ntest,active"], "test.csv", {
+            type: "text/csv",
+        });
+
+        const fileInput = screen.getByLabelText("CSV file upload");
+
+        if (!fileInput) {
+            throw new Error(
+                "Could not find the file input element - Failing at 'Invalid file, should display table with higlighted cells...'",
+            );
+        }
+        await user.upload(fileInput, csvFile);
+        const inputs = await screen.findAllByRole("textbox");
+        expect(screen.getByRole("table")).toBeInTheDocument();
+        expect(
+            screen.getByRole("columnheader", { name: "id (number)" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("columnheader", { name: "status (string)" }),
+        ).toBeInTheDocument();
+        expect(inputs[0]).toHaveValue("test");
+        expect(inputs[1]).toHaveValue("active");
+        expect(inputs[0]).toHaveStyle({
+            color: "rgb(255,0,0)",
+            fontWeight: "bold",
+        });
     });
 });
