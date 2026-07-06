@@ -219,8 +219,13 @@ const IngestionPage = () => {
         <div>
             <h1>Example File Upload location</h1>
             {/* File type should always be .csv but adding it for dynamic reasons*/}
-            <input type="file" accept=".csv" onChange={handleFileUpload} />
-            {errorMessage && <p>{errorMessage}</p>}
+            <input
+                type="file"
+                accept=".csv"
+                aria-label="CSV file upload"
+                onChange={handleFileUpload}
+            />
+            {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
 
             <h1>File contents</h1>
             {selectedFile && parsedRows.length > 0 ? (
