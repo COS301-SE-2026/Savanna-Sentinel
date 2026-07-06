@@ -355,7 +355,9 @@ describe("Rendering tests - File validation tests, test various files that succe
         ];
 
         const user = userEvent.setup();
-        const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+        const alertSpy = vi
+            .spyOn(globalThis, "alert")
+            .mockImplementation(() => {});
         renderIngestionPage();
 
         const csvFile = new File(

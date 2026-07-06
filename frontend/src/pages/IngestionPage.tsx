@@ -32,7 +32,7 @@ const validateData = (value: string, expected: Expectation): boolean => {
 
     switch (expected) {
         case "number":
-            return !isNaN(Number(value));
+            return !Number.isNaN(Number(value));
         case "boolean":
             return (
                 value.toLowerCase() === "true" ||
