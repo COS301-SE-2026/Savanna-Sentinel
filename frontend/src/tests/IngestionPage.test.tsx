@@ -135,3 +135,35 @@ describe("Rendering tests - File upload errors (not content) ", () => {
         expect(error).toHaveStyle({ color: "rgb(255, 0, 0)" });
     });
 });
+
+describe("Rendering tests - File validation tests, test various files that successfully upload but might contain errors", () => {
+    it("Valid file, should display table", async () => {
+        const user = userEvent.setup();
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\n1,active"], "valid.csv", {
+            type: "text/csv",
+        });
+        const fileInput = screen.getByLabelText("CSV file upload");
+
+        if (!fileInput) {
+            throw new Error(
+                "Could not find the file input element - Failing at 'Invalid file format, incorrect file type...'",
+            );
+        }
+
+        await user.upload(fileInput, csvFile);
+
+        const inputs = await screen.findAllByRole("textbox");
+
+        expect(screen.getByRole("table")).toBeInTheDocument();
+        expect(
+            screen.getByRole("columnheader", { name: "id (number)" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("columnheader", { name: "status (string)" }),
+        ).toBeInTheDocument();
+        expect(inputs[0]).toHaveValue("1");
+        expect(inputs[1]).toHaveValue("active");
+    });
+});
