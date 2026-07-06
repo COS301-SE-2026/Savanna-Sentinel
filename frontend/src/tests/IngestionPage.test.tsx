@@ -346,4 +346,44 @@ describe("Rendering tests - File validation tests, test various files that succe
             fontWeight: "normal",
         });
     });
+
+    it("Valid file, correctly gets parsed into a JSON object", async () => {
+        vi_mockSchema = [
+            { name: "id", type: "number" },
+            { name: "status", type: "string" },
+            { name: "is_active", type: "boolean" },
+        ];
+
+        const user = userEvent.setup();
+        const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+        renderIngestionPage();
+
+        const csvFile = new File(
+            ["id,status,is_active\n1,active,true"],
+            "test.csv",
+            {
+                type: "text/csv",
+            },
+        );
+        const fileInput = screen.getByLabelText("CSV file upload");
+
+        if (!fileInput) {
+            throw new Error(
+                "Could not find the file input element - Failing at 'Invalid file, should display table with higlighted cells...'",
+            );
+        }
+        await user.upload(fileInput, csvFile);
+
+        const submitButton = screen.getByRole("button", { name: /Submit/i });
+        await user.click(submitButton);
+
+        //Not the best test, could be improved in integration tests to check json is being sent correctly
+        expect(alertSpy).not.toHaveBeenCalled();
+
+        vi_mockSchema = [
+            { name: "id", type: "number" },
+            { name: "status", type: "string" },
+        ];
+        alertSpy.mockRestore();
+    });
 });
