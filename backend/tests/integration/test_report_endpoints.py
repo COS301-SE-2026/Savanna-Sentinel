@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -24,7 +25,10 @@ app.dependency_overrides[get_db] = _override_get_db
 
 
 def _client() -> AsyncClient:
-    return AsyncClient(transport=ASGITransport(app=app), base_url="https://test")
+    return AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="https://test",
+    )
 
 
 async def _create_user(
@@ -126,6 +130,190 @@ def cleanup():
             )
 
     asyncio.run(_delete())
+
+
+def _incident_payload(**overrides) -> dict:
+    past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    body = {
+        "report_type": "incident",
+        "location": {"lat": -25.7, "lon": 28.1},
+        "occurred_at": past,
+        "description": "Snare found near waterhole",
+        "incident_type": "poaching",
+    }
+    body.update(overrides)
+    return body
+
+
+def _sighting_payload(**overrides) -> dict:
+    past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    body = {
+        "report_type": "sighting",
+        "location": {"lat": -25.7, "lon": 28.1},
+        "occurred_at": past,
+        "description": "Elephant herd at river",
+        "species": "African Elephant",
+    }
+    body.update(overrides)
+    return body
+
+
+# POST /v1/reports
+
+
+@pytest.mark.asyncio
+async def test_ranger_submits_incident_report_returns_201():
+    uid = await _create_user("test_ranger_sc11a")
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(),
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 201
+    body = r.json()
+    assert body["report_type"] == "incident"
+    assert body["status"] == "submitted"
+    assert body["submitted_by"] == uid
+    assert "report_id" in body
+    assert "created_at" in body
+
+
+@pytest.mark.asyncio
+async def test_ranger_submits_sighting_report_returns_201():
+    uid = await _create_user("test_ranger_sc11b")
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=_sighting_payload(),
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 201
+    assert r.json()["report_type"] == "sighting"
+
+
+@pytest.mark.asyncio
+async def test_admin_submits_report_returns_201():
+    uid = await _create_user("test_admin_sc11", role="admin")
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(),
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_analyst_blocked_from_submit_returns_403():
+    uid = await _create_user("test_analyst_sc11", role="analyst")
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(),
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_community_liaison_blocked_from_submit_returns_403():
+    uid = await _create_user("test_liaison_sc11", role="community_liaison")
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(),
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_no_token_submit_returns_401():
+    async with _client() as c:
+        r = await c.post("/v1/reports", json=_incident_payload())
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_future_occurred_at_returns_422():
+    uid = await _create_user("test_ranger_sc11c")
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(occurred_at=future),
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_missing_incident_type_for_incident_returns_400():
+    uid = await _create_user("test_ranger_sc11d")
+    payload = _incident_payload()
+    del payload["incident_type"]
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=payload,
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_missing_species_for_sighting_returns_400():
+    uid = await _create_user("test_ranger_sc11e")
+    payload = _sighting_payload()
+    del payload["species"]
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=payload,
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_invalid_coordinates_returns_422():
+    uid = await _create_user("test_ranger_sc11f")
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(location={"lat": 95.0, "lon": 28.1}),
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_submit_with_severity_and_count():
+    uid = await _create_user("test_ranger_sc11g")
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=_sighting_payload(count=5),
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_submitted_report_appears_in_list():
+    uid = await _create_user("test_ranger_sc11h")
+    async with _client() as c:
+        post_r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(),
+            headers=_auth_header(uid),
+        )
+        assert post_r.status_code == 201
+        report_id = post_r.json()["report_id"]
+        list_r = await c.get("/v1/reports", headers=_auth_header(uid))
+    ids = [item["report_id"] for item in list_r.json()["results"]]
+    assert report_id in ids
 
 
 # GET /v1/reports/{report_id}
