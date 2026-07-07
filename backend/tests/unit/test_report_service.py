@@ -1,10 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
 
+from app.schemas.report import LocationLatLon, ReportCreate
 from app.services.report_service import ReportService
 
 _NOW = datetime.now(timezone.utc)
@@ -46,6 +47,140 @@ def _make_list_service(results, total):
     repo = AsyncMock()
     repo.get_list.return_value = (results, total)
     return ReportService(repo)
+
+
+def _make_create_service(result=None):
+    repo = AsyncMock()
+    repo.create.return_value = result or {
+        "report_id": "aaaaaaaa-0000-0000-0000-000000000001",
+        "report_type": "incident",
+        "status": "submitted",
+        "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
+        "created_at": _NOW,
+    }
+    return ReportService(repo)
+
+
+def _incident_body(**overrides) -> ReportCreate:
+    defaults = dict(
+        report_type="incident",
+        location=LocationLatLon(lat=-25.7, lon=28.1),
+        occurred_at=_NOW - timedelta(hours=1),
+        description="Poaching spotted",
+        incident_type="poaching",
+    )
+    defaults.update(overrides)
+    return ReportCreate(**defaults)
+
+
+def _sighting_body(**overrides) -> ReportCreate:
+    defaults = dict(
+        report_type="sighting",
+        location=LocationLatLon(lat=-25.7, lon=28.1),
+        occurred_at=_NOW - timedelta(hours=1),
+        description="Elephant herd",
+        species="elephant",
+    )
+    defaults.update(overrides)
+    return ReportCreate(**defaults)
+
+
+# create_report
+
+
+@pytest.mark.asyncio
+async def test_create_incident_report_calls_repo():
+    service = _make_create_service()
+    result = await service.create_report(_ranger(), _incident_body())
+    service.repo.create.assert_called_once()
+    assert result["report_type"] == "incident"
+    assert result["status"] == "submitted"
+
+
+@pytest.mark.asyncio
+async def test_create_sighting_report_calls_repo():
+    svc = _make_create_service(
+        {
+            "report_id": "x",
+            "report_type": "sighting",
+            "status": "submitted",
+            "submitted_by": "y",
+            "created_at": _NOW,
+        },
+    )
+    await svc.create_report(_ranger(), _sighting_body())
+    svc.repo.create.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_future_occurred_at_raises_422():
+    svc = _make_create_service()
+    body = _incident_body(occurred_at=_NOW + timedelta(hours=1))
+    with pytest.raises(HTTPException) as exc:
+        await svc.create_report(_ranger(), body)
+    assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_invalid_lat_raises_422():
+    svc = _make_create_service()
+    body = _incident_body(location=LocationLatLon(lat=91.0, lon=28.1))
+    with pytest.raises(HTTPException) as exc:
+        await svc.create_report(_ranger(), body)
+    assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_invalid_lon_raises_422():
+    svc = _make_create_service()
+    body = _incident_body(location=LocationLatLon(lat=-25.7, lon=181.0))
+    with pytest.raises(HTTPException) as exc:
+        await svc.create_report(_ranger(), body)
+    assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_incident_missing_incident_type_raises_400():
+    svc = _make_create_service()
+    body = _incident_body(incident_type=None)
+    with pytest.raises(HTTPException) as exc:
+        await svc.create_report(_ranger(), body)
+    assert exc.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_sighting_missing_species_raises_400():
+    svc = _make_create_service()
+    body = _sighting_body(species=None)
+    with pytest.raises(HTTPException) as exc:
+        await svc.create_report(_ranger(), body)
+    assert exc.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_create_passes_correct_wkt_to_repo():
+    svc = _make_create_service()
+    body = _incident_body(location=LocationLatLon(lat=-25.7, lon=28.1))
+    await svc.create_report(_ranger(), body)
+    kwargs = svc.repo.create.call_args.kwargs
+    assert kwargs["location_wkt"] == "POINT(28.1 -25.7)"
+
+
+@pytest.mark.asyncio
+async def test_create_passes_user_id_to_repo():
+    svc = _make_create_service()
+    await svc.create_report(_ranger(), _incident_body())
+    kwargs = svc.repo.create.call_args.kwargs
+    assert kwargs["user_id"] == "bbbbbbbb-0000-0000-0000-000000000001"
+
+
+@pytest.mark.asyncio
+async def test_create_naive_datetime_is_treated_as_utc():
+    svc = _make_create_service()
+    naive_past = (_NOW - timedelta(hours=1)).replace(tzinfo=None)
+    body = _incident_body(occurred_at=naive_past)
+    await svc.create_report(_ranger(), body)
+    svc.repo.create.assert_called_once()
 
 
 # get_report_by_id
