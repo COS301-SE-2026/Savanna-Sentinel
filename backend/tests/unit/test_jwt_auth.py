@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException, status
 
-from app.core.dependencies import get_current_user, require_admin
+from app.core.dependencies import get_current_user, require_roles
 from app.models.user import User
 
 
@@ -118,7 +118,8 @@ async def test_require_admin_allows_admin_role():
         hashed_password="HashedPassword",
     )
 
-    result = require_admin(current_user=mock_user)
+    role_checker = require_roles(["admin"])
+    result = role_checker(current_user=mock_user)
 
     assert result == mock_user
 
@@ -134,8 +135,10 @@ async def test_require_admin_raises_403_for_non_admin():
         hashed_password="HashedPassword",
         )
 
+    role_checker = require_roles(["admin"])
+
     with pytest.raises(HTTPException) as e:
-        await require_admin(current_user=mock_user)
+        await role_checker(current_user=mock_user)
 
     assert e.value.status_code == status.HTTP_403_FORBIDDEN
     assert "Admin privileges required" in e.value.detail
