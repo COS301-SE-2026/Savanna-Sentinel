@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_db, require_roles
 from app.models.user import User
 from app.repositories.ingestion_repository import IngestionRepository
-from app.schemas.ingestion import IngestionUploadResponse
+from app.schemas.ingestion import IngestionRequest, IngestionUploadResponse
 from app.services.ingestion_service import IngestionService
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/ingestion", tags=["ingestion"])
     summary="Validate and upload a received json object",
 )
 async def upload_file(
+        body: IngestionRequest,
         db: Annotated[
             AsyncSession,
             Depends(get_db),
