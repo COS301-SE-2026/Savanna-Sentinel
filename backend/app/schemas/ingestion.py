@@ -5,9 +5,8 @@ from pydantic import BaseModel
 
 
 class IngestionUploadResponse(BaseModel):
-    upload_id: str
     status: str
-    queued_at: datetime
+    message: str
 
 class CSVSchema(BaseModel):
     record_id: int

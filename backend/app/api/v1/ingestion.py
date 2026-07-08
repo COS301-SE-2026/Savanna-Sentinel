@@ -23,8 +23,16 @@ async def upload_file(
         ],
         is_authenticated: Annotated[
             User,
-            Depends(require_roles(["admin, analyst"])),
+            Depends(require_roles(["admin", "analyst"])),
         ],
 ):
     repo = IngestionRepository(db)
     service = IngestionService(repo)
+
+    # Raises an exception if there is an error during validation
+    response_data = service.validate(body)
+    # Currently stubbed since db functionality is not implemented
+    await repo.upload_file()
+
+    return response_data
+
