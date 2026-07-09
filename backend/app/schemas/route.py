@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from app.schemas.geo import GeoPoint
 from app.schemas.geo import GeoLineString
+from pydantic import BaseModel
 
 @dataclass
 class GraphNode:
@@ -26,3 +27,26 @@ class PlannedRoute:
     estimated_time_min: float
     estimated_fuel_l: float
     risk_coverage: float
+
+class RouteRequest(BaseModel):
+    park_id: str
+    start_point: GeoPoint
+    end_point: GeoPoint
+    max_time: float
+    max_fuel: float
+    num_alternatives: int = 3 #ceiling, not a guarantee
+class RouteJobResponse(BaseModel):
+    job_id: str
+    request_id: str
+    park_id: str
+    status: str
+    queued_at: str
+class RouteListResponse(BaseModel):
+    request_id: str | None = None
+    status: str | None = None
+    num_alternatives_requested: int | None = None
+    num_alternatives_found: int | None = None
+    total: int
+    page: int
+    page_size: int
+    results: list[PlannedRoute]
