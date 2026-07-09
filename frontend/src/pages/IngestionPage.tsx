@@ -14,6 +14,8 @@ import {
     type ColDef,
 } from "@/lib/ingestionSchema";
 
+const BATCH_SIZE = 500
+
 interface DataRowProps {
     rowIndex: number;
     cells: string[];
@@ -53,6 +55,23 @@ const IngestionPage = () => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [parsedRows, setParsedRows] = useState<string[][]>([]);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [currentLineNumber, setCurrentLineNumber] = useState<number>(1);
+    const [headers, setHeaders] = useState<string[]>([]);
+    const [allLines, setAllLines] = useState<string[]>([]);
+    const [isComplete, setIsComplete] = useState<boolean>(false);
+
+    
+    const loadBatch = (lines: string[], startLine: number) => {
+        const endLine = Math.min(startLine + BATCH_SIZE, lines.length);
+        const batchSlice = lines.slice(startLine, endLine)
+
+        const parsedBatch = batchSlice.map((line) => 
+            line.split(",").map((cell) => cell.trim())
+        )
+
+        setParsedRows(parsedBatch)
+        setCurrentLineNumber(startLine)
+    }
 
     const validateSchema = (file: File): Promise<boolean> => {
         return new Promise((resolve) => {
@@ -93,26 +112,10 @@ const IngestionPage = () => {
                     setParsedRows([]);
                     return resolve(false);
                 }
+                setHeaders(headers);
+                setAllLines(lines)
+                loadBatch(lines, 1)
 
-                //no error
-                const data = lines
-                    .slice(1)
-                    .filter((line) => line.trim() !== "")
-                    .map((line) => line.split(",").map((cell) => cell.trim()));
-
-                let truncationNotice = "";
-                data.forEach((row, i) => {
-                    if (row.length > FILE_SCHEMA.length) {
-                        const extraCount = row.length - FILE_SCHEMA.length;
-                        truncationNotice += `Row ${i + 1}: Removed ${extraCount} extra column(s) for exerting schema length.\n`;
-                    }
-                });
-                setErrorMessage(
-                    truncationNotice
-                        ? `Upload Successful but some errors occured:\n${truncationNotice.trim()}`
-                        : null,
-                );
-                setParsedRows(data);
                 resolve(true);
             };
 
@@ -135,12 +138,6 @@ const IngestionPage = () => {
         if (!files || files.length === 0) {
             return;
         }
-        //Possibly redundant, since OS prevents multiple files from being uploaded.
-        if (files.length > 1) {
-            setErrorMessage("Please only upload 1 file");
-            event.target.value = "";
-            return;
-        }
 
         const file = files[0];
 
@@ -152,6 +149,7 @@ const IngestionPage = () => {
 
         //Clear error messages
         setErrorMessage(null);
+        setIsComplete(false);
         const isValid = await validateSchema(file);
         if (!isValid) {
             event.target.value = "";
@@ -187,7 +185,8 @@ const IngestionPage = () => {
     };
     const handleDataSubmission = () => {
         if (!isDataValid()) {
-            alert("Cannot submit, validation errors exist");
+            alert("Cannot submit, validation errors exist in this batch");
+            return;
         }
 
         const body = parsedRows.map((row) => {
@@ -223,12 +222,14 @@ const IngestionPage = () => {
                 onChange={handleFileUpload}
             />
             {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
+            {isComplete && <p style={{color: "green"}}>File batching sequence completed</p>}
 
             <h1>File contents</h1>
             {selectedFile && parsedRows.length > 0 ? (
                 <div>
+                    <h3>Displaying rows {currentLineNumber} to {Math.min(currentLineNumber + parsedRows.length - 1, allLines.length - 1)}</h3>
                     <button onClick={handleDataSubmission}>
-                        Submit (Non functional)
+                        Submit Current Batch
                     </button>
                     <Table>
                         <TableHeader>
@@ -254,7 +255,7 @@ const IngestionPage = () => {
                     </Table>
                 </div>
             ) : (
-                "No data loaded"
+                !isComplete && "No data loaded"
             )}
         </div>
     );
@@ -270,7 +271,7 @@ const DataRow: React.FC<DataRowProps> = ({
         <TableRow>
             {schema.map((typeDef, i) => {
                 //Mark missing data as empty
-                const cellValue = cells[i] !== undefined ? cells[i] : "";
+                const cellValue = cells[i] ?? "";
 
                 //Mark something out of bounds invalid automatically
                 const isTypeValid = typeDef
