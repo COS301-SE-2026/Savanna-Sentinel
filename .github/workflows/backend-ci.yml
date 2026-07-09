@@ -56,7 +56,7 @@ jobs:
 
       - name: Wait for backend to be ready
         run: |
-          until curl -sf http://localhost:8000/health; do
+          until curl -sf http://localhost:8000/v1/health; do
             echo "Waiting for backend..."
             sleep 2
           done
