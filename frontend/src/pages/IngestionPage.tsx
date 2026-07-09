@@ -13,6 +13,7 @@ import {
     type Expectation,
     type ColDef,
 } from "@/lib/ingestionSchema";
+import { ingestionApi } from "@/services/ingestionApi";
 
 const BATCH_SIZE = 500
 
@@ -43,7 +44,7 @@ const validateData = (value: string, expected: Expectation): boolean => {
                 value.toLowerCase() === "0"
             );
         case "date":
-            return !isNaN(Date.parse(value));
+            return !Number.isNaN(Date.parse(value));
         //Add more data types as needed here
         case "string":
         default:
@@ -56,7 +57,6 @@ const IngestionPage = () => {
     const [parsedRows, setParsedRows] = useState<string[][]>([]);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [currentLineNumber, setCurrentLineNumber] = useState<number>(1);
-    const [headers, setHeaders] = useState<string[]>([]);
     const [allLines, setAllLines] = useState<string[]>([]);
     const [isComplete, setIsComplete] = useState<boolean>(false);
 
@@ -84,7 +84,7 @@ const IngestionPage = () => {
                 }
 
                 //Use regex to get the first line of text
-                const lines = text.split(/\r?\n/);
+                const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
                 const firstLine = lines[0];
 
                 if (!firstLine) {
@@ -112,7 +112,6 @@ const IngestionPage = () => {
                     setParsedRows([]);
                     return resolve(false);
                 }
-                setHeaders(headers);
                 setAllLines(lines)
                 loadBatch(lines, 1)
 
@@ -183,13 +182,13 @@ const IngestionPage = () => {
             );
         });
     };
-    const handleDataSubmission = () => {
+    const handleDataSubmission = async () => {
         if (!isDataValid()) {
             alert("Cannot submit, validation errors exist in this batch");
             return;
         }
 
-        const body = parsedRows.map((row) => {
+        const records = parsedRows.map((row) => {
             //unknown currently used for dynamic reasons, switch to interface once interface is decided
             const record: Record<string, unknown> = {};
             FILE_SCHEMA.forEach((col, i) => {
@@ -208,8 +207,35 @@ const IngestionPage = () => {
             return record;
         });
 
-        //Publish code here
-        console.log(body);
+        try{
+            await ingestionApi.uploadFile(records, currentLineNumber);
+
+            //Advance to the next batch
+            const nextLine = currentLineNumber + parsedRows.length;
+            if(nextLine >= allLines.length){
+                setIsComplete(true)
+                setParsedRows([])
+                setSelectedFile(null)
+                alert("Success! The entire file has been uploaded")
+            }
+            else{
+                loadBatch(allLines, nextLine)
+            }
+        }
+        catch(error: unknown){
+            console.error("Batch processing failed", error)
+
+            let errorMessage = "A network issue occured while submitting this batch"
+
+            if(error && typeof error === "object" && "response" in error){
+                const axiosError = error as { response?: {data?: {detail?: {message?: string}}}}
+                if(axiosError.response?.data?.detail?.message){
+                    errorMessage = axiosError.response.data.detail.message
+                }
+            }
+
+            alert(errorMessage)
+        }
     };
     return (
         <div>
@@ -234,8 +260,8 @@ const IngestionPage = () => {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                {FILE_SCHEMA.map((col, i) => (
-                                    <TableHead key={i}>
+                                {FILE_SCHEMA.map((col) => (
+                                    <TableHead key={col.name}>
                                         {col.name} ({col.type})
                                     </TableHead>
                                 ))}
