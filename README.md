@@ -8,6 +8,8 @@
 [![Codecov](https://img.shields.io/codecov/c/gh/COS301-SE-2026/Savanna-Sentinel/dev?style=for-the-badge&logo=codecov&label=Coverage&color=F01F7A)](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel)
 [![Backend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/backend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Backend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/backend-ci.yml)
 [![Frontend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/frontend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Frontend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/frontend-ci.yml)
+[![Deploy](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/deploy.yml?branch=main&style=for-the-badge&logo=githubactions&label=Deploy)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/deploy.yml)
+[![Uptime](https://img.shields.io/uptimerobot/ratio/m803474731-546495294e59595cdcf16770?style=for-the-badge&logo=uptimerobot&label=Uptime)](https://stats.uptimerobot.com/qEIREIc10V)
 
 [![Open Issues](https://img.shields.io/github/issues/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=F0883E&label=Open%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)
 [![Closed Issues](https://img.shields.io/github/issues-closed/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=A371F7&label=Closed%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues?q=is%3Aissue+is%3Aclosed)
@@ -17,6 +19,10 @@
 <br/><br/>
 
 </div>
+
+## Live system
+
+[https://13-60-118-121.sslip.io](https://13-60-118-121.sslip.io)
 
 ## Documentation
 
@@ -80,7 +86,8 @@
 
 ## Requirements
 
-- [Docker](https://docs.docker.com/get-docker/) + [Docker Compose](https://docs.docker.com/compose/) v2
+[![Docker](https://img.shields.io/badge/Docker-required-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/get-docker/)
+[![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 
 ## Quick Start
 
