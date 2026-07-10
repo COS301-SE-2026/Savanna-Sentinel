@@ -95,3 +95,25 @@ def apply_partial_penalty(pheromones: dict, used_path: list[str], config: ACOCon
         current = penalized.get((a, b), config.tau_min)
         penalized[(a, b)] = max(current * config.penalty_factor, config.tau_min)
     return penalized
+
+def run_phase(
+    graph: ParkGraph, start_node_id: str, end_node_id: str,
+    max_time: float, max_fuel: float, pheromones: dict,
+    num_iterations: int, config: ACOConfig,
+) -> tuple[list[str], float, dict]:
+    best_path, best_risk = [], -1.0
+    for _ in range(num_iterations):
+        tours = []
+        for _ in range(config.num_ants):
+            path, _, _, risk = construct_tour(
+                graph, start_node_id, end_node_id, max_time, max_fuel, pheromones, config
+            )
+            if path[-1] == end_node_id:
+                tours.append((path, risk))
+        if not tours:
+            continue
+        iter_best_path, iter_best_risk = max(tours, key=lambda t: t[1])
+        pheromones = update_pheromones(pheromones, iter_best_path, iter_best_risk, config)
+        if iter_best_risk > best_risk:
+            best_path, best_risk = iter_best_path, iter_best_risk
+    return best_path, best_risk, pheromones
