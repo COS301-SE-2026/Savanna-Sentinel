@@ -79,3 +79,12 @@ def construct_tour(
         risk_total += node_risk.get(edge.to_node_id, 0.0)
         current = edge.to_node_id
     return path, max_time - time_left, max_fuel - fuel_left, risk_total
+
+def update_pheromones(
+    pheromones: dict, best_path: list[str], best_risk: float, config: ACOConfig,
+) -> dict:
+    updated = {edge: max(tau * (1 - config.rho), config.tau_min) for edge, tau in pheromones.items()}
+    for a, b in zip(best_path, best_path[1:]):
+        deposit = updated.get((a, b), config.tau_min) + config.rho * best_risk
+        updated[(a, b)] = min(deposit, config.tau_max)
+    return updated
