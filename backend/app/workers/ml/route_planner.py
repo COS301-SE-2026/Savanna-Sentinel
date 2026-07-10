@@ -138,3 +138,44 @@ def is_sufficient_quality(candidate_risk: float, best_risk_so_far: float, config
     if best_risk_so_far <= 0:
         return True
     return candidate_risk >= config.quality_threshold * best_risk_so_far
+
+def plan_routes(
+    graph: ParkGraph, start_node_id: str, end_node_id: str,
+    max_time_min: float, max_fuel_l: float,
+    num_alternatives: int = 3, config: ACOConfig | None = None,
+) -> list[PlannedRoute]:
+    config = config or ACOConfig()
+    pheromones = init_pheromones(graph, config)
+    iterations_per_phase = [int(config.total_iterations * f) for f in config.phase_split[:num_alternatives]]
+    accepted_paths: list[list[str]] = []
+    accepted_risks: list[float] = []
+    for n_iter in iterations_per_phase:
+        candidate_path, candidate_risk, pheromones = run_phase(
+            graph, start_node_id, end_node_id, max_time_min, max_fuel_l,
+            pheromones, n_iter, config,
+        )
+        if not candidate_path:
+            continue
+        best_so_far = max(accepted_risks) if accepted_risks else candidate_risk
+        passes = (
+            is_sufficiently_diverse(candidate_path, accepted_paths, config.diversity_threshold)
+            and is_sufficient_quality(candidate_risk, best_so_far, config)
+        )
+        if not passes:
+            # one retry with a stronger penalty already in effect
+            pheromones = apply_partial_penalty(pheromones, candidate_path, config)
+            candidate_path, candidate_risk, pheromones = run_phase(
+                graph, start_node_id, end_node_id, max_time_min, max_fuel_l,
+                pheromones, n_iter, config,
+            )
+            passes = (
+                candidate_path
+                and is_sufficiently_diverse(candidate_path, accepted_paths, config.diversity_threshold)
+                and is_sufficient_quality(candidate_risk, best_so_far, config)
+            )
+        if not passes:
+            continue  # drop this phase's result, do not force a weak/duplicate path in
+        accepted_paths.append(candidate_path)
+        accepted_risks.append(candidate_risk)
+        pheromones = apply_partial_penalty(pheromones, candidate_path, config)
+    return [_to_planned_route(graph, p) for p in accepted_paths]
