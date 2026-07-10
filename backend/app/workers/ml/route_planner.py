@@ -3,7 +3,7 @@ import math
 import random
 from app.workers.ml.path_smoothing import chaikin_smooth
 from app.schemas.geo import GeoLineString, GeoPoint
-from app.schemas.route import GraphEdge, ParkGraph, PlannedRoute
+from app.schemas.route import GraphEdge, GraphNode, ParkGraph, PlannedRoute
 @dataclass
 class ACOConfig:
     num_ants: int = 20
@@ -21,6 +21,50 @@ class ACOConfig:
 def init_pheromones(graph: ParkGraph, config: ACOConfig) -> dict[tuple[str, str], float]:
     return {(e.from_node_id, e.to_node_id): config.tau_max for e in graph.edges}
 
+def _adjacency(graph: ParkGraph) -> dict[str, list[GraphEdge]]:
+    """Outgoing edges grouped by from_node_id, cached on the graph
+
+    feasible_edges() used to linearly scan every edge in the graph on every
+    single step of every ants tour. This is graph-invariant data - safe to
+    compute once and reuse for the life of the graph object
+    """
+    cached = getattr(graph, "_adjacency_cache", None)
+    if cached is None:
+        cached = {}
+        for e in graph.edges:
+            cached.setdefault(e.from_node_id, []).append(e)
+        graph._adjacency_cache = cached
+    return cached
+
+def _node_lookup(graph: ParkGraph) -> dict[str, GraphNode]:
+    cached = getattr(graph, "_node_lookup_cache", None)
+    if cached is None:
+        cached = {n.node_id: n for n in graph.nodes}
+        graph._node_lookup_cache = cached
+    return cached
+
+def _node_risk(graph: ParkGraph) -> dict[str, float]:
+    cached = getattr(graph, "_node_risk_cache", None)
+    if cached is None:
+        cached = {n.node_id: n.risk_score for n in graph.nodes}
+        graph._node_risk_cache = cached
+    return cached
+
+def _min_per_km_rates(graph: ParkGraph) -> tuple[float, float]:
+    """Graph-wide best-case (minimum) per-km time/fuel rate, cached on the graph."""
+    cached = getattr(graph, "_min_per_km_rates_cache", None)
+    if cached is None:
+        rates = [
+            (e.est_time_min / e.distance_km, e.est_fuel_l / e.distance_km)
+            for e in graph.edges if e.distance_km > 0
+        ]
+        cached = (
+            (min(r[0] for r in rates), min(r[1] for r in rates))
+            if rates else (0.0, 0.0)
+        )
+        graph._min_per_km_rates_cache = cached
+    return cached
+
 def _haversine_km(a: GeoPoint, b: GeoPoint) -> float:
     lon1, lat1 = a.coordinates
     lon2, lat2 = b.coordinates
@@ -33,20 +77,13 @@ def _haversine_km(a: GeoPoint, b: GeoPoint) -> float:
 
 def estimate_return_cost(graph: ParkGraph, node_id: str, end_node_id: str) -> tuple[float, float]:
     """Straight-line lower-bound estimate of (time, fuel) still needed to reach end_node_id."""
-    node_lookup = {n.node_id: n for n in graph.nodes}
+    node_lookup = _node_lookup(graph)
     if node_id not in node_lookup or end_node_id not in node_lookup:
         return 0.0, 0.0
     distance_km = _haversine_km(node_lookup[node_id].location, node_lookup[end_node_id].location)
-    per_km_rates = [
-        (e.est_time_min / e.distance_km, e.est_fuel_l / e.distance_km)
-        for e in graph.edges if e.distance_km > 0
-    ]
-    if not per_km_rates:
-        return 0.0, 0.0
     # Use the graph's best-case (minimum) per-km rates so the estimate never
     # exceeds the true remaining cost - required for it to be a valid lower bound.
-    min_time_per_km = min(rate[0] for rate in per_km_rates)
-    min_fuel_per_km = min(rate[1] for rate in per_km_rates)
+    min_time_per_km, min_fuel_per_km = _min_per_km_rates(graph)
     return distance_km * min_time_per_km, distance_km * min_fuel_per_km
 
 def feasible_edges(
@@ -54,8 +91,8 @@ def feasible_edges(
     time_remaining: float, fuel_remaining: float,
 ) -> list[GraphEdge]:
     candidates = []
-    for e in graph.edges:
-        if e.from_node_id != current_node or e.to_node_id in visited:
+    for e in _adjacency(graph).get(current_node, []):
+        if e.to_node_id in visited:
             continue
         time_left_after = time_remaining - e.est_time_min
         fuel_left_after = fuel_remaining - e.est_fuel_l
@@ -70,7 +107,7 @@ def feasible_edges(
 def select_next_edge(candidates: list[GraphEdge], pheromones: dict, graph: ParkGraph, config: ACOConfig,) -> GraphEdge | None:
     if not candidates:
         return None
-    node_risk = {n.node_id: n.risk_score for n in graph.nodes}
+    node_risk = _node_risk(graph)
     weights = []
     for e in candidates:
         tau = pheromones.get((e.from_node_id, e.to_node_id), config.tau_min)
@@ -93,7 +130,7 @@ def construct_tour(
 ) -> tuple[list[str], float, float, float]:
     path, visited = [start_node_id], {start_node_id}
     time_left, fuel_left, risk_total = max_time, max_fuel, 0.0
-    node_risk = {n.node_id: n.risk_score for n in graph.nodes}
+    node_risk = _node_risk(graph)
     current = start_node_id
     while current != end_node_id:
         candidates = feasible_edges(graph, current, end_node_id, visited, time_left, fuel_left)
