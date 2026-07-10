@@ -58,3 +58,24 @@ def select_next_edge(candidates: list[GraphEdge], pheromones: dict, graph: ParkG
         if r <= cumulative:
             return edge
     return candidates[-1]
+
+def construct_tour(
+    graph: ParkGraph, start_node_id: str, end_node_id: str,
+    max_time: float, max_fuel: float, pheromones: dict, config: ACOConfig,
+) -> tuple[list[str], float, float, float]:
+    path, visited = [start_node_id], {start_node_id}
+    time_left, fuel_left, risk_total = max_time, max_fuel, 0.0
+    node_risk = {n.node_id: n.risk_score for n in graph.nodes}
+    current = start_node_id
+    while current != end_node_id:
+        candidates = feasible_edges(graph, current, end_node_id, visited, time_left, fuel_left)
+        edge = select_next_edge(candidates, pheromones, graph, config)
+        if edge is None:
+            break
+        path.append(edge.to_node_id)
+        visited.add(edge.to_node_id)
+        time_left -= edge.est_time_min
+        fuel_left -= edge.est_fuel_l
+        risk_total += node_risk.get(edge.to_node_id, 0.0)
+        current = edge.to_node_id
+    return path, max_time - time_left, max_fuel - fuel_left, risk_total
