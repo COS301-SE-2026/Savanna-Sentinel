@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+import math
 import random
 from app.workers.ml.path_smoothing import chaikin_smooth
-from app.schemas.geo import GeoLineString
+from app.schemas.geo import GeoLineString, GeoPoint
+from app.schemas.route import GraphEdge, ParkGraph, PlannedRoute
 @dataclass
 class ACOConfig:
     num_ants: int = 20
@@ -19,9 +21,33 @@ class ACOConfig:
 def init_pheromones(graph: ParkGraph, config: ACOConfig) -> dict[tuple[str, str], float]:
     return {(e.from_node_id, e.to_node_id): config.tau_max for e in graph.edges}
 
+def _haversine_km(a: GeoPoint, b: GeoPoint) -> float:
+    lon1, lat1 = a.coordinates
+    lon2, lat2 = b.coordinates
+    earth_radius_km = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    h = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return 2 * earth_radius_km * math.asin(math.sqrt(h))
+
 def estimate_return_cost(graph: ParkGraph, node_id: str, end_node_id: str) -> tuple[float, float]:
     """Straight-line lower-bound estimate of (time, fuel) still needed to reach end_node_id."""
-    ...
+    node_lookup = {n.node_id: n for n in graph.nodes}
+    if node_id not in node_lookup or end_node_id not in node_lookup:
+        return 0.0, 0.0
+    distance_km = _haversine_km(node_lookup[node_id].location, node_lookup[end_node_id].location)
+    per_km_rates = [
+        (e.est_time_min / e.distance_km, e.est_fuel_l / e.distance_km)
+        for e in graph.edges if e.distance_km > 0
+    ]
+    if not per_km_rates:
+        return 0.0, 0.0
+    # Use the graph's best-case (minimum) per-km rates so the estimate never
+    # exceeds the true remaining cost - required for it to be a valid lower bound.
+    min_time_per_km = min(rate[0] for rate in per_km_rates)
+    min_fuel_per_km = min(rate[1] for rate in per_km_rates)
+    return distance_km * min_time_per_km, distance_km * min_fuel_per_km
 
 def feasible_edges(
     graph: ParkGraph, current_node: str, end_node_id: str, visited: set[str],
@@ -180,14 +206,21 @@ def plan_routes(
         accepted_paths.append(candidate_path)
         accepted_risks.append(candidate_risk)
         pheromones = apply_partial_penalty(pheromones, candidate_path, config)
-    return [_to_planned_route(graph, p) for p in accepted_paths]
+    return [
+        _to_planned_route(graph, p, r)
+        for p, r in zip(accepted_paths, accepted_risks)
+    ]
 
-def _to_planned_route(graph: ParkGraph, path: list[str]) -> PlannedRoute:
+def _to_planned_route(graph: ParkGraph, path: list[str], risk_coverage: float) -> PlannedRoute:
     node_lookup = {n.node_id: n for n in graph.nodes}
+    edge_lookup = {(e.from_node_id, e.to_node_id): e for e in graph.edges}
     coords = [node_lookup[nid].location.coordinates for nid in path]
     smoothed = chaikin_smooth(coords, iterations=2)
+    edges_used = [edge_lookup[pair] for pair in zip(path, path[1:])]
     return PlannedRoute(
         suggested_path=path,
         path_geometry=GeoLineString(coordinates=smoothed),
-        # ...estimated_time_min, estimated_fuel_l, risk_coverage
+        estimated_time_min=sum(e.est_time_min for e in edges_used),
+        estimated_fuel_l=sum(e.est_fuel_l for e in edges_used),
+        risk_coverage=risk_coverage,
     )

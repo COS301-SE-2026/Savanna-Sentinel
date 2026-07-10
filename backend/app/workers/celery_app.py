@@ -8,4 +8,4 @@ celery_app = Celery(
     backend=settings.REDIS_URL,
 )
 
-celery_app.autodiscover_tasks(["app.workers.tasks"])
+celery_app.autodiscover_tasks(["app.workers"])
