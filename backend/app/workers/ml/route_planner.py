@@ -88,3 +88,10 @@ def update_pheromones(
         deposit = updated.get((a, b), config.tau_min) + config.rho * best_risk
         updated[(a, b)] = min(deposit, config.tau_max)
     return updated
+
+def apply_partial_penalty(pheromones: dict, used_path: list[str], config: ACOConfig) -> dict:
+    penalized = dict(pheromones)
+    for a, b in zip(used_path, used_path[1:]):
+        current = penalized.get((a, b), config.tau_min)
+        penalized[(a, b)] = max(current * config.penalty_factor, config.tau_min)
+    return penalized
