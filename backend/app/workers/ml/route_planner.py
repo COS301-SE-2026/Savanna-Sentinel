@@ -131,3 +131,10 @@ def is_sufficiently_diverse(
         if (1 - overlap_ratio) < threshold:
             return False
     return True
+
+def is_sufficient_quality(candidate_risk: float, best_risk_so_far: float, config: ACOConfig) -> bool:
+    """rejects a candidate whose risk_coverage is more than
+    approx 10% below the best accepted path"""
+    if best_risk_so_far <= 0:
+        return True
+    return candidate_risk >= config.quality_threshold * best_risk_so_far
