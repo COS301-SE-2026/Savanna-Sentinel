@@ -117,3 +117,17 @@ def run_phase(
         if iter_best_risk > best_risk:
             best_path, best_risk = iter_best_path, iter_best_risk
     return best_path, best_risk, pheromones
+
+def edge_set(path: list[str]) -> set[tuple[str, str]]:
+    return set(zip(path, path[1:]))
+
+def is_sufficiently_diverse(
+    candidate_path: list[str], prior_paths: list[list[str]], threshold: float,
+) -> bool:
+    candidate_edges = edge_set(candidate_path)
+    for prior in prior_paths:
+        prior_edges = edge_set(prior)
+        overlap_ratio = len(candidate_edges & prior_edges) / max(len(candidate_edges | prior_edges), 1)
+        if (1 - overlap_ratio) < threshold:
+            return False
+    return True
