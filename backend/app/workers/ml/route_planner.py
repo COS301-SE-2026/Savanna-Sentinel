@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 import random
+from app.workers.ml.path_smoothing import chaikin_smooth
+from app.schemas.geo import GeoLineString
 @dataclass
 class ACOConfig:
     num_ants: int = 20
@@ -179,3 +181,13 @@ def plan_routes(
         accepted_risks.append(candidate_risk)
         pheromones = apply_partial_penalty(pheromones, candidate_path, config)
     return [_to_planned_route(graph, p) for p in accepted_paths]
+
+def _to_planned_route(graph: ParkGraph, path: list[str]) -> PlannedRoute:
+    node_lookup = {n.node_id: n for n in graph.nodes}
+    coords = [node_lookup[nid].location.coordinates for nid in path]
+    smoothed = chaikin_smooth(coords, iterations=2)
+    return PlannedRoute(
+        suggested_path=path,
+        path_geometry=GeoLineString(coordinates=smoothed),
+        # ...estimated_time_min, estimated_fuel_l, risk_coverage
+    )
