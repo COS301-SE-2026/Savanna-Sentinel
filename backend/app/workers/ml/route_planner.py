@@ -12,3 +12,6 @@ class ACOConfig:
     penalty_factor: float = 0.3
     diversity_threshold: float = 0.3
     quality_threshold: float = 0.9  #candidate must retain >= 90% of best risk_coverage
+
+def init_pheromones(graph: ParkGraph, config: ACOConfig) -> dict[tuple[str, str], float]:
+    return {(e.from_node_id, e.to_node_id): config.tau_max for e in graph.edges}
