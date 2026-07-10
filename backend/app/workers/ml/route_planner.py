@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import random
 @dataclass
 class ACOConfig:
     num_ants: int = 20
@@ -37,3 +38,23 @@ def feasible_edges(
             continue
         candidates.append(e)
     return candidates
+
+def select_next_edge(candidates: list[GraphEdge], pheromones: dict, graph: ParkGraph, config: ACOConfig,) -> GraphEdge | None:
+    if not candidates:
+        return None
+    node_risk = {n.node_id: n.risk_score for n in graph.nodes}
+    weights = []
+    for e in candidates:
+        tau = pheromones.get((e.from_node_id, e.to_node_id), config.tau_min)
+        heuristic = (node_risk.get(e.to_node_id, 0.0001) + 0.0001) / (e.est_time_min + e.est_fuel_l + 1)
+        weights.append((tau ** config.alpha) * (heuristic ** config.beta))
+    total = sum(weights)
+    if total == 0:
+        return random.choice(candidates)
+    r = random.uniform(0, total)
+    cumulative = 0.0
+    for edge, w in zip(candidates, weights):
+        cumulative += w
+        if r <= cumulative:
+            return edge
+    return candidates[-1]
