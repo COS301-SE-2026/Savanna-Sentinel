@@ -22,18 +22,35 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4())
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
     )
     username: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     first_name: Mapped[str] = mapped_column(Text, nullable=False)
     last_name: Mapped[str] = mapped_column(Text, nullable=False)
-    hashed_password: Mapped[str] = mapped_column("password_hash", Text, nullable=False)
-    role: Mapped[str] = mapped_column(
-        Enum("ranger", "analyst", "community_liaison", "admin", name="user_role", create_type=False),
+    hashed_password: Mapped[str] = mapped_column(
+        "password_hash",
+        Text,
         nullable=False,
     )
-    is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    role: Mapped[str] = mapped_column(
+        Enum(
+            "ranger",
+            "analyst",
+            "community_liaison",
+            "admin",
+            name="user_role",
+            create_type=False,
+        ),
+        nullable=False,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

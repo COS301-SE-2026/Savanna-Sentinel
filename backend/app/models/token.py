@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
-class Token_Body(BaseModel):
+
+class TokenBody(BaseModel):
     sub: str
     exp: int
     type: str = "access"
@@ -11,7 +12,7 @@ class Token_Body(BaseModel):
     is_active: bool | None = None
 
 
-class Refresh_Token_Body(BaseModel):
+class RefreshTokenBody(BaseModel):
     sub: str
     iat: int
     exp: int

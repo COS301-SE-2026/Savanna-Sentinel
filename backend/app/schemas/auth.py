@@ -30,7 +30,7 @@ class RegisterRequest(BaseModel):
 
 
 class UserResponse(BaseModel):
-    """Returned after successful registration and by user management endpoints."""
+    """Returned after successful registration by user management endpoints."""
 
     id: str
     username: str
@@ -66,7 +66,9 @@ class TokenUser:
 class TokenResponse:
     """
     Returned on successful login or refresh.
-    Field names here MUST match what the frontends TokenResponse interface expects.
+
+    Field names here MUST match what the frontends TokenResponse
+    interface expects.
     """
 
     access_token: str

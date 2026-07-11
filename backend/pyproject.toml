@@ -1,12 +1,52 @@
 # https://docs.astral.sh/ruff/rules/
 
+[tool.ruff]
+target-version = "py311"
+line-length = 80
+
 [tool.ruff.lint]
-# Only check for errors (E) and Flux (F) - excludes stylistic "Warning" rules
-select = ["E", "F"]
+# E - PEP8
+# W - PEP8
+# F - Find basic errors and undefined variables
+# I - Sort import statements and blocks
+# N - Enforce Case constraints
+# D - Docstring rules
+# COM - Enforce trailing commas
+# Q - Enforce string quote rules
+# TCH - Enforce type checking
+select = ["E", "W", "F", "I", "N", "D", "COM", "Q", "TCH"]
 
 ignore = [
-    "E501", # Ignore line length violations (very common for "less strict" setups)
-    "F401", # Ignore unused imports (handy if you're still scaffolding), but to remove eventually
-    "E402", # Ignore module level import not at top of file
-    "F841", # Ignore unused variables
+    "D100",
+    "D104",
+    "D102",
+    "D103",
+    "D107",
+    "D101",
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.extend-per-file-ignores]
+# Ignore missing docstringsin test files
+"tests/**/*.py" = ["D103", "D102", "D107", "D101"]
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "double"
+multiline-quotes = "double"
+docstring-quotes = "double"
+
+[tool.ruff.lint.pep8-naming]
+# Classes & Interfaces - PascalCase
+# Methods & Variables - snake_case
+# Constants - UPPER_SNAKE_CASE
+classmethod-decorators = ["classmethod"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+docstring-code-format = true
+
