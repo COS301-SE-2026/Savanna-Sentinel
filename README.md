@@ -96,6 +96,7 @@ docker compose up --build
 | -------------- | -------------------------- |
 | Frontend (dev) | http://localhost:5173      |
 | Backend API    | http://localhost:8000      |
+| AI service     | http://localhost:8500      |
 | API docs       | http://localhost:8000/docs |
 | MinIO console  | http://localhost:9001      |
 
@@ -116,6 +117,7 @@ The `docker-compose.override.yml` is applied automatically. It mounts source dir
 
 - **Backend** - FastAPI with `--reload`: edit files in `backend/` and the server restarts.
 - **Frontend** - Vite dev server on port 5173: edit files in `frontend/src/` and the browser hot-reloads.
+- **AI** - FastAPI with `--reload`: edit files in `AI/` and the AI service restarts.
 
 ### Running services individually
 
@@ -128,6 +130,11 @@ cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 
+# AI service only (against local infra)
+cd AI
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8500
+
 # Frontend only
 cd frontend
 npm install
@@ -139,6 +146,9 @@ npm run dev
 ```bash
 # Rebuild a single service after changing its Dockerfile
 docker compose up --build backend
+
+# Rebuild the AI service after changing its Dockerfile
+docker compose up --build ai
 
 # View logs for a specific service
 docker compose logs -f backend
@@ -192,6 +202,7 @@ docker compose up --build
 │   │   └── schemas/  # Pydantic request/response schemas
 │   ├── init-db/      # SQL run by Postgres on first boot
 │   └── tests/
+├── AI/               # AI related services
 └── frontend/         # React 19 + TypeScript + Vite
     └── src/
         ├── pages/

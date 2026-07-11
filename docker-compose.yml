@@ -74,6 +74,18 @@ services:
       - backend
     restart: unless-stopped
 
+  ai:
+    build:
+      context: ./AI
+    ports:
+      - "8500:8500"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
