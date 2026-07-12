@@ -1584,6 +1584,7 @@ a {
 	height: 1px;
 	background: var(--color-text-secondary);
 	margin: var(--sp-1) 0;
+	border: none;
 }
 
 .toast-stack {
@@ -3021,7 +3022,16 @@ a {
 	cursor: pointer;
 	gap: var(--sp-2);
 }
-.file-upload:focus-visible {
+.file-upload-input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+.file-upload:has(.file-upload-input:focus-visible) {
 	outline: 2px solid var(--brand-primary);
 	outline-offset: 2px;
 }

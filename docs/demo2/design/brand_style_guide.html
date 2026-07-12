@@ -2213,9 +2213,8 @@
 							<div class="motion-card-spec">150ms / var(--ease-standard)</div>
 							<div
 								class="motion-track"
-								role="button"
 								tabindex="0"
-								aria-label="Fast motion demo, activate to play"
+								aria-label="Fast motion demo"
 							>
 								<div class="motion-dot motion-dot-fast"></div>
 							</div>
@@ -2228,9 +2227,8 @@
 							<div class="motion-card-spec">250ms / var(--ease-exit)</div>
 							<div
 								class="motion-track"
-								role="button"
 								tabindex="0"
-								aria-label="Normal motion demo, activate to play"
+								aria-label="Normal motion demo"
 							>
 								<div class="motion-dot motion-dot-normal"></div>
 							</div>
@@ -2243,9 +2241,8 @@
 							<div class="motion-card-spec">400ms / var(--ease-enter)</div>
 							<div
 								class="motion-track"
-								role="button"
 								tabindex="0"
-								aria-label="Deliberate motion demo, activate to play"
+								aria-label="Deliberate motion demo"
 							>
 								<div class="motion-dot motion-dot-deliberate"></div>
 							</div>
@@ -2264,7 +2261,6 @@
 							</div>
 							<div
 								class="motion-track"
-								role="button"
 								tabindex="0"
 								aria-label="Enter easing demo"
 							>
@@ -2281,7 +2277,6 @@
 							</div>
 							<div
 								class="motion-track"
-								role="button"
 								tabindex="0"
 								aria-label="Exit easing demo"
 							>
@@ -2528,7 +2523,7 @@
 
 						<div>
 							<div class="comp-section-label">Navigation</div>
-							<div
+							<nav
 								class="nav-demo"
 								role="navigation"
 								aria-label="Sidebar navigation demo"
@@ -2545,7 +2540,7 @@
 									<i data-lucide="clock" aria-hidden="true"></i>
 									Patrol Routes
 								</div>
-								<div class="nav-divider" role="separator"></div>
+								<hr class="nav-divider" />
 								<div class="nav-item">
 									<i data-lucide="file-text" aria-hidden="true"></i>
 									Field Reports
@@ -2554,7 +2549,7 @@
 									<i data-lucide="user" aria-hidden="true"></i>
 									Admin
 								</div>
-							</div>
+							</nav>
 						</div>
 					</div>
 
@@ -3048,8 +3043,6 @@
 										<ul
 											class="form-multiselect-panel"
 											id="ms-panel-empty"
-											role="listbox"
-											aria-multiselectable="true"
 											hidden
 										>
 											<li>
@@ -3100,13 +3093,7 @@
 										>
 											<span class="form-multiselect-summary">J. Mthembu</span>
 										</button>
-										<ul
-											class="form-multiselect-panel"
-											id="ms-panel-one"
-											role="listbox"
-											aria-multiselectable="true"
-											hidden
-										>
+										<ul class="form-multiselect-panel" id="ms-panel-one" hidden>
 											<li>
 												<label
 													class="form-check-wrapper form-multiselect-option"
@@ -3162,8 +3149,6 @@
 										<ul
 											class="form-multiselect-panel"
 											id="ms-panel-many"
-											role="listbox"
-											aria-multiselectable="true"
 											hidden
 										>
 											<li>
@@ -3659,10 +3644,7 @@
 						</p>
 
 						<p class="overline">Online state</p>
-						<header
-							class="topbar-demo"
-							style="margin-bottom: var(--sp-4)"
-						>
+						<header class="topbar-demo" style="margin-bottom: var(--sp-4)">
 							<div class="topbar-left">
 								<button
 									class="btn btn-ghost btn-icon topbar-icon-btn topbar-burger"
@@ -3686,22 +3668,19 @@
 								>
 									<i data-lucide="help-circle" aria-hidden="true"></i>
 								</button>
-								<div
+								<a
+									href="#"
 									class="topbar-avatar"
-									role="link"
 									tabindex="0"
 									aria-label="Account"
 								>
 									JM
-								</div>
+								</a>
 							</div>
 						</header>
 
 						<p class="overline">Offline state</p>
-						<header
-							class="topbar-demo"
-							style="margin-bottom: var(--sp-6)"
-						>
+						<header class="topbar-demo" style="margin-bottom: var(--sp-6)">
 							<div class="topbar-left">
 								<button
 									class="btn btn-ghost btn-icon topbar-icon-btn topbar-burger"
@@ -3733,14 +3712,14 @@
 								>
 									<i data-lucide="help-circle" aria-hidden="true"></i>
 								</button>
-								<div
+								<a
+									href="#"
 									class="topbar-avatar"
-									role="link"
 									tabindex="0"
 									aria-label="Account"
 								>
 									JM
-								</div>
+								</a>
 							</div>
 						</header>
 
@@ -4000,8 +3979,8 @@
 						<div class="comp-two-col" style="margin-bottom: var(--sp-5)">
 							<div>
 								<p class="demo-caption">Idle</p>
-								<label class="file-upload" tabindex="0">
-									<input type="file" accept=".csv" hidden />
+								<label class="file-upload">
+									<input type="file" accept=".csv" class="file-upload-input" />
 									<div class="file-upload-icon">
 										<i data-lucide="upload-cloud" aria-hidden="true"></i>
 									</div>
@@ -4369,8 +4348,6 @@
 											<ul
 												class="form-multiselect-panel"
 												id="filter-status-panel"
-												role="listbox"
-												aria-multiselectable="true"
 												hidden
 											>
 												<li>
@@ -4434,8 +4411,6 @@
 											<ul
 												class="form-multiselect-panel"
 												id="filter-ranger-panel"
-												role="listbox"
-												aria-multiselectable="true"
 												hidden
 											>
 												<li>
@@ -6906,18 +6881,10 @@
 								<p class="demo-caption">Alternatives block after routes load</p>
 								<div class="map-layout-sidebar" style="height: auto">
 									<div>
+										<!--should use radio groups in actual webapp, but SOnarQube complains here since it isnt implemented for this page-->
 										<div class="map-section-header">Alternatives</div>
-										<div
-											class="stack"
-											role="radiogroup"
-											aria-label="Route alternatives"
-										>
-											<div
-												class="route-card selected"
-												role="radio"
-												aria-checked="true"
-												tabindex="0"
-											>
+										<div class="stack" aria-label="Route alternatives">
+											<div class="route-card selected">
 												<div class="route-card-header">
 													<div
 														class="route-dot"
@@ -6957,12 +6924,7 @@
 													</div>
 												</dl>
 											</div>
-											<div
-												class="route-card"
-												role="radio"
-												aria-checked="false"
-												tabindex="-1"
-											>
+											<div class="route-card">
 												<div class="route-card-header">
 													<div
 														class="route-dot"
@@ -7004,12 +6966,7 @@
 													</div>
 												</dl>
 											</div>
-											<div
-												class="route-card"
-												role="radio"
-												aria-checked="false"
-												tabindex="-1"
-											>
+											<div class="route-card">
 												<div class="route-card-header">
 													<div
 														class="route-dot"

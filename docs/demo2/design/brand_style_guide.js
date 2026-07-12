@@ -54,7 +54,7 @@ document.querySelectorAll(".contrast-table tbody tr").forEach(function (row) {
 	const ratioSpan = row.querySelector(".auto-ratio");
 	if (!ratioSpan) return;
 	const r = Number.parseFloat(ratioSpan.dataset.ratio);
-	if (isNaN(r)) return;
+	if (Number.isNaN(r)) return;
 	let badge;
 	if (r >= 7) badge = '<span class="pass-badge">AAA</span>';
 	else if (r >= 4.5) badge = '<span class="warn-badge">AAA large text</span>';
@@ -536,7 +536,7 @@ document.addEventListener("keydown", function (e) {
 		const focusable = Array.prototype.slice.call(focusableEls());
 		if (!focusable.length) return;
 		const first = focusable[0];
-		const last = focusable[focusable.length - 1];
+		const last = focusable.at(-1);
 		if (e.shiftKey && document.activeElement === first) {
 			e.preventDefault();
 			last.focus();
