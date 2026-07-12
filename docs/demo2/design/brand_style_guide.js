@@ -9,9 +9,9 @@ function _wcagLum(color) {
 	let r, g, b;
 	const rgb = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
 	if (rgb) {
-		r = parseInt(rgb[1]);
-		g = parseInt(rgb[2]);
-		b = parseInt(rgb[3]);
+		r = Number.parseInt(rgb[1]);
+		g = Number.parseInt(rgb[2]);
+		b = Number.parseInt(rgb[3]);
 	} else {
 		const hex = color.replace(/^#/, "");
 		const h =
@@ -23,9 +23,9 @@ function _wcagLum(color) {
 						})
 						.join("")
 				: hex;
-		r = parseInt(h.slice(0, 2), 16);
-		g = parseInt(h.slice(2, 4), 16);
-		b = parseInt(h.slice(4, 6), 16);
+		r = Number.parseInt(h.slice(0, 2), 16);
+		g = Number.parseInt(h.slice(2, 4), 16);
+		b = Number.parseInt(h.slice(4, 6), 16);
 	}
 	return 0.2126 * _wcagLin(r) + 0.7152 * _wcagLin(g) + 0.0722 * _wcagLin(b);
 }
@@ -53,7 +53,7 @@ document.querySelectorAll(".auto-ratio").forEach(function (span) {
 document.querySelectorAll(".contrast-table tbody tr").forEach(function (row) {
 	const ratioSpan = row.querySelector(".auto-ratio");
 	if (!ratioSpan) return;
-	const r = parseFloat(ratioSpan.dataset.ratio);
+	const r = Number.parseFloat(ratioSpan.dataset.ratio);
 	if (isNaN(r)) return;
 	let badge;
 	if (r >= 7) badge = '<span class="pass-badge">AAA</span>';
@@ -117,8 +117,8 @@ document.querySelectorAll(".colour-role-card[data-hex]").forEach((card) => {
 document.querySelectorAll(".topbar-offline-btn").forEach(function (btn) {
 	btn.addEventListener("click", function (e) {
 		e.stopPropagation();
-		var popover = btn.querySelector(".offline-popover");
-		var opening = !popover.classList.contains("is-open");
+		const popover = btn.querySelector(".offline-popover");
+		const opening = !popover.classList.contains("is-open");
 		document.querySelectorAll(".offline-popover.is-open").forEach(function (t) {
 			t.classList.remove("is-open");
 		});
@@ -155,14 +155,14 @@ document
 	.querySelectorAll(".form-toggle:not([disabled])")
 	.forEach(function (toggle) {
 		toggle.addEventListener("click", function () {
-			var isOn = this.getAttribute("aria-checked") === "true";
+			const isOn = this.getAttribute("aria-checked") === "true";
 			this.setAttribute("aria-checked", isOn ? "false" : "true");
 			this.classList.toggle("is-on", !isOn);
 		});
 	});
 
 document.querySelectorAll(".form-toggle-wrapper").forEach(function (wrapper) {
-	var toggle = wrapper.querySelector(".form-toggle:not([disabled])");
+	const toggle = wrapper.querySelector(".form-toggle:not([disabled])");
 	if (!toggle) return;
 	wrapper.addEventListener("click", function (e) {
 		if (toggle.contains(e.target)) return;
@@ -170,10 +170,10 @@ document.querySelectorAll(".form-toggle-wrapper").forEach(function (wrapper) {
 	});
 });
 
-var indeterminateCheckbox = document.getElementById("demo-cb-indeterminate");
+const indeterminateCheckbox = document.getElementById("demo-cb-indeterminate");
 if (indeterminateCheckbox) {
 	indeterminateCheckbox.indeterminate = true;
-	var indeterminateCheckboxState = 0;
+	let indeterminateCheckboxState = 0;
 	indeterminateCheckbox.addEventListener("change", function () {
 		indeterminateCheckboxState = (indeterminateCheckboxState + 1) % 3;
 		if (indeterminateCheckboxState === 0) {
@@ -190,10 +190,10 @@ if (indeterminateCheckbox) {
 }
 
 (function () {
-	var layerToggle = document.getElementById("heatmap-layer-toggle");
-	var opacityWrapper = document.getElementById("heatmap-opacity-wrapper");
+	const layerToggle = document.getElementById("heatmap-layer-toggle");
+	const opacityWrapper = document.getElementById("heatmap-opacity-wrapper");
 	if (!layerToggle || !opacityWrapper) return;
-	var opacityThumb = opacityWrapper.querySelector(".form-range-thumb");
+	const opacityThumb = opacityWrapper.querySelector(".form-range-thumb");
 
 	function setLayerOn(isOn) {
 		opacityWrapper.classList.toggle("is-disabled", !isOn);
@@ -205,7 +205,7 @@ if (indeterminateCheckbox) {
 	});
 })();
 
-var SLIDER_SNAPSHOTS = [
+const SLIDER_SNAPSHOTS = [
 	"15 Jan 2025",
 	"15 Mar 2025",
 	"1 May 2025",
@@ -221,34 +221,34 @@ var SLIDER_SNAPSHOTS = [
 document
 	.querySelectorAll(".form-range-wrapper:not(.is-disabled)")
 	.forEach(function (wrapper) {
-		var thumb = wrapper.querySelector(".form-range-thumb");
-		var fill = wrapper.querySelector(".form-range-fill");
-		var track = wrapper.querySelector(".form-range-track");
-		var valueLabel = wrapper.querySelector(".form-range-value");
-		var hint = wrapper.querySelector(".form-range-hint");
+		const thumb = wrapper.querySelector(".form-range-thumb");
+		const fill = wrapper.querySelector(".form-range-fill");
+		const track = wrapper.querySelector(".form-range-track");
+		const valueLabel = wrapper.querySelector(".form-range-value");
+		const hint = wrapper.querySelector(".form-range-hint");
 		if (!thumb || !fill || !track) return;
 
-		var isSnapshots = wrapper.dataset.type === "snapshots";
-		var snapshotSelect = isSnapshots
+		const isSnapshots = wrapper.dataset.type === "snapshots";
+		const snapshotSelect = isSnapshots
 			? wrapper.parentElement.querySelector(".form-select-wrapper select")
 			: null;
-		var min = parseFloat(wrapper.dataset.min || "0");
-		var max = parseFloat(wrapper.dataset.max || "100");
-		var step = parseFloat(wrapper.dataset.step || "1");
+		const min = Number.parseFloat(wrapper.dataset.min || "0");
+		const max = Number.parseFloat(wrapper.dataset.max || "100");
+		const step = Number.parseFloat(wrapper.dataset.step || "1");
 
 		function isDisabled() {
 			return wrapper.classList.contains("is-disabled");
 		}
 
 		function pctFromX(clientX) {
-			var rect = track.getBoundingClientRect();
-			var raw = (clientX - rect.left) / rect.width;
+			const rect = track.getBoundingClientRect();
+			const raw = (clientX - rect.left) / rect.width;
 			return Math.min(1, Math.max(0, raw));
 		}
 
 		function applySnapshot(idx) {
 			idx = Math.min(SLIDER_SNAPSHOTS.length - 1, Math.max(0, idx));
-			var pct = idx / (SLIDER_SNAPSHOTS.length - 1);
+			const pct = idx / (SLIDER_SNAPSHOTS.length - 1);
 			fill.style.width = pct * 100 + "%";
 			thumb.style.left = pct * 100 + "%";
 			thumb.setAttribute("aria-valuenow", idx);
@@ -258,10 +258,10 @@ document
 		}
 
 		function applyPct(rawPct) {
-			var value = min + rawPct * (max - min);
+			let value = min + rawPct * (max - min);
 			value = Math.round(value / step) * step;
 			value = Math.min(max, Math.max(min, value));
-			var posPct = ((value - min) / (max - min)) * 100;
+			const posPct = ((value - min) / (max - min)) * 100;
 			fill.style.width = posPct + "%";
 			thumb.style.left = posPct + "%";
 			thumb.setAttribute("aria-valuenow", value);
@@ -269,8 +269,8 @@ document
 		}
 
 		function onMove(e) {
-			var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-			var pct = pctFromX(clientX);
+			const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+			const pct = pctFromX(clientX);
 			if (isSnapshots) {
 				applySnapshot(Math.round(pct * (SLIDER_SNAPSHOTS.length - 1)));
 			} else {
@@ -305,7 +305,7 @@ document
 
 		track.addEventListener("click", function (e) {
 			if (isDisabled() || e.target === thumb) return;
-			var pct = pctFromX(e.clientX);
+			const pct = pctFromX(e.clientX);
 			if (isSnapshots) {
 				applySnapshot(Math.round(pct * (SLIDER_SNAPSHOTS.length - 1)));
 			} else {
@@ -315,14 +315,14 @@ document
 
 		if (snapshotSelect) {
 			snapshotSelect.addEventListener("change", function () {
-				applySnapshot(parseInt(this.value, 10));
+				applySnapshot(Number.parseInt(this.value, 10));
 			});
 		}
 
 		thumb.addEventListener("keydown", function (e) {
 			if (isDisabled()) return;
 			if (isSnapshots) {
-				var idx = parseInt(thumb.getAttribute("aria-valuenow") || "0", 10);
+				const idx = Number.parseInt(thumb.getAttribute("aria-valuenow") || "0", 10);
 				if (e.key === "ArrowRight" || e.key === "ArrowUp") {
 					e.preventDefault();
 					applySnapshot(idx + 1);
@@ -337,7 +337,7 @@ document
 					applySnapshot(SLIDER_SNAPSHOTS.length - 1);
 				}
 			} else {
-				var current = parseFloat(
+				const current = Number.parseFloat(
 					thumb.getAttribute("aria-valuenow") || String(min),
 				);
 				if (e.key === "ArrowRight" || e.key === "ArrowUp") {
@@ -358,18 +358,18 @@ document
 	});
 
 document.querySelectorAll(".form-textarea[maxlength]").forEach(function (ta) {
-	var counter = document.querySelector(
+	const counter = document.querySelector(
 		".form-char-count[data-for='" + ta.id + "']",
 	);
 	if (!counter) return;
-	var max = ta.getAttribute("maxlength");
+	const max = ta.getAttribute("maxlength");
 	counter.textContent = ta.value.length + " / " + max;
 	ta.addEventListener("input", function () {
 		counter.textContent = this.value.length + " / " + max;
 	});
 });
 
-var _openMultiselects = [];
+const _openMultiselects = [];
 
 function _repositionOpenMultiselects() {
 	_openMultiselects.forEach(function (m) {
@@ -380,13 +380,13 @@ window.addEventListener("scroll", _repositionOpenMultiselects, true);
 window.addEventListener("resize", _repositionOpenMultiselects);
 
 document.querySelectorAll(".form-multiselect").forEach(function (wrapper) {
-	var trigger = wrapper.querySelector(".form-multiselect-trigger");
-	var panel = wrapper.querySelector(".form-multiselect-panel");
-	var summary = wrapper.querySelector(".form-multiselect-summary");
+	const trigger = wrapper.querySelector(".form-multiselect-trigger");
+	const panel = wrapper.querySelector(".form-multiselect-panel");
+	const summary = wrapper.querySelector(".form-multiselect-summary");
 	if (!trigger || !panel || !summary) return;
 
 	function positionPanel() {
-		var rect = trigger.getBoundingClientRect();
+		const rect = trigger.getBoundingClientRect();
 		panel.style.top = rect.bottom + 4 + "px";
 		panel.style.left = rect.left + "px";
 		panel.style.width = rect.width + "px";
@@ -419,7 +419,7 @@ document.querySelectorAll(".form-multiselect").forEach(function (wrapper) {
 	_openMultiselects.push({ panel: panel, positionPanel: positionPanel });
 
 	function updateSummary() {
-		var checked = Array.prototype.slice.call(
+		const checked = Array.prototype.slice.call(
 			panel.querySelectorAll(".form-checkbox-input:checked"),
 		);
 		summary.classList.remove("is-placeholder");
@@ -452,8 +452,8 @@ document.querySelectorAll(".form-multiselect").forEach(function (wrapper) {
 document.addEventListener("click", function (e) {
 	document.querySelectorAll(".form-multiselect").forEach(function (wrapper) {
 		if (wrapper.contains(e.target)) return;
-		var trigger = wrapper.querySelector(".form-multiselect-trigger");
-		var panel = wrapper.querySelector(".form-multiselect-panel");
+		const trigger = wrapper.querySelector(".form-multiselect-trigger");
+		const panel = wrapper.querySelector(".form-multiselect-panel");
 		if (panel && !panel.hidden) {
 			panel.hidden = true;
 			trigger.classList.remove("is-open");
@@ -467,8 +467,8 @@ document.addEventListener("keydown", function (e) {
 	document
 		.querySelectorAll(".form-multiselect-panel:not([hidden])")
 		.forEach(function (panel) {
-			var wrapper = panel.closest(".form-multiselect");
-			var trigger = wrapper.querySelector(".form-multiselect-trigger");
+			const wrapper = panel.closest(".form-multiselect");
+			const trigger = wrapper.querySelector(".form-multiselect-trigger");
 			panel.hidden = true;
 			trigger.classList.remove("is-open");
 			trigger.setAttribute("aria-expanded", "false");
@@ -477,14 +477,14 @@ document.addEventListener("keydown", function (e) {
 });
 
 (function () {
-	var panel = document.getElementById("analysis-panel");
-	var closeX = document.getElementById("analysis-panel-close-x");
-	var closeBtn = document.getElementById("analysis-panel-close-btn");
-	var reopenBtn = document.getElementById("analysis-panel-reopen");
+	const panel = document.getElementById("analysis-panel");
+	const closeX = document.getElementById("analysis-panel-close-x");
+	const closeBtn = document.getElementById("analysis-panel-close-btn");
+	const reopenBtn = document.getElementById("analysis-panel-reopen");
 	if (!panel || !closeX || !closeBtn || !reopenBtn) return;
 
 	function closePanel() {
-		var reduceMotion = window.matchMedia(
+		const reduceMotion = window.matchMedia(
 			"(prefers-reduced-motion: reduce)",
 		).matches;
 		if (reduceMotion) {
@@ -513,13 +513,13 @@ document.addEventListener("keydown", function (e) {
 })();
 
 (function () {
-	var trigger = document.getElementById("modal-demo-trigger");
-	var overlay = document.getElementById("modal-demo-overlay");
+	const trigger = document.getElementById("modal-demo-trigger");
+	const overlay = document.getElementById("modal-demo-overlay");
 	if (!trigger || !overlay) return;
-	var modal = document.getElementById("modal-demo");
-	var closeBtn = document.getElementById("modal-demo-close");
-	var cancelBtn = document.getElementById("modal-demo-cancel");
-	var lastFocused = null;
+	const modal = document.getElementById("modal-demo");
+	const closeBtn = document.getElementById("modal-demo-close");
+	const cancelBtn = document.getElementById("modal-demo-cancel");
+	let lastFocused = null;
 
 	function focusableEls() {
 		return modal.querySelectorAll(
@@ -533,10 +533,10 @@ document.addEventListener("keydown", function (e) {
 			return;
 		}
 		if (e.key !== "Tab") return;
-		var focusable = Array.prototype.slice.call(focusableEls());
+		const focusable = Array.prototype.slice.call(focusableEls());
 		if (!focusable.length) return;
-		var first = focusable[0];
-		var last = focusable[focusable.length - 1];
+		const first = focusable[0];
+		const last = focusable[focusable.length - 1];
 		if (e.shiftKey && document.activeElement === first) {
 			e.preventDefault();
 			last.focus();
@@ -556,7 +556,7 @@ document.addEventListener("keydown", function (e) {
 
 	function closeModal() {
 		document.removeEventListener("keydown", onKeydown);
-		var reduceMotion = window.matchMedia(
+		const reduceMotion = window.matchMedia(
 			"(prefers-reduced-motion: reduce)",
 		).matches;
 		if (reduceMotion) {

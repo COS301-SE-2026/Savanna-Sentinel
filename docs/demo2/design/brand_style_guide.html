@@ -3600,7 +3600,7 @@
 								style="position: relative; contain: layout; min-height: 380px"
 							>
 								<div class="toast-stack">
-									<div class="toast toast-safe" role="status">
+									<output class="toast toast-safe">
 										<div class="toast-content">
 											<div class="toast-title">Report saved</div>
 											<div class="toast-body">
@@ -3614,8 +3614,8 @@
 										>
 											<i data-lucide="x" aria-hidden="true"></i>
 										</button>
-									</div>
-									<div class="toast toast-caution" role="status">
+									</output>
+									<output class="toast toast-caution">
 										<div class="toast-content">
 											<div class="toast-title">Working offline</div>
 											<div class="toast-body">
@@ -3630,7 +3630,7 @@
 										>
 											<i data-lucide="x" aria-hidden="true"></i>
 										</button>
-									</div>
+									</output>
 									<div class="toast toast-critical" role="alert">
 										<div class="toast-content">
 											<div class="toast-title">Couldn't sync</div>
@@ -3659,9 +3659,8 @@
 						</p>
 
 						<p class="overline">Online state</p>
-						<div
+						<header
 							class="topbar-demo"
-							role="banner"
 							style="margin-bottom: var(--sp-4)"
 						>
 							<div class="topbar-left">
@@ -3696,12 +3695,11 @@
 									JM
 								</div>
 							</div>
-						</div>
+						</header>
 
 						<p class="overline">Offline state</p>
-						<div
+						<header
 							class="topbar-demo"
-							role="banner"
 							style="margin-bottom: var(--sp-6)"
 						>
 							<div class="topbar-left">
@@ -3744,7 +3742,7 @@
 									JM
 								</div>
 							</div>
-						</div>
+						</header>
 
 						<table class="state-table" style="margin-bottom: var(--sp-6)">
 							<thead>
@@ -4658,7 +4656,7 @@
 											<span class="notif-panel-title">Notifications</span>
 											<button class="notif-mark-all">Mark all read</button>
 										</div>
-										<ul class="notif-list" role="list">
+										<ul class="notif-list">
 											<li class="notif-item unread">
 												<div class="notif-item-header">
 													<span class="notif-title">
