@@ -31,3 +31,7 @@ The arrow from Data Ingestion Service to the Message Broker is now labeled "enqu
 ### Changed: Diagram look
 
 Changed and SImplified the overall look of the diagram to be easier to follow.
+
+# Architectural Requirements
+
+### Blank
