@@ -75,3 +75,14 @@ class ReportSubmitResponse(BaseModel):
     status: str
     submitted_by: str
     created_at: datetime
+
+
+class ReportUpdate(BaseModel):
+    description: Optional[str] = None
+    location: Optional[LocationLatLon] = None
+    occurred_at: Optional[datetime] = None
+    images: Optional[list[str]] = None
+    incident_type: Optional[str] = None
+    severity: Optional[Literal["low", "medium", "high"]] = None
+    species: Optional[str] = None
+    count: Optional[int] = None
