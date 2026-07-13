@@ -238,6 +238,169 @@ class ReportRepository:
             "created_at": created_at,
         }
 
+    async def update(
+        self,
+        report_id: str,
+        report_type: str,
+        fields: dict,
+    ) -> dict:
+        row = await self._update_field_report_row(report_id, fields)
+        event_id = await self._get_event_id(report_id)
+
+        if event_id:
+            await self._update_geospatial_event(event_id, fields)
+            await self._update_type_specific_fields(
+                report_type,
+                event_id,
+                fields,
+            )
+            await self._replace_images(event_id, fields)
+
+        await self.db.commit()
+
+        return {
+            "report_id": str(row[0]),
+            "report_type": row[1],
+            "status": "updated",
+            "submitted_by": str(row[2]),
+            "created_at": row[3],
+        }
+
+    async def _update_field_report_row(self, report_id: str, fields: dict):
+        fr_sets = []
+        fr_params: dict = {"rid": report_id}
+
+        if "description" in fields:
+            fr_sets.append("description = :description")
+            fr_params["description"] = fields["description"]
+        if "location_wkt" in fields:
+            fr_sets.append("location = ST_GeogFromText(:wkt)")
+            fr_params["wkt"] = fields["location_wkt"]
+        if "occurred_at" in fields:
+            fr_sets.append("occurred_at = :occurred_at")
+            fr_params["occurred_at"] = fields["occurred_at"]
+        fr_sets.append("updated_at = NOW()")
+
+        return (
+            await self.db.execute(
+                text(f"""
+                    UPDATE field_reports
+                    SET {", ".join(fr_sets)}
+                    WHERE id = :rid
+                    RETURNING id, report_type, submitted_by, created_at
+                """),
+                fr_params,
+            )
+        ).fetchone()
+
+    async def _get_event_id(self, report_id: str) -> Optional[str]:
+        event_row = (
+            await self.db.execute(
+                text("""
+                    SELECT id FROM incidents WHERE field_report_id = :rid
+                    UNION
+                    SELECT id FROM sightings WHERE field_report_id = :rid
+                """),
+                {"rid": report_id},
+            )
+        ).fetchone()
+        return str(event_row[0]) if event_row else None
+
+    async def _update_geospatial_event(
+        self,
+        event_id: str,
+        fields: dict,
+    ) -> None:
+        ev_sets = []
+        ev_params: dict = {"eid": event_id}
+        if "location_wkt" in fields:
+            ev_sets.append("location = ST_GeogFromText(:wkt)")
+            ev_params["wkt"] = fields["location_wkt"]
+        if "occurred_at" in fields:
+            ev_sets.append("occurred_at = :occurred_at")
+            ev_params["occurred_at"] = fields["occurred_at"]
+        if not ev_sets:
+            return
+
+        await self.db.execute(
+            text(f"""
+                UPDATE geospatial_events
+                SET {", ".join(ev_sets)}
+                WHERE id = :eid
+            """),
+            ev_params,
+        )
+
+    async def _update_type_specific_fields(
+        self,
+        report_type: str,
+        event_id: str,
+        fields: dict,
+    ) -> None:
+        if report_type == "incident":
+            await self._update_incident(event_id, fields)
+        elif report_type == "sighting":
+            await self._update_sighting(event_id, fields)
+
+    async def _update_incident(self, event_id: str, fields: dict) -> None:
+        inc_sets = []
+        inc_params: dict = {"eid": event_id}
+        if "incident_type" in fields:
+            inc_sets.append("incident_type = :incident_type")
+            inc_params["incident_type"] = fields["incident_type"]
+        if "severity" in fields:
+            inc_sets.append("severity = CAST(:severity AS severity_level)")
+            inc_params["severity"] = fields["severity"]
+        if not inc_sets:
+            return
+
+        await self.db.execute(
+            text(f"""
+                UPDATE incidents
+                SET {", ".join(inc_sets)}
+                WHERE id = :eid
+            """),
+            inc_params,
+        )
+
+    async def _update_sighting(self, event_id: str, fields: dict) -> None:
+        sig_sets = []
+        sig_params: dict = {"eid": event_id}
+        if "species" in fields:
+            sig_sets.append("species = :species")
+            sig_params["species"] = fields["species"]
+        if "count" in fields:
+            sig_sets.append("count = :count")
+            sig_params["count"] = fields["count"]
+        if not sig_sets:
+            return
+
+        await self.db.execute(
+            text(f"""
+                UPDATE sightings
+                SET {", ".join(sig_sets)}
+                WHERE id = :eid
+            """),
+            sig_params,
+        )
+
+    async def _replace_images(self, event_id: str, fields: dict) -> None:
+        if "images" not in fields:
+            return
+
+        await self.db.execute(
+            text("DELETE FROM photos WHERE geospatial_event_id = :eid"),
+            {"eid": event_id},
+        )
+        for url in fields["images"] or []:
+            await self.db.execute(
+                text("""
+                    INSERT INTO photos (geospatial_event_id, image_url)
+                    VALUES (:eid, :url)
+                """),
+                {"eid": event_id, "url": url},
+            )
+
     async def get_by_id(self, report_id: str) -> Optional[dict]:
         stmt = select(
             FieldReport.id,
