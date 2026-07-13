@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 if TYPE_CHECKING:
     from app.models.user import User
     from app.repositories.report_repository import ReportRepository
-    from app.schemas.report import ReportCreate
+    from app.schemas.report import ReportCreate, ReportUpdate
 
 
 class ReportService:
@@ -62,6 +62,103 @@ class ReportService:
             count=data.count,
             images=data.images,
         )
+
+    async def update_report(
+        self,
+        report_id: str,
+        current_user: "User",
+        data: "ReportUpdate",
+    ) -> Optional[dict]:
+        provided = data.model_dump(exclude_unset=True)
+        if not provided:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No updatable fields provided",
+            )
+
+        existing = await self.repo.get_by_id(report_id)
+        if existing is None:
+            return None
+
+        self._check_edit_permission(current_user, existing)
+        fields = self._build_update_fields(
+            existing["report_type"],
+            data,
+            provided,
+        )
+
+        return await self.repo.update(
+            report_id=report_id,
+            report_type=existing["report_type"],
+            fields=fields,
+        )
+
+    def _check_edit_permission(
+        self,
+        current_user: "User",
+        existing: dict,
+    ) -> None:
+        if (
+            current_user.role == "ranger"
+            and existing["submitted_by"] != current_user.id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied",
+            )
+
+    def _build_update_fields(
+        self,
+        report_type: str,
+        data: "ReportUpdate",
+        provided: dict,
+    ) -> dict:
+        fields: dict = {}
+
+        if "description" in provided:
+            fields["description"] = provided["description"]
+        if "occurred_at" in provided:
+            fields["occurred_at"] = self._validate_occurred_at(data.occurred_at)
+        if "location" in provided:
+            fields["location_wkt"] = self._validate_location(data.location)
+        if "images" in provided:
+            fields["images"] = provided["images"]
+
+        fields.update(self._type_specific_fields(report_type, provided))
+        return fields
+
+    def _validate_occurred_at(self, occurred: datetime) -> datetime:
+        if occurred.tzinfo is None:
+            occurred = occurred.replace(tzinfo=timezone.utc)
+        if occurred > datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="occurred_at cannot be in the future",
+            )
+        return occurred
+
+    def _validate_location(self, location) -> str:
+        lat, lon = location.lat, location.lon
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="coordinates out of valid range",
+            )
+        return f"POINT({lon} {lat})"
+
+    def _type_specific_fields(self, report_type: str, provided: dict) -> dict:
+        fields: dict = {}
+        if report_type == "incident":
+            if "incident_type" in provided:
+                fields["incident_type"] = provided["incident_type"]
+            if "severity" in provided:
+                fields["severity"] = provided["severity"]
+        else:
+            if "species" in provided:
+                fields["species"] = provided["species"]
+            if "count" in provided:
+                fields["count"] = provided["count"]
+        return fields
 
     async def get_reports(
         self,
