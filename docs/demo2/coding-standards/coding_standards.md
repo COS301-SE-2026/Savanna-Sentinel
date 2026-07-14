@@ -6,7 +6,6 @@
 
 **Note**: Emdash was copypasted since it makes a better horizontal line in my opinion.
 
-
 ```
 Savanna-Sentinel/
 |
@@ -330,8 +329,6 @@ skip-magic-trailing-comma = false
 docstring-code-format = true
 ```
 
-
-
 ---
 
 ## Before Commits
@@ -355,3 +352,5 @@ docstring-code-format = true
   - In rare circumstances, such as SonarQube failing, the team leader may make an executive decision to ignore it after careful review
   - Failing test cases cannot be ignored nor bypassed.
 - All commits must have a short but descriptive message as to the commits contents.
+
+---
