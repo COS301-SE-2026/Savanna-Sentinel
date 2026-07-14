@@ -12,6 +12,7 @@ from app.schemas.report import (
     ReportListResponse,
     ReportResponse,
     ReportSubmitResponse,
+    ReportUpdate,
 )
 from app.services.report_service import ReportService
 
@@ -91,6 +92,36 @@ async def list_reports(
         page_size=page_size,
         results=results,
     )
+
+
+@router.patch(
+    "/reports/{report_id}",
+    response_model=ReportSubmitResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Edit field report (SC-12)",
+)
+async def update_report(
+    report_id: str,
+    body: ReportUpdate,
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    if current_user.role not in ("ranger", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_ROLE_DENIED,
+        )
+
+    service = ReportService(ReportRepository(db))
+    result = await service.update_report(report_id, current_user, body)
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found",
+        )
+
+    return ReportSubmitResponse(**result)
 
 
 @router.get(
