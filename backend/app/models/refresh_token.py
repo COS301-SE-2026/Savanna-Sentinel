@@ -1,3 +1,5 @@
+from  datetime import datetime, timezone
+
 from sqlalchemy import DateTime, ForeignKey, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -18,7 +20,9 @@ class RefreshToken(Base):
         nullable=False,
     )
     issued_at: Mapped[object] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("now()"),
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
     )
     expires_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),

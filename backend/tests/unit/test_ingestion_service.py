@@ -67,7 +67,7 @@ def test_ingestion_service_validate_failure(service, invalid_body):
     # Force data into the model, ignoring pydantic errors
     body = IngestionRequest.model_construct(
         start_row=invalid_body["start_row"],
-        records=invalid_body["records"]
+        records=invalid_body["records"],
     )
 
     with pytest.raises(HTTPException) as e:

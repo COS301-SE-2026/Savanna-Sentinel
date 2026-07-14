@@ -141,4 +141,4 @@ async def test_require_admin_raises_403_for_non_admin():
         await role_checker(current_user=mock_user)
 
     assert e.value.status_code == status.HTTP_403_FORBIDDEN
-    assert "Admin privileges required" in e.value.detail
+    assert "admin privileges required" in e.value.detail
