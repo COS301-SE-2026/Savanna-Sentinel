@@ -90,6 +90,51 @@ async def _create_report(
         return str(result.fetchone()[0])
 
 
+async def _create_sighting_report(
+    user_id: str,
+    lng: float = 28.1,
+    lat: float = -25.7,
+) -> str:
+    wkt = f"POINT({lng} {lat})"
+    async with _engine.begin() as conn:
+        fr_result = await conn.execute(
+            text("""
+                INSERT INTO field_reports
+                    (submitted_by, report_type, description, location,
+                  occurred_at)
+                VALUES
+                    (:uid, 'sighting', 'Test sighting',
+                     ST_GeogFromText(:wkt),
+                     NOW() - INTERVAL '1 hour')
+                RETURNING id
+            """),
+            {"uid": user_id, "wkt": wkt},
+        )
+        report_id = str(fr_result.fetchone()[0])
+
+        ev_result = await conn.execute(
+            text("""
+                INSERT INTO geospatial_events (event_type, location,
+                 occurred_at)
+                VALUES ('sighting', ST_GeogFromText(:wkt), NOW() - INTERVAL
+                  '1 hour')
+                RETURNING id
+            """),
+            {"wkt": wkt},
+        )
+        event_id = str(ev_result.fetchone()[0])
+
+        await conn.execute(
+            text("""
+                INSERT INTO sightings (id, field_report_id, species, count)
+                VALUES (:id, :fr_id, 'Elephant', 4)
+            """),
+            {"id": event_id, "fr_id": report_id},
+        )
+
+    return report_id
+
+
 async def _soft_delete_report(report_id: str) -> None:
     async with _engine.begin() as conn:
         await conn.execute(
@@ -109,6 +154,38 @@ def cleanup():
 
     async def _delete():
         async with _engine.begin() as conn:
+            await conn.execute(
+                text("""
+                    DELETE FROM photos
+                    WHERE geospatial_event_id IN (
+                        SELECT i.id FROM incidents i
+                        JOIN field_reports fr ON fr.id = i.field_report_id
+                        JOIN users u ON u.id = fr.submitted_by
+                        WHERE u.username LIKE 'test_%'
+                        UNION
+                        SELECT s.id FROM sightings s
+                        JOIN field_reports fr ON fr.id = s.field_report_id
+                        JOIN users u ON u.id = fr.submitted_by
+                        WHERE u.username LIKE 'test_%'
+                    )
+                """),
+            )
+            await conn.execute(
+                text("""
+                    DELETE FROM geospatial_events
+                    WHERE id IN (
+                        SELECT i.id FROM incidents i
+                        JOIN field_reports fr ON fr.id = i.field_report_id
+                        JOIN users u ON u.id = fr.submitted_by
+                        WHERE u.username LIKE 'test_%'
+                        UNION
+                        SELECT s.id FROM sightings s
+                        JOIN field_reports fr ON fr.id = s.field_report_id
+                        JOIN users u ON u.id = fr.submitted_by
+                        WHERE u.username LIKE 'test_%'
+                    )
+                """),
+            )
             await conn.execute(
                 text("""
                     DELETE FROM field_reports
@@ -314,6 +391,173 @@ async def test_submitted_report_appears_in_list():
         list_r = await c.get("/v1/reports", headers=_auth_header(uid))
     ids = [item["report_id"] for item in list_r.json()["results"]]
     assert report_id in ids
+
+
+# PATCH /v1/reports/{report_id}
+
+
+@pytest.mark.asyncio
+async def test_ranger_updates_own_report_returns_200():
+    uid = await _create_user("test_ranger_sc12a")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"description": "Updated after follow-up"},
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["report_id"] == rid
+    assert body["status"] == "updated"
+    assert body["submitted_by"] == uid
+
+
+@pytest.mark.asyncio
+async def test_update_persists_and_reflects_in_get():
+    uid = await _create_user("test_ranger_sc12b")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        patch_r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"description": "Snare removed and area cleared"},
+            headers=_auth_header(uid),
+        )
+        assert patch_r.status_code == 200
+        get_r = await c.get(f"/v1/reports/{rid}", headers=_auth_header(uid))
+    assert get_r.json()["description"] == "Snare removed and area cleared"
+
+
+@pytest.mark.asyncio
+async def test_update_sighting_species_and_count():
+    uid = await _create_user("test_ranger_sc12c")
+    rid = await _create_sighting_report(uid)
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"species": "Lion", "count": 2},
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_ranger_blocked_from_updating_other_report_returns_403():
+    owner_id = await _create_user("test_owner_sc12")
+    other_id = await _create_user("test_other_sc12")
+    rid = await _create_report(owner_id)
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"description": "hijacked"},
+            headers=_auth_header(other_id),
+        )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_updates_any_report_returns_200():
+    ranger_id = await _create_user("test_ranger2_sc12")
+    admin_id = await _create_user("test_admin_sc12", role="admin")
+    rid = await _create_report(ranger_id)
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"description": "Admin correction"},
+            headers=_auth_header(admin_id),
+        )
+    assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_update_nonexistent_report_returns_404():
+    uid = await _create_user("test_ranger3_sc12")
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{fake_id}",
+            json={"description": "does not exist"},
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_no_fields_returns_400():
+    uid = await _create_user("test_ranger4_sc12")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={},
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_future_occurred_at_returns_422():
+    uid = await _create_user("test_ranger5_sc12")
+    rid = await _create_report(uid)
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"occurred_at": future},
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_invalid_coordinates_returns_422():
+    uid = await _create_user("test_ranger6_sc12")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"location": {"lat": 95.0, "lon": 28.1}},
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_no_token_returns_401():
+    async with _client() as c:
+        r = await c.patch(
+            "/v1/reports/00000000-0000-0000-0000-000000000000",
+            json={"description": "no auth"},
+        )
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_analyst_blocked_from_update_returns_403():
+    analyst_id = await _create_user("test_analyst_sc12", role="analyst")
+    uid = await _create_user("test_ranger7_sc12")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"description": "not allowed"},
+            headers=_auth_header(analyst_id),
+        )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_update_soft_deleted_report_returns_404():
+    uid = await _create_user("test_ranger8_sc12")
+    rid = await _create_report(uid)
+    await _soft_delete_report(rid)
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"description": "resurrect attempt"},
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 404
 
 
 # GET /v1/reports/{report_id}
