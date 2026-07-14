@@ -12,7 +12,12 @@ class IngestionService:
         validation_errors = {}
         for index, record in enumerate(body.records):
             try:
-                CSVSchema(**record.model_dump())
+                record_data = (
+                    record.model_dump()
+                    if hasattr(record, "model_dump")
+                    else record
+                )
+                CSVSchema(**record_data)
             except ValidationError as e:
                 row_failures = []
                 for error in e.errors():
