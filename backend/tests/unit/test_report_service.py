@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import HTTPException
 
-from app.schemas.report import LocationLatLon, ReportCreate
+from app.schemas.report import LocationLatLon, ReportCreate, ReportUpdate
 from app.services.report_service import ReportService
 
 _NOW = datetime.now(timezone.utc)
@@ -46,6 +46,19 @@ def _make_service(report):
 def _make_list_service(results, total):
     repo = AsyncMock()
     repo.get_list.return_value = (results, total)
+    return ReportService(repo)
+
+
+def _make_update_service(report, update_result=None):
+    repo = AsyncMock()
+    repo.get_by_id.return_value = report
+    repo.update.return_value = update_result or {
+        "report_id": _REPORT["id"],
+        "report_type": _REPORT["report_type"],
+        "status": "updated",
+        "submitted_by": _REPORT["submitted_by"],
+        "created_at": _NOW,
+    }
     return ReportService(repo)
 
 
@@ -267,3 +280,128 @@ async def test_get_reports_passes_filters_to_repo():
     assert call_kwargs["severity"] == "high"
     assert call_kwargs["page"] == 2
     assert call_kwargs["page_size"] == 10
+
+
+# update_report
+
+
+@pytest.mark.asyncio
+async def test_ranger_updates_own_report_calls_repo():
+    service = _make_update_service(dict(_REPORT))
+    result = await service.update_report(
+        _REPORT["id"],
+        _ranger(),
+        ReportUpdate(description="Updated description"),
+    )
+    service.repo.update.assert_called_once()
+    assert result["status"] == "updated"
+
+
+@pytest.mark.asyncio
+async def test_ranger_blocked_from_updating_other_report():
+    service = _make_update_service(dict(_REPORT))
+    other = _ranger("dddddddd-0000-0000-0000-000000000001")
+    with pytest.raises(HTTPException) as exc:
+        await service.update_report(
+            _REPORT["id"],
+            other,
+            ReportUpdate(description="hijacked"),
+        )
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_updates_any_report():
+    service = _make_update_service(dict(_REPORT))
+    result = await service.update_report(
+        _REPORT["id"],
+        _admin(),
+        ReportUpdate(description="Admin edit"),
+    )
+    assert result["status"] == "updated"
+
+
+@pytest.mark.asyncio
+async def test_update_missing_report_returns_none():
+    service = _make_update_service(None)
+    result = await service.update_report(
+        "nonexistent-id",
+        _ranger(),
+        ReportUpdate(description="doesn't matter"),
+    )
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_update_no_fields_raises_400():
+    service = _make_update_service(dict(_REPORT))
+    with pytest.raises(HTTPException) as exc:
+        await service.update_report(_REPORT["id"], _ranger(), ReportUpdate())
+    assert exc.value.status_code == 400
+    service.repo.get_by_id.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_future_occurred_at_raises_422():
+    service = _make_update_service(dict(_REPORT))
+    body = ReportUpdate(occurred_at=_NOW + timedelta(hours=1))
+    with pytest.raises(HTTPException) as exc:
+        await service.update_report(_REPORT["id"], _ranger(), body)
+    assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_invalid_lat_raises_422():
+    service = _make_update_service(dict(_REPORT))
+    body = ReportUpdate(location=LocationLatLon(lat=91.0, lon=28.1))
+    with pytest.raises(HTTPException) as exc:
+        await service.update_report(_REPORT["id"], _ranger(), body)
+    assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_invalid_lon_raises_422():
+    service = _make_update_service(dict(_REPORT))
+    body = ReportUpdate(location=LocationLatLon(lat=-25.7, lon=181.0))
+    with pytest.raises(HTTPException) as exc:
+        await service.update_report(_REPORT["id"], _ranger(), body)
+    assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_passes_wkt_to_repo():
+    service = _make_update_service(dict(_REPORT))
+    body = ReportUpdate(location=LocationLatLon(lat=-25.7, lon=28.1))
+    await service.update_report(_REPORT["id"], _ranger(), body)
+    kwargs = service.repo.update.call_args.kwargs
+    assert kwargs["fields"]["location_wkt"] == "POINT(28.1 -25.7)"
+
+
+@pytest.mark.asyncio
+async def test_update_incident_fields_included_for_incident_report():
+    service = _make_update_service(dict(_REPORT))
+    body = ReportUpdate(incident_type="wildfire", severity="high")
+    await service.update_report(_REPORT["id"], _ranger(), body)
+    kwargs = service.repo.update.call_args.kwargs
+    assert kwargs["fields"]["incident_type"] == "wildfire"
+    assert kwargs["fields"]["severity"] == "high"
+
+
+@pytest.mark.asyncio
+async def test_update_sighting_fields_included_for_sighting_report():
+    sighting_report = dict(_REPORT, report_type="sighting")
+    service = _make_update_service(sighting_report)
+    body = ReportUpdate(species="lion", count=3)
+    await service.update_report(_REPORT["id"], _ranger(), body)
+    kwargs = service.repo.update.call_args.kwargs
+    assert kwargs["fields"]["species"] == "lion"
+    assert kwargs["fields"]["count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_update_naive_datetime_is_treated_as_utc():
+    service = _make_update_service(dict(_REPORT))
+    naive_past = (_NOW - timedelta(hours=1)).replace(tzinfo=None)
+    body = ReportUpdate(occurred_at=naive_past)
+    await service.update_report(_REPORT["id"], _ranger(), body)
+    service.repo.update.assert_called_once()
