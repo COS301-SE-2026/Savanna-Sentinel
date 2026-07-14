@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from app.repositories.audit_repository import AuditRepository
+from app.schemas.audit import AuditLogFilterRequest, AuditLogListResponse, AuditLogResponse
 
 
 class AuditService:
@@ -18,3 +19,13 @@ class AuditService:
         details: Optional[dict] = None,
     ) -> None:
         await self.repo.create(actor_id, action, target_type, target_id, details)
+
+    async def get_logs(self, req: AuditLogFilterRequest) -> AuditLogListResponse:
+        results = await self.repo.list_logs(req)
+        total = await self.repo.count_logs(req)
+        return AuditLogListResponse(
+            total=total,
+            page=req.page,
+            page_size=req.page_size,
+            results=[AuditLogResponse.model_validate(r) for r in results],
+        )
