@@ -167,9 +167,9 @@ async def change_user_role(
         ],
     ):
     repo = UserRepository(db)
-    service = UserService(repo)
+    service = UserService(repo, AuditService(AuditRepository(db)))
 
-    response_data = await service.change_role(user_id, req.new_role.value)
+    response_data = await service.change_role(user_id, req.new_role.value, current_admin.id)
 
     if response_data is None:
         raise HTTPException(

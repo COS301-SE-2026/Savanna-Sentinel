@@ -107,6 +107,16 @@ class UserService:  # noqa: D101
 
         return results
 
-    async def change_role(self, user_id: str, new_role: str):  # noqa: D102
+    async def change_role(self, user_id: str, new_role: str, actor_id: str | None = None):  # noqa: D102
         result = await self.repo.update_role(user_id, new_role)
+
+        if result and self.audit_service and actor_id:
+            await self.audit_service.log(
+                actor_id=actor_id,
+                action="user.role_changed",
+                target_type="user",
+                target_id=user_id,
+                details={"new_role": new_role},
+            )
+
         return result
