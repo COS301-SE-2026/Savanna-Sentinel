@@ -5,18 +5,8 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
 
 _BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
-_DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    # sonar:disable:S2068
-    "postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel",
-)
-
-_engine = create_async_engine(_DATABASE_URL, poolclass=NullPool)
-_Session = async_sessionmaker(_engine, expire_on_commit=False)
 
 
 def _client():
@@ -36,11 +26,11 @@ def _register_payload(**overrides):
 
 
 @pytest.fixture(autouse=True)
-def cleanup_test_users():
+def cleanup_test_users(engine):
     yield
 
     async def _delete():
-        async with _engine.begin() as conn:
+        async with engine.begin() as conn:
             await conn.execute(text(
             "DELETE "
             "FROM users "
@@ -50,8 +40,10 @@ def cleanup_test_users():
     asyncio.run(_delete())
 
 
-async def _promote_and_activate(username: str, role: str = "admin") -> None:
-    async with _engine.begin() as conn:
+async def _promote_and_activate(
+    engine, username: str, role: str = "admin",
+) -> None:
+    async with engine.begin() as conn:
         await conn.execute(
             text(
                  "UPDATE users " \
@@ -62,8 +54,8 @@ async def _promote_and_activate(username: str, role: str = "admin") -> None:
         )
 
 
-async def _activate(username: str) -> None:
-    async with _engine.begin() as conn:
+async def _activate(engine, username: str) -> None:
+    async with engine.begin() as conn:
         await conn.execute(
             text("UPDATE users " \
             "SET is_active = true " \
@@ -87,26 +79,26 @@ async def _login(username: str, password: str) -> str:
 
 
 @pytest_asyncio.fixture
-async def admin_token():
+async def admin_token(engine):
     async with _client() as c:
         await c.post("/v1/auth/register", json=_register_payload(
             username="test_audit_admin",
             email="test_audit_admin@example.com",
             requested_role="ranger",
         ))
-    await _promote_and_activate("test_audit_admin", role="admin")
+    await _promote_and_activate(engine, "test_audit_admin", role="admin")
     return await _login("test_audit_admin", "SecurePass1!")
 
 
 @pytest_asyncio.fixture
-async def ranger_token():
+async def ranger_token(engine):
     async with _client() as c:
         await c.post("/v1/auth/register", json=_register_payload(
             username="test_audit_ranger",
             email="test_audit_ranger@example.com",
             requested_role="ranger",
         ))
-    await _activate("test_audit_ranger")
+    await _activate(engine, "test_audit_ranger")
     return await _login("test_audit_ranger", "SecurePass1!")
 
 
@@ -138,8 +130,8 @@ async def test_list_audit_logs_allows_admin(admin_token):
 
 
 @pytest_asyncio.fixture
-async def seeded_audit_logs(admin_token):
-    async with _engine.begin() as conn:
+async def seeded_audit_logs(admin_token, engine):
+    async with engine.begin() as conn:
         result = await conn.execute(
             text("SELECT id FROM users WHERE username = :username"),
             {"username": "test_audit_admin"},

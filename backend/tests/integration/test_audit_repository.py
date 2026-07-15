@@ -1,44 +1,20 @@
-import os
-
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
 
 from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
-from app.schemas.audit import AuditLogFilterRequest
-
-_DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    # sonar:disable:S2068
-    "postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel",
-)
-
-_engine = create_async_engine(_DATABASE_URL, poolclass=NullPool)
-_Session = async_sessionmaker(_engine, expire_on_commit=False)
-
-
-def _filter_req(**kwargs):
-    defaults = {"page": 1, "page_size": 20}
-    defaults.update(kwargs)
-    return AuditLogFilterRequest(**defaults)
+from tests.schema_helpers import audit_filter_req as _filter_req
 
 
 @pytest_asyncio.fixture
-async def db_session():
-    async with _Session() as session:
-        yield session
-
-
-@pytest_asyncio.fixture
-async def actor(db_session):
+async def actor(db_session, engine):
     user = User(
         username="test_audit_repo_actor",
         email="test_audit_repo_actor@example.com",
         first_name="Test",
         last_name="Actor",
+        # NOSONAR
         hashed_password="hashed",
         role="admin",
         is_active=True,
@@ -49,7 +25,7 @@ async def actor(db_session):
 
     yield user
 
-    async with _engine.begin() as conn:
+    async with engine.begin() as conn:
         await conn.execute(
             text("DELETE FROM users WHERE id = :id"), {"id": user.id},
         )

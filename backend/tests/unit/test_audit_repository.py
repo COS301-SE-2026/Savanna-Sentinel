@@ -3,13 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.repositories.audit_repository import AuditRepository
-from app.schemas.audit import AuditLogFilterRequest
+from tests.schema_helpers import audit_filter_req as _filter_req
 
-
-def _filter_req(**kwargs):
-    defaults = {"page": 1, "page_size": 20}
-    defaults.update(kwargs)
-    return AuditLogFilterRequest(**defaults)
 
 def _mock_session():
     session = MagicMock()

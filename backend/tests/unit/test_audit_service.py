@@ -4,16 +4,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.schemas.audit import AuditLogFilterRequest
 from app.services.audit_service import AuditService
+from tests.schema_helpers import audit_filter_req as _filter_req
 
 pytestmark = pytest.mark.asyncio
-
-
-def _filter_req(**kwargs):
-    defaults = {"page": 1, "page_size": 20}
-    defaults.update(kwargs)
-    return AuditLogFilterRequest(**defaults)
 
 
 @pytest.fixture
