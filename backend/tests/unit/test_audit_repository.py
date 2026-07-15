@@ -72,3 +72,8 @@ async def test_count_logs_matches_filtered_total(db_session):
     total = await repo.count_logs(req)
 
     assert total == 2
+
+
+def test_repository_exposes_no_update_or_delete_method():
+    assert not hasattr(AuditRepository, "update")
+    assert not hasattr(AuditRepository, "delete")
