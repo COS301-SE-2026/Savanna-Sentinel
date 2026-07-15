@@ -1590,7 +1590,7 @@ a {
 .toast-stack {
 	position: fixed;
 	right: var(--sp-5);
-	bottom: var(--sp-5);
+	top: var(--sp-5);
 	z-index: var(--z-toast);
 	display: flex;
 	flex-direction: column;
@@ -1618,7 +1618,7 @@ a {
 	margin-bottom: var(--sp-1);
 }
 .toast-body {
-	font-size: var(--text-xs);
+	font-size: var(--text-sm);
 	color: var(--color-text-primary);
 	line-height: var(--lh-relaxed);
 }
