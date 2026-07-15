@@ -144,7 +144,7 @@ async def seeded_audit_logs(admin_token):
             text("SELECT id FROM users WHERE username = :username"),
             {"username": "test_audit_admin"},
         )
-        actor_id = result.scalar_one()
+        actor_id = str(result.scalar_one())
 
         for action in ("user.role_changed", "user.account_accepted", "user.deleted"):
             await conn.execute(
@@ -155,7 +155,7 @@ async def seeded_audit_logs(admin_token):
                 {"actor_id": actor_id, "action": action},
             )
 
-    return admin_token
+    return {"token": admin_token, "actor_id": actor_id}
 
 
 @pytest.mark.asyncio
@@ -163,10 +163,38 @@ async def test_list_audit_logs_returns_expected_shape(seeded_audit_logs):
     async with _client() as c:
         response = await c.get(
             "/v1/audit-logs?page=1&page_size=2",
-            headers={"Authorization": f"Bearer {seeded_audit_logs}"},
+            headers={"Authorization": f"Bearer {seeded_audit_logs['token']}"},
         )
 
     body = response.json()
     assert set(body.keys()) == {"total", "page", "page_size", "results"}
     assert len(body["results"]) <= 2
     assert body["results"][0]["created_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_filter_by_action(seeded_audit_logs):
+    async with _client() as c:
+        response = await c.get(
+            "/v1/audit-logs?action=user.deleted",
+            headers={"Authorization": f"Bearer {seeded_audit_logs['token']}"},
+        )
+
+    body = response.json()
+    assert all(r["action"] == "user.deleted" for r in body["results"])
+    assert any(r["actor_id"] == seeded_audit_logs["actor_id"] for r in body["results"])
+
+
+@pytest.mark.asyncio
+async def test_filter_by_actor_id(seeded_audit_logs):
+    actor_id = seeded_audit_logs["actor_id"]
+
+    async with _client() as c:
+        response = await c.get(
+            f"/v1/audit-logs?actor_id={actor_id}",
+            headers={"Authorization": f"Bearer {seeded_audit_logs['token']}"},
+        )
+
+    body = response.json()
+    assert all(r["actor_id"] == actor_id for r in body["results"])
+    assert len(body["results"]) == 3
