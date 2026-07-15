@@ -19,9 +19,11 @@ def _fake_user_repo(is_active=True, found=True):
         mock_user = MagicMock(id="user-1", is_active=is_active)
         mock_repo.switch_status = AsyncMock(return_value=mock_user)
         mock_repo.update_role = AsyncMock(return_value=mock_user)
+        mock_repo.admin_delete = AsyncMock(return_value=mock_user)
     else:
         mock_repo.switch_status = AsyncMock(return_value=None)
         mock_repo.update_role = AsyncMock(return_value=None)
+        mock_repo.admin_delete = AsyncMock(return_value=None)
     return mock_repo
 
 #This test file is kinda useless since the service doesnt do much
@@ -169,6 +171,32 @@ async def test_change_role_logs_new_role_in_details():
         target_id="user-1",
         details={"new_role": "analyst"},
     )
+
+
+@pytest.mark.asyncio
+async def test_admin_delete_logs_before_repo_delete_is_called():
+    call_order = []
+    mock_audit = AsyncMock()
+    mock_audit.log.side_effect = lambda **_: call_order.append("log")
+
+    fake_repo = _fake_user_repo()
+    fake_repo.admin_delete.side_effect = lambda *_: call_order.append("delete")
+
+    service = UserService(repo=fake_repo, audit_service=mock_audit)
+    await service.admin_delete(user_id="user-1", actor_id="admin-1")
+
+    assert call_order == ["log", "delete"]
+
+
+@pytest.mark.asyncio
+async def test_admin_delete_logs_even_if_repo_delete_returns_none():
+    mock_audit = AsyncMock()
+    fake_repo = _fake_user_repo(found=False)  # simulates delete finding nothing
+    service = UserService(repo=fake_repo, audit_service=mock_audit)
+
+    await service.admin_delete(user_id="user-1", actor_id="admin-1")
+
+    mock_audit.log.assert_awaited_once()
 
 
 # get_me() tests
