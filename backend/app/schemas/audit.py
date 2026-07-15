@@ -8,7 +8,7 @@ class AuditLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    actor_id: str
+    actor_id: str | None = None
     action: str
     target_type: str | None = None
     target_id: str | None = None

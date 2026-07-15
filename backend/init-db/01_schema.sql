@@ -71,7 +71,7 @@ CREATE TABLE password_reset_tokens (
 
 CREATE TABLE audit_logs (
     id          UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-    actor_id    UUID        NOT NULL REFERENCES users(id),
+    actor_id    UUID        REFERENCES users(id) ON DELETE SET NULL,
     action      TEXT        NOT NULL,
     target_type TEXT,
     target_id   UUID,
@@ -79,8 +79,24 @@ CREATE TABLE audit_logs (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Insert-only with one narrow exception: ON DELETE SET NULL on actor_id
+-- (deleting a user) is itself implemented by Postgres as an UPDATE against
+-- this table, so it would otherwise be rejected by this same trigger. Allow
+-- only that exact shape, actor_id going to NULL and nothing else changing,
+-- and reject every other UPDATE/DELETE.
 CREATE FUNCTION reject_audit_log_mutation() RETURNS TRIGGER AS $$
 BEGIN
+    IF TG_OP = 'UPDATE'
+       AND NEW.actor_id IS NULL
+       AND OLD.action = NEW.action
+       AND OLD.target_type IS NOT DISTINCT FROM NEW.target_type
+       AND OLD.target_id IS NOT DISTINCT FROM NEW.target_id
+       AND OLD.details IS NOT DISTINCT FROM NEW.details
+       AND OLD.created_at = NEW.created_at
+    THEN
+        RETURN NEW;
+    END IF;
+
     RAISE EXCEPTION 'audit_logs is insert-only: % not permitted', TG_OP;
 END;
 $$ LANGUAGE plpgsql;

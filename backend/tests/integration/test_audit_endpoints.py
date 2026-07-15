@@ -135,3 +135,38 @@ async def test_list_audit_logs_allows_admin(admin_token):
             headers={"Authorization": f"Bearer {admin_token}"},
         )
     assert r.status_code == 200
+
+
+@pytest_asyncio.fixture
+async def seeded_audit_logs(admin_token):
+    async with _engine.begin() as conn:
+        result = await conn.execute(
+            text("SELECT id FROM users WHERE username = :username"),
+            {"username": "test_audit_admin"},
+        )
+        actor_id = result.scalar_one()
+
+        for action in ("user.role_changed", "user.account_accepted", "user.deleted"):
+            await conn.execute(
+                text(
+                    "INSERT INTO audit_logs (actor_id, action, target_type, target_id) "
+                    "VALUES (:actor_id, :action, 'user', :actor_id)",
+                ),
+                {"actor_id": actor_id, "action": action},
+            )
+
+    return admin_token
+
+
+@pytest.mark.asyncio
+async def test_list_audit_logs_returns_expected_shape(seeded_audit_logs):
+    async with _client() as c:
+        response = await c.get(
+            "/v1/audit-logs?page=1&page_size=2",
+            headers={"Authorization": f"Bearer {seeded_audit_logs}"},
+        )
+
+    body = response.json()
+    assert set(body.keys()) == {"total", "page", "page_size", "results"}
+    assert len(body["results"]) <= 2
+    assert body["results"][0]["created_at"] is not None
