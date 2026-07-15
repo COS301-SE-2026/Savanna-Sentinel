@@ -79,6 +79,20 @@ CREATE TABLE audit_logs (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE FUNCTION reject_audit_log_mutation() RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'audit_logs is insert-only: % not permitted', TG_OP;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER audit_logs_no_update
+    BEFORE UPDATE ON audit_logs
+    FOR EACH ROW EXECUTE FUNCTION reject_audit_log_mutation();
+
+CREATE TRIGGER audit_logs_no_delete
+    BEFORE DELETE ON audit_logs
+    FOR EACH ROW EXECUTE FUNCTION reject_audit_log_mutation();
+
 -- request_id groups the alternative routes generated from a single planning request.
 CREATE TABLE patrol_routes (
     id             UUID                       PRIMARY KEY DEFAULT uuid_generate_v4(),
