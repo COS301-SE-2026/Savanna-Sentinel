@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, require_admin
 from app.models.user import User
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import (
     RoleChangeRequest,
@@ -16,6 +17,7 @@ from app.schemas.user import (
     UsersResponse,
     UsersResultResponse,
 )
+from app.services.audit_service import AuditService
 from app.services.user_service import UserService
 
 router = APIRouter(tags=["users"])
@@ -106,9 +108,9 @@ async def status_switch(
         ],
     ):
     repo = UserRepository(db)
-    service = UserService(repo)
+    service = UserService(repo, AuditService(AuditRepository(db)))
 
-    response_data = await service.switch_status(req.is_active, user_id)
+    response_data = await service.switch_status(req.is_active, user_id, current_admin.id)
 
     if response_data is None:
         raise HTTPException(

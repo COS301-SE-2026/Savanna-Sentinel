@@ -82,13 +82,22 @@ class UserService:  # noqa: D101
             results=results,
         )
 
-    async def switch_status(self, is_active: bool, user_id: str):  # noqa: D102
-        results = await self.repo.switch_status(is_active, user_id)
+    async def switch_status(self, is_active: bool, user_id: str, actor_id: str | None = None):  # noqa: D102
+        result = await self.repo.switch_status(is_active, user_id)
 
-        if results is None:
+        if result is None:
             return None
 
-        return results
+        if self.audit_service and actor_id:
+            action = "user.account_accepted" if is_active else "user.account_deactivated"
+            await self.audit_service.log(
+                actor_id=actor_id,
+                action=action,
+                target_type="user",
+                target_id=user_id,
+            )
+
+        return result
 
     async def admin_delete(self, user_id: str):  # noqa: D102
         results = await self.repo.admin_delete(user_id)
