@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RoleSwap from "@/components/admin/RoleSwap";
 import { roleSwapHandlers } from "./mocks/roleSwapHandlers";
@@ -78,12 +78,10 @@ describe("RoleSwap - Role Management", () => {
         await screen.findByText("ranger1");
 
         const triggers = screen.getAllByRole("combobox");
-        await user.click(triggers[0]);
-
-        const analystOption = await screen.findByRole("option", {
+        const analystOption = await within(triggers[0]).findByRole("option", {
             name: /analyst/i,
         });
-        await user.click(analystOption);
+        await user.selectOptions(triggers[0], [analystOption]);
 
         const saveButtons = screen.getAllByRole("button", { name: /save/i });
         expect(saveButtons[0]).toBeEnabled();
@@ -96,12 +94,10 @@ describe("RoleSwap - Role Management", () => {
         await screen.findByText("ranger1");
 
         const triggers = screen.getAllByRole("combobox");
-        await user.click(triggers[0]);
-
-        const analystOption = await screen.findByRole("option", {
+        const analystOption = await within(triggers[0]).findByRole("option", {
             name: /analyst/i,
         });
-        await user.click(analystOption);
+        await user.selectOptions(triggers[0], [analystOption]);
 
         const saveButtons = screen.getAllByRole("button", { name: /save/i });
         await user.click(saveButtons[0]);
@@ -125,12 +121,10 @@ describe("RoleSwap - Role Management", () => {
         await screen.findByText("ranger1");
 
         const triggers = screen.getAllByRole("combobox");
-        await user.click(triggers[0]);
-
-        const analystOption = await screen.findByRole("option", {
+        const analystOption = await within(triggers[0]).findByRole("option", {
             name: /analyst/i,
         });
-        await user.click(analystOption);
+        await user.selectOptions(triggers[0], [analystOption]);
 
         const saveButtons = screen.getAllByRole("button", { name: /save/i });
         await user.click(saveButtons[0]);
@@ -147,12 +141,10 @@ describe("RoleSwap - Role Management", () => {
         await screen.findByText("ranger1");
 
         const triggers = screen.getAllByRole("combobox");
-        await user.click(triggers[0]);
-
-        const analystOption = await screen.findByRole("option", {
+        const analystOption = await within(triggers[0]).findByRole("option", {
             name: /analyst/i,
         });
-        await user.click(analystOption);
+        await user.selectOptions(triggers[0], [analystOption]);
 
         const saveButtons = screen.getAllByRole("button", { name: /save/i });
         await user.click(saveButtons[0]);

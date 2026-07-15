@@ -7,13 +7,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { usersApi, type UserResponse } from "@/services/usersApi";
 
@@ -78,19 +72,15 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
                 </TableCell>
                 <TableCell>
                     <Select
+                        className="w-44"
                         value={selectedRole}
-                        onValueChange={setSelectedRole}
+                        onChange={(e) => setSelectedRole(e.target.value)}
                     >
-                        <SelectTrigger className="w-44">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {ASSIGNABLE_ROLES.map((r) => (
-                                <SelectItem key={r.value} value={r.value}>
-                                    {r.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
+                        {ASSIGNABLE_ROLES.map((r) => (
+                            <option key={r.value} value={r.value}>
+                                {r.label}
+                            </option>
+                        ))}
                     </Select>
                 </TableCell>
                 <TableCell>
