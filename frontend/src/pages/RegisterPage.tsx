@@ -5,17 +5,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { AxiosError } from "axios";
+import { notifyCritical } from "@/components/ui/toast";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { authApi } from "@/services/authApi";
 
 const registerSchema = z.object({
@@ -31,20 +27,20 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-const labelClass = "text-white md:text-primary text-sm font-medium";
+const labelClass = "text-color-text-inverse md:text-color-text-primary";
 const inputClass =
-    "bg-input md:bg-card text-foreground placeholder:text-muted-foreground border-0 md:border md:border-border focus-visible:ring-2 focus-visible:ring-white/40 md:focus-visible:ring-ring/40";
-const errorClass = "text-xs text-red-300 md:text-destructive";
+    "bg-color-surface-deep/40 text-color-text-inverse placeholder:text-color-text-inverse/50 border-color-text-inverse/20 focus:border-color-text-inverse focus-visible:outline-color-text-inverse md:bg-color-surface-raised md:text-color-text-primary md:placeholder:text-color-input-border md:border-color-input-border md:focus:border-brand-primary md:focus-visible:outline-brand-primary";
+const errorClass = "text-xs text-color-text-inverse md:text-status-critical-text";
 
 function BrandPanel() {
     return (
-        <div className="hidden md:flex md:w-1/2 bg-brand-navy flex-col items-center justify-center gap-6 px-12">
+        <div className="hidden md:flex md:w-1/2 bg-color-surface-deep flex-col items-center justify-center gap-6 px-12">
             <img
                 src="/icons/SavannaSentinelLogo.png"
                 alt="Savanna Sentinel Logo"
                 className="w-64 h-auto"
             />
-            <p className="text-white/50 text-xs tracking-[0.22em] uppercase text-center">
+            <p className="text-color-text-inverse/50 text-xs tracking-[0.22em] uppercase text-center">
                 Wildlife Conservation Monitoring
             </p>
         </div>
@@ -53,30 +49,34 @@ function BrandPanel() {
 
 const RegisterPage = () => {
     const [showPassword, setShowPassword] = useState(false);
-    const [serverError, setServerError] = useState<string | null>(null);
     const [isSuccessful, setSuccessful] = useState(false);
 
     const {
         register,
         handleSubmit,
-        setValue,
         formState: { errors, isSubmitting },
     } = useForm<RegisterFormValues>({
         resolver: zodResolver(registerSchema),
     });
 
     async function onSubmit(values: RegisterFormValues) {
-        setServerError(null);
         try {
             await authApi.register(values);
             setSuccessful(true);
         } catch (err) {
             const axiosErr = err as AxiosError<{ detail: string }>;
-            setServerError(
-                axiosErr.response?.status === 409
-                    ? "Email or username is already in use."
-                    : "Something went wrong. Please try again later.",
-            );
+
+            if (axiosErr.response?.status === 409) {
+                notifyCritical(
+                    "Registration failed",
+                    "Email or username is already in use.",
+                );
+            } else {
+                notifyCritical(
+                    "Registration failed",
+                    "Something went wrong. Please try again later.",
+                );
+            }
         }
     }
 
@@ -84,23 +84,23 @@ const RegisterPage = () => {
         return (
             <div className="min-h-screen flex flex-col md:flex-row">
                 <BrandPanel />
-                <div className="flex-1 flex flex-col items-center justify-center bg-brand-navy md:bg-background px-6 py-10">
+                <div className="flex-1 flex flex-col items-center justify-center bg-color-surface-deep md:bg-color-surface-bg px-6 py-10">
                     <img
                         src="/icons/SavannaSentinelLogo.png"
                         alt="Savanna Sentinel Logo"
                         className="w-60 h-auto mb-10 md:hidden"
                     />
                     <div className="w-full max-w-[320px] text-center">
-                        <h1 className="text-2xl font-light tracking-[0.18em] text-white md:text-primary mb-4">
+                        <h1 className="text-2xl font-light tracking-[0.18em] text-color-text-inverse md:text-color-text-primary mb-4">
                             REQUEST SENT
                         </h1>
-                        <p className="text-sm text-white/70 md:text-muted-foreground mb-8">
+                        <p className="text-sm text-color-text-inverse/70 md:text-color-text-secondary mb-8">
                             Your account is pending admin activation. You will
                             be able to log in once approved.
                         </p>
                         <Link
                             to="/login"
-                            className="text-sm text-white md:text-primary hover:underline"
+                            className="text-sm text-color-text-inverse md:text-brand-primary hover:underline"
                         >
                             Back to Login
                         </Link>
@@ -114,9 +114,7 @@ const RegisterPage = () => {
         <div className="min-h-screen flex flex-col md:flex-row">
             <BrandPanel />
 
-            {}
-            <div className="flex-1 flex flex-col items-center justify-center bg-brand-navy md:bg-background px-6 py-10">
-                {}
+            <div className="flex-1 flex flex-col items-center justify-center bg-color-surface-deep md:bg-color-surface-bg px-6 py-10">
                 <img
                     src="/icons/SavannaSentinelLogo.png"
                     alt="Savanna Sentinel Logo"
@@ -124,18 +122,9 @@ const RegisterPage = () => {
                 />
 
                 <div className="w-full max-w-[320px]">
-                    <h1 className="text-center text-2xl font-light tracking-[0.18em] text-white md:text-primary mb-8">
+                    <h1 className="text-center text-2xl font-light tracking-[0.18em] text-color-text-inverse md:text-color-text-primary mb-8">
                         REGISTER
                     </h1>
-
-                    {serverError && (
-                        <p
-                            role="alert"
-                            className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-center text-xs text-red-300 md:text-destructive"
-                        >
-                            {serverError}
-                        </p>
-                    )}
 
                     <form
                         onSubmit={handleSubmit(onSubmit)}
@@ -152,7 +141,10 @@ const RegisterPage = () => {
                                 placeholder="First name"
                                 autoComplete="given-name"
                                 autoFocus
-                                className={inputClass}
+                                className={cn(
+                                    inputClass,
+                                    errors.first_name && "border-status-critical",
+                                )}
                                 {...register("first_name")}
                             />
                             {errors.first_name && (
@@ -171,7 +163,10 @@ const RegisterPage = () => {
                                 type="text"
                                 placeholder="Last name"
                                 autoComplete="family-name"
-                                className={inputClass}
+                                className={cn(
+                                    inputClass,
+                                    errors.last_name && "border-status-critical",
+                                )}
                                 {...register("last_name")}
                             />
                             {errors.last_name && (
@@ -190,7 +185,10 @@ const RegisterPage = () => {
                                 type="text"
                                 placeholder="Username"
                                 autoComplete="username"
-                                className={inputClass}
+                                className={cn(
+                                    inputClass,
+                                    errors.username && "border-status-critical",
+                                )}
                                 {...register("username")}
                             />
                             {errors.username && (
@@ -209,7 +207,10 @@ const RegisterPage = () => {
                                 type="email"
                                 placeholder="Email address"
                                 autoComplete="email"
-                                className={inputClass}
+                                className={cn(
+                                    inputClass,
+                                    errors.email && "border-status-critical",
+                                )}
                                 {...register("email")}
                             />
                             {errors.email && (
@@ -229,20 +230,25 @@ const RegisterPage = () => {
                                     type={showPassword ? "text" : "password"}
                                     placeholder="Password (min. 8 characters)"
                                     autoComplete="new-password"
-                                    className={`${inputClass} pr-10`}
+                                    className={cn(
+                                        inputClass,
+                                        "pr-12",
+                                        errors.password &&
+                                            "border-status-critical",
+                                    )}
                                     {...register("password")}
                                 />
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    size="icon-sm"
+                                    size="icon"
                                     aria-label={
                                         showPassword
                                             ? "Hide password"
                                             : "Show password"
                                     }
                                     onClick={() => setShowPassword((v) => !v)}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground hover:bg-transparent"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 text-color-text-inverse opacity-80 hover:bg-color-text-inverse/10 hover:opacity-100 md:text-color-text-primary md:opacity-65 md:hover:bg-color-surface-bg md:hover:opacity-100"
                                 >
                                     {showPassword ? (
                                         <EyeOff size={17} />
@@ -266,31 +272,24 @@ const RegisterPage = () => {
                                 Role
                             </Label>
                             <Select
-                                onValueChange={(val) =>
-                                    setValue(
-                                        "requested_role",
-                                        val as RegisterFormValues["requested_role"],
-                                        { shouldValidate: true },
-                                    )
-                                }
+                                id="requested_role"
+                                defaultValue=""
+                                className={cn(
+                                    inputClass,
+                                    errors.requested_role &&
+                                        "border-status-critical",
+                                )}
+                                iconClassName="text-color-text-inverse/70 md:text-color-text-secondary"
+                                {...register("requested_role")}
                             >
-                                <SelectTrigger
-                                    id="requested_role"
-                                    className="bg-input md:bg-card text-foreground border-0 md:border md:border-border focus:ring-2 focus:ring-white/40 md:focus:ring-ring/40 data-[placeholder]:text-muted-foreground"
-                                >
-                                    <SelectValue placeholder="Select a role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ranger">
-                                        Ranger
-                                    </SelectItem>
-                                    <SelectItem value="analyst">
-                                        Analyst
-                                    </SelectItem>
-                                    <SelectItem value="community_liaison">
-                                        Community Liaison
-                                    </SelectItem>
-                                </SelectContent>
+                                <option value="" disabled>
+                                    Select a role
+                                </option>
+                                <option value="ranger">Ranger</option>
+                                <option value="analyst">Analyst</option>
+                                <option value="community_liaison">
+                                    Community Liaison
+                                </option>
                             </Select>
                             {errors.requested_role && (
                                 <p className={errorClass}>
@@ -303,7 +302,7 @@ const RegisterPage = () => {
                             <Button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="bg-brand-light-blue md:bg-primary text-foreground md:text-primary-foreground hover:bg-brand-light-blue/80 md:hover:bg-primary/80 px-7 py-2.5 rounded-lg text-base transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="px-7 py-2.5 rounded-lg text-base"
                             >
                                 {isSubmitting ? (
                                     <>
@@ -320,11 +319,11 @@ const RegisterPage = () => {
                         </div>
                     </form>
 
-                    <p className="mt-7 text-center text-xs text-white/80 md:text-muted-foreground">
+                    <p className="mt-7 text-center text-xs text-color-text-inverse/80 md:text-color-text-secondary">
                         Already have an account?{" "}
                         <Link
                             to="/login"
-                            className="hover:underline text-white md:text-primary"
+                            className="hover:underline text-color-text-inverse md:text-brand-primary"
                         >
                             Log in
                         </Link>
