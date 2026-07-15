@@ -6,6 +6,7 @@ import { beforeAll, afterEach, afterAll, describe, it, expect } from "vitest";
 
 import { authHandlers } from "./mocks/authHandlers";
 import LoginPage from "@/pages/LoginPage";
+import { Toaster } from "@/components/ui/sonner";
 
 const server = setupServer(...authHandlers);
 beforeAll(() => server.listen());
@@ -15,6 +16,7 @@ afterAll(() => server.close());
 function renderLoginPage(initialPath = "/login") {
     return render(
         <MemoryRouter initialEntries={[initialPath]}>
+            <Toaster />
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/dashboard" element={<div>Dashboard</div>} />
