@@ -7,6 +7,8 @@ import pytest
 from app.schemas.audit import AuditLogFilterRequest
 from app.services.audit_service import AuditService
 
+pytestmark = pytest.mark.asyncio
+
 
 def _filter_req(**kwargs):
     defaults = {"page": 1, "page_size": 20}
@@ -27,7 +29,6 @@ def fake_audit_log():
     )
 
 
-@pytest.mark.asyncio
 async def test_log_calls_repo_create_with_given_arguments():
     mock_repo = AsyncMock()
     service = AuditService(mock_repo)
@@ -46,7 +47,6 @@ async def test_log_calls_repo_create_with_given_arguments():
     )
 
 
-@pytest.mark.asyncio
 async def test_get_logs_returns_paginated_response(fake_audit_log):
     mock_repo = AsyncMock()
     mock_repo.list_logs.return_value = [fake_audit_log]

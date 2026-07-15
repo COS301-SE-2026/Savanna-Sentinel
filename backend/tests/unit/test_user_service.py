@@ -167,7 +167,6 @@ async def test_change_role_service_returns_none_when_user_not_found():
     mock_repo.update_role.assert_called_once_with("nonexistent", "ranger")
 
 
-@pytest.mark.asyncio
 async def test_change_role_logs_new_role_in_details():
     mock_audit = AsyncMock()
     service = UserService(repo=_fake_user_repo(), audit_service=mock_audit)
@@ -185,7 +184,6 @@ async def test_change_role_logs_new_role_in_details():
     )
 
 
-@pytest.mark.asyncio
 async def test_admin_delete_logs_before_repo_delete_is_called():
     call_order = []
     mock_audit = AsyncMock()
@@ -200,7 +198,6 @@ async def test_admin_delete_logs_before_repo_delete_is_called():
     assert call_order == ["log", "delete"]
 
 
-@pytest.mark.asyncio
 async def test_admin_delete_logs_even_if_repo_delete_returns_none():
     mock_audit = AsyncMock()
     fake_repo = _fake_user_repo(found=False)  # simulates delete finding nothing
