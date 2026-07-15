@@ -110,7 +110,9 @@ async def status_switch(
     repo = UserRepository(db)
     service = UserService(repo, AuditService(AuditRepository(db)))
 
-    response_data = await service.switch_status(req.is_active, user_id, current_admin.id)
+    response_data = await service.switch_status(
+        req.is_active, user_id, current_admin.id,
+    )
 
     if response_data is None:
         raise HTTPException(
@@ -169,7 +171,9 @@ async def change_user_role(
     repo = UserRepository(db)
     service = UserService(repo, AuditService(AuditRepository(db)))
 
-    response_data = await service.change_role(user_id, req.new_role.value, current_admin.id)
+    response_data = await service.change_role(
+        user_id, req.new_role.value, current_admin.id,
+    )
 
     if response_data is None:
         raise HTTPException(

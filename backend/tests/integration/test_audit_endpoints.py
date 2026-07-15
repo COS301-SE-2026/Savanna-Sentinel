@@ -146,10 +146,12 @@ async def seeded_audit_logs(admin_token):
         )
         actor_id = str(result.scalar_one())
 
-        for action in ("user.role_changed", "user.account_accepted", "user.deleted"):
+        actions = ("user.role_changed", "user.account_accepted", "user.deleted")
+        for action in actions:
             await conn.execute(
                 text(
-                    "INSERT INTO audit_logs (actor_id, action, target_type, target_id) "
+                    "INSERT INTO audit_logs "
+                    "(actor_id, action, target_type, target_id) "
                     "VALUES (:actor_id, :action, 'user', :actor_id)",
                 ),
                 {"actor_id": actor_id, "action": action},
@@ -181,8 +183,9 @@ async def test_filter_by_action(seeded_audit_logs):
         )
 
     body = response.json()
+    actor_id = seeded_audit_logs["actor_id"]
     assert all(r["action"] == "user.deleted" for r in body["results"])
-    assert any(r["actor_id"] == seeded_audit_logs["actor_id"] for r in body["results"])
+    assert any(r["actor_id"] == actor_id for r in body["results"])
 
 
 @pytest.mark.asyncio

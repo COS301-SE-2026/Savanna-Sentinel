@@ -1,8 +1,14 @@
 from __future__ import annotations
-from typing import Optional
+
+from typing import TYPE_CHECKING, Optional
+
 from sqlalchemy import func, select
+
 from app.models.audit_log import AuditLog
-from app.schemas.audit import AuditLogFilterRequest
+
+if TYPE_CHECKING:
+    from app.schemas.audit import AuditLogFilterRequest
+
 
 class AuditRepository:
     def __init__(self, db):

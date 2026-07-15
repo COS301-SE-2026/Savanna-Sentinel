@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from app.repositories.audit_repository import AuditRepository
-from app.schemas.audit import (
-    AuditLogFilterRequest,
-    AuditLogListResponse,
-    AuditLogResponse,
-)
+from app.schemas.audit import AuditLogListResponse, AuditLogResponse
+
+if TYPE_CHECKING:
+    from app.repositories.audit_repository import AuditRepository
+    from app.schemas.audit import AuditLogFilterRequest
 
 
 class AuditService:

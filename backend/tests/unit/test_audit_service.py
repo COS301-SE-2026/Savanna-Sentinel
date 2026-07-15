@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+
 from app.schemas.audit import AuditLogFilterRequest
 from app.services.audit_service import AuditService
 
@@ -40,7 +41,8 @@ async def test_log_calls_repo_create_with_given_arguments():
     )
 
     mock_repo.create.assert_awaited_once_with(
-        "admin-1", "user.deleted", "user", "user-9", {"reason": "rejected registration"},
+        "admin-1", "user.deleted", "user", "user-9",
+        {"reason": "rejected registration"},
     )
 
 

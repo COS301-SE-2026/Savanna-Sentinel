@@ -12,7 +12,11 @@ from app.services.audit_service import AuditService
 
 
 class UserService:  # noqa: D101
-    def __init__(self, repo: UserRepository, audit_service: AuditService | None = None):  # noqa: D107
+    def __init__(  # noqa: D107
+        self,
+        repo: UserRepository,
+        audit_service: AuditService | None = None,
+    ):
         self.repo = repo
         self.audit_service = audit_service
 
@@ -82,14 +86,22 @@ class UserService:  # noqa: D101
             results=results,
         )
 
-    async def switch_status(self, is_active: bool, user_id: str, actor_id: str | None = None):  # noqa: D102
+    async def switch_status(  # noqa: D102
+        self,
+        is_active: bool,
+        user_id: str,
+        actor_id: str | None = None,
+    ):
         result = await self.repo.switch_status(is_active, user_id)
 
         if result is None:
             return None
 
         if self.audit_service and actor_id:
-            action = "user.account_accepted" if is_active else "user.account_deactivated"
+            action = (
+                "user.account_accepted" if is_active
+                else "user.account_deactivated"
+            )
             await self.audit_service.log(
                 actor_id=actor_id,
                 action=action,
@@ -115,7 +127,12 @@ class UserService:  # noqa: D101
 
         return result
 
-    async def change_role(self, user_id: str, new_role: str, actor_id: str | None = None):  # noqa: D102
+    async def change_role(  # noqa: D102
+        self,
+        user_id: str,
+        new_role: str,
+        actor_id: str | None = None,
+    ):
         result = await self.repo.update_role(user_id, new_role)
 
         if result and self.audit_service and actor_id:

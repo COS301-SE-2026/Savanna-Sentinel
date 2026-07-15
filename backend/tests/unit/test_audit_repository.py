@@ -1,4 +1,5 @@
 import pytest
+
 from app.repositories.audit_repository import AuditRepository
 from app.schemas.audit import AuditLogFilterRequest
 
@@ -39,7 +40,9 @@ async def test_create_sets_created_at_from_db_default(db_session):
 @pytest.mark.asyncio
 async def test_list_logs_filters_by_action(db_session):
     repo = AuditRepository(db_session)
-    await repo.create(actor_id="admin-1", action="user.role_changed", target_id="u1")
+    await repo.create(
+        actor_id="admin-1", action="user.role_changed", target_id="u1",
+    )
     await repo.create(actor_id="admin-1", action="user.deleted", target_id="u2")
 
     req = _filter_req(action="user.deleted")
