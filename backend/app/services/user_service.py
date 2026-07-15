@@ -8,11 +8,13 @@ from app.schemas.user import (
     UsersRequest,
     UsersResultResponse,
 )
+from app.services.audit_service import AuditService
 
 
 class UserService:  # noqa: D101
-    def __init__(self, repo: UserRepository):  # noqa: D107
+    def __init__(self, repo: UserRepository, audit_service: AuditService | None = None):  # noqa: D107
         self.repo = repo
+        self.audit_service = audit_service
 
     def get_me(self, user: User) -> User:  # noqa: D102
         return user
