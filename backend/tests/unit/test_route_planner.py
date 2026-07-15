@@ -60,3 +60,31 @@ def make_graph() -> SimpleGraphFixture:
         mid_node_id="mid",
         end_node_id="end",
     )
+
+# Check if init uses tau max
+def test_init_pheromones():
+    fixture = make_graph()
+    config = route_planner.ACOConfig(tau_max=4.2)
+
+    pheromones = route_planner.init_pheromones(fixture.graph, config)
+
+    assert pheromones == {
+        ("start", "mid"): 4.2,
+        ("mid", "end"): 4.2,
+        ("start", "end"): 4.2,
+    }
+
+
+def test_feasible_edges_filter():
+    fixture = make_graph()
+
+    edges = route_planner.feasible_edges(
+        fixture.graph,
+        current_node="start",
+        end_node_id=fixture.end_node_id,
+        visited={"start"},
+        time_remaining=20.0,
+        fuel_remaining=3.0,
+    )
+
+    assert [edge.to_node_id for edge in edges] == ["mid"]
