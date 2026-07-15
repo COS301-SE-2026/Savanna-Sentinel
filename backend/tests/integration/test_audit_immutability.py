@@ -63,3 +63,13 @@ async def test_update_on_audit_logs_raises(db_session, seeded_audit_log):
             {"id": seeded_audit_log.id},
         )
         await db_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_delete_on_audit_logs_raises(db_session, seeded_audit_log):
+    with pytest.raises(DBAPIError, match="insert-only"):
+        await db_session.execute(
+            text("DELETE FROM audit_logs WHERE id = :id"),
+            {"id": seeded_audit_log.id},
+        )
+        await db_session.commit()
