@@ -99,13 +99,21 @@ class UserService:  # noqa: D101
 
         return result
 
-    async def admin_delete(self, user_id: str):  # noqa: D102
-        results = await self.repo.admin_delete(user_id)
+    async def admin_delete(self, user_id: str, actor_id: str | None = None):  # noqa: D102
+        if self.audit_service and actor_id:
+            await self.audit_service.log(
+                actor_id=actor_id,
+                action="user.deleted",
+                target_type="user",
+                target_id=user_id,
+            )
 
-        if results is None:
+        result = await self.repo.admin_delete(user_id)
+
+        if result is None:
             return None
 
-        return results
+        return result
 
     async def change_role(self, user_id: str, new_role: str, actor_id: str | None = None):  # noqa: D102
         result = await self.repo.update_role(user_id, new_role)

@@ -137,9 +137,9 @@ async def admin_delete_user(
         ],
     ):
     repo=UserRepository(db)
-    service = UserService(repo)
+    service = UserService(repo, AuditService(AuditRepository(db)))
 
-    response_data = await service.admin_delete(user_id)
+    response_data = await service.admin_delete(user_id, current_admin.id)
 
     if response_data is None:
         raise HTTPException(
