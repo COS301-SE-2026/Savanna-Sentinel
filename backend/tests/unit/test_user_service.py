@@ -12,6 +12,16 @@ from app.services.user_service import UserService
 
 pytestmark = pytest.mark.asyncio
 
+
+def _fake_user_repo(is_active=True, found=True):
+    mock_repo = MagicMock()
+    if found:
+        mock_user = MagicMock(id="user-1", is_active=is_active)
+        mock_repo.switch_status = AsyncMock(return_value=mock_user)
+    else:
+        mock_repo.switch_status = AsyncMock(return_value=None)
+    return mock_repo
+
 #This test file is kinda useless since the service doesnt do much
 #except act like a middleman right now, but adding it
 #in case like email and stuff gets addded
@@ -76,6 +86,46 @@ async def test_switch_status_service_returns_none_when_user_not_found():
 
     assert result is None
     mock_repo.switch_status.assert_called_once_with(False, "fake_id")
+
+
+async def test_switch_status_activate_logs_account_accepted():
+    mock_audit = AsyncMock()
+    service = UserService(repo=_fake_user_repo(is_active=True), audit_service=mock_audit)
+
+    await service.switch_status(is_active=True, user_id="user-1", actor_id="admin-1")
+
+    mock_audit.log.assert_awaited_once_with(
+        actor_id="admin-1",
+        action="user.account_accepted",
+        target_type="user",
+        target_id="user-1",
+    )
+
+
+async def test_switch_status_deactivate_logs_account_deactivated():
+    mock_audit = AsyncMock()
+    service = UserService(repo=_fake_user_repo(is_active=False), audit_service=mock_audit)
+
+    await service.switch_status(is_active=False, user_id="user-1", actor_id="admin-1")
+
+    mock_audit.log.assert_awaited_once_with(
+        actor_id="admin-1",
+        action="user.account_deactivated",
+        target_type="user",
+        target_id="user-1",
+    )
+
+
+async def test_switch_status_does_not_log_when_target_user_not_found():
+    mock_audit = AsyncMock()
+    service = UserService(repo=_fake_user_repo(found=False), audit_service=mock_audit)
+
+    result = await service.switch_status(
+        is_active=True, user_id="missing", actor_id="admin-1",
+    )
+
+    assert result is None
+    mock_audit.log.assert_not_awaited()
 
 async def test_change_role_service_returns_updated_user():
     """Test that change_role() returns the updated user."""
