@@ -18,8 +18,10 @@ def _fake_user_repo(is_active=True, found=True):
     if found:
         mock_user = MagicMock(id="user-1", is_active=is_active)
         mock_repo.switch_status = AsyncMock(return_value=mock_user)
+        mock_repo.update_role = AsyncMock(return_value=mock_user)
     else:
         mock_repo.switch_status = AsyncMock(return_value=None)
+        mock_repo.update_role = AsyncMock(return_value=None)
     return mock_repo
 
 #This test file is kinda useless since the service doesnt do much
@@ -151,6 +153,22 @@ async def test_change_role_service_returns_none_when_user_not_found():
 
     assert result is None
     mock_repo.update_role.assert_called_once_with("nonexistent", "ranger")
+
+
+@pytest.mark.asyncio
+async def test_change_role_logs_new_role_in_details():
+    mock_audit = AsyncMock()
+    service = UserService(repo=_fake_user_repo(), audit_service=mock_audit)
+
+    await service.change_role(user_id="user-1", new_role="analyst", actor_id="admin-1")
+
+    mock_audit.log.assert_awaited_once_with(
+        actor_id="admin-1",
+        action="user.role_changed",
+        target_type="user",
+        target_id="user-1",
+        details={"new_role": "analyst"},
+    )
 
 
 # get_me() tests
