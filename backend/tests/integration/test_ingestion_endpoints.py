@@ -67,7 +67,11 @@ def valid_body():
 # INTEGRATION TESTS
 
 @pytest.mark.asyncio
-async def test_upload_flow_as_authorised_analyst(client, db_session, valid_body):
+async def test_upload_flow_as_authorised_analyst(
+        client,
+        db_session,
+        valid_body,
+    ):
     headers = await _get_auth_headers(
         client,
         db_session,
@@ -76,8 +80,39 @@ async def test_upload_flow_as_authorised_analyst(client, db_session, valid_body)
         role="analyst",
     )
 
-    response = client.post("/v1/ingestion/upload",  json=valid_body, headers=headers)
+    response = client.post(
+        "/v1/ingestion/upload",
+        json=valid_body,
+        headers=headers,
+    )
 
     assert response.status_code == 200
     assert response.json()["status"] == "success"
     assert "rows 1 to 1" in response.json()["message"]
+
+@pytest.mark.asyncio
+async def test_upload_flow_as_unauthorised_user(client, db_session, valid_body):
+    headers = await _get_auth_headers(
+        client,
+        db_session,
+        username="test",
+        email="e@example.com",
+        role="ranger",
+    )
+
+    response = client.post(
+        "/v1/ingestion/upload",
+        json=valid_body,
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+
+@pytest.mark.asyncio
+async def test_upload_missing_token(client, valid_body):
+    response = client.post(
+        "/v1/ingestion/upload",
+        json=valid_body,
+    )
+
+    assert response.status_code == 401
