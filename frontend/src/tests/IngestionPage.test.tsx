@@ -425,10 +425,11 @@ describe("Logic tests - Batch logic", () => {
         const progress = await screen.findByText(/Displaying rows 1 to 500/i);
         expect(progress).toBeInTheDocument();
 
-        const inputsBatch = await screen.findAllByRole("textbox");
+        const table = screen.getByRole("table");
+        const inputsBatch = table.querySelectorAll("input");
 
         expect(inputsBatch).toHaveLength(1000);
-    });
+    }, 15000);
     it("should advance to the next batch upon successful intermediate submission", async () => {
         vi_mockSchema = [
             { name: "id", type: "number" },

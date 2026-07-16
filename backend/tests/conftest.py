@@ -1,5 +1,4 @@
 import asyncio
-import inspect
 import os
 
 from dotenv import load_dotenv
