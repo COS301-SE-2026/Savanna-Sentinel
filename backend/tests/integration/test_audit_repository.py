@@ -14,8 +14,7 @@ async def actor(db_session, engine):
         email="test_audit_repo_actor@example.com",
         first_name="Test",
         last_name="Actor",
-        # NOSONAR
-        hashed_password="hashed",
+        hashed_password="hashed",  # NOSONAR
         role="admin",
         is_active=True,
     )

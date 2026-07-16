@@ -17,7 +17,7 @@ def _register_payload(**overrides):
     base = {
         "username": "test_audit_user",
         "email": "test_audit_user@example.com",
-        "password": "SecurePass1!",
+        "password": "SecurePass1!",  # NOSONAR
         "first_name": "Test",
         "last_name": "Audit",
         "requested_role": "ranger",

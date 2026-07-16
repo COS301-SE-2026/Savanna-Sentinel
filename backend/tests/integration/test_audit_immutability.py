@@ -14,8 +14,7 @@ async def seeded_audit_log(db_session, engine):
         email="test_audit_immutable_actor@example.com",
         first_name="Test",
         last_name="Immutable",
-        # NOSONAR
-        hashed_password="hashed",
+        hashed_password="hashed",  # NOSONAR
         role="admin",
         is_active=True,
     )
@@ -44,7 +43,6 @@ async def test_update_on_audit_logs_raises(db_session, seeded_audit_log):
             text("UPDATE audit_logs SET action = 'tampered' WHERE id = :id"),
             {"id": seeded_audit_log.id},
         )
-        await db_session.commit()
 
 
 @pytest.mark.asyncio
@@ -54,4 +52,3 @@ async def test_delete_on_audit_logs_raises(db_session, seeded_audit_log):
             text("DELETE FROM audit_logs WHERE id = :id"),
             {"id": seeded_audit_log.id},
         )
-        await db_session.commit()
