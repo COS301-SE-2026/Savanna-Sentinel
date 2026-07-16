@@ -30,7 +30,8 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 const labelClass = "text-color-text-inverse md:text-color-text-primary";
 const inputClass =
     "bg-color-surface-deep/40 text-color-text-inverse placeholder:text-color-text-inverse/50 border-color-text-inverse/20 focus:border-color-text-inverse focus-visible:outline-color-text-inverse md:bg-color-surface-raised md:text-color-text-primary md:placeholder:text-color-input-border md:border-color-input-border md:focus:border-brand-primary md:focus-visible:outline-brand-primary";
-const errorClass = "text-xs text-color-text-inverse md:text-status-critical-text";
+const errorClass =
+    "text-xs text-color-text-inverse md:text-status-critical-text";
 
 function BrandPanel() {
     return (
@@ -74,7 +75,7 @@ const RegisterPage = () => {
             } else {
                 notifyCritical(
                     "Registration failed",
-                    "Something went wrong. Please try again later.",
+                    "An error occurred. Try again later.",
                 );
             }
         }
@@ -143,7 +144,8 @@ const RegisterPage = () => {
                                 autoFocus
                                 className={cn(
                                     inputClass,
-                                    errors.first_name && "border-status-critical",
+                                    errors.first_name &&
+                                        "border-status-critical",
                                 )}
                                 {...register("first_name")}
                             />
@@ -165,7 +167,8 @@ const RegisterPage = () => {
                                 autoComplete="family-name"
                                 className={cn(
                                     inputClass,
-                                    errors.last_name && "border-status-critical",
+                                    errors.last_name &&
+                                        "border-status-critical",
                                 )}
                                 {...register("last_name")}
                             />

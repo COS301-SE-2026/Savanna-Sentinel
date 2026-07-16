@@ -9,6 +9,8 @@
 @import "@fontsource/barlow-condensed/700.css";
 @import "@fontsource/barlow-condensed/800.css";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme {
     --font-sans: "Barlow", sans-serif;
     --font-heading: "Barlow Condensed", sans-serif;

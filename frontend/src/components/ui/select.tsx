@@ -9,7 +9,8 @@ function Select({
     ...props
 }: React.ComponentProps<"select"> & { iconClassName?: string }) {
     return (
-        <div className={cn("relative", className)}>
+        // doesnt match BSG exactly due to React reasons, so dont worry about the mismatch
+        <div className={cn("relative rounded-md", className)}>
             <select
                 data-slot="select"
                 className={cn(

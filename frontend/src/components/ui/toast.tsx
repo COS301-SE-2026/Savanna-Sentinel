@@ -48,7 +48,7 @@ function ToastCard({
                 aria-label="Dismiss"
                 onClick={() => sonnerToast.dismiss(id)}
                 className={cn(
-                    "shrink-0 self-center rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary focus-visible:[--tw-outline-style:solid]",
+                    "relative shrink-0 self-center rounded-sm outline-none before:absolute before:-inset-3 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary focus-visible:[--tw-outline-style:solid]",
                     variantTextClass[variant],
                 )}
             >
