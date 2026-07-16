@@ -481,4 +481,57 @@ describe("Logic tests - Batch logic", () => {
         alertSpy.mockRestore();
         uploadSpy.mockRestore();
     })
+    it("parses and alerts nested error detail messages", async() => {
+        vi_mockSchema = [
+            { name: "id", type: "number" },
+            { name: "status", type: "string" },
+        ];
+
+        const user = userEvent.setup();
+
+        const customError = {
+            response: {
+                status: 422,
+                data: {
+                    detail: {
+                        message: "Validation failed for some records on this batch, please correct and reupload",
+                        errors: {
+                            "row_1": [
+                                {
+                                    "column": "status",
+                                    "error_type": "string_type",
+                                    "message": "Input should be a valid string"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        };
+
+        const uploadSpy = vi.spyOn(ingestionApi, "uploadFile").mockRejectedValue(customError);
+        renderIngestionPage();
+
+        const csvFile = new File(
+            ["id,status\n1,12345"],
+            "test.csv",
+            {type: "text/csv"}
+        )
+        const fileInput = screen.getByLabelText("CSV file upload");
+        await user.upload(fileInput, csvFile);
+
+        const submitButton = screen.getByRole("button", { name: /Submit/i });
+        await user.click(submitButton);
+
+        expect(uploadSpy).toHaveBeenCalledTimes(1);
+
+        const summary = await screen.findByText(/Validation failed for some records/i);
+        expect(summary).toBeInTheDocument();
+
+        const badStatus = screen.getByDisplayValue("12345");
+
+        expect(badStatus).toHaveClass("border-red-500");
+
+        uploadSpy.mockRestore();
+    })
 })

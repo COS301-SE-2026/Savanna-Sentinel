@@ -21,12 +21,20 @@ interface DataRowProps {
     rowIndex: number;
     cells: string[];
     schema: ColDef[];
+    rowServerErrors?: ServerValidationError[]
     onCellChange: (
         rowIndex: number,
         cellIndex: number,
         newValue: string,
     ) => void;
 }
+
+interface ServerValidationError {
+    column: string;
+    error_type: string,
+    message: string,
+}
+type ServerErrorsMap = Record<string, ServerValidationError[]>;
 
 const validateData = (value: string, expected: Expectation): boolean => {
     if (!value) {
@@ -59,6 +67,7 @@ const IngestionPage = () => {
     const [currentLineNumber, setCurrentLineNumber] = useState<number>(1);
     const [allLines, setAllLines] = useState<string[]>([]);
     const [isComplete, setIsComplete] = useState<boolean>(false);
+    const [serverErrors, setServerErrors] = useState<ServerErrorsMap | null>(null);
 
     
     const loadBatch = (lines: string[], startLine: number) => {
@@ -71,6 +80,7 @@ const IngestionPage = () => {
 
         setParsedRows(parsedBatch)
         setCurrentLineNumber(startLine)
+        setServerErrors(null);
     }
 
     const validateSchema = (file: File): Promise<boolean> => {
@@ -148,6 +158,7 @@ const IngestionPage = () => {
 
         //Clear error messages
         setErrorMessage(null);
+        setServerErrors(null);
         setIsComplete(false);
         const isValid = await validateSchema(file);
         if (!isValid) {
@@ -169,6 +180,20 @@ const IngestionPage = () => {
             updatedRows[rowIndex][colIndex] = newValue;
             return updatedRows;
         });
+
+        if(serverErrors){
+            const rowKey = `row_${rowIndex + 1}`;
+            if(serverErrors[rowKey]) {
+                setServerErrors((prev) => {
+                    if(!prev){
+                        return null;
+                    }
+                    const updated = {...prev}
+                    delete updated[rowKey]
+                    return updated;
+                })
+            }
+        }
     };
 
     //Revalidate data after edit
@@ -210,6 +235,9 @@ const IngestionPage = () => {
         try{
             await ingestionApi.uploadFile(records, currentLineNumber);
 
+            setErrorMessage(null);
+            setServerErrors(null);
+
             //Advance to the next batch
             const nextLine = currentLineNumber + parsedRows.length;
             if(nextLine >= allLines.length){
@@ -228,13 +256,28 @@ const IngestionPage = () => {
             let errorMessage = "A network issue occured while submitting this batch"
 
             if(error && typeof error === "object" && "response" in error){
-                const axiosError = error as { response?: {data?: {detail?: {message?: string}}}}
-                if(axiosError.response?.data?.detail?.message){
-                    errorMessage = axiosError.response.data.detail.message
+                const axiosError = error as {
+                    response?:
+                        {data?:
+                            {detail?:
+                                {message?: string,
+                                errors?: ServerErrorsMap
+                            }
+                        }
+                    }
+                }
+
+                const detail = axiosError.response?.data?.detail;
+                if(detail){
+                    if(detail.message){
+                        errorMessage = detail.message;
+                    }
+                    if (detail.errors){
+                        setServerErrors(detail.errors)
+                    }
                 }
             }
-
-            alert(errorMessage)
+            setErrorMessage(errorMessage)
         }
     };
     return (
@@ -268,15 +311,22 @@ const IngestionPage = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {parsedRows.map((row, i) => (
-                                <DataRow
-                                    key={i}
-                                    rowIndex={i}
-                                    cells={row}
-                                    schema={FILE_SCHEMA}
-                                    onCellChange={handleCellChange}
-                                />
-                            ))}
+                            {parsedRows.map((row, i) => {
+                                const rowKey = `row_${i + 1}`
+                                const rowErrors = serverErrors ? serverErrors[rowKey] : undefined
+
+                                return(
+                                    <DataRow
+                                        key={i}
+                                        rowIndex={i}
+                                        cells={row}
+                                        schema={FILE_SCHEMA}
+                                        rowServerErrors={rowErrors}
+                                        onCellChange={handleCellChange}
+                                    />
+                                )
+
+                            })}
                         </TableBody>
                     </Table>
                 </div>
@@ -291,6 +341,7 @@ const DataRow: React.FC<DataRowProps> = ({
     rowIndex,
     cells,
     schema,
+    rowServerErrors,
     onCellChange,
 }) => {
     return (
@@ -305,35 +356,54 @@ const DataRow: React.FC<DataRowProps> = ({
                     : false;
 
                 const isEmpty = cellValue === "";
+
+                const matchingServerError = rowServerErrors?.find(
+                    (err) => err.column === typeDef.name
+                )
+                const hasServerError = !!matchingServerError
+                const isInvalid = !isTypeValid || isEmpty || hasServerError
+                
+                const shouldHighlightBg = isEmpty || hasServerError;
+
+                let titleMessage: string | undefined = undefined;
+                if(isEmpty){
+                    titleMessage = `Field "${typeDef.name}" is missing/empty`;
+                }
+                else if(!isTypeValid){
+                    titleMessage = `Expected ${typeDef.type} but got "${cellValue}"`
+                }
+                else if(matchingServerError){
+                    titleMessage = `Server Validation Failed: ${matchingServerError.message}`
+                }
+
                 return (
                     <TableCell key={i}>
                         <div>
                             <input
                                 type="text"
                                 value={cellValue}
+                                className={matchingServerError ? "border-red-500" : ""}
                                 onChange={(e) =>
                                     onCellChange(rowIndex, i, e.target.value)
                                 }
                                 style={{
-                                    backgroundColor: isEmpty
+                                    backgroundColor: shouldHighlightBg
                                         ? "rgb(239, 30, 30, 0.15)"
                                         : "transparent",
                                     color:
-                                        !isTypeValid || isEmpty
+                                        isInvalid
                                             ? "red"
                                             : "inherit",
                                     fontWeight:
-                                        !isTypeValid || isEmpty
+                                        isInvalid
                                             ? "bold"
                                             : "normal",
+                                    border:
+                                        matchingServerError ? "1px solid red" : "none",
+                                    outline:
+                                        matchingServerError ? "none" : undefined
                                 }}
-                                title={
-                                    isEmpty
-                                        ? `Field "${typeDef.name} is missing/empty`
-                                        : !isTypeValid
-                                          ? `Expected ${typeDef.type} but got "${cellValue}"`
-                                          : undefined
-                                }
+                                title={titleMessage}
                             />
                         </div>
                     </TableCell>
