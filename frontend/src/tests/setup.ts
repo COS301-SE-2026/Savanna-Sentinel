@@ -28,3 +28,19 @@ window.HTMLElement.prototype.setPointerCapture = () => {};
 window.HTMLElement.prototype.releasePointerCapture = () => {};
 
 window.HTMLElement.prototype.scrollIntoView = () => {};
+
+window.matchMedia =
+    window.matchMedia ||
+    ((query: string) => {
+        const maxWidth = query.match(/max-width:\s*(\d+)px/)?.[1];
+        return {
+            matches: maxWidth ? window.innerWidth <= Number(maxWidth) : false,
+            media: query,
+            onchange: null,
+            addListener: () => {},
+            removeListener: () => {},
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => false,
+        };
+    });
