@@ -87,18 +87,10 @@ describe("Rendering tests - File upload errors (not content) ", () => {
 
         //Mock file reader to make it throw an error everytime, simulating file error
         const readAsTextSpy = vi
-            .spyOn(FileReader.prototype, "readAsText")
-            .mockImplementation(function (this: FileReader) {
-                const error = new ProgressEvent("error", {
-                    lengthComputable: false,
-                    loaded: 0,
-                    total: 0,
-                });
-
-                if (this.onerror) {
-                    this.onerror(error as ProgressEvent<FileReader>);
-                }
-            });
+            .spyOn(File.prototype, "text")
+            .mockRejectedValue(
+                new Error("Simulated browser file read failure"),
+            );
 
         const csvFile = new File(["id,status\n"], "test.csv", {
             type: "text/csv",

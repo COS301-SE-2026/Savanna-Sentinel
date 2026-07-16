@@ -36,6 +36,43 @@ interface ServerValidationError {
 }
 type ServerErrorsMap = Record<string, ServerValidationError[]>;
 
+const mapRowToRecord = (row: string[]): Record<string, unknown> => {
+    const record: Record<string, unknown> = {};
+
+    FILE_SCHEMA.forEach((col, i) => {
+        const value = row[i];
+        if (col.type === "number") {
+            record[col.name] = Number(value);
+        } else if (col.type === "boolean") {
+            record[col.name] =
+                value.toLowerCase() === "true" || value.toLowerCase() === "1";
+        } else {
+            record[col.name] = value;
+        }
+    });
+
+    return record;
+};
+
+interface ServerErrorDetail {
+    message?: string;
+    errors?: ServerErrorsMap;
+}
+
+const parseServerError = (error: unknown): ServerErrorDetail | null => {
+    if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as {
+            response?: {
+                data?: {
+                    detail?: ServerErrorDetail;
+                };
+            };
+        };
+        return axiosError.response?.data?.detail ?? null;
+    }
+    return null;
+};
+
 const validateData = (value: string, expected: Expectation): boolean => {
     if (!value) {
         return false;
@@ -84,64 +121,46 @@ const IngestionPage = () => {
         setServerErrors(null);
     };
 
-    const validateSchema = (file: File): Promise<boolean> => {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
+    const validateSchema = async (file: File): Promise<boolean> => {
+        try {
+            const text = await file.text();
+            const lines = text
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter((line) => line !== "");
+            const firstLine = lines[0];
 
-            reader.onload = (e) => {
-                const text = e.target?.result;
-                if (typeof text !== "string") {
-                    return resolve(false);
-                }
-
-                //Use regex to get the first line of text
-                const lines = text
-                    .split(/\r?\n/)
-                    .filter((line) => line.trim() !== "");
-                const firstLine = lines[0];
-
-                if (!firstLine) {
-                    setErrorMessage(
-                        "The uploaded file is empty, please ensure the first row of the file indicates column headings.",
-                    );
-                    setSelectedFile(null);
-                    setParsedRows([]);
-                    return resolve(false);
-                }
-
-                //Check first row matches
-                //trim is to trim the <CR><LF> character at the end of the row
-                const headers = firstLine
-                    .split(",")
-                    .map((header) => header.trim());
-                if (
-                    headers.length !== FILE_SCHEMA.length ||
-                    !FILE_SCHEMA.every((col, i) => headers[i] === col.name)
-                ) {
-                    setErrorMessage(
-                        "Invalid first row, please ensure that the first row matches the expected schema.",
-                    );
-                    setSelectedFile(null);
-                    setParsedRows([]);
-                    return resolve(false);
-                }
-                setAllLines(lines);
-                loadBatch(lines, 1);
-
-                resolve(true);
-            };
-
-            reader.onerror = () => {
+            if (!firstLine) {
                 setErrorMessage(
-                    "Error reading the file. Please contact support.",
+                    "The uploaded file is empty, please ensure the first row of the file indicates column headings.",
                 );
                 setSelectedFile(null);
                 setParsedRows([]);
-                resolve(false);
-            };
+                return false;
+            }
+            const headers = firstLine.split(",").map((header) => header.trim());
+            if (
+                headers.length !== FILE_SCHEMA.length ||
+                !FILE_SCHEMA.every((col, i) => headers[i] === col.name)
+            ) {
+                setErrorMessage(
+                    "Invalid first row, please ensure that the first row matches the expected schema.",
+                );
+                setSelectedFile(null);
+                setParsedRows([]);
+                return false;
+            }
+            setAllLines(lines);
+            loadBatch(lines, 1);
 
-            reader.readAsText(file);
-        });
+            return true;
+        } catch (error: unknown) {
+            setErrorMessage("Error reading the file. Please contact support.");
+            console.error(error);
+            setSelectedFile(null);
+            setParsedRows([]);
+            return false;
+        }
     };
 
     const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -216,24 +235,7 @@ const IngestionPage = () => {
             return;
         }
 
-        const records = parsedRows.map((row) => {
-            //unknown currently used for dynamic reasons, switch to interface once interface is decided
-            const record: Record<string, unknown> = {};
-            FILE_SCHEMA.forEach((col, i) => {
-                const value = row[i];
-                //Convert to JSON correctly
-                if (col.type === "number") {
-                    record[col.name] = Number(value);
-                } else if (col.type === "boolean") {
-                    record[col.name] =
-                        value.toLowerCase() === "true" ||
-                        value.toLowerCase() === "1";
-                } else {
-                    record[col.name] = value;
-                }
-            });
-            return record;
-        });
+        const records = parsedRows.map(mapRowToRecord);
 
         try {
             await ingestionApi.uploadFile(records, currentLineNumber);
@@ -257,28 +259,16 @@ const IngestionPage = () => {
             let errorMessage =
                 "A network issue occured while submitting this batch";
 
-            if (error && typeof error === "object" && "response" in error) {
-                const axiosError = error as {
-                    response?: {
-                        data?: {
-                            detail?: {
-                                message?: string;
-                                errors?: ServerErrorsMap;
-                            };
-                        };
-                    };
-                };
-
-                const detail = axiosError.response?.data?.detail;
-                if (detail) {
-                    if (detail.message) {
-                        errorMessage = detail.message;
-                    }
-                    if (detail.errors) {
-                        setServerErrors(detail.errors);
-                    }
+            const detail = parseServerError(error);
+            if (detail) {
+                if (detail.message) {
+                    errorMessage = detail.message;
+                }
+                if (detail.errors) {
+                    setServerErrors(detail.errors);
                 }
             }
+
             setErrorMessage(errorMessage);
         }
     };
@@ -331,7 +321,7 @@ const IngestionPage = () => {
 
                                 return (
                                     <DataRow
-                                        key={i}
+                                        key={rowKey}
                                         rowIndex={i}
                                         cells={row}
                                         schema={FILE_SCHEMA}
@@ -388,7 +378,7 @@ const DataRow: React.FC<DataRowProps> = ({
                 }
 
                 return (
-                    <TableCell key={i}>
+                    <TableCell key={typeDef.name}>
                         <div>
                             <input
                                 type="text"
