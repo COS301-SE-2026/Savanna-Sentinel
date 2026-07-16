@@ -15,13 +15,13 @@ import {
 } from "@/lib/ingestionSchema";
 import { ingestionApi } from "@/services/ingestionApi";
 
-const BATCH_SIZE = 500
+const BATCH_SIZE = 500;
 
 interface DataRowProps {
     rowIndex: number;
     cells: string[];
     schema: ColDef[];
-    rowServerErrors?: ServerValidationError[]
+    rowServerErrors?: ServerValidationError[];
     onCellChange: (
         rowIndex: number,
         cellIndex: number,
@@ -31,8 +31,8 @@ interface DataRowProps {
 
 interface ServerValidationError {
     column: string;
-    error_type: string,
-    message: string,
+    error_type: string;
+    message: string;
 }
 type ServerErrorsMap = Record<string, ServerValidationError[]>;
 
@@ -67,21 +67,22 @@ const IngestionPage = () => {
     const [currentLineNumber, setCurrentLineNumber] = useState<number>(1);
     const [allLines, setAllLines] = useState<string[]>([]);
     const [isComplete, setIsComplete] = useState<boolean>(false);
-    const [serverErrors, setServerErrors] = useState<ServerErrorsMap | null>(null);
+    const [serverErrors, setServerErrors] = useState<ServerErrorsMap | null>(
+        null,
+    );
 
-    
     const loadBatch = (lines: string[], startLine: number) => {
         const endLine = Math.min(startLine + BATCH_SIZE, lines.length);
-        const batchSlice = lines.slice(startLine, endLine)
+        const batchSlice = lines.slice(startLine, endLine);
 
-        const parsedBatch = batchSlice.map((line) => 
-            line.split(",").map((cell) => cell.trim())
-        )
+        const parsedBatch = batchSlice.map((line) =>
+            line.split(",").map((cell) => cell.trim()),
+        );
 
-        setParsedRows(parsedBatch)
-        setCurrentLineNumber(startLine)
+        setParsedRows(parsedBatch);
+        setCurrentLineNumber(startLine);
         setServerErrors(null);
-    }
+    };
 
     const validateSchema = (file: File): Promise<boolean> => {
         return new Promise((resolve) => {
@@ -94,7 +95,9 @@ const IngestionPage = () => {
                 }
 
                 //Use regex to get the first line of text
-                const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
+                const lines = text
+                    .split(/\r?\n/)
+                    .filter((line) => line.trim() !== "");
                 const firstLine = lines[0];
 
                 if (!firstLine) {
@@ -122,8 +125,8 @@ const IngestionPage = () => {
                     setParsedRows([]);
                     return resolve(false);
                 }
-                setAllLines(lines)
-                loadBatch(lines, 1)
+                setAllLines(lines);
+                loadBatch(lines, 1);
 
                 resolve(true);
             };
@@ -181,17 +184,17 @@ const IngestionPage = () => {
             return updatedRows;
         });
 
-        if(serverErrors){
+        if (serverErrors) {
             const rowKey = `row_${rowIndex + 1}`;
-            if(serverErrors[rowKey]) {
+            if (serverErrors[rowKey]) {
                 setServerErrors((prev) => {
-                    if(!prev){
+                    if (!prev) {
                         return null;
                     }
-                    const updated = {...prev}
-                    delete updated[rowKey]
+                    const updated = { ...prev };
+                    delete updated[rowKey];
                     return updated;
-                })
+                });
             }
         }
     };
@@ -232,7 +235,7 @@ const IngestionPage = () => {
             return record;
         });
 
-        try{
+        try {
             await ingestionApi.uploadFile(records, currentLineNumber);
 
             setErrorMessage(null);
@@ -240,44 +243,43 @@ const IngestionPage = () => {
 
             //Advance to the next batch
             const nextLine = currentLineNumber + parsedRows.length;
-            if(nextLine >= allLines.length){
-                setIsComplete(true)
-                setParsedRows([])
-                setSelectedFile(null)
-                alert("Success! The entire file has been uploaded")
+            if (nextLine >= allLines.length) {
+                setIsComplete(true);
+                setParsedRows([]);
+                setSelectedFile(null);
+                alert("Success! The entire file has been uploaded");
+            } else {
+                loadBatch(allLines, nextLine);
             }
-            else{
-                loadBatch(allLines, nextLine)
-            }
-        }
-        catch(error: unknown){
-            console.error("Batch processing failed", error)
+        } catch (error: unknown) {
+            console.error("Batch processing failed", error);
 
-            let errorMessage = "A network issue occured while submitting this batch"
+            let errorMessage =
+                "A network issue occured while submitting this batch";
 
-            if(error && typeof error === "object" && "response" in error){
+            if (error && typeof error === "object" && "response" in error) {
                 const axiosError = error as {
-                    response?:
-                        {data?:
-                            {detail?:
-                                {message?: string,
-                                errors?: ServerErrorsMap
-                            }
-                        }
-                    }
-                }
+                    response?: {
+                        data?: {
+                            detail?: {
+                                message?: string;
+                                errors?: ServerErrorsMap;
+                            };
+                        };
+                    };
+                };
 
                 const detail = axiosError.response?.data?.detail;
-                if(detail){
-                    if(detail.message){
+                if (detail) {
+                    if (detail.message) {
                         errorMessage = detail.message;
                     }
-                    if (detail.errors){
-                        setServerErrors(detail.errors)
+                    if (detail.errors) {
+                        setServerErrors(detail.errors);
                     }
                 }
             }
-            setErrorMessage(errorMessage)
+            setErrorMessage(errorMessage);
         }
     };
     return (
@@ -291,12 +293,22 @@ const IngestionPage = () => {
                 onChange={handleFileUpload}
             />
             {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
-            {isComplete && <p style={{color: "green"}}>File batching sequence completed</p>}
+            {isComplete && (
+                <p style={{ color: "green" }}>
+                    File batching sequence completed
+                </p>
+            )}
 
             <h1>File contents</h1>
             {selectedFile && parsedRows.length > 0 ? (
                 <div>
-                    <h3>Displaying rows {currentLineNumber} to {Math.min(currentLineNumber + parsedRows.length - 1, allLines.length - 1)}</h3>
+                    <h3>
+                        Displaying rows {currentLineNumber} to{" "}
+                        {Math.min(
+                            currentLineNumber + parsedRows.length - 1,
+                            allLines.length - 1,
+                        )}
+                    </h3>
                     <button onClick={handleDataSubmission}>
                         Submit Current Batch
                     </button>
@@ -312,10 +324,12 @@ const IngestionPage = () => {
                         </TableHeader>
                         <TableBody>
                             {parsedRows.map((row, i) => {
-                                const rowKey = `row_${i + 1}`
-                                const rowErrors = serverErrors ? serverErrors[rowKey] : undefined
+                                const rowKey = `row_${i + 1}`;
+                                const rowErrors = serverErrors
+                                    ? serverErrors[rowKey]
+                                    : undefined;
 
-                                return(
+                                return (
                                     <DataRow
                                         key={i}
                                         rowIndex={i}
@@ -324,8 +338,7 @@ const IngestionPage = () => {
                                         rowServerErrors={rowErrors}
                                         onCellChange={handleCellChange}
                                     />
-                                )
-
+                                );
                             })}
                         </TableBody>
                     </Table>
@@ -358,22 +371,20 @@ const DataRow: React.FC<DataRowProps> = ({
                 const isEmpty = cellValue === "";
 
                 const matchingServerError = rowServerErrors?.find(
-                    (err) => err.column === typeDef.name
-                )
-                const hasServerError = !!matchingServerError
-                const isInvalid = !isTypeValid || isEmpty || hasServerError
-                
+                    (err) => err.column === typeDef.name,
+                );
+                const hasServerError = !!matchingServerError;
+                const isInvalid = !isTypeValid || isEmpty || hasServerError;
+
                 const shouldHighlightBg = isEmpty || hasServerError;
 
                 let titleMessage: string | undefined = undefined;
-                if(isEmpty){
+                if (isEmpty) {
                     titleMessage = `Field "${typeDef.name}" is missing/empty`;
-                }
-                else if(!isTypeValid){
-                    titleMessage = `Expected ${typeDef.type} but got "${cellValue}"`
-                }
-                else if(matchingServerError){
-                    titleMessage = `Server Validation Failed: ${matchingServerError.message}`
+                } else if (!isTypeValid) {
+                    titleMessage = `Expected ${typeDef.type} but got "${cellValue}"`;
+                } else if (matchingServerError) {
+                    titleMessage = `Server Validation Failed: ${matchingServerError.message}`;
                 }
 
                 return (
@@ -382,7 +393,9 @@ const DataRow: React.FC<DataRowProps> = ({
                             <input
                                 type="text"
                                 value={cellValue}
-                                className={matchingServerError ? "border-red-500" : ""}
+                                className={
+                                    matchingServerError ? "border-red-500" : ""
+                                }
                                 onChange={(e) =>
                                     onCellChange(rowIndex, i, e.target.value)
                                 }
@@ -390,18 +403,14 @@ const DataRow: React.FC<DataRowProps> = ({
                                     backgroundColor: shouldHighlightBg
                                         ? "rgb(239, 30, 30, 0.15)"
                                         : "transparent",
-                                    color:
-                                        isInvalid
-                                            ? "red"
-                                            : "inherit",
-                                    fontWeight:
-                                        isInvalid
-                                            ? "bold"
-                                            : "normal",
-                                    border:
-                                        matchingServerError ? "1px solid red" : "none",
-                                    outline:
-                                        matchingServerError ? "none" : undefined
+                                    color: isInvalid ? "red" : "inherit",
+                                    fontWeight: isInvalid ? "bold" : "normal",
+                                    border: matchingServerError
+                                        ? "1px solid red"
+                                        : "none",
+                                    outline: matchingServerError
+                                        ? "none"
+                                        : undefined,
                                 }}
                                 title={titleMessage}
                             />
