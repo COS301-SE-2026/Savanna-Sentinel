@@ -71,7 +71,7 @@ async def _create_report(
 ) -> str:
     wkt = f"POINT({lng} {lat})"
     async with _Session() as session:
-        async with session.being():
+        async with session.begin():
             result = await session.execute(
                 text("""
                     INSERT INTO field_reports
