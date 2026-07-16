@@ -422,9 +422,9 @@ describe("Logic tests - Batch logic", () => {
         const fileInput = screen.getByLabelText("CSV file upload");
         await user.upload(fileInput, largeCsvFile);
 
-        expect(
-            screen.getByText(/Displaying rows 1 to 500/i),
-        ).toBeInTheDocument();
+        const progress = await screen.findByText(/Displaying rows 1 to 500/i)
+        expect(progress).toBeInTheDocument()
+
         const inputsBatch = await screen.findAllByRole("textbox");
 
         expect(inputsBatch).toHaveLength(1000);
@@ -454,9 +454,8 @@ describe("Logic tests - Batch logic", () => {
         const fileInput = screen.getByLabelText("CSV file upload");
         await user.upload(fileInput, largeCsvFile);
 
-        expect(
-            screen.getByText(/Displaying rows 1 to 500/i),
-        ).toBeInTheDocument();
+        const progressInfo = await screen.findByText(/Displaying rows 1 to 500/i)
+        expect(progressInfo).toBeInTheDocument()
 
         const submitButton = screen.getByRole("button", { name: /Submit/i });
         await user.click(submitButton);
@@ -498,7 +497,7 @@ describe("Logic tests - Batch logic", () => {
         const success = await screen.findByText(
             /File batching sequence complete/i,
         );
-        expect(success).toBeInTheDocument;
+        expect(success).toBeInTheDocument();
 
         expect(screen.queryByRole("table")).not.toBeInTheDocument();
         expect(alertSpy).toHaveBeenCalledWith(
