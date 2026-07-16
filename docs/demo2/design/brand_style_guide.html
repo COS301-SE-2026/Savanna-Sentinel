@@ -4235,11 +4235,13 @@
 						<div class="comp-section-label">Search and Filter Bar</div>
 						<p class="group-desc">
 							A search input with a leading Lucide search icon sits beside a
-							filter button. Clicking the filter button opens the filter panel:
-							a dropdown panel on desktop, anchored below the button, and a
-							bottom drawer below the md breakpoint. When filters are active, a
-							chip row below the bar shows each applied filter with a remove
-							control, and the filter button displays a count badge.
+							filter button. Once the field has a value, a circular clear
+							button appears at its trailing edge to reset the search. Clicking
+							the filter button opens the filter panel: a dropdown panel on
+							desktop, anchored below the button, and a bottom drawer below the
+							md breakpoint. When filters are active, a chip row below the bar
+							shows each applied filter with a remove control, and the filter
+							button displays a count badge.
 						</p>
 
 						<p class="demo-caption">No active filters</p>
@@ -4281,6 +4283,13 @@
 									aria-label="Search reports"
 									value="elephant"
 								/>
+								<button
+									type="button"
+									class="search-clear-btn"
+									aria-label="Clear search"
+								>
+									<i data-lucide="x" aria-hidden="true"></i>
+								</button>
 							</div>
 							<button
 								class="btn btn-outline filter-btn"
@@ -4517,8 +4526,8 @@
 									<td class="state-label">Search input</td>
 									<td>.form-input.search-input</td>
 									<td>
-										Extends .form-input; padding-left: --sp-10 to clear icon
-										with a --sp-3 gap
+										Extends .form-input; padding-left/right: --sp-10 to clear
+										the search icon and clear button, each with a --sp-3 gap
 									</td>
 								</tr>
 								<tr>
@@ -4527,6 +4536,15 @@
 									<td>
 										Absolute; left --sp-3; vertically centred; 16px stroke;
 										--brand-muted; pointer-events: none
+									</td>
+								</tr>
+								<tr>
+									<td class="state-label">Search clear button</td>
+									<td>.search-clear-btn</td>
+									<td>
+										Absolute; right --sp-3; 20px circle, --color-border fill;
+										same hover/focus/hit-area treatment as .filter-chip-remove;
+										rendered only when the field has a value
 									</td>
 								</tr>
 								<tr>

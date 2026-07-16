@@ -3217,6 +3217,47 @@ a {
 }
 .search-input {
 	padding-left: var(--sp-10);
+	padding-right: var(--sp-10);
+}
+.search-clear-btn {
+	position: absolute;
+	right: var(--sp-3);
+	top: 50%;
+	transform: translateY(-50%);
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--sp-5);
+	height: var(--sp-5);
+	background: var(--color-border);
+	border: none;
+	border-radius: 50%;
+	cursor: pointer;
+	color: var(--color-text-secondary);
+	transition: color var(--dur-fast) var(--ease-standard);
+}
+.search-clear-btn::before {
+	content: "";
+	position: absolute;
+	inset: -12px;
+}
+.search-clear-btn:hover {
+	background: var(--status-critical);
+	color: var(--color-text-inverse);
+}
+.search-clear-btn:focus-visible {
+	outline: 2px solid var(--brand-primary);
+	outline-offset: 2px;
+}
+.search-clear-btn svg {
+	width: var(--sp-3);
+	height: var(--sp-3);
+	stroke: currentColor;
+	fill: none;
+	stroke-width: 2.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
 }
 .filter-btn {
 	flex-shrink: 0;
