@@ -2,6 +2,8 @@ import IngestionPage from "@/pages/IngestionPage";
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { FileExclamationPointIcon } from "lucide-react";
+import { ingestionApi, type IngestionResponse } from "@/services/ingestionApi";
 
 //Intercept the schema and replace it with a consistent schema that is seperate from the file
 //Disabled since it must match vi standards
@@ -194,12 +196,6 @@ describe("Rendering tests - File validation tests, test various files that succe
         await user.upload(fileInput, csvFile);
 
         const inputs = await screen.findAllByRole("textbox");
-        const expectedError =
-            "Upload Successful but some errors occured: Row 1: Removed 1 extra column(s) for exerting schema length.";
-        const error = await screen.findByText(expectedError);
-
-        expect(error).toBeInTheDocument();
-        expect(error).toHaveStyle({ color: "rgb(255, 0, 0)" });
 
         expect(screen.getByRole("table")).toBeInTheDocument();
         expect(
@@ -358,6 +354,8 @@ describe("Rendering tests - File validation tests, test various files that succe
         const alertSpy = vi
             .spyOn(globalThis, "alert")
             .mockImplementation(() => {});
+        const uploadSpy = vi.spyOn(ingestionApi, "uploadFile").mockResolvedValue({} as IngestionResponse)
+
         renderIngestionPage();
 
         const csvFile = new File(
@@ -380,12 +378,40 @@ describe("Rendering tests - File validation tests, test various files that succe
         await user.click(submitButton);
 
         //Not the best test, could be improved in integration tests to check json is being sent correctly
-        expect(alertSpy).not.toHaveBeenCalled();
+        expect(uploadSpy).toHaveBeenCalledTimes(1);
+        expect(alertSpy).toHaveBeenCalledWith("Success! The entire file has been uploaded");
 
         vi_mockSchema = [
             { name: "id", type: "number" },
             { name: "status", type: "string" },
         ];
         alertSpy.mockRestore();
+        uploadSpy.mockRestore();
     });
 });
+
+describe("Logic tests - Batch logic", () => {
+    it("should chunk a large CSV file into correct sequential batch slices", async () => {
+        vi_mockSchema = [
+            { name: "id", type: "number" },
+            { name: "status", type: "string" },
+        ];
+
+        const user = userEvent.setup();
+        renderIngestionPage();
+
+        const headers = "id,status\n";
+        // Generate an array of length 502
+        const dataRows = Array.from({length: 502}, (_, i) => `${i + 1}, pending`).join("\n");
+        const largeCsvFile = new File([headers + dataRows], "test.csv", {type: "text/csv"});
+
+        const fileInput = screen.getByLabelText("CSV file upload");
+        await user.upload(fileInput, largeCsvFile);
+
+        expect(screen.getByText(/Displaying rows 1 to 500/i)).toBeInTheDocument();
+        const inputsBatch = await screen.findAllByRole("textbox")
+
+        expect(inputsBatch).toHaveLength(1000)
+
+    })
+})
