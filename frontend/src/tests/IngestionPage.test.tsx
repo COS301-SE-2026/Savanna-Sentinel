@@ -422,8 +422,8 @@ describe("Logic tests - Batch logic", () => {
         const fileInput = screen.getByLabelText("CSV file upload");
         await user.upload(fileInput, largeCsvFile);
 
-        const progress = await screen.findByText(/Displaying rows 1 to 500/i)
-        expect(progress).toBeInTheDocument()
+        const progress = await screen.findByText(/Displaying rows 1 to 500/i);
+        expect(progress).toBeInTheDocument();
 
         const inputsBatch = await screen.findAllByRole("textbox");
 
@@ -454,8 +454,10 @@ describe("Logic tests - Batch logic", () => {
         const fileInput = screen.getByLabelText("CSV file upload");
         await user.upload(fileInput, largeCsvFile);
 
-        const progressInfo = await screen.findByText(/Displaying rows 1 to 500/i)
-        expect(progressInfo).toBeInTheDocument()
+        const progressInfo = await screen.findByText(
+            /Displaying rows 1 to 500/i,
+        );
+        expect(progressInfo).toBeInTheDocument();
 
         const submitButton = screen.getByRole("button", { name: /Submit/i });
         await user.click(submitButton);
