@@ -64,6 +64,26 @@ def valid_body():
         ],
     }
 
+@pytest.fixture
+def invalid_body():
+    return {
+        "start_row": 1,
+        "records": [
+            {
+                "record_id": 1,
+                "ingestion_timestamp": "2026-03-15T08:30:00Z",
+                "source_system": "ERP",
+                "data_domain": "Finance",
+                "event_type": "Invoice",
+                "payload_size_kb": "not-an-int",
+                "priority_level": "HIGH",
+                "retry_count": 0,
+                "is_encrypted": True,
+                "status": "PENDING",
+            },
+        ],
+    }
+
 # INTEGRATION TESTS
 
 @pytest.mark.asyncio
@@ -116,3 +136,82 @@ async def test_upload_missing_token(client, valid_body):
     )
 
     assert response.status_code == 401
+
+@pytest.mark.asyncio
+async def test_upload_invalid_body(client, db_session, invalid_body):
+    headers = await _get_auth_headers(
+        client,
+        db_session,
+        username="test_analyst",
+        email="analyst@example.com",
+        role="analyst",
+    )
+
+    response = client.post(
+        "/v1/ingestion/upload",
+        json=invalid_body,
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+
+# Right now this is a successful operation, since it shouldnt modify
+# can be modified to 400 if necessary
+@pytest.mark.asyncio
+async def test_upload_empty_records_list(client, db_session):
+    headers = await _get_auth_headers(
+        client,
+        db_session,
+        username="test_analyst",
+        email="analyst@example.com",
+        role="analyst",
+    )
+
+    empty_records = {
+        "start_row": 1,
+        "records": [],
+    }
+
+    response = client.post(
+        "/v1/ingestion/upload",
+        json=empty_records,
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+
+@pytest.mark.asyncio
+async def test_upload_malkformed_json(client, db_session):
+    headers = await _get_auth_headers(
+        client,
+        db_session,
+        username="test_analyst",
+        email="analyst@example.com",
+        role="analyst",
+    )
+
+    response = client.post(
+        "/v1/ingestion/upload",
+        content="{'start_row': 1, 'records': [this is completely broken json}",
+        headers={**headers, "Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 422
+
+@pytest.mark.asyncio
+async def test_upload_non_json_content(client, db_session, valid_body):
+    headers = await _get_auth_headers(
+        client,
+        db_session,
+        username="test_analyst",
+        email="analyst@example.com",
+        role="analyst",
+    )
+
+    response = client.post(
+        "/v1/ingestion/upload",
+        data=valid_body,
+        headers=headers,
+    )
+
+    assert response.status_code == 422
