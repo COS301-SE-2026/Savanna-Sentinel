@@ -1,4 +1,4 @@
-"""Shared real-Postgres engine/session fixtures for integration tests for sonarcube."""
+"""Shared real-Postgres engine/session fixtures for integration tests."""
 
 import os
 
