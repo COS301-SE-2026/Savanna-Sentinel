@@ -2,7 +2,6 @@ import IngestionPage from "@/pages/IngestionPage";
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { FileExclamationPointIcon } from "lucide-react";
 import { ingestionApi, type IngestionResponse } from "@/services/ingestionApi";
 
 //Intercept the schema and replace it with a consistent schema that is seperate from the file
@@ -19,6 +18,12 @@ vi.mock("@/lib/ingestionSchema", () => {
         },
     };
 });
+
+vi.mock("@/services/ingestionApu", () => ({
+    ingestionApi: {
+        uploadFile: vi.fn()
+    }
+}))
 
 const renderIngestionPage = () => {
     return render(<IngestionPage />);
@@ -413,5 +418,67 @@ describe("Logic tests - Batch logic", () => {
 
         expect(inputsBatch).toHaveLength(1000)
 
+    })
+    it("should advance to the next batch upon successful intermediate submission", async () => {
+        vi_mockSchema = [
+            { name: "id", type: "number" },
+            { name: "status", type: "string" },
+        ];
+
+        const user = userEvent.setup();
+        const uploadSpy = vi.spyOn(ingestionApi, "uploadFile").mockResolvedValue({} as IngestionResponse)
+        renderIngestionPage();
+
+        const headers = "id,status\n";
+        // Generate an array of length 501
+        const dataRows = Array.from({length: 501}, (_, i) => `${i + 1}, pending`).join("\n");
+        const largeCsvFile = new File([headers + dataRows], "test.csv", {type: "text/csv"});
+
+        const fileInput = screen.getByLabelText("CSV file upload");
+        await user.upload(fileInput, largeCsvFile);
+
+        expect(screen.getByText(/Displaying rows 1 to 500/i)).toBeInTheDocument()
+
+        const submitButton = screen.getByRole("button", { name: /Submit/i });
+        await user.click(submitButton);
+
+        expect(uploadSpy).toHaveBeenCalledTimes(1);
+
+        const progress = await screen.findByText(/Displaying rows 501 to 501/i);
+        expect(progress).toBeInTheDocument();
+
+        uploadSpy.mockRestore();
+    })
+    it("should test complete sequence and clean up after last batch of file is submitted", async () => {
+        vi_mockSchema = [
+            { name: "id", type: "number" },
+            { name: "status", type: "string" },
+        ];
+
+        const user = userEvent.setup();
+        const uploadSpy = vi.spyOn(ingestionApi, "uploadFile").mockResolvedValue({} as IngestionResponse)
+        const alertSpy = vi.spyOn(globalThis, "alert").mockImplementation(() => {});
+        renderIngestionPage();
+
+        const csvFile = new File(
+            ["id,status\n1,active\n2,active\n3,active\n4,active\n5,active"],
+            "test.csv",
+            {type: "text/csv"}
+        )
+
+        const fileInput = screen.getByLabelText("CSV file upload");
+        await user.upload(fileInput, csvFile);
+
+        const submitButton = screen.getByRole("button", { name: /Submit/i });
+        await user.click(submitButton);
+
+        const success = await screen.findByText(/File batching sequence complete/i);
+        expect(success).toBeInTheDocument;
+
+        expect(screen.queryByRole("table")).not.toBeInTheDocument();
+        expect(alertSpy).toHaveBeenCalledWith("Success! The entire file has been uploaded");
+
+        alertSpy.mockRestore();
+        uploadSpy.mockRestore();
     })
 })
