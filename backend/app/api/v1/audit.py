@@ -3,13 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, require_admin
+from app.core.dependencies import get_db, require_roles
 from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
 from app.schemas.audit import AuditLogFilterRequest, AuditLogListResponse
 from app.services.audit_service import AuditService
 
 router = APIRouter(tags=["audit"])
+require_admin = require_roles(["admin"])
 
 @router.get(
     "/audit-logs",
