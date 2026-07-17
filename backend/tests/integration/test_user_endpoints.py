@@ -555,3 +555,20 @@ async def test_soft_delete_nonexistent_user_returns_404(admin_token):
             headers={"Authorization": f"Bearer {admin_token}"},
         )
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_creates_audit_entry(admin_token, active_target_user_id):
+    async with _client() as c:
+        await c.delete(
+            f"/v1/users/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        r = await c.get(
+            f"/v1/audit-logs?action=user.soft_deleted&target_id={active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    body = r.json()
+    assert len(body["results"]) == 1
+    assert body["results"][0]["target_id"] == active_target_user_id
+    assert body["results"][0]["target_type"] == "user"
