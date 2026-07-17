@@ -147,3 +147,72 @@ def test_update_pheromones():
     assert updated[("start", "mid")] == pytest.approx(0.95)
     assert updated[("mid", "end")] == pytest.approx(0.95)
     assert updated[("start", "end")] == pytest.approx(0.9)
+
+def test_apply_partial_penalty():
+    fixture = make_graph()
+    config = route_planner.ACOConfig(penalty_factor=0.3, tau_min=0.2)
+    pheromones = {
+        ("start", "mid"): 1.0,
+        ("mid", "end"): 0.4,
+        ("start", "end"): 0.9,
+    }
+
+    penalized = route_planner.apply_partial_penalty(
+        pheromones,
+        used_path=[
+            fixture.start_node_id,
+            fixture.mid_node_id,
+            fixture.end_node_id,
+        ],
+        config=config,
+    )
+
+    assert penalized[("start", "mid")] == pytest.approx(0.3)
+    assert penalized[("mid", "end")] == pytest.approx(0.2)
+    assert penalized[("start", "end")] == pytest.approx(0.9)
+
+
+def test_construct_tour(
+    monkeypatch,
+):
+    fixture = make_graph()
+    config = route_planner.ACOConfig()
+    start_to_mid = GraphEdge(
+        "start", "mid", distance_km=1.0, est_time_min=10.0, est_fuel_l=1.5,
+    )
+    mid_to_end = GraphEdge(
+        "mid", "end", distance_km=1.0, est_time_min=10.0, est_fuel_l=1.5,
+    )
+
+    feasible_calls = iter(
+        [
+            [start_to_mid],
+            [mid_to_end],
+        ],
+    )
+
+    monkeypatch.setattr(
+        route_planner,
+        "feasible_edges",
+        lambda *args, **kwargs: next(feasible_calls),
+    )
+    monkeypatch.setattr(
+        route_planner,
+        "select_next_edge",
+        lambda candidates, *_: candidates[0],
+    )
+
+    path, time_used, fuel_used, risk_total = route_planner.construct_tour(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        max_time=30.0,
+        max_fuel=5.0,
+        pheromones={("start", "mid"): 1.0, ("mid", "end"): 1.0},
+        config=config,
+    )
+
+    assert path == ["start", "mid", "end"]
+    assert time_used == pytest.approx(20.0)
+    assert fuel_used == pytest.approx(3.0)
+    assert risk_total == pytest.approx(1.1)
