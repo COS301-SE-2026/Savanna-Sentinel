@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import select
@@ -498,3 +499,60 @@ async def test_save_user_persists_and_refreshes(db_session):
     fresh_user = await repo.get_by_id(user_id)
     assert fresh_user.first_name == "Modified"
     assert fresh_user.last_name == "Name"
+
+
+async def test_soft_delete_user_success(db_session):
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id, username="active1", role="ranger", is_active=True,
+        email="a1@test.com", first_name="A", last_name="One",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    result = await repo.soft_delete_user(user_id)
+
+    assert result.is_active is False
+    assert result.deleted_at is not None
+
+
+async def test_soft_delete_user_already_inactive_returns_none(db_session):
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id, username="pending1", role="ranger", is_active=False,
+        email="p1@test.com", first_name="P", last_name="One",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    result = await repo.soft_delete_user(user_id)
+
+    assert result is None
+
+
+async def test_soft_delete_user_already_deleted_returns_none(db_session):
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id, username="gone1", role="ranger", is_active=False,
+        deleted_at=datetime.now(timezone.utc),
+        email="g1@test.com", first_name="G", last_name="One",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    result = await repo.soft_delete_user(user_id)
+
+    assert result is None
+
+
+async def test_soft_delete_user_not_found_returns_none(db_session):
+    repo = UserRepository(db_session)
+    result = await repo.soft_delete_user(str(uuid.uuid4()))
+
+    assert result is None
