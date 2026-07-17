@@ -572,3 +572,25 @@ async def test_soft_delete_creates_audit_entry(admin_token, active_target_user_i
     assert len(body["results"]) == 1
     assert body["results"][0]["target_id"] == active_target_user_id
     assert body["results"][0]["target_type"] == "user"
+
+@pytest.mark.asyncio
+async def test_soft_deleted_account_absent_from_both_listings(
+    admin_token, active_target_user_id,
+):
+    async with _client() as c:
+        await c.delete(
+            f"/v1/users/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        active = await c.get(
+            "/v1/users", params={"is_active": True},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        pending = await c.get(
+            "/v1/users", params={"is_active": False},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    active_ids = [u["id"] for u in active.json()["results"]]
+    pending_ids = [u["id"] for u in pending.json()["results"]]
+    assert active_target_user_id not in active_ids
+    assert active_target_user_id not in pending_ids
