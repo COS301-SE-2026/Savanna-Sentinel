@@ -111,6 +111,22 @@ class UserService:  # noqa: D101
 
         return result
 
+    async def soft_delete(self, user_id: str, actor_id: str | None = None):  # noqa: D102
+        result = await self.repo.soft_delete_user(user_id)
+
+        if result is None:
+            return None
+
+        if self.audit_service and actor_id:
+            await self.audit_service.log(
+                actor_id=actor_id,
+                action="user.soft_deleted",
+                target_type="user",
+                target_id=user_id,
+            )
+
+        return result
+
     async def admin_delete(self, user_id: str, actor_id: str | None = None):  # noqa: D102
         if self.audit_service and actor_id:
             await self.audit_service.log(
