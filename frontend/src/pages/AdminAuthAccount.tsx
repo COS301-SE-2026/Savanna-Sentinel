@@ -8,14 +8,29 @@ import {
 } from "@/components/ui/table";
 
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import { usersApi } from "@/services/usersApi";
-import { cn } from "@/lib/utils";
+import { cn, formatRole } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { useSort } from "@/hooks/useSort";
-import { useRoleOptions, useUserSearchFilter } from "@/hooks/useUserSearchFilter";
+import {
+    useRoleOptions,
+    useUserSearchFilter,
+} from "@/hooks/useUserSearchFilter";
 import { SortableTableHead } from "@/components/admin/SortableTableHead";
 import { UserSearchFilterBar } from "@/components/admin/UserSearchFilterBar";
-import { theadClass, cellClass, rowClass } from "@/components/admin/userTableStyles";
+import {
+    theadClass,
+    cellClass,
+    rowClass,
+} from "@/components/admin/userTableStyles";
 
 export interface UserResponse {
     id: string;
@@ -34,12 +49,13 @@ interface UserRowProps {
 
 type SortKey = "username" | "name" | "role" | "created_at";
 
-const sortAccessors: Record<SortKey, (user: UserResponse) => string | number> = {
-    username: (user) => user.username.toLowerCase(),
-    name: (user) => `${user.first_name} ${user.last_name}`.toLowerCase(),
-    role: (user) => user.role.toLowerCase(),
-    ["created_at"]: (user) => new Date(user.created_at).getTime(),
-};
+const sortAccessors: Record<SortKey, (user: UserResponse) => string | number> =
+    {
+        username: (user) => user.username.toLowerCase(),
+        name: (user) => `${user.first_name} ${user.last_name}`.toLowerCase(),
+        role: (user) => user.role.toLowerCase(),
+        ["created_at"]: (user) => new Date(user.created_at).getTime(),
+    };
 
 const AuthPage = () => {
     const [users, setUsers] = useState<UserResponse[]>([]);
@@ -172,8 +188,21 @@ const AuthPage = () => {
 const UserRow = ({ user, refreshList }: UserRowProps) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [rowError, setRowError] = useState<string | null>(null);
+    const [pendingAction, setPendingAction] = useState<
+        "accept" | "reject" | null
+    >(null);
+
+    const [dialogAction, setDialogAction] = useState<"accept" | "reject">(
+        "accept",
+    );
+    if (pendingAction !== null && pendingAction !== dialogAction) {
+        setDialogAction(pendingAction);
+    }
+
+    const fullName = `${user.first_name} ${user.last_name}`;
 
     const handleAccept = async () => {
+        setPendingAction(null);
         setIsProcessing(true);
         setRowError(null);
 
@@ -195,6 +224,7 @@ const UserRow = ({ user, refreshList }: UserRowProps) => {
     };
 
     const handleReject = async () => {
+        setPendingAction(null);
         setIsProcessing(true);
         setRowError(null);
 
@@ -219,7 +249,7 @@ const UserRow = ({ user, refreshList }: UserRowProps) => {
                 </TableCell>
                 <TableCell className={cellClass}>
                     <span className="rounded-full border-[1.5px] border-brand-muted bg-color-surface-bg px-2 py-0.5 text-xs font-semibold text-color-text-primary capitalize">
-                        {user.role}
+                        {formatRole(user.role)}
                     </span>
                 </TableCell>
                 <TableCell
@@ -233,22 +263,67 @@ const UserRow = ({ user, refreshList }: UserRowProps) => {
                 <TableCell className={cn(cellClass, "text-center")}>
                     <Button
                         variant="default"
-                        className="min-h-11 min-w-11"
-                        onClick={handleAccept}
+                        onClick={() => setPendingAction("accept")}
                         disabled={isProcessing}
                     >
                         Accept
                     </Button>
                     <Button
                         variant="destructive"
-                        onClick={handleReject}
+                        onClick={() => setPendingAction("reject")}
                         disabled={isProcessing}
-                        className="ml-2 min-h-11 min-w-11"
+                        className="ml-2"
                     >
                         Reject
                     </Button>
                 </TableCell>
             </TableRow>
+
+            <Dialog
+                open={pendingAction !== null}
+                onOpenChange={(open) =>
+                    !isProcessing && !open && setPendingAction(null)
+                }
+            >
+                <DialogContent preventBackdropClose={dialogAction === "reject"}>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {dialogAction === "reject"
+                                ? "Confirm rejection"
+                                : "Confirm approval"}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>
+                        {dialogAction === "reject"
+                            ? `Reject ${fullName}'s registration? This permanently removes their pending account.`
+                            : `Approve ${fullName} as ${formatRole(user.role)}?`}
+                    </DialogDescription>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setPendingAction(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={
+                                dialogAction === "reject"
+                                    ? "destructive"
+                                    : "default"
+                            }
+                            onClick={
+                                dialogAction === "reject"
+                                    ? handleReject
+                                    : handleAccept
+                            }
+                        >
+                            Confirm
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {rowError && (
                 <TableRow className={rowClass}>
