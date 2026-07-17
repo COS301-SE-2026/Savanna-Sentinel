@@ -155,7 +155,6 @@ export function UserSearchFilterBar({
                     <Button
                         type="button"
                         variant="outline"
-                        className="min-h-11 min-w-11 gap-2"
                         aria-label={
                             selectedRoles.length > 0
                                 ? `Open filters, ${selectedRoles.length} active`
@@ -294,14 +293,12 @@ export function UserSearchFilterBar({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className="min-h-11 min-w-11"
                                     onClick={handleClear}
                                 >
                                     Clear
                                 </Button>
                                 <Button
                                     type="button"
-                                    className="min-h-11 min-w-11"
                                     onClick={handleApply}
                                 >
                                     Apply
