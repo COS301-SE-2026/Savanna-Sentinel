@@ -72,7 +72,8 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
         setError(null);
         try {
             await usersApi.softDeleteUser(user.id);
-            onRoleChanged(); // reuses the existing list-refresh callback
+            // reuses the existing list-refresh callback
+            onRoleChanged();
         } catch {
             setError("Failed to delete account.");
         } finally {

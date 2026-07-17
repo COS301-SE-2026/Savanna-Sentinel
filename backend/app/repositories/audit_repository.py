@@ -43,6 +43,8 @@ class AuditRepository:
             stmt = stmt.where(AuditLog.action == req.action)
         if req.target_type:
             stmt = stmt.where(AuditLog.target_type == req.target_type)
+        if req.target_id:
+            stmt = stmt.where(AuditLog.target_id == req.target_id)
         return stmt
 
     async def list_logs(self, req: AuditLogFilterRequest) -> list[AuditLog]:

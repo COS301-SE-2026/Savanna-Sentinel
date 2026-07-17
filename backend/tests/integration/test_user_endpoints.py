@@ -507,7 +507,9 @@ async def test_soft_delete_requires_authentication():
 
 
 @pytest.mark.asyncio
-async def test_soft_delete_non_admin_forbidden(ranger_token, active_target_user_id):
+async def test_soft_delete_non_admin_forbidden(
+    ranger_token, active_target_user_id,
+):
     async with _client() as c:
         r = await c.delete(
             f"/v1/users/{active_target_user_id}",
@@ -517,7 +519,9 @@ async def test_soft_delete_non_admin_forbidden(ranger_token, active_target_user_
 
 
 @pytest.mark.asyncio
-async def test_soft_delete_active_account_success(admin_token, active_target_user_id):
+async def test_soft_delete_active_account_success(
+    admin_token, active_target_user_id,
+):
     async with _client() as c:
         r = await c.delete(
             f"/v1/users/{active_target_user_id}",
@@ -537,7 +541,9 @@ async def test_soft_delete_active_account_success(admin_token, active_target_use
 
 
 @pytest.mark.asyncio
-async def test_soft_delete_pending_account_returns_404(admin_token, target_user_id):
+async def test_soft_delete_pending_account_returns_404(
+    admin_token, target_user_id,
+):
     # target_user_id fixture registers but never activates - still pending
     async with _client() as c:
         r = await c.delete(
@@ -558,7 +564,9 @@ async def test_soft_delete_nonexistent_user_returns_404(admin_token):
 
 
 @pytest.mark.asyncio
-async def test_soft_delete_creates_audit_entry(admin_token, active_target_user_id):
+async def test_soft_delete_creates_audit_entry(
+    admin_token, active_target_user_id,
+):
     async with _client() as c:
         await c.delete(
             f"/v1/users/{active_target_user_id}",
@@ -596,7 +604,9 @@ async def test_soft_deleted_account_absent_from_both_listings(
     assert active_target_user_id not in pending_ids
 
 @pytest.mark.asyncio
-async def test_hard_delete_rejects_active_account(admin_token, active_target_user_id):
+async def test_hard_delete_rejects_active_account(
+    admin_token, active_target_user_id,
+):
     async with _client() as c:
         r = await c.delete(
             f"/v1/admin/users/delete/{active_target_user_id}",

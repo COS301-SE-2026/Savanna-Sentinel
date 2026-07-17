@@ -25,5 +25,6 @@ class AuditLogFilterRequest(BaseModel):
     actor_id: Optional[str] = None
     action: Optional[str] = None
     target_type: Optional[str] = None
+    target_id: Optional[str] = None
     page: int = 1
     page_size: int = Field(default=20, le=100)
