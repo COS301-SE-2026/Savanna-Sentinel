@@ -168,7 +168,7 @@ class UserRepository:
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
 
-        if not user:
+        if not user or user.deleted_at is not None:
             return None
 
         user.is_active = is_active
@@ -183,7 +183,7 @@ class UserRepository:
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
 
-        if not user:
+        if not user or user.is_active or user.deleted_at is not None:
             return None
 
         del_stmt = delete(User).where(User.id == user_id)
