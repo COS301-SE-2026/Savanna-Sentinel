@@ -125,7 +125,9 @@ class UserRepository:
         return user
 
     async def get_users(self, req: UsersRequest ) -> list[UsersResponse]:
-        stmt = select(User).where(User.role != "admin")
+        stmt = select(User).where(
+            User.role != "admin", User.deleted_at.is_(None),
+        )
 
         if req.is_active is not None:
             stmt = stmt.where(User.is_active == req.is_active)
@@ -142,8 +144,11 @@ class UserRepository:
         return result.scalars().all()
 
     async def count_users(self, req: UsersRequest) -> int:
-        stmt = select(func.count(),
-                      ).select_from(User).where(User.role != "admin")
+        stmt = (
+            select(func.count())
+            .select_from(User)
+            .where(User.role != "admin", User.deleted_at.is_(None))
+        )
 
         if req.is_active is not None:
             stmt = stmt.where(User.is_active == req.is_active)
