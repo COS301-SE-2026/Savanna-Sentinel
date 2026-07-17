@@ -9,6 +9,14 @@ import {
 } from "@/components/ui/table";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import { cn, formatRole } from "@/lib/utils";
 import { usersApi, type UserResponse } from "@/services/usersApi";
 import { useSort } from "@/hooks/useSort";
@@ -43,8 +51,10 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isSuccessful, setSuccessful] = useState(false);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
     const isDirty = selectedRole !== user.role;
+    const fullName = `${user.first_name} ${user.last_name}`;
 
     useEffect(() => {
         if (!isSuccessful) return;
@@ -52,7 +62,13 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
         return () => clearTimeout(t);
     }, [isSuccessful]);
 
-    const handleSave = async () => {
+    const handleApply = () => {
+        if (!isDirty || isProcessing) return;
+        setIsConfirmOpen(true);
+    };
+
+    const handleConfirm = async () => {
+        setIsConfirmOpen(false);
         setIsProcessing(true);
         setError(null);
         setSuccessful(false);
@@ -107,14 +123,44 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
                 <TableCell className={cellClass}>
                     <Button
                         variant="default"
-                        className="min-h-11 min-w-11"
                         disabled={!isDirty || isProcessing}
-                        onClick={handleSave}
+                        onClick={handleApply}
                     >
-                        {isProcessing ? "Saving..." : "Save"}
+                        {isProcessing ? "Applying..." : "Apply"}
                     </Button>
                 </TableCell>
             </TableRow>
+
+            <Dialog
+                open={isConfirmOpen}
+                onOpenChange={(open) => !isProcessing && setIsConfirmOpen(open)}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm role change</DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>
+                        Update {fullName} from {formatRole(user.role)} to{" "}
+                        {formatRole(selectedRole)}?
+                    </DialogDescription>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsConfirmOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={handleConfirm}
+                        >
+                            Confirm
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {(error || isSuccessful) && (
                 <TableRow className={rowClass}>
