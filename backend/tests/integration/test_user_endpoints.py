@@ -603,3 +603,19 @@ async def test_hard_delete_rejects_active_account(admin_token, active_target_use
             headers={"Authorization": f"Bearer {admin_token}"},
         )
     assert r.status_code == 404
+
+@pytest.mark.asyncio
+async def test_status_switch_rejects_soft_deleted_account(
+    admin_token, active_target_user_id,
+):
+    async with _client() as c:
+        await c.delete(
+            f"/v1/users/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        r = await c.patch(
+            f"/v1/users/{active_target_user_id}/status",
+            json={"is_active": True},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 404
