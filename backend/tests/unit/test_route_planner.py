@@ -216,3 +216,29 @@ def test_construct_tour(
     assert time_used == pytest.approx(20.0)
     assert fuel_used == pytest.approx(3.0)
     assert risk_total == pytest.approx(1.1)
+
+def test_construct_tour_stops_when_no_feasible_edge_exists(monkeypatch):
+    fixture = make_graph()
+    config = route_planner.ACOConfig()
+
+    monkeypatch.setattr(
+        route_planner, "feasible_edges", lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        route_planner, "select_next_edge", lambda *args, **kwargs: None,
+    )
+
+    path, time_used, fuel_used, risk_total = route_planner.construct_tour(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        max_time=30.0,
+        max_fuel=5.0,
+        pheromones={},
+        config=config,
+    )
+
+    assert path == ["start"]
+    assert time_used == 0.0
+    assert fuel_used == 0.0
+    assert risk_total == 0.0
