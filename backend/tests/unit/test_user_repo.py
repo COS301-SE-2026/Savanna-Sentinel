@@ -605,3 +605,54 @@ async def test_count_users_excludes_soft_deleted(db_session):
     )
 
     assert count == 0
+
+
+async def test_admin_delete_rejects_active_user(db_session):
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id, username="active2", role="ranger", is_active=True,
+        email="a2@test.com", first_name="A", last_name="Two",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    result = await repo.admin_delete(user_id)
+
+    assert result is None
+    stmt = select(User).where(User.id == user_id)
+    assert (await db_session.execute(stmt)).scalar_one_or_none() is not None
+
+
+async def test_admin_delete_rejects_already_soft_deleted(db_session):
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id, username="gone4", role="ranger", is_active=False,
+        deleted_at=datetime.now(timezone.utc),
+        email="g4@test.com", first_name="G", last_name="Four",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    result = await repo.admin_delete(user_id)
+
+    assert result is None
+
+
+async def test_admin_delete_still_works_on_pending_account(db_session):
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id, username="pending2", role="ranger", is_active=False,
+        email="p2@test.com", first_name="P", last_name="Two",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    result = await repo.admin_delete(user_id)
+
+    assert result is not None
