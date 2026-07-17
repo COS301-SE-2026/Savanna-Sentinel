@@ -65,7 +65,11 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm(`Delete ${user.username}'s account? This cannot be undone.`)) {
+        if (
+            !window.confirm(
+                `Delete ${user.username}'s account? This cannot be undone.`,
+            )
+        ) {
             return;
         }
         setIsDeleting(true);

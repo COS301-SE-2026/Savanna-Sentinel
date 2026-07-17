@@ -12,7 +12,10 @@ import {
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RoleSwap from "@/components/admin/RoleSwap";
-import { roleSwapHandlers, resetMockActiveUsers } from "./mocks/roleSwapHandlers";
+import {
+    roleSwapHandlers,
+    resetMockActiveUsers,
+} from "./mocks/roleSwapHandlers";
 
 const server = setupServer(...roleSwapHandlers);
 
@@ -185,7 +188,9 @@ describe("RoleSwap - Role Management", () => {
         renderRoleSwap();
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
+        const deleteButtons = screen.getAllByRole("button", {
+            name: /delete/i,
+        });
         expect(deleteButtons).toHaveLength(2);
     });
 
@@ -195,7 +200,9 @@ describe("RoleSwap - Role Management", () => {
         renderRoleSwap();
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
+        const deleteButtons = screen.getAllByRole("button", {
+            name: /delete/i,
+        });
         await user.click(deleteButtons[0]);
 
         expect(screen.getByText("ranger1")).toBeInTheDocument();
@@ -207,7 +214,9 @@ describe("RoleSwap - Role Management", () => {
         renderRoleSwap();
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
+        const deleteButtons = screen.getAllByRole("button", {
+            name: /delete/i,
+        });
         await user.click(deleteButtons[0]);
 
         await waitFor(() =>
@@ -227,7 +236,9 @@ describe("RoleSwap - Role Management", () => {
         renderRoleSwap();
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
+        const deleteButtons = screen.getAllByRole("button", {
+            name: /delete/i,
+        });
         await user.click(deleteButtons[0]);
 
         expect(

@@ -75,9 +75,7 @@ export const usersApi = {
             .then((r) => r.data),
 
     softDeleteUser: (user_id: string): Promise<UserResponse> =>
-        api
-            .delete<UserResponse>(`/users/${user_id}`)
-            .then((r) => r.data),
+        api.delete<UserResponse>(`/users/${user_id}`).then((r) => r.data),
 
     changeUserRole: (userId: string, newRole: string): Promise<UserResponse> =>
         api
