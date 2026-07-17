@@ -200,3 +200,17 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+
+    async def soft_delete_user(self, user_id: str) -> Optional[User]:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user or not user.is_active or user.deleted_at is not None:
+            return None
+
+        user.is_active = False
+        user.deleted_at = datetime.now(timezone.utc)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
