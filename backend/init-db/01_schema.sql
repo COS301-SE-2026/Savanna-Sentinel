@@ -34,7 +34,8 @@ CREATE TABLE users (
     last_name     TEXT        NOT NULL,
     role          user_role   NOT NULL,
     is_active     BOOLEAN     NOT NULL DEFAULT FALSE,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at    TIMESTAMPTZ
 );
 
 CREATE TABLE risk_heatmaps (
