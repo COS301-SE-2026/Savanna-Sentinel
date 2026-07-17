@@ -208,6 +208,36 @@ async def test_admin_delete_logs_even_if_repo_delete_returns_none():
     mock_audit.log.assert_awaited_once()
 
 
+async def test_soft_delete_logs_user_soft_deleted():
+    mock_repo = MagicMock()
+    mock_user = MagicMock(id="user-1")
+    mock_repo.soft_delete_user = AsyncMock(return_value=mock_user)
+    mock_audit = AsyncMock()
+    service = UserService(repo=mock_repo, audit_service=mock_audit)
+
+    result = await service.soft_delete(user_id="user-1", actor_id="admin-1")
+
+    assert result is mock_user
+    mock_audit.log.assert_awaited_once_with(
+        actor_id="admin-1",
+        action="user.soft_deleted",
+        target_type="user",
+        target_id="user-1",
+    )
+
+
+async def test_soft_delete_returns_none_and_does_not_log_when_ineligible():
+    mock_repo = MagicMock()
+    mock_repo.soft_delete_user = AsyncMock(return_value=None)
+    mock_audit = AsyncMock()
+    service = UserService(repo=mock_repo, audit_service=mock_audit)
+
+    result = await service.soft_delete(user_id="user-1", actor_id="admin-1")
+
+    assert result is None
+    mock_audit.log.assert_not_awaited()
+
+
 # get_me() tests
 async def test_get_me_returns_current_user():
     """Test that get_me() returns the passed user object."""
