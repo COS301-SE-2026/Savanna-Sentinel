@@ -594,3 +594,12 @@ async def test_soft_deleted_account_absent_from_both_listings(
     pending_ids = [u["id"] for u in pending.json()["results"]]
     assert active_target_user_id not in active_ids
     assert active_target_user_id not in pending_ids
+
+@pytest.mark.asyncio
+async def test_hard_delete_rejects_active_account(admin_token, active_target_user_id):
+    async with _client() as c:
+        r = await c.delete(
+            f"/v1/admin/users/delete/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 404
