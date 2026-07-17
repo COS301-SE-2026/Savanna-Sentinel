@@ -242,3 +242,47 @@ def test_construct_tour_stops_when_no_feasible_edge_exists(monkeypatch):
     assert time_used == 0.0
     assert fuel_used == 0.0
     assert risk_total == 0.0
+
+def test_run_phase_returns_best(
+    monkeypatch,
+):
+    fixture = make_graph()
+    config = route_planner.ACOConfig(num_ants=2)
+    calls = []
+
+    def fake_construct_tour(*args, **kwargs):
+        return (
+            [fixture.start_node_id, fixture.mid_node_id, fixture.end_node_id],
+            20.0,
+            3.0,
+            0.8,
+        )
+
+    def fake_update_pheromones(pheromones, best_path, best_risk, config):
+        calls.append((best_path, best_risk))
+        return {"updated": True}
+
+    monkeypatch.setattr(route_planner, "construct_tour", fake_construct_tour)
+    monkeypatch.setattr(
+        route_planner, "update_pheromones", fake_update_pheromones,
+    )
+
+    best_path, best_risk, pheromones = route_planner.run_phase(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        max_time=30.0,
+        max_fuel=5.0,
+        pheromones={"initial": True},
+        num_iterations=3,
+        config=config,
+    )
+
+    assert best_path == ["start", "mid", "end"]
+    assert best_risk == 0.8
+    assert pheromones == {"updated": True}
+    assert calls == [
+        (["start", "mid", "end"], 0.8),
+        (["start", "mid", "end"], 0.8),
+        (["start", "mid", "end"], 0.8),
+    ]
