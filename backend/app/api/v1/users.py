@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, get_db, require_admin
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.user_repository import UserRepository
@@ -21,6 +21,7 @@ from app.services.audit_service import AuditService
 from app.services.user_service import UserService
 
 router = APIRouter(tags=["users"])
+require_admin = require_roles(["admin"])
 
 @router.get("/users/me",
             response_model=UsersResponse,

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.ingestion import router as ingestion_router
 from app.api.v1.reports import router as reports_router
 
 # As other routers are built, import and include them here:
@@ -28,11 +29,12 @@ app.add_middleware(
 # Routers
 app.include_router(auth_router, prefix="/v1")
 app.include_router(users_router, prefix="/v1")
+
+app.include_router(ingestion_router, prefix="/v1")
 app.include_router(reports_router, prefix="/v1")
 app.include_router(audit_router, prefix="/v1")
 
-
-@app.get("/health", tags=["health"])
+@app.get("/v1/health", tags=["health"])
 async def health():
     """Quick liveness check - returns 200 if the server is running."""
     return {"status": "ok"}
