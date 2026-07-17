@@ -556,3 +556,52 @@ async def test_soft_delete_user_not_found_returns_none(db_session):
     result = await repo.soft_delete_user(str(uuid.uuid4()))
 
     assert result is None
+
+
+async def test_get_users_excludes_soft_deleted(db_session):
+    active_id = str(uuid.uuid4())
+    deleted_id = str(uuid.uuid4())
+    active = User(
+        id=active_id, username="stays", role="ranger", is_active=True,
+        email="stays@test.com", first_name="S", last_name="One",
+        hashed_password="hash",  # NOSONAR
+    )
+    deleted = User(
+        id=deleted_id, username="gone2", role="ranger", is_active=False,
+        deleted_at=datetime.now(timezone.utc),
+        email="gone2@test.com", first_name="G", last_name="Two",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add_all([active, deleted])
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    active_results = await repo.get_users(
+        UsersRequest(page=1, page_size=10, is_active=True, role=None),
+    )
+    pending_results = await repo.get_users(
+        UsersRequest(page=1, page_size=10, is_active=False, role=None),
+    )
+
+    assert [u.username for u in active_results] == ["stays"]
+    # the soft-deleted user is_active=False now, but must NOT leak into
+    # the "pending registrations" list alongside real pending accounts
+    assert "gone2" not in [u.username for u in pending_results]
+
+
+async def test_count_users_excludes_soft_deleted(db_session):
+    deleted = User(
+        id=str(uuid.uuid4()), username="gone3", role="ranger",
+        is_active=False, deleted_at=datetime.now(timezone.utc),
+        email="gone3@test.com", first_name="G", last_name="Three",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(deleted)
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    count = await repo.count_users(
+        UsersRequest(page=1, page_size=10, is_active=False, role=None),
+    )
+
+    assert count == 0
