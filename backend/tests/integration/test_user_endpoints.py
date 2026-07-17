@@ -482,3 +482,76 @@ async def test_change_role_no_token_returns_403():
             json={"new_role": "analyst"},
         )
     assert r.status_code in (401, 403)
+
+# Soft-delete tests
+
+@pytest_asyncio.fixture
+async def active_target_user_id():
+    async with _client() as c:
+        r = await c.post("/v1/auth/register", json=_register_payload(
+            username="test_soft_target",
+            email="test_soft_target@example.com",
+            requested_role="ranger",
+        ))
+    await _activate("test_soft_target")
+    return r.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_requires_authentication():
+    async with _client() as c:
+        r = await c.delete(
+            "/v1/users/00000000-0000-0000-0000-000000000000",
+        )
+    assert r.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_non_admin_forbidden(ranger_token, active_target_user_id):
+    async with _client() as c:
+        r = await c.delete(
+            f"/v1/users/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {ranger_token}"},
+        )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_active_account_success(admin_token, active_target_user_id):
+    async with _client() as c:
+        r = await c.delete(
+            f"/v1/users/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 200
+    assert r.json()["id"] == active_target_user_id
+
+    async with _engine.begin() as conn:
+        row = await conn.execute(
+            text("SELECT is_active, deleted_at FROM users WHERE id = :id"),
+            {"id": active_target_user_id},
+        )
+        is_active, deleted_at = row.one()
+    assert is_active is False
+    assert deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_pending_account_returns_404(admin_token, target_user_id):
+    # target_user_id fixture registers but never activates - still pending
+    async with _client() as c:
+        r = await c.delete(
+            f"/v1/users/{target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_nonexistent_user_returns_404(admin_token):
+    async with _client() as c:
+        r = await c.delete(
+            "/v1/users/00000000-0000-0000-0000-000000000000",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 404
