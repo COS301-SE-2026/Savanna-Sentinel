@@ -656,3 +656,20 @@ async def test_admin_delete_still_works_on_pending_account(db_session):
     result = await repo.admin_delete(user_id)
 
     assert result is not None
+
+
+async def test_switch_status_rejects_soft_deleted_user(db_session):
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id, username="gone5", role="ranger", is_active=False,
+        deleted_at=datetime.now(timezone.utc),
+        email="g5@test.com", first_name="G", last_name="Five",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    result = await repo.switch_status(is_active=True, user_id=user_id)
+
+    assert result is None
