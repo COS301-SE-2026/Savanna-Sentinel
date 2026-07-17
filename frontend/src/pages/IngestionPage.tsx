@@ -1,5 +1,3 @@
-import { Upload, CheckCircle2, Clock, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
@@ -8,152 +6,410 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import React, { useState } from "react";
+import { type ChangeEvent } from "react";
+import {
+    FILE_SCHEMA,
+    type Expectation,
+    type ColDef,
+} from "@/lib/ingestionSchema";
+import { ingestionApi } from "@/services/ingestionApi";
 
-const METRICS = [
-    { label: "Accuracy", value: "91.2%", delta: "+1.4% vs prev", up: true },
-    { label: "Precision", value: "88.7%", delta: "+0.9% vs prev", up: true },
-    { label: "Recall", value: "86.4%", delta: "−0.3% vs prev", up: false },
-    { label: "F1 Score", value: "0.875", delta: "+0.011 vs prev", up: true },
-];
+const BATCH_SIZE = 500;
 
-const UPLOADS = [
-    {
-        name: "incidents_jan_may2026.csv",
-        size: "1.2 MB",
-        date: "12 May 2026",
-        rows: "3 840",
-        status: "Processed",
-    },
-    {
-        name: "sightings_q1_2026.csv",
-        size: "840 KB",
-        date: "1 Apr 2026",
-        rows: "2 101",
-        status: "Processed",
-    },
-    {
-        name: "patrol_logs_2025.csv",
-        size: "3.1 MB",
-        date: "15 Jan 2026",
-        rows: "9 200",
-        status: "Processed",
-    },
-    {
-        name: "incidents_dec2025.csv",
-        size: "620 KB",
-        date: "3 Jan 2026",
-        rows: "1 440",
-        status: "Failed",
-    },
-];
-
-function StatusIcon({ status }: { status: string }) {
-    if (status === "Processed")
-        return <CheckCircle2 className="size-4 text-spot-green" />;
-    if (status === "Failed")
-        return <XCircle className="size-4 text-spot-red" />;
-    return <Clock className="size-4 text-spot-orange" />;
+interface DataRowProps {
+    rowIndex: number;
+    cells: string[];
+    schema: ColDef[];
+    rowServerErrors?: ServerValidationError[];
+    onCellChange: (
+        rowIndex: number,
+        cellIndex: number,
+        newValue: string,
+    ) => void;
 }
 
-export default function IngestionPage() {
+interface ServerValidationError {
+    column: string;
+    error_type: string;
+    message: string;
+}
+type ServerErrorsMap = Record<string, ServerValidationError[]>;
+
+const mapRowToRecord = (row: string[]): Record<string, unknown> => {
+    const record: Record<string, unknown> = {};
+
+    FILE_SCHEMA.forEach((col, i) => {
+        const value = row[i];
+        if (col.type === "number") {
+            record[col.name] = Number(value);
+        } else if (col.type === "boolean") {
+            record[col.name] =
+                value.toLowerCase() === "true" || value.toLowerCase() === "1";
+        } else {
+            record[col.name] = value;
+        }
+    });
+
+    return record;
+};
+
+interface ServerErrorDetail {
+    message?: string;
+    errors?: ServerErrorsMap;
+}
+
+const parseServerError = (error: unknown): ServerErrorDetail | null => {
+    if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as {
+            response?: {
+                data?: {
+                    detail?: ServerErrorDetail;
+                };
+            };
+        };
+        return axiosError.response?.data?.detail ?? null;
+    }
+    return null;
+};
+
+const validateData = (value: string, expected: Expectation): boolean => {
+    if (!value) {
+        return false;
+    }
+
+    switch (expected) {
+        case "number":
+            return !Number.isNaN(Number(value));
+        case "boolean":
+            return (
+                value.toLowerCase() === "true" ||
+                value.toLowerCase() === "false" ||
+                value.toLowerCase() === "1" ||
+                value.toLowerCase() === "0"
+            );
+        case "date":
+            return !Number.isNaN(Date.parse(value));
+        //Add more data types as needed here
+        case "string":
+        default:
+            return true;
+    }
+};
+
+const IngestionPage = () => {
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [parsedRows, setParsedRows] = useState<string[][]>([]);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [currentLineNumber, setCurrentLineNumber] = useState<number>(1);
+    const [allLines, setAllLines] = useState<string[]>([]);
+    const [isComplete, setIsComplete] = useState<boolean>(false);
+    const [serverErrors, setServerErrors] = useState<ServerErrorsMap | null>(
+        null,
+    );
+
+    const loadBatch = (lines: string[], startLine: number) => {
+        const endLine = Math.min(startLine + BATCH_SIZE, lines.length);
+        const batchSlice = lines.slice(startLine, endLine);
+
+        const parsedBatch = batchSlice.map((line) =>
+            line.split(",").map((cell) => cell.trim()),
+        );
+
+        setParsedRows(parsedBatch);
+        setCurrentLineNumber(startLine);
+        setServerErrors(null);
+    };
+
+    const validateSchema = async (file: File): Promise<boolean> => {
+        try {
+            const text = await file.text();
+            const lines = text
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter((line) => line !== "");
+            const firstLine = lines[0];
+
+            if (!firstLine) {
+                setErrorMessage(
+                    "The uploaded file is empty, please ensure the first row of the file indicates column headings.",
+                );
+                setSelectedFile(null);
+                setParsedRows([]);
+                return false;
+            }
+            const headers = firstLine.split(",").map((header) => header.trim());
+            if (
+                headers.length !== FILE_SCHEMA.length ||
+                !FILE_SCHEMA.every((col, i) => headers[i] === col.name)
+            ) {
+                setErrorMessage(
+                    "Invalid first row, please ensure that the first row matches the expected schema.",
+                );
+                setSelectedFile(null);
+                setParsedRows([]);
+                return false;
+            }
+            setAllLines(lines);
+            loadBatch(lines, 1);
+
+            return true;
+        } catch (error: unknown) {
+            setErrorMessage("Error reading the file. Please contact support.");
+            console.error(error);
+            setSelectedFile(null);
+            setParsedRows([]);
+            return false;
+        }
+    };
+
+    const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        //Use only the first selected file
+        if (!files || files.length === 0) {
+            return;
+        }
+
+        const file = files[0];
+
+        if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
+            setErrorMessage("The program only accepts .csv files.");
+            event.target.value = "";
+            return;
+        }
+
+        //Clear error messages
+        setErrorMessage(null);
+        setServerErrors(null);
+        setIsComplete(false);
+        const isValid = await validateSchema(file);
+        if (!isValid) {
+            event.target.value = "";
+            return;
+        }
+
+        setSelectedFile(file);
+    };
+
+    const handleCellChange = (
+        rowIndex: number,
+        colIndex: number,
+        newValue: string,
+    ) => {
+        setParsedRows((prevRows) => {
+            const updatedRows = [...prevRows];
+            updatedRows[rowIndex] = [...updatedRows[rowIndex]];
+            updatedRows[rowIndex][colIndex] = newValue;
+            return updatedRows;
+        });
+
+        if (serverErrors) {
+            const rowKey = `row_${rowIndex + 1}`;
+            if (serverErrors[rowKey]) {
+                setServerErrors((prev) => {
+                    if (!prev) {
+                        return null;
+                    }
+                    const updated = { ...prev };
+                    delete updated[rowKey];
+                    return updated;
+                });
+            }
+        }
+    };
+
+    //Revalidate data after edit
+    const isDataValid = () => {
+        return parsedRows.every((row) => {
+            if (row.length !== FILE_SCHEMA.length) {
+                return false;
+            }
+            return row.every((cell, i) =>
+                validateData(cell, FILE_SCHEMA[i].type),
+            );
+        });
+    };
+    const handleDataSubmission = async () => {
+        if (!isDataValid()) {
+            alert("Cannot submit, validation errors exist in this batch");
+            return;
+        }
+
+        const records = parsedRows.map(mapRowToRecord);
+
+        try {
+            await ingestionApi.uploadFile(records, currentLineNumber);
+
+            setErrorMessage(null);
+            setServerErrors(null);
+
+            //Advance to the next batch
+            const nextLine = currentLineNumber + parsedRows.length;
+            if (nextLine >= allLines.length) {
+                setIsComplete(true);
+                setParsedRows([]);
+                setSelectedFile(null);
+                alert("Success! The entire file has been uploaded");
+            } else {
+                loadBatch(allLines, nextLine);
+            }
+        } catch (error: unknown) {
+            console.error("Batch processing failed", error);
+
+            let errorMessage =
+                "A network issue occured while submitting this batch";
+
+            const detail = parseServerError(error);
+            if (detail) {
+                if (detail.message) {
+                    errorMessage = detail.message;
+                }
+                if (detail.errors) {
+                    setServerErrors(detail.errors);
+                }
+            }
+
+            setErrorMessage(errorMessage);
+        }
+    };
     return (
-        <div className="p-6 max-w-4xl mx-auto space-y-6">
-            <div className="rounded-md bg-brand-dark-blue text-white px-4 py-2.5 text-sm flex items-center gap-2">
-                <Upload className="size-4 shrink-0" />
-                <span>
-                    This page is still to come, but here's a little teaser.
-                </span>
-            </div>
+        <div>
+            <h1>Example File Upload location</h1>
+            {/* File type should always be .csv but adding it for dynamic reasons*/}
+            <input
+                type="file"
+                accept=".csv"
+                aria-label="CSV file upload"
+                onChange={handleFileUpload}
+            />
+            {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
+            {isComplete && (
+                <p style={{ color: "green" }}>
+                    File batching sequence completed
+                </p>
+            )}
 
-            <h1 className="text-2xl font-semibold text-foreground">
-                Data Ingestion
-            </h1>
-
-            <div className="rounded-lg border-2 border-dashed border-border bg-card flex flex-col items-center justify-center py-12 gap-3 opacity-70 cursor-not-allowed select-none">
-                <div className="size-12 rounded-full bg-muted flex items-center justify-center">
-                    <Upload className="size-6 text-muted-foreground" />
-                </div>
-                <div className="text-center">
-                    <p className="text-sm font-medium">
-                        Drop CSV file here or click to browse
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Accepts: incidents, sightings, patrol logs · Max 50 MB
-                    </p>
-                </div>
-                <Button disabled size="sm" className="opacity-60">
-                    Select File
-                </Button>
-            </div>
-
-            <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                    Current Model Performance
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {METRICS.map(({ label, value, delta, up }) => (
-                        <div
-                            key={label}
-                            className="rounded-lg border border-border bg-card p-4"
-                        >
-                            <p className="text-xs text-muted-foreground">
-                                {label}
-                            </p>
-                            <p
-                                className={`text-2xl font-bold mt-1 ${up ? "text-spot-green" : "text-spot-red"}`}
-                            >
-                                {value}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground mt-1">
-                                {delta}
-                            </p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                    Recent Uploads
-                </h2>
-                <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <h1>File contents</h1>
+            {selectedFile && parsedRows.length > 0 ? (
+                <div>
+                    <h3>
+                        Displaying rows {currentLineNumber} to{" "}
+                        {Math.min(
+                            currentLineNumber + parsedRows.length - 1,
+                            allLines.length - 1,
+                        )}
+                    </h3>
+                    <button onClick={handleDataSubmission}>
+                        Submit Current Batch
+                    </button>
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>File</TableHead>
-                                <TableHead>Size</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Rows</TableHead>
-                                <TableHead>Status</TableHead>
+                                {FILE_SCHEMA.map((col) => (
+                                    <TableHead key={col.name}>
+                                        {col.name} ({col.type})
+                                    </TableHead>
+                                ))}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {UPLOADS.map((u) => (
-                                <TableRow key={u.name}>
-                                    <TableCell className="font-mono text-xs">
-                                        {u.name}
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {u.size}
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {u.date}
-                                    </TableCell>
-                                    <TableCell>{u.rows}</TableCell>
-                                    <TableCell>
-                                        <span className="flex items-center gap-1.5">
-                                            <StatusIcon status={u.status} />
-                                            <span className="text-sm">
-                                                {u.status}
-                                            </span>
-                                        </span>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                            {parsedRows.map((row, i) => {
+                                const rowKey = `row_${i + 1}`;
+                                const rowErrors = serverErrors
+                                    ? serverErrors[rowKey]
+                                    : undefined;
+
+                                return (
+                                    <DataRow
+                                        key={rowKey}
+                                        rowIndex={i}
+                                        cells={row}
+                                        schema={FILE_SCHEMA}
+                                        rowServerErrors={rowErrors}
+                                        onCellChange={handleCellChange}
+                                    />
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 </div>
-            </div>
+            ) : (
+                !isComplete && "No data loaded"
+            )}
         </div>
     );
-}
+};
+
+const DataRow: React.FC<DataRowProps> = ({
+    rowIndex,
+    cells,
+    schema,
+    rowServerErrors,
+    onCellChange,
+}) => {
+    return (
+        <TableRow>
+            {schema.map((typeDef, i) => {
+                //Mark missing data as empty
+                const cellValue = cells[i] ?? "";
+
+                //Mark something out of bounds invalid automatically
+                const isTypeValid = typeDef
+                    ? validateData(cellValue, typeDef.type)
+                    : false;
+
+                const isEmpty = cellValue === "";
+
+                const matchingServerError = rowServerErrors?.find(
+                    (err) => err.column === typeDef.name,
+                );
+                const hasServerError = !!matchingServerError;
+                const isInvalid = !isTypeValid || isEmpty || hasServerError;
+
+                const shouldHighlightBg = isEmpty || hasServerError;
+
+                let titleMessage: string | undefined = undefined;
+                if (isEmpty) {
+                    titleMessage = `Field "${typeDef.name}" is missing/empty`;
+                } else if (!isTypeValid) {
+                    titleMessage = `Expected ${typeDef.type} but got "${cellValue}"`;
+                } else if (matchingServerError) {
+                    titleMessage = `Server Validation Failed: ${matchingServerError.message}`;
+                }
+
+                return (
+                    <TableCell key={typeDef.name}>
+                        <div>
+                            <input
+                                type="text"
+                                value={cellValue}
+                                className={
+                                    matchingServerError ? "border-red-500" : ""
+                                }
+                                onChange={(e) =>
+                                    onCellChange(rowIndex, i, e.target.value)
+                                }
+                                style={{
+                                    backgroundColor: shouldHighlightBg
+                                        ? "rgb(239, 30, 30, 0.15)"
+                                        : "transparent",
+                                    color: isInvalid ? "red" : "inherit",
+                                    fontWeight: isInvalid ? "bold" : "normal",
+                                    border: matchingServerError
+                                        ? "1px solid red"
+                                        : "none",
+                                    outline: matchingServerError
+                                        ? "none"
+                                        : undefined,
+                                }}
+                                title={titleMessage}
+                            />
+                        </div>
+                    </TableCell>
+                );
+            })}
+        </TableRow>
+    );
+};
+
+export default IngestionPage;

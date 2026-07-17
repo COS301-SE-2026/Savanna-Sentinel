@@ -49,10 +49,10 @@ Components are copied into `src/components/ui/` and are fully editable.
 ## Utilities
 
 ```ts
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
 // Merge Tailwind classes safely
-cn('px-4 py-2', isActive && 'bg-primary')
+cn("px-4 py-2", isActive && "bg-primary");
 ```
 
 ## Icons
@@ -60,7 +60,7 @@ cn('px-4 py-2', isActive && 'bg-primary')
 Lucide React is the only icon library. No others should be added.
 
 ```tsx
-import { MapPin, AlertTriangle, Shield } from 'lucide-react'
+import { MapPin, AlertTriangle, Shield } from "lucide-react";
 
-<MapPin className="size-4" />
+<MapPin className="size-4" />;
 ```
