@@ -74,6 +74,11 @@ export const usersApi = {
             .delete<UserResponse>(`/admin/users/delete/${user_id}`)
             .then((r) => r.data),
 
+    softDeleteUser: (user_id: string): Promise<UserResponse> =>
+        api
+            .delete<UserResponse>(`/users/${user_id}`)
+            .then((r) => r.data),
+
     changeUserRole: (userId: string, newRole: string): Promise<UserResponse> =>
         api
             .patch<UserResponse>(`/users/${userId}/role`, {
