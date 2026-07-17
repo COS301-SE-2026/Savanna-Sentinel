@@ -1,15 +1,26 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
+import {
+    describe,
+    beforeAll,
+    afterAll,
+    afterEach,
+    it,
+    expect,
+    vi,
+} from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RoleSwap from "@/components/admin/RoleSwap";
-import { roleSwapHandlers } from "./mocks/roleSwapHandlers";
+import { roleSwapHandlers, resetMockActiveUsers } from "./mocks/roleSwapHandlers";
 
 const server = setupServer(...roleSwapHandlers);
 
 beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+    server.resetHandlers();
+    resetMockActiveUsers();
+});
 afterAll(() => server.close());
 
 function renderRoleSwap() {
@@ -169,4 +180,58 @@ describe("RoleSwap - Role Management", () => {
             { timeout: 6000 },
         );
     }, 10000);
+
+    it("shows a Delete button per active user row", async () => {
+        renderRoleSwap();
+        await screen.findByText("ranger1");
+
+        const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
+        expect(deleteButtons).toHaveLength(2);
+    });
+
+    it("does not call the API when delete is cancelled", async () => {
+        vi.spyOn(window, "confirm").mockReturnValue(false);
+        const user = userEvent.setup();
+        renderRoleSwap();
+        await screen.findByText("ranger1");
+
+        const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
+        await user.click(deleteButtons[0]);
+
+        expect(screen.getByText("ranger1")).toBeInTheDocument();
+    });
+
+    it("removes the row after a confirmed successful delete", async () => {
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        const user = userEvent.setup();
+        renderRoleSwap();
+        await screen.findByText("ranger1");
+
+        const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
+        await user.click(deleteButtons[0]);
+
+        await waitFor(() =>
+            expect(screen.queryByText("ranger1")).not.toBeInTheDocument(),
+        );
+    });
+
+    it("shows an error message when delete fails", async () => {
+        server.use(
+            http.delete(
+                "**/v1/users/:id",
+                () => new HttpResponse(null, { status: 500 }),
+            ),
+        );
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        const user = userEvent.setup();
+        renderRoleSwap();
+        await screen.findByText("ranger1");
+
+        const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
+        await user.click(deleteButtons[0]);
+
+        expect(
+            await screen.findByText(/failed to delete account/i),
+        ).toBeInTheDocument();
+    });
 });
