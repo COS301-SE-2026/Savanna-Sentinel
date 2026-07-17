@@ -286,3 +286,40 @@ def test_run_phase_returns_best(
         (["start", "mid", "end"], 0.8),
         (["start", "mid", "end"], 0.8),
     ]
+
+def test_run_phase_skips_iterations_without_complete_tours(monkeypatch):
+    fixture = make_graph()
+    config = route_planner.ACOConfig(num_ants=2)
+
+    monkeypatch.setattr(
+        route_planner,
+        "construct_tour",
+        lambda *args, **kwargs: (
+            [fixture.start_node_id, fixture.mid_node_id],
+            10.0,
+            1.5,
+            0.2,
+        ),
+    )
+    monkeypatch.setattr(
+        route_planner,
+        "update_pheromones",
+        lambda *args, **kwargs: pytest.fail(
+            "update_pheromones was called when no complete tours exist",
+        ),
+    )
+
+    best_path, best_risk, pheromones = route_planner.run_phase(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        max_time=30.0,
+        max_fuel=5.0,
+        pheromones={"initial": True},
+        num_iterations=2,
+        config=config,
+    )
+
+    assert best_path == []
+    assert best_risk == -1.0
+    assert pheromones == {"initial": True}
