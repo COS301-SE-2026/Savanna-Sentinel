@@ -122,6 +122,29 @@ async def status_switch(
     return response_data
 
 @router.delete(
+    "/users/{user_id}",
+    response_model=UsersResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Soft-delete an approved user account",
+)
+async def soft_delete_user(
+        user_id: str,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_admin: Annotated[User, Depends(require_admin)],
+    ):
+    repo = UserRepository(db)
+    service = UserService(repo, AuditService(AuditRepository(db)))
+    response_data = await service.soft_delete(user_id, current_admin.id)
+
+    if response_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User Id does not exist or is not eligible for deletion",
+        )
+
+    return response_data
+
+@router.delete(
     "/admin/users/delete/{user_id}",
     response_model=UsersResponse,
     status_code=status.HTTP_200_OK,
