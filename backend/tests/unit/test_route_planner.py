@@ -352,3 +352,85 @@ def test_is_sufficiently_diverse_rejects_too_similar_paths():
         )
         is False
     )
+
+def test_best_risk_threshold():
+    config = route_planner.ACOConfig(quality_threshold=0.9)
+
+    assert route_planner.is_sufficient_quality(0.91, 1.0, config) is True
+    assert route_planner.is_sufficient_quality(0.80, 1.0, config) is False
+
+
+def test_plan_routes_accepts_paths_from_each_phase(monkeypatch):
+    fixture = make_graph()
+    config = route_planner.ACOConfig(
+        total_iterations=10, phase_split=(0.5, 0.5, 0.0),
+    )
+
+    phase_results = iter(
+        [
+            (["start", "mid", "end"], 0.8),
+            (["start", "mid", "end"], 0.8),
+            (["start", "end"], 0.95),
+        ],
+    )
+    penalty_calls: list[list[str]] = []
+
+    def fake_run_phase(*args, **kwargs):
+        path, risk = next(phase_results)
+        return path, risk, {}
+
+    monkeypatch.setattr(route_planner, "run_phase", fake_run_phase)
+    monkeypatch.setattr(
+        route_planner,
+        "apply_partial_penalty",
+        lambda pheromones, used_path, config: penalty_calls.append(used_path)
+        or pheromones,
+    )
+
+    routes = route_planner.plan_routes(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        max_time_min=30.0,
+        max_fuel_l=5.0,
+        num_alternatives=2,
+        config=config,
+    )
+
+    assert len(routes) == 2
+    assert [route.suggested_path for route in routes] == [
+        ["start", "mid", "end"],
+        ["start", "end"],
+    ]
+    assert len(penalty_calls) == 3
+    assert penalty_calls[0] == ["start", "mid", "end"]
+    assert penalty_calls[1] == ["start", "mid", "end"]
+    assert penalty_calls[2] == ["start", "end"]
+
+
+def test_routes_skips_empty_phase_results(monkeypatch):
+    fixture = make_graph()
+    config = route_planner.ACOConfig(
+        total_iterations=10, phase_split=(1.0, 0.0, 0.0),
+    )
+
+    monkeypatch.setattr(
+        route_planner, "run_phase", lambda *args, **kwargs: ([], 0.0, {}),
+    )
+    monkeypatch.setattr(
+        route_planner,
+        "apply_partial_penalty",
+        lambda pheromones, used_path, config: pheromones,
+    )
+
+    routes = route_planner.plan_routes(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        max_time_min=30.0,
+        max_fuel_l=5.0,
+        num_alternatives=1,
+        config=config,
+    )
+
+    assert routes == []
