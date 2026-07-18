@@ -1,125 +1,19 @@
 import React, { useEffect, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { usersApi } from "@/services/usersApi";
 import type { UserResponse } from "@/services/usersApi";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
-import { Dialog as DialogPrimitive } from "radix-ui";
-import { XIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-function Dialog({
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
-    return <DialogPrimitive.Root data-slot="dialog" {...props} />;
-}
-
-function DialogPortal({
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-    return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
-}
-
-function DialogOverlay({
-    className,
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
-    return (
-        <DialogPrimitive.Overlay
-            data-slot="dialog-overlay"
-            className={cn(
-                "fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px] duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
-                className,
-            )}
-            {...props}
-        />
-    );
-}
-
-function DialogContent({
-    className,
-    children,
-    showCloseButton = true,
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
-    showCloseButton?: boolean;
-}) {
-    return (
-        <DialogPortal>
-            <DialogOverlay />
-            <DialogPrimitive.Content
-                data-slot="dialog-content"
-                className={cn(
-                    "fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[#D8DAD6] bg-white shadow-2xl outline-none duration-200 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-                    className,
-                )}
-                {...props}
-            >
-                {children}
-                {showCloseButton && (
-                    <DialogPrimitive.Close asChild>
-                        <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                        >
-                            <XIcon />
-                            <span className="sr-only">Close</span>
-                        </Button>
-                    </DialogPrimitive.Close>
-                )}
-            </DialogPrimitive.Content>
-        </DialogPortal>
-    );
-}
-
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-    return (
-        <div
-            data-slot="dialog-header"
-            className={cn("flex flex-col gap-2 p-5", className)}
-            {...props}
-        />
-    );
-}
-
-function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
-    return (
-        <div
-            data-slot="dialog-footer"
-            className={cn(
-                "flex flex-col-reverse gap-2 p-5 pt-0 sm:flex-row sm:justify-end",
-                className,
-            )}
-            {...props}
-        />
-    );
-}
-
-function DialogTitle({
-    className,
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
-    return (
-        <DialogPrimitive.Title
-            data-slot="dialog-title"
-            className={cn("text-lg font-semibold text-[#003A6B]", className)}
-            {...props}
-        />
-    );
-}
-
-function DialogDescription({
-    className,
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
-    return (
-        <DialogPrimitive.Description
-            data-slot="dialog-description"
-            className={cn("text-sm text-muted-foreground", className)}
-            {...props}
-        />
-    );
-}
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 
 export const ProfilePage: React.FC = () => {
     const [profile, setProfile] = useState<UserResponse | null>(null);
@@ -129,6 +23,10 @@ export const ProfilePage: React.FC = () => {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [isLoadingProfile, setLoadingProfile] = useState(true);
     const [isSavingProfile, setSavingProfile] = useState(false);
@@ -320,244 +218,262 @@ export const ProfilePage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen" style={{ background: "#F2F2F2" }}>
-            <main className="max-w-4xl mx-auto px-4">
-                <Dialog
-                    open={isConfirmDialogOpen}
-                    onOpenChange={(open: boolean) =>
-                        !open && setPendingAction(null)
-                    }
-                >
-                    <DialogContent showCloseButton={!isConfirming}>
-                        <DialogHeader className="bg-[#003A6B] text-white rounded-t-xl">
-                            <DialogTitle className="text-white">
-                                {confirmDialogTitle}
-                            </DialogTitle>
-                            <DialogDescription className="text-[#D8DAD6]">
-                                {confirmDialogBody}
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="px-5 pb-5 text-sm text-[#313131] pt-4">
-                            Please click{" "}
-                            <span className="font-semibold text-[#003A6B]">
-                                Confirm changes
-                            </span>{" "}
-                            to apply the update.
-                        </div>
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setPendingAction(null)}
-                                disabled={isConfirming}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="default"
-                                onClick={handleConfirmChanges}
-                                disabled={isConfirming}
-                            >
-                                Confirm Changes
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+        <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
+            <Dialog
+                open={isConfirmDialogOpen}
+                onOpenChange={(open) => {
+                    if (!open && !isConfirming) setPendingAction(null);
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{confirmDialogTitle}</DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>{confirmDialogBody}</DialogDescription>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setPendingAction(null)}
+                            disabled={isConfirming}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={handleConfirmChanges}
+                            disabled={isConfirming}
+                        >
+                            Confirm Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8">
-                    <section className="bg-white rounded-md p-6 shadow-sm border">
-                        <h2 className="text-lg font-semibold mb-4">Profile</h2>
-                        {isLoadingProfile ? (
-                            <p>Loading…</p>
-                        ) : (
-                            <form onSubmit={onSaveProfile}>
-                                <label
-                                    htmlFor="first_name"
-                                    className="block text-sm font-medium text-gray-700"
-                                >
-                                    First name
-                                </label>
-                                <input
+            <h1 className="mb-6 font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
+                Profile
+            </h1>
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <section className="rounded-lg border border-color-border bg-color-surface-raised p-6 shadow-sm">
+                    <h2 className="mb-4 font-heading text-2xl leading-[1.15] font-bold text-brand-primary">
+                        Profile Details
+                    </h2>
+                    {isLoadingProfile ? (
+                        <p className="text-sm text-color-text-secondary">
+                            Loading…
+                        </p>
+                    ) : (
+                        <form
+                            onSubmit={onSaveProfile}
+                            className="flex flex-col gap-5"
+                        >
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="first_name">First name</Label>
+                                <Input
                                     id="first_name"
-                                    className="mt-1 w-full p-2 border rounded-md"
                                     value={firstName}
                                     onChange={(e) =>
                                         setFirstName(e.target.value)
                                     }
                                 />
+                            </div>
 
-                                <label
-                                    htmlFor="last_name"
-                                    className="block text-sm font-medium text-gray-700 mt-4"
-                                >
-                                    Last name
-                                </label>
-                                <input
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="last_name">Last name</Label>
+                                <Input
                                     id="last_name"
-                                    className="mt-1 w-full p-2 border rounded-md"
                                     value={lastName}
                                     onChange={(e) =>
                                         setLastName(e.target.value)
                                     }
                                 />
+                            </div>
 
-                                <div className="mt-4 flex items-center gap-3 pt-2">
-                                    <Button
-                                        type="submit"
-                                        variant="default"
-                                        className="px-4 py-2"
-                                        style={{
-                                            background: isSaveDisabled
-                                                ? "#103364"
-                                                : "#0070BF",
-                                            color: "#FFFFFF",
-                                            opacity: isSaveDisabled ? 0.6 : 1,
-                                            cursor: isSaveDisabled
-                                                ? "not-allowed"
-                                                : "pointer",
-                                            transition:
-                                                "background-color 180ms ease, opacity 180ms ease, transform 120ms ease, box-shadow 120ms ease",
-                                        }}
-                                        disabled={isSaveDisabled}
-                                    >
-                                        Save
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="px-3 py-2"
-                                        style={{
-                                            borderColor: isResetDisabled
-                                                ? "#D1D5DB"
-                                                : "#174585",
-                                            borderWidth: "2px",
-                                            color: isResetDisabled
-                                                ? "#9CA3AF"
-                                                : "#174585",
-                                            opacity: isResetDisabled ? 0.85 : 1,
-                                            cursor: isResetDisabled
-                                                ? "not-allowed"
-                                                : "pointer",
-                                            transition:
-                                                "border-color 180ms ease, color 180ms ease, opacity 180ms ease, box-shadow 120ms ease",
-                                        }}
-                                        disabled={isResetDisabled}
-                                        onClick={() => {
-                                            setFirstName(profileFirstName);
-                                            setLastName(profileLastName);
-                                            setMessage(null);
-                                            setError(null);
-                                        }}
-                                    >
-                                        Reset
-                                    </Button>
-                                </div>
-                            </form>
-                        )}
-                    </section>
-
-                    <section className="bg-white rounded-md p-6 shadow-sm border">
-                        <h2 className="text-lg font-semibold mb-4">
-                            Change password
-                        </h2>
-                        <form onSubmit={onChangePassword}>
-                            <label
-                                htmlFor="current_password"
-                                className="block text-sm font-medium text-gray-700"
-                            >
-                                Current password
-                            </label>
-                            <input
-                                id="current_password"
-                                type="password"
-                                className="mt-1 w-full p-2 border rounded-md"
-                                value={currentPassword}
-                                onChange={(e) =>
-                                    setCurrentPassword(e.target.value)
-                                }
-                            />
-
-                            <label
-                                htmlFor="new_password"
-                                className="block text-sm font-medium text-gray-700 mt-4"
-                            >
-                                New password
-                            </label>
-                            <input
-                                id="new_password"
-                                type="password"
-                                className="mt-1 w-full p-2 border rounded-md"
-                                value={newPassword}
-                                onChange={(e) => {
-                                    setNewPassword(e.target.value);
-                                    setError(null);
-                                }}
-                            />
-                            <p className="text-xs text-gray-500 mt-2">
-                                New password must be at least 8 characters.
-                            </p>
-
-                            <label
-                                htmlFor="confirm_password"
-                                className="block text-sm font-medium text-gray-700 mt-4"
-                            >
-                                Confirm password
-                            </label>
-                            <input
-                                id="confirm_password"
-                                type="password"
-                                className="mt-1 w-full p-2 border rounded-md"
-                                value={confirmPassword}
-                                onChange={(e) => {
-                                    setConfirmPassword(e.target.value);
-                                    setError(null);
-                                }}
-                            />
-
-                            <div className="mt-4">
+                            <div className="flex items-center gap-3 pt-2">
                                 <Button
                                     type="submit"
                                     variant="default"
-                                    className="px-4 py-2"
-                                    style={{
-                                        background: isChangePasswordDisabled
-                                            ? "#103364"
-                                            : "#0070BF",
-                                        color: "#FFFFFF",
-                                        opacity: isChangePasswordDisabled
-                                            ? 0.6
-                                            : 1,
-                                        cursor: isChangePasswordDisabled
-                                            ? "not-allowed"
-                                            : "pointer",
-                                        transition:
-                                            "background-color 180ms ease, opacity 180ms ease, transform 120ms ease, box-shadow 120ms ease",
-                                    }}
-                                    disabled={isChangePasswordDisabled}
+                                    disabled={isSaveDisabled}
                                 >
-                                    Change Password
+                                    Save
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={isResetDisabled}
+                                    onClick={() => {
+                                        setFirstName(profileFirstName);
+                                        setLastName(profileLastName);
+                                        setMessage(null);
+                                        setError(null);
+                                    }}
+                                >
+                                    Reset
                                 </Button>
                             </div>
                         </form>
-                    </section>
-                </div>
+                    )}
+                </section>
 
-                {message && (
-                    <output className="mt-6 p-3 rounded-md text-green-800 bg-green-50 border">
-                        {message}
-                    </output>
-                )}
-
-                {error && (
-                    <div
-                        className="mt-6 p-3 rounded-md text-red-800 bg-red-50 border"
-                        role="alert"
+                <section className="rounded-lg border border-color-border bg-color-surface-raised p-6 shadow-sm">
+                    <h2 className="mb-4 font-heading text-2xl leading-[1.15] font-bold text-brand-primary">
+                        Change Password
+                    </h2>
+                    <form
+                        onSubmit={onChangePassword}
+                        className="flex flex-col gap-5"
                     >
-                        {error}
-                    </div>
-                )}
-            </main>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="current_password">
+                                Current password
+                            </Label>
+                            <div className="relative">
+                                <Input
+                                    id="current_password"
+                                    type={
+                                        showCurrentPassword
+                                            ? "text"
+                                            : "password"
+                                    }
+                                    className="pr-12"
+                                    value={currentPassword}
+                                    onChange={(e) =>
+                                        setCurrentPassword(e.target.value)
+                                    }
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={
+                                        showCurrentPassword
+                                            ? "Hide password"
+                                            : "Show password"
+                                    }
+                                    onClick={() =>
+                                        setShowCurrentPassword((v) => !v)
+                                    }
+                                    className="absolute right-1 top-1/2 -translate-y-1/2"
+                                >
+                                    {showCurrentPassword ? (
+                                        <EyeOff size={17} />
+                                    ) : (
+                                        <Eye size={17} />
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="new_password">New password</Label>
+                            <div className="relative">
+                                <Input
+                                    id="new_password"
+                                    type={showNewPassword ? "text" : "password"}
+                                    className="pr-12"
+                                    value={newPassword}
+                                    onChange={(e) => {
+                                        setNewPassword(e.target.value);
+                                        setError(null);
+                                    }}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={
+                                        showNewPassword
+                                            ? "Hide password"
+                                            : "Show password"
+                                    }
+                                    onClick={() =>
+                                        setShowNewPassword((v) => !v)
+                                    }
+                                    className="absolute right-1 top-1/2 -translate-y-1/2"
+                                >
+                                    {showNewPassword ? (
+                                        <EyeOff size={17} />
+                                    ) : (
+                                        <Eye size={17} />
+                                    )}
+                                </Button>
+                            </div>
+                            <p className="text-xs text-color-text-secondary">
+                                New password must be at least 8 characters.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="confirm_password">
+                                Confirm password
+                            </Label>
+                            <div className="relative">
+                                <Input
+                                    id="confirm_password"
+                                    type={
+                                        showConfirmPassword
+                                            ? "text"
+                                            : "password"
+                                    }
+                                    className="pr-12"
+                                    value={confirmPassword}
+                                    onChange={(e) => {
+                                        setConfirmPassword(e.target.value);
+                                        setError(null);
+                                    }}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={
+                                        showConfirmPassword
+                                            ? "Hide password"
+                                            : "Show password"
+                                    }
+                                    onClick={() =>
+                                        setShowConfirmPassword((v) => !v)
+                                    }
+                                    className="absolute right-1 top-1/2 -translate-y-1/2"
+                                >
+                                    {showConfirmPassword ? (
+                                        <EyeOff size={17} />
+                                    ) : (
+                                        <Eye size={17} />
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="pt-2">
+                            <Button
+                                type="submit"
+                                variant="default"
+                                disabled={isChangePasswordDisabled}
+                            >
+                                Change Password
+                            </Button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+
+            {message && (
+                <output className="mt-6 block rounded-md border border-color-border bg-status-safe/10 p-3 text-sm text-status-safe-text">
+                    {message}
+                </output>
+            )}
+
+            {error && (
+                <div
+                    className="mt-6 rounded-md border border-color-border bg-status-critical/5 p-3 text-sm text-status-critical-text"
+                    role="alert"
+                >
+                    {error}
+                </div>
+            )}
         </div>
     );
 };
