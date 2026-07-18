@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -36,35 +36,36 @@ async def _create_user(
     role: str = "ranger",
     is_active: bool = True,
 ) -> str:
-    async with _engine.begin() as conn:
-        result = await conn.execute(
-            text("""
-                INSERT INTO users
-                    (email, username, first_name, last_name, password_hash, role
-                 , is_active)
-                VALUES
-                    (:email, :username, 'Test', 'User', :pw_hash, :role,
-                  :is_active)
-                ON CONFLICT (username) DO NOTHING
-                RETURNING id
-            """),
-            {
-                "email": f"{username}@savanna.test",
-                "username": username,
-                "pw_hash": get_password_hash("SecurePass1!"),
-                "role": role,
-                "is_active": is_active,
-            },
-        )
-        row = result.fetchone()
-        if row:
-            return str(row[0])
-        # user already existed
-        r2 = await conn.execute(
-            text("SELECT id FROM users WHERE username = :u"),
-            {"u": username},
-        )
-        return str(r2.fetchone()[0])
+    async with _Session() as session:
+        async with session.begin():
+            result = await session.execute(
+                text("""
+                    INSERT INTO users
+                        (email, username, first_name, last_name, password_hash,
+                     role, is_active)
+                    VALUES
+                        (:email, :username, 'Test', 'User', :pw_hash, :role,
+                    :is_active)
+                    ON CONFLICT (username) DO NOTHING
+                    RETURNING id
+                """),
+                {
+                    "email": f"{username}@savanna.test",
+                    "username": username,
+                    "pw_hash": get_password_hash("SecurePass1!"),
+                    "role": role,
+                    "is_active": is_active,
+                },
+            )
+            row = result.fetchone()
+            if row:
+                return str(row[0])
+            # user already existed
+            r2 = await session.execute(
+                text("SELECT id FROM users WHERE username = :u"),
+                {"u": username},
+            )
+            return str(r2.fetchone()[0])
 
 
 async def _create_report(
@@ -73,21 +74,22 @@ async def _create_report(
     lat: float = -25.7,
 ) -> str:
     wkt = f"POINT({lng} {lat})"
-    async with _engine.begin() as conn:
-        result = await conn.execute(
-            text("""
-                INSERT INTO field_reports
-                    (submitted_by, report_type, description, location,
-                  occurred_at)
-                VALUES
-                    (:uid, 'incident', 'Test incident',
-                     ST_GeogFromText(:wkt),
-                     NOW() - INTERVAL '1 hour')
-                RETURNING id
-            """),
-            {"uid": user_id, "wkt": wkt},
-        )
-        return str(result.fetchone()[0])
+    async with _Session() as session:
+        async with session.begin():
+            result = await session.execute(
+                text("""
+                    INSERT INTO field_reports
+                        (submitted_by, report_type, description, location,
+                    occurred_at)
+                    VALUES
+                        (:uid, 'incident', 'Test incident',
+                        ST_GeogFromText(:wkt),
+                        NOW() - INTERVAL '1 hour')
+                    RETURNING id
+                """),
+                {"uid": user_id, "wkt": wkt},
+            )
+            return str(result.fetchone()[0])
 
 
 async def _create_sighting_report(
@@ -136,11 +138,15 @@ async def _create_sighting_report(
 
 
 async def _soft_delete_report(report_id: str) -> None:
-    async with _engine.begin() as conn:
-        await conn.execute(
-            text("UPDATE field_reports SET deleted_at = NOW() WHERE id = :rid"),
-            {"rid": report_id},
-        )
+    async with _Session() as session:
+        async with session.begin():
+            await session.execute(
+                text("UPDATE field_reports "
+                     "SET deleted_at = NOW() "
+                     "WHERE id = :rid",
+                    ),
+                {"rid": report_id},
+            )
 
 
 def _auth_header(user_id: str) -> dict:
