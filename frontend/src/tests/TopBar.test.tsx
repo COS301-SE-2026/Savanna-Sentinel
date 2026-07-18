@@ -75,7 +75,7 @@ describe("TopBar", () => {
         renderTopBar();
         const avatar = screen.getByRole("link", { name: "Account" });
         expect(avatar).toHaveAttribute("href", "/profile");
-        expect(avatar).toHaveTextContent("JA");
+        expect(avatar).toHaveTextContent("J");
     });
 
     it("does not render the offline indicator when online", () => {

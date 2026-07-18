@@ -1,16 +1,17 @@
 import { Link } from "react-router-dom";
 import { Popover } from "radix-ui";
-import { BellIcon, GlobeOffIcon, HelpCircleIcon } from "lucide-react";
+import { GlobeOffIcon, HelpCircleIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import BurgerMenu from "./BurgerMenu";
+import NotificationBell from "./NotificationBell";
 
 export default function TopBar() {
     const user = useAuthStore((s) => s.user);
     const isOnline = useOnlineStatus();
-    const initials = user ? user.username.slice(0, 2).toUpperCase() : "";
+    const initials = user ? user.username[0].toUpperCase() : "";
 
     return (
         <header className="fixed top-0 inset-x-0 z-40 h-14 flex items-center justify-between px-5 border-b border-color-border bg-color-surface-raised shadow-sm">
@@ -46,9 +47,7 @@ export default function TopBar() {
                         </Popover.Portal>
                     </Popover.Root>
                 )}
-                <Button variant="ghost" size="icon" aria-label="Notifications">
-                    <BellIcon className="size-5" />
-                </Button>
+                <NotificationBell />
                 <Button variant="ghost" size="icon" aria-label="Help">
                     <HelpCircleIcon className="size-5" />
                 </Button>
