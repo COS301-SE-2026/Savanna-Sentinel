@@ -19,6 +19,7 @@ from app.services.report_service import ReportService
 router = APIRouter(tags=["reports"])
 
 _ROLE_DENIED = "Access denied"
+_REPORT_NOT_FOUND = "Report not found"
 
 
 @router.post(
@@ -118,7 +119,7 @@ async def update_report(
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Report not found",
+            detail=_REPORT_NOT_FOUND,
         )
 
     return ReportSubmitResponse(**result)
@@ -146,7 +147,7 @@ async def delete_report(
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Report not found",
+            detail=_REPORT_NOT_FOUND,
         )
 
 
@@ -173,7 +174,7 @@ async def get_report(
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Report not found",
+            detail=_REPORT_NOT_FOUND,
         )
 
     return ReportResponse(**report)
