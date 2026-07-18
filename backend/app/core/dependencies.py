@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -55,12 +55,15 @@ async def get_current_user(
 
     return user
 
-def require_admin(
-        current_user: User = Depends(get_current_user),
-) -> User:
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Operation forbidden: Admin privileges required",
-        )
-    return current_user
+
+# Factory for role authentication
+def require_roles(allowed_roles: List[str]):
+    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in allowed_roles:
+            roles_str = " or ".join(allowed_roles)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Operation forbidden: {roles_str} privileges required",
+            )
+        return current_user
+    return role_checker

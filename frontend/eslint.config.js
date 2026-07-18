@@ -61,7 +61,7 @@ export default defineConfig([
                     //Eslint will strip out the is has should words when parsing due to the prefix rule, so Pascal is used to avoid the error.
                     //Camel should be used in all cases
                     format: ["PascalCase"],
-                    prefix: ["is", "has", "should", "can", "show"],
+                    prefix: ["is", "has", "should", "can", "show", "validate"],
                 },
                 {
                     selector: "variable",
