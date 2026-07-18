@@ -3,7 +3,13 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { authHandlers, mockUsers } from "./mocks/adminauthHandlers";
 import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
-import { render, screen, within, waitFor, fireEvent } from "@testing-library/react";
+import {
+    render,
+    screen,
+    within,
+    waitFor,
+    fireEvent,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const server = setupServer(...authHandlers);
@@ -241,6 +247,7 @@ describe("Authpage - Pending Registrations", () => {
         expect(await screen.findByRole("dialog")).toBeInTheDocument();
 
         fireEvent.pointerDown(document.body);
+        fireEvent.click(document.body);
 
         await waitFor(() => {
             expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

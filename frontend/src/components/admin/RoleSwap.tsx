@@ -20,10 +20,17 @@ import {
 import { cn, formatRole } from "@/lib/utils";
 import { usersApi, type UserResponse } from "@/services/usersApi";
 import { useSort } from "@/hooks/useSort";
-import { useRoleOptions, useUserSearchFilter } from "@/hooks/useUserSearchFilter";
+import {
+    useRoleOptions,
+    useUserSearchFilter,
+} from "@/hooks/useUserSearchFilter";
 import { SortableTableHead } from "@/components/admin/SortableTableHead";
 import { UserSearchFilterBar } from "@/components/admin/UserSearchFilterBar";
-import { theadClass, cellClass, rowClass } from "@/components/admin/userTableStyles";
+import {
+    theadClass,
+    cellClass,
+    rowClass,
+} from "@/components/admin/userTableStyles";
 
 const ASSIGNABLE_ROLES = [
     { value: "ranger", label: "Ranger" },

@@ -28,7 +28,11 @@ const BurgerMenu = () => {
     return (
         <Sheet open={isOpen} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Open navigation menu">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Open navigation menu"
+                >
                     <MenuIcon className="size-5" />
                 </Button>
             </SheetTrigger>

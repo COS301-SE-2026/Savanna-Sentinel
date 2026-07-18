@@ -297,10 +297,7 @@ export function UserSearchFilterBar({
                                 >
                                     Clear
                                 </Button>
-                                <Button
-                                    type="button"
-                                    onClick={handleApply}
-                                >
+                                <Button type="button" onClick={handleApply}>
                                     Apply
                                 </Button>
                             </div>
