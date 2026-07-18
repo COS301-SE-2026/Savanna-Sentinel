@@ -323,3 +323,32 @@ def test_run_phase_skips_iterations_without_complete_tours(monkeypatch):
     assert best_path == []
     assert best_risk == -1.0
     assert pheromones == {"initial": True}
+
+def test_to_planned_route_builds_geometry_and_sums_edge_costs():
+    fixture = make_graph()
+
+    route = route_planner._to_planned_route(
+        fixture.graph,
+        path=[fixture.start_node_id, fixture.mid_node_id, fixture.end_node_id],
+        risk_coverage=0.83,
+    )
+
+    assert isinstance(route, PlannedRoute)
+    assert route.suggested_path == ["start", "mid", "end"]
+    assert route.estimated_time_min == 20.0
+    assert route.estimated_fuel_l == 3.0
+    assert route.risk_coverage == 0.83
+    assert route.path_geometry.type == "LineString"
+    assert len(route.path_geometry.coordinates) >= 2
+
+
+def test_is_sufficiently_diverse_rejects_too_similar_paths():
+    candidate = ["start", "mid", "end"]
+    prior_paths = [["start", "mid", "end"]]
+
+    assert (
+        route_planner.is_sufficiently_diverse(
+            candidate, prior_paths, threshold=0.3,
+        )
+        is False
+    )
