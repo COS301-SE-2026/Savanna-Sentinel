@@ -7,10 +7,41 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.repositories.report_repository import ReportRepository
-from app.schemas.report import ReportListResponse, ReportResponse
+from app.schemas.report import (
+    ReportCreate,
+    ReportListResponse,
+    ReportResponse,
+    ReportSubmitResponse,
+    ReportUpdate,
+)
 from app.services.report_service import ReportService
 
 router = APIRouter(tags=["reports"])
+
+_ROLE_DENIED = "Access denied"
+_REPORT_NOT_FOUND = "Report not found"
+
+
+@router.post(
+    "/reports",
+    response_model=ReportSubmitResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit field report (SC-11)",
+)
+async def submit_report(
+    body: ReportCreate,
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    if current_user.role not in ("ranger", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_ROLE_DENIED,
+        )
+
+    service = ReportService(ReportRepository(db))
+    result = await service.create_report(current_user, body)
+    return ReportSubmitResponse(**result)
 
 
 @router.get(
@@ -42,7 +73,7 @@ async def list_reports(
     if current_user.role not in ("ranger", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
+            detail=_ROLE_DENIED,
         )
 
     service = ReportService(ReportRepository(db))
@@ -64,6 +95,62 @@ async def list_reports(
     )
 
 
+@router.patch(
+    "/reports/{report_id}",
+    response_model=ReportSubmitResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Edit field report (SC-12)",
+)
+async def update_report(
+    report_id: str,
+    body: ReportUpdate,
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    if current_user.role not in ("ranger", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_ROLE_DENIED,
+        )
+
+    service = ReportService(ReportRepository(db))
+    result = await service.update_report(report_id, current_user, body)
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=_REPORT_NOT_FOUND,
+        )
+
+    return ReportSubmitResponse(**result)
+
+
+@router.delete(
+    "/reports/{report_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete field report (SC-13)",
+)
+async def delete_report(
+    report_id: str,
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    if current_user.role not in ("ranger", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_ROLE_DENIED,
+        )
+
+    service = ReportService(ReportRepository(db))
+    deleted = await service.delete_report(report_id, current_user)
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=_REPORT_NOT_FOUND,
+        )
+
+
 @router.get(
     "/reports/{report_id}",
     response_model=ReportResponse,
@@ -78,7 +165,7 @@ async def get_report(
     if current_user.role not in ("ranger", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
+            detail=_ROLE_DENIED,
         )
 
     service = ReportService(ReportRepository(db))
@@ -87,7 +174,7 @@ async def get_report(
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Report not found",
+            detail=_REPORT_NOT_FOUND,
         )
 
     return ReportResponse(**report)
