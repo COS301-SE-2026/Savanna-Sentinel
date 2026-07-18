@@ -93,6 +93,18 @@ class ReportService:
             fields=fields,
         )
 
+    async def delete_report(
+        self,
+        report_id: str,
+        current_user: "User",
+    ) -> bool:
+        existing = await self.repo.get_by_id(report_id)
+        if existing is None:
+            return False
+
+        self._check_edit_permission(current_user, existing)
+        return await self.repo.soft_delete(report_id)
+
     def _check_edit_permission(
         self,
         current_user: "User",
