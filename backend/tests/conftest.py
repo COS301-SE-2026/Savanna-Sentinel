@@ -1,4 +1,3 @@
-import asyncio
 import os
 
 from dotenv import load_dotenv
@@ -26,15 +25,6 @@ from app.models.user import Base, User  # noqa: E402
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "asyncio: mark a test function as async")
-
-@pytest.fixture(scope="session")
-def event_loop():
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(autouse=True)
