@@ -127,4 +127,54 @@ describe("DeleteAccounts - Delete Accounts", () => {
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         expect(screen.getByText("ranger1")).toBeInTheDocument();
     });
+
+    it("sorts users by each column when its header is clicked", async () => {
+        const user = userEvent.setup();
+        renderDeleteAccounts();
+
+        await screen.findByText("ranger1");
+
+        const getUsernames = () =>
+            screen
+                .getAllByRole("row")
+                .slice(1)
+                .map((row) => within(row).getAllByRole("cell")[0].textContent);
+
+        await user.click(screen.getByRole("button", { name: "Username" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await user.click(screen.getByRole("button", { name: "Username" }));
+        expect(getUsernames()).toEqual(["ranger1", "analyst2"]);
+
+        await user.click(screen.getByRole("button", { name: "Name" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await user.click(screen.getByRole("button", { name: "Email" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await user.click(screen.getByRole("button", { name: "Current Role" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+    });
+
+    it("closes the confirmation dialog via the header close button", async () => {
+        const user = userEvent.setup();
+        renderDeleteAccounts();
+
+        await screen.findByText("ranger1");
+
+        const deleteButtons = screen.getAllByRole("button", {
+            name: /delete/i,
+        });
+        await user.click(deleteButtons[0]);
+
+        const dialog = await screen.findByRole("dialog");
+        await user.click(
+            within(dialog).getByRole("button", {
+                name: /cancel, close dialog/i,
+            }),
+        );
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(screen.getByText("ranger1")).toBeInTheDocument();
+    });
 });

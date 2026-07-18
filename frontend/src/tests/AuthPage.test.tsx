@@ -253,4 +253,53 @@ describe("Authpage - Pending Registrations", () => {
             expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         });
     });
+
+    it("sorts pending registrations by each column when its header is clicked", async () => {
+        renderAuthPage();
+        await screen.findByRole("row", { name: /ranger/i });
+
+        const getUsernames = () =>
+            screen
+                .getAllByRole("row")
+                .slice(1)
+                .map((row) => within(row).getAllByRole("cell")[0].textContent);
+
+        await userEvent.click(screen.getByRole("button", { name: "Username" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await userEvent.click(screen.getByRole("button", { name: "Username" }));
+        expect(getUsernames()).toEqual(["ranger1", "analyst2"]);
+
+        await userEvent.click(screen.getByRole("button", { name: "Name" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Role Claim" }),
+        );
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Created At" }),
+        );
+        expect(getUsernames()).toEqual(["ranger1", "analyst2"]);
+    });
+
+    it("closes the accept confirmation via the header close button", async () => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", { name: /ranger/i });
+        const acceptButton = within(userRow).getByRole("button", {
+            name: /accept/i,
+        });
+
+        await userEvent.click(acceptButton);
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(
+            within(dialog).getByRole("button", {
+                name: /cancel, close dialog/i,
+            }),
+        );
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
 });

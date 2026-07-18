@@ -237,4 +237,62 @@ describe("RoleSwap - Role Management", () => {
             { timeout: 6000 },
         );
     }, 10000);
+
+    it("sorts users by each column when its header is clicked", async () => {
+        const user = userEvent.setup();
+        renderRoleSwap();
+
+        await screen.findByText("ranger1");
+
+        const getUsernames = () =>
+            screen
+                .getAllByRole("row")
+                .slice(1)
+                .map((row) => within(row).getAllByRole("cell")[0].textContent);
+
+        await user.click(screen.getByRole("button", { name: "Username" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await user.click(screen.getByRole("button", { name: "Username" }));
+        expect(getUsernames()).toEqual(["ranger1", "analyst2"]);
+
+        await user.click(screen.getByRole("button", { name: "Name" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await user.click(screen.getByRole("button", { name: "Email" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await user.click(screen.getByRole("button", { name: "Current Role" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+    });
+
+    it("closes the confirmation dialog via the header close button without applying the change", async () => {
+        const user = userEvent.setup();
+        renderRoleSwap();
+
+        await screen.findByText("ranger1");
+
+        const triggers = screen.getAllByRole("combobox");
+        const analystOption = await within(triggers[0]).findByRole("option", {
+            name: /analyst/i,
+        });
+        await user.selectOptions(triggers[0], [analystOption]);
+
+        const applyButtons = screen.getAllByRole("button", {
+            name: /apply/i,
+        });
+        await user.click(applyButtons[0]);
+
+        const dialog = await screen.findByRole("dialog");
+        await user.click(
+            within(dialog).getByRole("button", {
+                name: /cancel, close dialog/i,
+            }),
+        );
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/role updated to analyst/i),
+        ).not.toBeInTheDocument();
+    });
 });
