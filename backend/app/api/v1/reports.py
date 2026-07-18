@@ -124,6 +124,32 @@ async def update_report(
     return ReportSubmitResponse(**result)
 
 
+@router.delete(
+    "/reports/{report_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete field report (SC-13)",
+)
+async def delete_report(
+    report_id: str,
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    if current_user.role not in ("ranger", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_ROLE_DENIED,
+        )
+
+    service = ReportService(ReportRepository(db))
+    deleted = await service.delete_report(report_id, current_user)
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found",
+        )
+
+
 @router.get(
     "/reports/{report_id}",
     response_model=ReportResponse,
