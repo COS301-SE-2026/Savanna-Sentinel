@@ -401,6 +401,21 @@ class ReportRepository:
                 {"eid": event_id, "url": url},
             )
 
+    async def soft_delete(self, report_id: str) -> bool:
+        row = (
+            await self.db.execute(
+                text("""
+                    UPDATE field_reports
+                    SET deleted_at = NOW()
+                    WHERE id = :rid AND deleted_at IS NULL
+                    RETURNING id
+                """),
+                {"rid": report_id},
+            )
+        ).fetchone()
+        await self.db.commit()
+        return row is not None
+
     async def get_by_id(self, report_id: str) -> Optional[dict]:
         stmt = select(
             FieldReport.id,
