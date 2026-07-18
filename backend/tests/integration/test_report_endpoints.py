@@ -560,6 +560,102 @@ async def test_update_soft_deleted_report_returns_404():
     assert r.status_code == 404
 
 
+# DELETE /v1/reports/{report_id}
+
+
+@pytest.mark.asyncio
+async def test_ranger_deletes_own_report_returns_204():
+    uid = await _create_user("test_ranger_sc13a")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        r = await c.delete(f"/v1/reports/{rid}", headers=_auth_header(uid))
+    assert r.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_deleted_report_excluded_from_get():
+    uid = await _create_user("test_ranger_sc13b")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        del_r = await c.delete(f"/v1/reports/{rid}", headers=_auth_header(uid))
+        assert del_r.status_code == 204
+        get_r = await c.get(f"/v1/reports/{rid}", headers=_auth_header(uid))
+    assert get_r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_deleted_report_excluded_from_list():
+    uid = await _create_user("test_ranger_sc13c")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        del_r = await c.delete(f"/v1/reports/{rid}", headers=_auth_header(uid))
+        assert del_r.status_code == 204
+        list_r = await c.get("/v1/reports", headers=_auth_header(uid))
+    ids = [item["report_id"] for item in list_r.json()["results"]]
+    assert rid not in ids
+
+
+@pytest.mark.asyncio
+async def test_ranger_blocked_from_deleting_other_report_returns_403():
+    owner_id = await _create_user("test_owner_sc13")
+    other_id = await _create_user("test_other_sc13")
+    rid = await _create_report(owner_id)
+    async with _client() as c:
+        r = await c.delete(f"/v1/reports/{rid}", headers=_auth_header(other_id))
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_deletes_any_report_returns_204():
+    ranger_id = await _create_user("test_ranger2_sc13")
+    admin_id = await _create_user("test_admin_sc13", role="admin")
+    rid = await _create_report(ranger_id)
+    async with _client() as c:
+        r = await c.delete(f"/v1/reports/{rid}", headers=_auth_header(admin_id))
+    assert r.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_report_returns_404():
+    uid = await _create_user("test_ranger3_sc13")
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    async with _client() as c:
+        r = await c.delete(f"/v1/reports/{fake_id}", headers=_auth_header(uid))
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_already_deleted_report_returns_404():
+    uid = await _create_user("test_ranger4_sc13")
+    rid = await _create_report(uid)
+    await _soft_delete_report(rid)
+    async with _client() as c:
+        r = await c.delete(f"/v1/reports/{rid}", headers=_auth_header(uid))
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_no_token_returns_401():
+    async with _client() as c:
+        r = await c.delete(
+            "/v1/reports/00000000-0000-0000-0000-000000000000",
+        )
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_analyst_blocked_from_delete_returns_403():
+    analyst_id = await _create_user("test_analyst_sc13", role="analyst")
+    uid = await _create_user("test_ranger5_sc13")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        r = await c.delete(
+            f"/v1/reports/{rid}",
+            headers=_auth_header(analyst_id),
+        )
+    assert r.status_code == 403
+
+
 # GET /v1/reports/{report_id}
 
 
