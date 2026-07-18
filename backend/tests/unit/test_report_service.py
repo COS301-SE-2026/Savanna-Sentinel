@@ -62,6 +62,13 @@ def _make_update_service(report, update_result=None):
     return ReportService(repo)
 
 
+def _make_delete_service(report, soft_delete_result=True):
+    repo = AsyncMock()
+    repo.get_by_id.return_value = report
+    repo.soft_delete.return_value = soft_delete_result
+    return ReportService(repo)
+
+
 def _make_create_service(result=None):
     repo = AsyncMock()
     repo.create.return_value = result or {
@@ -405,3 +412,46 @@ async def test_update_naive_datetime_is_treated_as_utc():
     body = ReportUpdate(occurred_at=naive_past)
     await service.update_report(_REPORT["id"], _ranger(), body)
     service.repo.update.assert_called_once()
+
+
+# delete_report
+
+
+@pytest.mark.asyncio
+async def test_ranger_deletes_own_report_calls_repo():
+    service = _make_delete_service(dict(_REPORT))
+    result = await service.delete_report(_REPORT["id"], _ranger())
+    service.repo.soft_delete.assert_called_once_with(_REPORT["id"])
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_ranger_blocked_from_deleting_other_report():
+    service = _make_delete_service(dict(_REPORT))
+    other = _ranger("dddddddd-0000-0000-0000-000000000001")
+    with pytest.raises(HTTPException) as exc:
+        await service.delete_report(_REPORT["id"], other)
+    assert exc.value.status_code == 403
+    service.repo.soft_delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_admin_deletes_any_report():
+    service = _make_delete_service(dict(_REPORT))
+    result = await service.delete_report(_REPORT["id"], _admin())
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_delete_missing_report_returns_false():
+    service = _make_delete_service(None)
+    result = await service.delete_report("nonexistent-id", _ranger())
+    assert result is False
+    service.repo.soft_delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_already_deleted_report_returns_false():
+    service = _make_delete_service(dict(_REPORT), soft_delete_result=False)
+    result = await service.delete_report(_REPORT["id"], _admin())
+    assert result is False
