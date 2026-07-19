@@ -38,3 +38,8 @@ test("Login with correct credentials", async ({ page }) => {
 
     await expect(page).toHaveURL("/dashboard")
 })
+test("Get automatically redirected to login when trying to access an authorised page", async ({ page }) => {
+    await page.goto("/dashboard")
+
+    await expect(page).toHaveURL("/login")
+})
