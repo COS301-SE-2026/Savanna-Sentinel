@@ -21,7 +21,6 @@ from app.services.audit_service import AuditService
 from app.services.user_service import UserService
 
 router = APIRouter(tags=["users"])
-require_admin = require_roles(["admin"])
 
 @router.get("/users/me",
             response_model=UsersResponse,
@@ -79,7 +78,7 @@ async def users(
         ],
         current_admin: Annotated[
             User,
-            Depends(require_admin),
+            Depends(require_roles(["admin"])),
         ],
     ):
     repo = UserRepository(db)
@@ -105,7 +104,7 @@ async def status_switch(
         ],
         current_admin: Annotated[
             User,
-            Depends(require_admin),
+            Depends(require_roles(["admin"])),
         ],
     ):
     repo = UserRepository(db)
@@ -131,7 +130,7 @@ async def status_switch(
 async def soft_delete_user(
         user_id: str,
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_admin: Annotated[User, Depends(require_admin)],
+        current_admin: Annotated[User, Depends(require_roles(["admin"]))],
     ):
     repo = UserRepository(db)
     service = UserService(repo, AuditService(AuditRepository(db)))
@@ -159,7 +158,7 @@ async def admin_delete_user(
         ],
         current_admin: Annotated[
             User,
-            Depends(require_admin),
+            Depends(require_roles(["admin"])),
         ],
     ):
     repo=UserRepository(db)
@@ -189,7 +188,7 @@ async def change_user_role(
         ],
         current_admin: Annotated[
             User,
-            Depends(require_admin),
+            Depends(require_roles(["admin"])),
         ],
     ):
     repo = UserRepository(db)

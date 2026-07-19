@@ -10,7 +10,6 @@ from app.schemas.audit import AuditLogFilterRequest, AuditLogListResponse
 from app.services.audit_service import AuditService
 
 router = APIRouter(tags=["audit"])
-require_admin = require_roles(["admin"])
 
 @router.get(
     "/audit-logs",
@@ -20,7 +19,7 @@ require_admin = require_roles(["admin"])
 async def list_audit_logs(
         req: Annotated[AuditLogFilterRequest, Depends()],
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_admin: Annotated[User, Depends(require_admin)],
+        current_admin: Annotated[User, Depends(require_roles(["admin"]))],
     ):
     service = AuditService(AuditRepository(db))
     return await service.get_logs(req)
