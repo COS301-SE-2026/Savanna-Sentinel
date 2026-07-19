@@ -16,32 +16,24 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { usersApi } from "@/services/usersApi";
+import { usersApi, type UserResponse } from "@/services/usersApi";
 import { cn, formatRole } from "@/lib/utils";
-import { useEffect, useState } from "react";
-import { useSort } from "@/hooks/useSort";
-import {
-    useRoleOptions,
-    useUserSearchFilter,
-} from "@/hooks/useUserSearchFilter";
-import { SortableTableHead } from "@/components/admin/SortableTableHead";
+import { useState } from "react";
+import { useManagedUsers } from "@/hooks/useManagedUsers";
 import { UserSearchFilterBar } from "@/components/admin/UserSearchFilterBar";
+import { UserTableStatus } from "@/components/admin/UserTableStatus";
+import { SortableColumns } from "@/components/admin/SortableColumns";
+import {
+    UsernameCell,
+    NameCell,
+    RoleBadgeCell,
+} from "@/components/admin/UserIdentityCells";
 import {
     theadClass,
     cellClass,
     rowClass,
 } from "@/components/admin/userTableStyles";
 
-export interface UserResponse {
-    id: string;
-    username: string;
-    email: string;
-    first_name: string;
-    last_name: string;
-    role: string;
-    is_active: boolean;
-    created_at: string;
-}
 interface UserRowProps {
     user: UserResponse;
     refreshList: () => void;
@@ -57,56 +49,40 @@ const sortAccessors: Record<SortKey, (user: UserResponse) => string | number> =
         ["created_at"]: (user) => new Date(user.created_at).getTime(),
     };
 
+const PENDING_USER_COLUMNS: { key: SortKey; label: string }[] = [
+    { key: "username", label: "Username" },
+    { key: "name", label: "Name" },
+    { key: "role", label: "Role Claim" },
+    { key: "created_at", label: "Created At" },
+];
+
 const AuthPage = () => {
-    const [users, setUsers] = useState<UserResponse[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [pageError, setPageError] = useState<string | null>(null);
-    const [search, setSearch] = useState("");
-    const [roleFilter, setRoleFilter] = useState<string[]>([]);
-
-    const fetchPendingUsers = async () => {
-        setIsLoading(true);
-        setPageError(null);
-
-        try {
-            const data = await usersApi.getPendingUsers();
-            setUsers(data.results);
-        } catch (error) {
-            console.error("Failed to fetch users:", error);
-            setPageError("Failed to load pending registrations.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        Promise.resolve().then(() => {
-            fetchPendingUsers();
-        });
-    }, []);
-
-    const roleOptions = useRoleOptions(users);
-    const filteredUsers = useUserSearchFilter(users, search, roleFilter);
-
     const {
-        sorted: sortedUsers,
+        users,
+        isLoading,
+        pageError,
+        search,
+        setSearch,
+        roleFilter,
+        setRoleFilter,
+        roleOptions,
+        sortedUsers,
         sortKey,
         direction,
         requestSort,
-    } = useSort<UserResponse, SortKey>(filteredUsers, sortAccessors);
+        refetch: fetchPendingUsers,
+    } = useManagedUsers(usersApi.getPendingUsers, sortAccessors, {
+        errorMessage: "Failed to load pending registrations.",
+        onError: (error) => console.error("Failed to fetch users:", error),
+    });
 
-    if (isLoading) {
+    if (isLoading || pageError) {
         return (
-            <div className="py-10 text-sm text-color-text-secondary">
-                Loading pending users...
-            </div>
-        );
-    }
-    if (pageError) {
-        return (
-            <div className="py-10 text-sm text-status-critical-text">
-                {pageError}
-            </div>
+            <UserTableStatus
+                isLoading={isLoading}
+                pageError={pageError}
+                loadingText="Loading pending users..."
+            />
         );
     }
 
@@ -129,29 +105,11 @@ const AuthPage = () => {
                 <Table>
                     <TableHeader className="bg-brand-primary">
                         <TableRow className="hover:bg-transparent">
-                            <SortableTableHead
-                                label="Username"
-                                active={sortKey === "username"}
+                            <SortableColumns
+                                columns={PENDING_USER_COLUMNS}
+                                sortKey={sortKey}
                                 direction={direction}
-                                onSort={() => requestSort("username")}
-                            />
-                            <SortableTableHead
-                                label="Name"
-                                active={sortKey === "name"}
-                                direction={direction}
-                                onSort={() => requestSort("name")}
-                            />
-                            <SortableTableHead
-                                label="Role Claim"
-                                active={sortKey === "role"}
-                                direction={direction}
-                                onSort={() => requestSort("role")}
-                            />
-                            <SortableTableHead
-                                label="Created At"
-                                active={sortKey === "created_at"}
-                                direction={direction}
-                                onSort={() => requestSort("created_at")}
+                                requestSort={requestSort}
                             />
                             <TableHead
                                 className={cn(theadClass, "text-center")}
@@ -241,17 +199,9 @@ const UserRow = ({ user, refreshList }: UserRowProps) => {
     return (
         <>
             <TableRow className={rowClass}>
-                <TableCell className={cn(cellClass, "font-medium")}>
-                    {user.username}
-                </TableCell>
-                <TableCell className={cellClass}>
-                    {`${user.first_name} ${user.last_name}`}
-                </TableCell>
-                <TableCell className={cellClass}>
-                    <span className="rounded-full border-[1.5px] border-brand-muted bg-color-surface-bg px-2 py-0.5 text-xs font-semibold text-color-text-primary capitalize">
-                        {formatRole(user.role)}
-                    </span>
-                </TableCell>
+                <UsernameCell value={user.username} />
+                <NameCell value={fullName} />
+                <RoleBadgeCell role={user.role} />
                 <TableCell
                     className={cn(
                         cellClass,
