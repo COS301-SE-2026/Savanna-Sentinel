@@ -53,7 +53,6 @@ interface UserRowProps {
 export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
     const [selectedRole, setSelectedRole] = useState(user.role);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isSuccessful, setSuccessful] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -87,27 +86,6 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
             setSelectedRole(user.role);
         } finally {
             setIsProcessing(false);
-        }
-    };
-
-    const handleDelete = async () => {
-        if (
-            !window.confirm(
-                `Delete ${user.username}'s account? This cannot be undone.`,
-            )
-        ) {
-            return;
-        }
-        setIsDeleting(true);
-        setError(null);
-        try {
-            await usersApi.softDeleteUser(user.id);
-            // reuses the existing list-refresh callback
-            onRoleChanged();
-        } catch {
-            setError("Failed to delete account.");
-        } finally {
-            setIsDeleting(false);
         }
     };
 
@@ -145,14 +123,6 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
                         onClick={handleApply}
                     >
                         {isProcessing ? "Applying..." : "Apply"}
-                    </Button>
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={isDeleting}
-                        onClick={handleDelete}
-                    >
-                        {isDeleting ? "Deleting..." : "Delete"}
                     </Button>
                 </TableCell>
             </TableRow>
