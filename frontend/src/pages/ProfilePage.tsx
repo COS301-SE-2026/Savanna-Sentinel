@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { usersApi } from "@/services/usersApi";
 import type { UserResponse } from "@/services/usersApi";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordVisibilityToggle } from "@/components/auth/PasswordVisibilityToggle";
 import {
     Dialog,
     DialogContent,
@@ -343,26 +343,12 @@ export const ProfilePage: React.FC = () => {
                                         setCurrentPassword(e.target.value)
                                     }
                                 />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={
-                                        showCurrentPassword
-                                            ? "Hide password"
-                                            : "Show password"
-                                    }
-                                    onClick={() =>
+                                <PasswordVisibilityToggle
+                                    isVisible={showCurrentPassword}
+                                    onToggle={() =>
                                         setShowCurrentPassword((v) => !v)
                                     }
-                                    className="absolute right-1 top-1/2 -translate-y-1/2"
-                                >
-                                    {showCurrentPassword ? (
-                                        <EyeOff size={17} />
-                                    ) : (
-                                        <Eye size={17} />
-                                    )}
-                                </Button>
+                                />
                             </div>
                         </div>
 
@@ -379,26 +365,12 @@ export const ProfilePage: React.FC = () => {
                                         setError(null);
                                     }}
                                 />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={
-                                        showNewPassword
-                                            ? "Hide password"
-                                            : "Show password"
-                                    }
-                                    onClick={() =>
+                                <PasswordVisibilityToggle
+                                    isVisible={showNewPassword}
+                                    onToggle={() =>
                                         setShowNewPassword((v) => !v)
                                     }
-                                    className="absolute right-1 top-1/2 -translate-y-1/2"
-                                >
-                                    {showNewPassword ? (
-                                        <EyeOff size={17} />
-                                    ) : (
-                                        <Eye size={17} />
-                                    )}
-                                </Button>
+                                />
                             </div>
                             <p className="text-xs text-color-text-secondary">
                                 New password must be at least 8 characters.
@@ -424,26 +396,12 @@ export const ProfilePage: React.FC = () => {
                                         setError(null);
                                     }}
                                 />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={
-                                        showConfirmPassword
-                                            ? "Hide password"
-                                            : "Show password"
-                                    }
-                                    onClick={() =>
+                                <PasswordVisibilityToggle
+                                    isVisible={showConfirmPassword}
+                                    onToggle={() =>
                                         setShowConfirmPassword((v) => !v)
                                     }
-                                    className="absolute right-1 top-1/2 -translate-y-1/2"
-                                >
-                                    {showConfirmPassword ? (
-                                        <EyeOff size={17} />
-                                    ) : (
-                                        <Eye size={17} />
-                                    )}
-                                </Button>
+                                />
                             </div>
                         </div>
 

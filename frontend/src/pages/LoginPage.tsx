@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { AxiosError } from "axios";
 import { notifyCritical } from "@/components/ui/toast";
 import { useAuthStore } from "@/store/authStore";
@@ -12,6 +12,14 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BrandPanel } from "@/components/auth/BrandPanel";
+import { PasswordVisibilityToggle } from "@/components/auth/PasswordVisibilityToggle";
+import {
+    labelClass,
+    inputClass,
+    errorClass,
+    passwordToggleClass,
+} from "@/components/auth/authFormStyles";
 
 // Validation schema
 const loginSchema = z.object({
@@ -20,28 +28,6 @@ const loginSchema = z.object({
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
-
-const labelClass = "text-color-text-inverse md:text-color-text-primary";
-const inputClass =
-    "bg-color-surface-deep/40 text-color-text-inverse placeholder:text-color-text-inverse/50 border-color-text-inverse/20 focus:border-color-text-inverse focus-visible:outline-color-text-inverse md:bg-color-surface-raised md:text-color-text-primary md:placeholder:text-color-input-border md:border-color-input-border md:focus:border-brand-primary md:focus-visible:outline-brand-primary";
-const errorClass =
-    "text-xs text-color-text-inverse md:text-status-critical-text";
-
-function BrandPanel() {
-    return (
-        <div className="hidden md:flex md:w-1/2 bg-color-surface-deep flex-col items-center justify-center gap-6 px-12">
-            <img
-                src="/icons/SavannaSentinelLogo.png"
-                alt=""
-                aria-hidden="true"
-                className="w-64 h-auto"
-            />
-            <p className="text-color-text-inverse/50 text-xs tracking-[0.22em] uppercase text-center">
-                Wildlife Conservation Monitoring
-            </p>
-        </div>
-    );
-}
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -81,7 +67,7 @@ export default function LoginPage() {
 
     return (
         <div className="min-h-screen flex flex-col md:flex-row">
-            <BrandPanel />
+            <BrandPanel logoAlt="" logoAriaHidden />
 
             <div className="flex-1 flex flex-col items-center justify-center bg-color-surface-deep md:bg-color-surface-bg px-6 py-10">
                 <img
@@ -145,24 +131,11 @@ export default function LoginPage() {
                                     {...register("password")}
                                 />
 
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={
-                                        showPassword
-                                            ? "Hide password"
-                                            : "Show password"
-                                    }
-                                    onClick={() => setShowPassword((v) => !v)}
-                                    className="absolute right-1 top-1/2 -translate-y-1/2 text-color-text-inverse opacity-80 hover:bg-color-text-inverse/10 hover:opacity-100 md:text-color-text-primary md:opacity-65 md:hover:bg-color-surface-bg md:hover:opacity-100"
-                                >
-                                    {showPassword ? (
-                                        <EyeOff size={17} />
-                                    ) : (
-                                        <Eye size={17} />
-                                    )}
-                                </Button>
+                                <PasswordVisibilityToggle
+                                    isVisible={showPassword}
+                                    onToggle={() => setShowPassword((v) => !v)}
+                                    className={passwordToggleClass}
+                                />
                             </div>
 
                             {errors.password && (
