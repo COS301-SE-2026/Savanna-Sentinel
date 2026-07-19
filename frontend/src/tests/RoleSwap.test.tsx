@@ -4,12 +4,18 @@ import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RoleSwap from "@/components/admin/RoleSwap";
-import { roleSwapHandlers } from "./mocks/roleSwapHandlers";
+import {
+    roleSwapHandlers,
+    resetMockActiveUsers,
+} from "./mocks/roleSwapHandlers";
 
 const server = setupServer(...roleSwapHandlers);
 
 beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+    server.resetHandlers();
+    resetMockActiveUsers();
+});
 afterAll(() => server.close());
 
 function renderRoleSwap() {

@@ -8,11 +8,17 @@ from app.schemas.user import (
     UsersRequest,
     UsersResultResponse,
 )
+from app.services.audit_service import AuditService
 
 
 class UserService:  # noqa: D101
-    def __init__(self, repo: UserRepository):  # noqa: D107
+    def __init__(  # noqa: D107
+        self,
+        repo: UserRepository,
+        audit_service: AuditService | None = None,
+    ):
         self.repo = repo
+        self.audit_service = audit_service
 
     def get_me(self, user: User) -> User:  # noqa: D102
         return user
@@ -80,22 +86,78 @@ class UserService:  # noqa: D101
             results=results,
         )
 
-    async def switch_status(self, is_active: bool, user_id: str):  # noqa: D102
-        results = await self.repo.switch_status(is_active, user_id)
+    async def switch_status(  # noqa: D102
+        self,
+        is_active: bool,
+        user_id: str,
+        actor_id: str | None = None,
+    ):
+        result = await self.repo.switch_status(is_active, user_id)
 
-        if results is None:
+        if result is None:
             return None
 
-        return results
+        if self.audit_service and actor_id:
+            action = (
+                "user.account_accepted" if is_active
+                else "user.account_deactivated"
+            )
+            await self.audit_service.log(
+                actor_id=actor_id,
+                action=action,
+                target_type="user",
+                target_id=user_id,
+            )
 
-    async def admin_delete(self, user_id: str):  # noqa: D102
-        results = await self.repo.admin_delete(user_id)
+        return result
 
-        if results is None:
+    async def soft_delete(self, user_id: str, actor_id: str | None = None):  # noqa: D102
+        result = await self.repo.soft_delete_user(user_id)
+
+        if result is None:
             return None
 
-        return results
+        if self.audit_service and actor_id:
+            await self.audit_service.log(
+                actor_id=actor_id,
+                action="user.soft_deleted",
+                target_type="user",
+                target_id=user_id,
+            )
 
-    async def change_role(self, user_id: str, new_role: str):  # noqa: D102
+        return result
+
+    async def admin_delete(self, user_id: str, actor_id: str | None = None):  # noqa: D102
+        if self.audit_service and actor_id:
+            await self.audit_service.log(
+                actor_id=actor_id,
+                action="user.deleted",
+                target_type="user",
+                target_id=user_id,
+            )
+
+        result = await self.repo.admin_delete(user_id)
+
+        if result is None:
+            return None
+
+        return result
+
+    async def change_role(  # noqa: D102
+        self,
+        user_id: str,
+        new_role: str,
+        actor_id: str | None = None,
+    ):
         result = await self.repo.update_role(user_id, new_role)
+
+        if result and self.audit_service and actor_id:
+            await self.audit_service.log(
+                actor_id=actor_id,
+                action="user.role_changed",
+                target_type="user",
+                target_id=user_id,
+                details={"new_role": new_role},
+            )
+
         return result

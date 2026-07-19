@@ -482,3 +482,150 @@ async def test_change_role_no_token_returns_403():
             json={"new_role": "analyst"},
         )
     assert r.status_code in (401, 403)
+
+# Soft-delete tests
+
+@pytest_asyncio.fixture
+async def active_target_user_id():
+    async with _client() as c:
+        r = await c.post("/v1/auth/register", json=_register_payload(
+            username="test_soft_target",
+            email="test_soft_target@example.com",
+            requested_role="ranger",
+        ))
+    await _activate("test_soft_target")
+    return r.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_requires_authentication():
+    async with _client() as c:
+        r = await c.delete(
+            "/v1/users/00000000-0000-0000-0000-000000000000",
+        )
+    assert r.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_non_admin_forbidden(
+    ranger_token, active_target_user_id,
+):
+    async with _client() as c:
+        r = await c.delete(
+            f"/v1/users/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {ranger_token}"},
+        )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_active_account_success(
+    admin_token, active_target_user_id,
+):
+    async with _client() as c:
+        r = await c.delete(
+            f"/v1/users/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 200
+    assert r.json()["id"] == active_target_user_id
+
+    async with _engine.begin() as conn:
+        row = await conn.execute(
+            text("SELECT is_active, deleted_at FROM users WHERE id = :id"),
+            {"id": active_target_user_id},
+        )
+        is_active, deleted_at = row.one()
+    assert is_active is False
+    assert deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_pending_account_returns_404(
+    admin_token, target_user_id,
+):
+    # target_user_id fixture registers but never activates - still pending
+    async with _client() as c:
+        r = await c.delete(
+            f"/v1/users/{target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_nonexistent_user_returns_404(admin_token):
+    async with _client() as c:
+        r = await c.delete(
+            "/v1/users/00000000-0000-0000-0000-000000000000",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_creates_audit_entry(
+    admin_token, active_target_user_id,
+):
+    async with _client() as c:
+        await c.delete(
+            f"/v1/users/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        r = await c.get(
+            f"/v1/audit-logs?action=user.soft_deleted&target_id={active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    body = r.json()
+    assert len(body["results"]) == 1
+    assert body["results"][0]["target_id"] == active_target_user_id
+    assert body["results"][0]["target_type"] == "user"
+
+@pytest.mark.asyncio
+async def test_soft_deleted_account_absent_from_both_listings(
+    admin_token, active_target_user_id,
+):
+    async with _client() as c:
+        await c.delete(
+            f"/v1/users/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        active = await c.get(
+            "/v1/users", params={"is_active": True},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        pending = await c.get(
+            "/v1/users", params={"is_active": False},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    active_ids = [u["id"] for u in active.json()["results"]]
+    pending_ids = [u["id"] for u in pending.json()["results"]]
+    assert active_target_user_id not in active_ids
+    assert active_target_user_id not in pending_ids
+
+@pytest.mark.asyncio
+async def test_hard_delete_rejects_active_account(
+    admin_token, active_target_user_id,
+):
+    async with _client() as c:
+        r = await c.delete(
+            f"/v1/admin/users/delete/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 404
+
+@pytest.mark.asyncio
+async def test_status_switch_rejects_soft_deleted_account(
+    admin_token, active_target_user_id,
+):
+    async with _client() as c:
+        await c.delete(
+            f"/v1/users/{active_target_user_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        r = await c.patch(
+            f"/v1/users/{active_target_user_id}/status",
+            json={"is_active": True},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+    assert r.status_code == 404

@@ -31,10 +31,12 @@ async def _get_auth_headers(
         email: str,
         role: str,
         ) -> dict[str, str]:
-    client.post("/v1/auth/register", json=_register_user(username, email, role))
+    await client.post(
+        "/v1/auth/register", json=_register_user(username, email, role),
+    )
 
     await _activate_user(db_session, username, role)
-    login_response = client.post(
+    login_response = await client.post(
         "/v1/auth/login",
         json={"username": username, "password": "SecurePass1!"},
     )
@@ -100,7 +102,7 @@ async def test_upload_flow_as_authorised_analyst(
         role="analyst",
     )
 
-    response = client.post(
+    response = await client.post(
         "/v1/ingestion/upload",
         json=valid_body,
         headers=headers,
@@ -120,7 +122,7 @@ async def test_upload_flow_as_unauthorised_user(client, db_session, valid_body):
         role="ranger",
     )
 
-    response = client.post(
+    response = await client.post(
         "/v1/ingestion/upload",
         json=valid_body,
         headers=headers,
@@ -130,7 +132,7 @@ async def test_upload_flow_as_unauthorised_user(client, db_session, valid_body):
 
 @pytest.mark.asyncio
 async def test_upload_missing_token(client, valid_body):
-    response = client.post(
+    response = await client.post(
         "/v1/ingestion/upload",
         json=valid_body,
     )
@@ -147,7 +149,7 @@ async def test_upload_invalid_body(client, db_session, invalid_body):
         role="analyst",
     )
 
-    response = client.post(
+    response = await client.post(
         "/v1/ingestion/upload",
         json=invalid_body,
         headers=headers,
@@ -172,7 +174,7 @@ async def test_upload_empty_records_list(client, db_session):
         "records": [],
     }
 
-    response = client.post(
+    response = await client.post(
         "/v1/ingestion/upload",
         json=empty_records,
         headers=headers,
@@ -190,7 +192,7 @@ async def test_upload_malkformed_json(client, db_session):
         role="analyst",
     )
 
-    response = client.post(
+    response = await client.post(
         "/v1/ingestion/upload",
         content="{'start_row': 1, 'records': [this is completely broken json}",
         headers={**headers, "Content-Type": "application/json"},
@@ -208,7 +210,7 @@ async def test_upload_non_json_content(client, db_session, valid_body):
         role="analyst",
     )
 
-    response = client.post(
+    response = await client.post(
         "/v1/ingestion/upload",
         data=valid_body,
         headers=headers,

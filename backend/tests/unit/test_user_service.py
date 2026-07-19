@@ -12,6 +12,20 @@ from app.services.user_service import UserService
 
 pytestmark = pytest.mark.asyncio
 
+
+def _fake_user_repo(is_active=True, found=True):
+    mock_repo = MagicMock()
+    if found:
+        mock_user = MagicMock(id="user-1", is_active=is_active)
+        mock_repo.switch_status = AsyncMock(return_value=mock_user)
+        mock_repo.update_role = AsyncMock(return_value=mock_user)
+        mock_repo.admin_delete = AsyncMock(return_value=mock_user)
+    else:
+        mock_repo.switch_status = AsyncMock(return_value=None)
+        mock_repo.update_role = AsyncMock(return_value=None)
+        mock_repo.admin_delete = AsyncMock(return_value=None)
+    return mock_repo
+
 #This test file is kinda useless since the service doesnt do much
 #except act like a middleman right now, but adding it
 #in case like email and stuff gets addded
@@ -77,6 +91,56 @@ async def test_switch_status_service_returns_none_when_user_not_found():
     assert result is None
     mock_repo.switch_status.assert_called_once_with(False, "fake_id")
 
+
+async def test_switch_status_activate_logs_account_accepted():
+    mock_audit = AsyncMock()
+    service = UserService(
+        repo=_fake_user_repo(is_active=True), audit_service=mock_audit,
+    )
+
+    await service.switch_status(
+        is_active=True, user_id="user-1", actor_id="admin-1",
+    )
+
+    mock_audit.log.assert_awaited_once_with(
+        actor_id="admin-1",
+        action="user.account_accepted",
+        target_type="user",
+        target_id="user-1",
+    )
+
+
+async def test_switch_status_deactivate_logs_account_deactivated():
+    mock_audit = AsyncMock()
+    service = UserService(
+        repo=_fake_user_repo(is_active=False), audit_service=mock_audit,
+    )
+
+    await service.switch_status(
+        is_active=False, user_id="user-1", actor_id="admin-1",
+    )
+
+    mock_audit.log.assert_awaited_once_with(
+        actor_id="admin-1",
+        action="user.account_deactivated",
+        target_type="user",
+        target_id="user-1",
+    )
+
+
+async def test_switch_status_does_not_log_when_target_user_not_found():
+    mock_audit = AsyncMock()
+    service = UserService(
+        repo=_fake_user_repo(found=False), audit_service=mock_audit,
+    )
+
+    result = await service.switch_status(
+        is_active=True, user_id="missing", actor_id="admin-1",
+    )
+
+    assert result is None
+    mock_audit.log.assert_not_awaited()
+
 async def test_change_role_service_returns_updated_user():
     """Test that change_role() returns the updated user."""
     mock_repo = MagicMock()
@@ -101,6 +165,77 @@ async def test_change_role_service_returns_none_when_user_not_found():
 
     assert result is None
     mock_repo.update_role.assert_called_once_with("nonexistent", "ranger")
+
+
+async def test_change_role_logs_new_role_in_details():
+    mock_audit = AsyncMock()
+    service = UserService(repo=_fake_user_repo(), audit_service=mock_audit)
+
+    await service.change_role(
+        user_id="user-1", new_role="analyst", actor_id="admin-1",
+    )
+
+    mock_audit.log.assert_awaited_once_with(
+        actor_id="admin-1",
+        action="user.role_changed",
+        target_type="user",
+        target_id="user-1",
+        details={"new_role": "analyst"},
+    )
+
+
+async def test_admin_delete_logs_before_repo_delete_is_called():
+    call_order = []
+    mock_audit = AsyncMock()
+    mock_audit.log.side_effect = lambda **_: call_order.append("log")
+
+    fake_repo = _fake_user_repo()
+    fake_repo.admin_delete.side_effect = lambda *_: call_order.append("delete")
+
+    service = UserService(repo=fake_repo, audit_service=mock_audit)
+    await service.admin_delete(user_id="user-1", actor_id="admin-1")
+
+    assert call_order == ["log", "delete"]
+
+
+async def test_admin_delete_logs_even_if_repo_delete_returns_none():
+    mock_audit = AsyncMock()
+    fake_repo = _fake_user_repo(found=False)  # simulates delete finding nothing
+    service = UserService(repo=fake_repo, audit_service=mock_audit)
+
+    await service.admin_delete(user_id="user-1", actor_id="admin-1")
+
+    mock_audit.log.assert_awaited_once()
+
+
+async def test_soft_delete_logs_user_soft_deleted():
+    mock_repo = MagicMock()
+    mock_user = MagicMock(id="user-1")
+    mock_repo.soft_delete_user = AsyncMock(return_value=mock_user)
+    mock_audit = AsyncMock()
+    service = UserService(repo=mock_repo, audit_service=mock_audit)
+
+    result = await service.soft_delete(user_id="user-1", actor_id="admin-1")
+
+    assert result is mock_user
+    mock_audit.log.assert_awaited_once_with(
+        actor_id="admin-1",
+        action="user.soft_deleted",
+        target_type="user",
+        target_id="user-1",
+    )
+
+
+async def test_soft_delete_returns_none_and_does_not_log_when_ineligible():
+    mock_repo = MagicMock()
+    mock_repo.soft_delete_user = AsyncMock(return_value=None)
+    mock_audit = AsyncMock()
+    service = UserService(repo=mock_repo, audit_service=mock_audit)
+
+    result = await service.soft_delete(user_id="user-1", actor_id="admin-1")
+
+    assert result is None
+    mock_audit.log.assert_not_awaited()
 
 
 # get_me() tests
