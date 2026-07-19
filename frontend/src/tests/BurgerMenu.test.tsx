@@ -116,6 +116,20 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Profile")).toBeInTheDocument();
     });
 
+    it("renders a divider immediately before the Profile nav item", async () => {
+        setUser("ranger");
+        renderMenu();
+        await openMenu();
+
+        const nav = screen.getByText("Dashboard").closest("nav");
+        expect(nav).not.toBeNull();
+        const children = Array.from(nav!.children);
+        const profileIndex = children.findIndex((el) =>
+            el.textContent?.includes("Profile"),
+        );
+        expect(children[profileIndex - 1].tagName).toBe("HR");
+    });
+
     it("shows correct nav items for community_liaison", async () => {
         setUser("community_liaison");
         renderMenu();
