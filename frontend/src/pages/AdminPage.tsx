@@ -1,36 +1,34 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthPage from "@/pages/AdminAuthAccount";
 import RoleSwap from "@/components/admin/RoleSwap";
+import DeleteAccounts from "@/components/admin/DeleteAccounts";
 
 export default function AdminPage() {
     return (
-        <div className="max-w-7xl mx-auto p-6 md:p-10 space-y-6">
-            <h1 className="text-2xl font-bold tracking-tight text-primary">
+        <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
+            <h1 className="mb-6 font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
                 Admin Panel
             </h1>
 
             <Tabs defaultValue="accounts">
-                <TabsList className="bg-muted">
-                    <TabsTrigger
-                        value="accounts"
-                        className="data-[state=active]:bg-brand-dark-blue data-[state=active]:text-white"
-                    >
+                <TabsList>
+                    <TabsTrigger value="accounts">
                         Account Approvals
                     </TabsTrigger>
-                    <TabsTrigger
-                        value="roles"
-                        className="data-[state=active]:bg-brand-dark-blue data-[state=active]:text-white"
-                    >
-                        Role Management
-                    </TabsTrigger>
+                    <TabsTrigger value="roles">Role Management</TabsTrigger>
+                    <TabsTrigger value="delete">Delete Accounts</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="accounts">
+                <TabsContent value="accounts" className="mt-6">
                     <AuthPage />
                 </TabsContent>
 
-                <TabsContent value="roles">
+                <TabsContent value="roles" className="mt-6">
                     <RoleSwap />
+                </TabsContent>
+
+                <TabsContent value="delete" className="mt-6">
+                    <DeleteAccounts />
                 </TabsContent>
             </Tabs>
         </div>

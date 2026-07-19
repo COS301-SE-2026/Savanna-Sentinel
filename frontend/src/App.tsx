@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+import { Toaster } from "@/components/ui/sonner";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
@@ -18,6 +19,7 @@ import NotFoundPage from "@/pages/NotFoundPage";
 const App = () => {
     return (
         <BrowserRouter>
+            <Toaster />
             <Routes>
                 {/* Public routes */}
                 <Route path="/login" element={<LoginPage />} />

@@ -7,25 +7,43 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { cn, formatRole } from "@/lib/utils";
 import { usersApi, type UserResponse } from "@/services/usersApi";
+import { useManagedUsers } from "@/hooks/useManagedUsers";
+import { UserSearchFilterBar } from "@/components/admin/UserSearchFilterBar";
+import { UserTableStatus } from "@/components/admin/UserTableStatus";
+import { SortableColumns } from "@/components/admin/SortableColumns";
+import { EmptyTableRow } from "@/components/admin/EmptyTableRow";
+import {
+    UsernameCell,
+    NameCell,
+    RoleBadgeCell,
+} from "@/components/admin/UserIdentityCells";
+import {
+    standardUserSortAccessors as sortAccessors,
+    STANDARD_USER_COLUMNS as USER_COLUMNS,
+} from "@/components/admin/standardUserColumns";
+import {
+    theadClass,
+    cellClass,
+    rowClass,
+} from "@/components/admin/userTableStyles";
 
 const ASSIGNABLE_ROLES = [
     { value: "ranger", label: "Ranger" },
     { value: "analyst", label: "Analyst" },
     { value: "community_liaison", label: "Community Liaison" },
 ];
-
-function formatRole(role: string) {
-    return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 interface UserRowProps {
     user: UserResponse;
@@ -38,8 +56,10 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isSuccessful, setSuccessful] = useState(false);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
     const isDirty = selectedRole !== user.role;
+    const fullName = `${user.first_name} ${user.last_name}`;
 
     useEffect(() => {
         if (!isSuccessful) return;
@@ -47,7 +67,13 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
         return () => clearTimeout(t);
     }, [isSuccessful]);
 
-    const handleSave = async () => {
+    const handleApply = () => {
+        if (!isDirty || isProcessing) return;
+        setIsConfirmOpen(true);
+    };
+
+    const handleConfirm = async () => {
+        setIsConfirmOpen(false);
         setIsProcessing(true);
         setError(null);
         setSuccessful(false);
@@ -87,42 +113,38 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
 
     return (
         <>
-            <TableRow>
-                <TableCell className="font-medium">{user.username}</TableCell>
-                <TableCell>{`${user.first_name} ${user.last_name}`}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">
+            <TableRow className={rowClass}>
+                <UsernameCell value={user.username} />
+                <NameCell value={fullName} />
+                <TableCell
+                    className={cn(
+                        cellClass,
+                        "text-sm text-color-text-secondary",
+                    )}
+                >
                     {user.email}
                 </TableCell>
-                <TableCell>
-                    <span className="capitalize px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
-                        {formatRole(user.role)}
-                    </span>
-                </TableCell>
-                <TableCell>
+                <RoleBadgeCell role={user.role} />
+                <TableCell className={cellClass}>
                     <Select
+                        className="w-44"
                         value={selectedRole}
-                        onValueChange={setSelectedRole}
+                        onChange={(e) => setSelectedRole(e.target.value)}
                     >
-                        <SelectTrigger className="w-44">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {ASSIGNABLE_ROLES.map((r) => (
-                                <SelectItem key={r.value} value={r.value}>
-                                    {r.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
+                        {ASSIGNABLE_ROLES.map((r) => (
+                            <option key={r.value} value={r.value}>
+                                {r.label}
+                            </option>
+                        ))}
                     </Select>
                 </TableCell>
-                <TableCell className="space-x-2">
+                <TableCell className={cellClass}>
                     <Button
                         variant="default"
-                        size="sm"
                         disabled={!isDirty || isProcessing}
-                        onClick={handleSave}
+                        onClick={handleApply}
                     >
-                        {isProcessing ? "Saving..." : "Save"}
+                        {isProcessing ? "Applying..." : "Apply"}
                     </Button>
                     <Button
                         variant="destructive"
@@ -135,15 +157,47 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
                 </TableCell>
             </TableRow>
 
+            <Dialog
+                open={isConfirmOpen}
+                onOpenChange={(open) => !isProcessing && setIsConfirmOpen(open)}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm role change</DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>
+                        Update {fullName} from {formatRole(user.role)} to{" "}
+                        {formatRole(selectedRole)}?
+                    </DialogDescription>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsConfirmOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={handleConfirm}
+                        >
+                            Confirm
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {(error || isSuccessful) && (
-                <TableRow>
+                <TableRow className={rowClass}>
                     <TableCell
                         colSpan={6}
-                        className={`text-xs py-1.5 px-4 italic ${
+                        className={cn(
+                            "px-4 py-1.5 text-xs italic",
                             error
-                                ? "text-destructive bg-destructive/5"
-                                : "text-spot-green bg-spot-green/10"
-                        }`}
+                                ? "text-status-critical-text bg-status-critical/5"
+                                : "text-status-safe-text bg-status-safe/10",
+                        )}
                     >
                         {error ??
                             `Role updated to ${formatRole(selectedRole)}.`}
@@ -155,9 +209,21 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
 };
 
 export const RoleSwap = () => {
-    const [users, setUsers] = useState<UserResponse[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [pageError, setPageError] = useState<string | null>(null);
+    const {
+        users,
+        setUsers,
+        isLoading,
+        pageError,
+        search,
+        setSearch,
+        roleFilter,
+        setRoleFilter,
+        roleOptions,
+        sortedUsers,
+        sortKey,
+        direction,
+        requestSort,
+    } = useManagedUsers(usersApi.getActiveUsers, sortAccessors);
 
     const fetchUsers = async () => {
         try {
@@ -168,62 +234,59 @@ export const RoleSwap = () => {
         }
     };
 
-    useEffect(() => {
-        usersApi
-            .getActiveUsers()
-            .then((data) => {
-                setUsers(data.results);
-            })
-            .catch(() => setPageError("Failed to load users."))
-            .finally(() => setIsLoading(false));
-    }, []);
-
-    if (isLoading) {
+    if (isLoading || pageError) {
         return (
-            <div className="p-6 md:p-10 text-sm text-muted-foreground">
-                Loading users...
-            </div>
-        );
-    }
-
-    if (pageError) {
-        return (
-            <div className="p-6 md:p-10 text-sm text-destructive">
-                {pageError}
-            </div>
+            <UserTableStatus
+                isLoading={isLoading}
+                pageError={pageError}
+                loadingText="Loading users..."
+            />
         );
     }
 
     return (
-        <div className="max-w-7xl mx-auto p-6 md:p-10 space-y-6">
-            <div className="text-2xl font-bold tracking-tight text-primary">
+        <div className="space-y-4">
+            <div className="font-heading text-2xl leading-[1.15] font-bold text-brand-primary">
                 Role Management
             </div>
 
-            <div className="rounded-md border">
+            <UserSearchFilterBar
+                search={search}
+                onSearchChange={setSearch}
+                searchPlaceholder="Search active users..."
+                roleOptions={roleOptions}
+                selectedRoles={roleFilter}
+                onRolesChange={setRoleFilter}
+            />
+
+            <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Username</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Current Role</TableHead>
-                            <TableHead>Assign Role</TableHead>
-                            <TableHead />
+                    <TableHeader className="bg-brand-primary">
+                        <TableRow className="hover:bg-transparent">
+                            <SortableColumns
+                                columns={USER_COLUMNS}
+                                sortKey={sortKey}
+                                direction={direction}
+                                requestSort={requestSort}
+                            />
+                            <TableHead className={theadClass}>
+                                Assign Role
+                            </TableHead>
+                            <TableHead className={theadClass} />
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.length === 0 ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={6}
-                                    className="text-center text-muted-foreground"
-                                >
-                                    No active users found.
-                                </TableCell>
-                            </TableRow>
+                        {sortedUsers.length === 0 ? (
+                            <EmptyTableRow
+                                colSpan={6}
+                                message={
+                                    users.length === 0
+                                        ? "No active users found."
+                                        : "No users match your search or filters."
+                                }
+                            />
                         ) : (
-                            users.map((user) => (
+                            sortedUsers.map((user) => (
                                 <UserRow
                                     key={user.id}
                                     user={user}

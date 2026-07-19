@@ -14,11 +14,6 @@
 			href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=Barlow+Condensed:wght@600;700;800&display=swap"
 			rel="stylesheet"
 		/>
-		<script
-			type="text/javascript"
-			src="https://ff.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=6bf58zXcRv6wObL_ZsIhF-KTeCFNmWvE-Utur6RETzhsghr5DBDbapyllmjABp_ic5s6F63rvXdtSSHqGwWjgOSfGAh-6RfKIvZsmdHkYvXat5vjN3msVB2McbXeyf1KXzo7Q-llSBud_4SmvqOgj6mCK4cwnM33Xddec-VCczYYP5U8jFth0yZXpEEfPwqqpmmRPKuOPc-Bt36Gg_nmsiwIKdF4jzTGOKgf_JZ1rHOYwRwGrXdrOz-AyaWxnNZFf-zLtWQ1T6G-EyM0UZ87cQIIOQRY9e9zLBDGnuTLJ_I"
-			charset="UTF-8"
-		></script>
 		<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 		<link rel="stylesheet" href="brand_style_guide.css" />
 	</head>
@@ -4240,11 +4235,13 @@
 						<div class="comp-section-label">Search and Filter Bar</div>
 						<p class="group-desc">
 							A search input with a leading Lucide search icon sits beside a
-							filter button. Clicking the filter button opens the filter panel:
-							a dropdown panel on desktop, anchored below the button, and a
-							bottom drawer below the md breakpoint. When filters are active, a
-							chip row below the bar shows each applied filter with a remove
-							control, and the filter button displays a count badge.
+							filter button. Once the field has a value, a circular clear
+							button appears at its trailing edge to reset the search. Clicking
+							the filter button opens the filter panel: a dropdown panel on
+							desktop, anchored below the button, and a bottom drawer below the
+							md breakpoint. When filters are active, a chip row below the bar
+							shows each applied filter with a remove control, and the filter
+							button displays a count badge.
 						</p>
 
 						<p class="demo-caption">No active filters</p>
@@ -4286,6 +4283,13 @@
 									aria-label="Search reports"
 									value="elephant"
 								/>
+								<button
+									type="button"
+									class="search-clear-btn"
+									aria-label="Clear search"
+								>
+									<i data-lucide="x" aria-hidden="true"></i>
+								</button>
 							</div>
 							<button
 								class="btn btn-outline filter-btn"
@@ -4522,8 +4526,8 @@
 									<td class="state-label">Search input</td>
 									<td>.form-input.search-input</td>
 									<td>
-										Extends .form-input; padding-left: --sp-10 to clear icon
-										with a --sp-3 gap
+										Extends .form-input; padding-left/right: --sp-10 to clear
+										the search icon and clear button, each with a --sp-3 gap
 									</td>
 								</tr>
 								<tr>
@@ -4532,6 +4536,15 @@
 									<td>
 										Absolute; left --sp-3; vertically centred; 16px stroke;
 										--brand-muted; pointer-events: none
+									</td>
+								</tr>
+								<tr>
+									<td class="state-label">Search clear button</td>
+									<td>.search-clear-btn</td>
+									<td>
+										Absolute; right --sp-3; 20px circle, --color-border fill;
+										same hover/focus/hit-area treatment as .filter-chip-remove;
+										rendered only when the field has a value
 									</td>
 								</tr>
 								<tr>

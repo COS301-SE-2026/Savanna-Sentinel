@@ -1,15 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import {
-    describe,
-    beforeAll,
-    afterAll,
-    afterEach,
-    it,
-    expect,
-    vi,
-} from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RoleSwap from "@/components/admin/RoleSwap";
 import {
@@ -76,53 +68,111 @@ describe("RoleSwap - Role Management", () => {
         ).toBeInTheDocument();
     });
 
-    it("save button is disabled when role has not changed", async () => {
+    it("apply button is disabled when role has not changed", async () => {
         renderRoleSwap();
 
         await screen.findByText("ranger1");
 
-        const saveButtons = screen.getAllByRole("button", { name: /save/i });
-        saveButtons.forEach((btn) => expect(btn).toBeDisabled());
+        const applyButtons = screen.getAllByRole("button", {
+            name: /apply/i,
+        });
+        applyButtons.forEach((btn) => expect(btn).toBeDisabled());
     });
 
-    it("save button enables after selecting a different role", async () => {
+    it("apply button enables after selecting a different role", async () => {
         const user = userEvent.setup();
         renderRoleSwap();
 
         await screen.findByText("ranger1");
 
         const triggers = screen.getAllByRole("combobox");
-        await user.click(triggers[0]);
-
-        const analystOption = await screen.findByRole("option", {
+        const analystOption = await within(triggers[0]).findByRole("option", {
             name: /analyst/i,
         });
-        await user.click(analystOption);
+        await user.selectOptions(triggers[0], [analystOption]);
 
-        const saveButtons = screen.getAllByRole("button", { name: /save/i });
-        expect(saveButtons[0]).toBeEnabled();
+        const applyButtons = screen.getAllByRole("button", {
+            name: /apply/i,
+        });
+        expect(applyButtons[0]).toBeEnabled();
     });
 
-    it("shows success message after a successful role change", async () => {
+    it("clicking apply opens a confirmation dialog naming the role change", async () => {
         const user = userEvent.setup();
         renderRoleSwap();
 
         await screen.findByText("ranger1");
 
         const triggers = screen.getAllByRole("combobox");
-        await user.click(triggers[0]);
-
-        const analystOption = await screen.findByRole("option", {
+        const analystOption = await within(triggers[0]).findByRole("option", {
             name: /analyst/i,
         });
-        await user.click(analystOption);
+        await user.selectOptions(triggers[0], [analystOption]);
 
-        const saveButtons = screen.getAllByRole("button", { name: /save/i });
-        await user.click(saveButtons[0]);
+        const applyButtons = screen.getAllByRole("button", {
+            name: /apply/i,
+        });
+        await user.click(applyButtons[0]);
+
+        const dialog = await screen.findByRole("dialog");
+        expect(
+            within(dialog).getByText(/update john doe from ranger to analyst/i),
+        ).toBeInTheDocument();
+    });
+
+    it("shows success message after confirming a role change", async () => {
+        const user = userEvent.setup();
+        renderRoleSwap();
+
+        await screen.findByText("ranger1");
+
+        const triggers = screen.getAllByRole("combobox");
+        const analystOption = await within(triggers[0]).findByRole("option", {
+            name: /analyst/i,
+        });
+        await user.selectOptions(triggers[0], [analystOption]);
+
+        const applyButtons = screen.getAllByRole("button", {
+            name: /apply/i,
+        });
+        await user.click(applyButtons[0]);
+
+        const dialog = await screen.findByRole("dialog");
+        await user.click(
+            within(dialog).getByRole("button", { name: /confirm/i }),
+        );
 
         expect(
             await screen.findByText(/role updated to analyst/i),
         ).toBeInTheDocument();
+    });
+
+    it("does not change the role when the dialog is cancelled", async () => {
+        const user = userEvent.setup();
+        renderRoleSwap();
+
+        await screen.findByText("ranger1");
+
+        const triggers = screen.getAllByRole("combobox");
+        const analystOption = await within(triggers[0]).findByRole("option", {
+            name: /analyst/i,
+        });
+        await user.selectOptions(triggers[0], [analystOption]);
+
+        const applyButtons = screen.getAllByRole("button", {
+            name: /apply/i,
+        });
+        await user.click(applyButtons[0]);
+
+        const dialog = await screen.findByRole("dialog");
+        await user.click(
+            within(dialog).getByRole("button", { name: "Cancel" }),
+        );
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/role updated to analyst/i),
+        ).not.toBeInTheDocument();
     });
 
     it("shows error message when role change fails", async () => {
@@ -139,15 +189,20 @@ describe("RoleSwap - Role Management", () => {
         await screen.findByText("ranger1");
 
         const triggers = screen.getAllByRole("combobox");
-        await user.click(triggers[0]);
-
-        const analystOption = await screen.findByRole("option", {
+        const analystOption = await within(triggers[0]).findByRole("option", {
             name: /analyst/i,
         });
-        await user.click(analystOption);
+        await user.selectOptions(triggers[0], [analystOption]);
 
-        const saveButtons = screen.getAllByRole("button", { name: /save/i });
-        await user.click(saveButtons[0]);
+        const applyButtons = screen.getAllByRole("button", {
+            name: /apply/i,
+        });
+        await user.click(applyButtons[0]);
+
+        const dialog = await screen.findByRole("dialog");
+        await user.click(
+            within(dialog).getByRole("button", { name: /confirm/i }),
+        );
 
         expect(
             await screen.findByText(/failed to update role/i),
@@ -161,15 +216,20 @@ describe("RoleSwap - Role Management", () => {
         await screen.findByText("ranger1");
 
         const triggers = screen.getAllByRole("combobox");
-        await user.click(triggers[0]);
-
-        const analystOption = await screen.findByRole("option", {
+        const analystOption = await within(triggers[0]).findByRole("option", {
             name: /analyst/i,
         });
-        await user.click(analystOption);
+        await user.selectOptions(triggers[0], [analystOption]);
 
-        const saveButtons = screen.getAllByRole("button", { name: /save/i });
-        await user.click(saveButtons[0]);
+        const applyButtons = screen.getAllByRole("button", {
+            name: /apply/i,
+        });
+        await user.click(applyButtons[0]);
+
+        const dialog = await screen.findByRole("dialog");
+        await user.click(
+            within(dialog).getByRole("button", { name: /confirm/i }),
+        );
 
         expect(
             await screen.findByText(/role updated to analyst/i),
@@ -184,65 +244,61 @@ describe("RoleSwap - Role Management", () => {
         );
     }, 10000);
 
-    it("shows a Delete button per active user row", async () => {
-        renderRoleSwap();
-        await screen.findByText("ranger1");
-
-        const deleteButtons = screen.getAllByRole("button", {
-            name: /delete/i,
-        });
-        expect(deleteButtons).toHaveLength(2);
-    });
-
-    it("does not call the API when delete is cancelled", async () => {
-        vi.spyOn(window, "confirm").mockReturnValue(false);
+    it("sorts users by each column when its header is clicked", async () => {
         const user = userEvent.setup();
         renderRoleSwap();
+
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", {
-            name: /delete/i,
-        });
-        await user.click(deleteButtons[0]);
+        const getUsernames = () =>
+            screen
+                .getAllByRole("row")
+                .slice(1)
+                .map((row) => within(row).getAllByRole("cell")[0].textContent);
 
-        expect(screen.getByText("ranger1")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Username" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await user.click(screen.getByRole("button", { name: "Username" }));
+        expect(getUsernames()).toEqual(["ranger1", "analyst2"]);
+
+        await user.click(screen.getByRole("button", { name: "Name" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await user.click(screen.getByRole("button", { name: "Email" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await user.click(screen.getByRole("button", { name: "Current Role" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
     });
 
-    it("removes the row after a confirmed successful delete", async () => {
-        vi.spyOn(window, "confirm").mockReturnValue(true);
+    it("closes the confirmation dialog via the header close button without applying the change", async () => {
         const user = userEvent.setup();
         renderRoleSwap();
+
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", {
-            name: /delete/i,
+        const triggers = screen.getAllByRole("combobox");
+        const analystOption = await within(triggers[0]).findByRole("option", {
+            name: /analyst/i,
         });
-        await user.click(deleteButtons[0]);
+        await user.selectOptions(triggers[0], [analystOption]);
 
-        await waitFor(() =>
-            expect(screen.queryByText("ranger1")).not.toBeInTheDocument(),
+        const applyButtons = screen.getAllByRole("button", {
+            name: /apply/i,
+        });
+        await user.click(applyButtons[0]);
+
+        const dialog = await screen.findByRole("dialog");
+        await user.click(
+            within(dialog).getByRole("button", {
+                name: /cancel, close dialog/i,
+            }),
         );
-    });
 
-    it("shows an error message when delete fails", async () => {
-        server.use(
-            http.delete(
-                "**/v1/users/:id",
-                () => new HttpResponse(null, { status: 500 }),
-            ),
-        );
-        vi.spyOn(window, "confirm").mockReturnValue(true);
-        const user = userEvent.setup();
-        renderRoleSwap();
-        await screen.findByText("ranger1");
-
-        const deleteButtons = screen.getAllByRole("button", {
-            name: /delete/i,
-        });
-        await user.click(deleteButtons[0]);
-
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         expect(
-            await screen.findByText(/failed to delete account/i),
-        ).toBeInTheDocument();
+            screen.queryByText(/role updated to analyst/i),
+        ).not.toBeInTheDocument();
     });
 });

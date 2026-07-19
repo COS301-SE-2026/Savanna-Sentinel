@@ -6,15 +6,11 @@ export default function NotFoundPage() {
         <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
             <div className="text-center max-w-sm space-y-6">
                 <div>
-                    <p className="text-9xl font-black text-primary leading-none tracking-tighter select-none">
+                    <p className="font-heading text-5xl leading-[0.95] font-extrabold tracking-[-0.02em] text-primary select-none">
                         404
                     </p>
-                    <p className="text-xl font-semibold text-foreground mt-3">
+                    <p className="font-heading text-2xl leading-[1.15] font-bold text-foreground mt-3">
                         Page not found
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                        This trail doesn't exist on the reserve. You may have
-                        strayed off the patrol route.
                     </p>
                 </div>
 
