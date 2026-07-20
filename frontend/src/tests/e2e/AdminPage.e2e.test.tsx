@@ -79,6 +79,37 @@ test.describe("Admin authorising registrations", () => {
         await confirmDialog.getByRole("button", {name: /confirm/i}).click();
 
         await expect(userRow).not.toBeVisible();
+    })
 
+    test("should allow an admin to reject a user registration", async ({page, request}) => {
+        const newUser = generateUser();
+
+        userCleanup = newUser;
+        
+        //Add a new user to the database
+        const registration = await request.post(`${BASE_API_URL}/v1/auth/register`, {
+            data: newUser
+        })
+        expect(registration.status()).toBe(201);
+
+        await page.goto("/admin");
+        await page.getByRole("tab", {name: /account approvals/i}).click();
+        
+        const fullName = `${newUser.first_name} ${newUser.last_name}`;
+        const userRow = page.locator("tr").filter({ hasText: newUser.username })
+
+        await expect(userRow).toBeVisible();
+        await expect(userRow).toContainText(fullName);
+
+        //Check that approval works
+        await userRow.getByRole("button", {name: /reject/i}).click();
+
+        const confirmDialog = page.getByRole("dialog")
+        await expect(confirmDialog).toBeVisible();
+        await expect(confirmDialog).toContainText("Confirm rejection");
+
+        await confirmDialog.getByRole("button", {name: /confirm/i}).click();
+
+        await expect(userRow).not.toBeVisible();
     })
 })
