@@ -1,4 +1,5 @@
 import { http, HttpResponse } from "msw";
+import { createActiveUsersFixture } from "./activeUsersFixture";
 
 const initialActiveUsers = [
     {
@@ -33,35 +34,15 @@ const initialActiveUsers = [
     },
 ];
 
-export const mockActiveUsers = {
-    total: initialActiveUsers.length,
-    page: 1,
-    page_size: 20,
-    results: [...initialActiveUsers],
-};
+const { mockActiveUsers, resetMockActiveUsers, deleteUserHandler } =
+    createActiveUsersFixture(initialActiveUsers);
 
-// DELETE mutates mockActiveUsers.results so a refetch reflects the removal;
-// call this in afterEach to undo that for the next test.
-export function resetMockActiveUsers() {
-    mockActiveUsers.results = [...initialActiveUsers];
-    mockActiveUsers.total = initialActiveUsers.length;
-}
+export { mockActiveUsers, resetMockActiveUsers };
 
 export const deleteAccountsHandlers = [
     http.get("**/v1/users", () => {
         return HttpResponse.json(mockActiveUsers);
     }),
 
-    http.delete("**/v1/users/:id", ({ params }) => {
-        const { id } = params;
-        if (id === "error-id") {
-            return new HttpResponse(null, { status: 500 });
-        }
-        const user = mockActiveUsers.results.find((u) => u.id === id);
-        mockActiveUsers.results = mockActiveUsers.results.filter(
-            (u) => u.id !== id,
-        );
-        mockActiveUsers.total = mockActiveUsers.results.length;
-        return HttpResponse.json(user);
-    }),
+    deleteUserHandler(),
 ];
