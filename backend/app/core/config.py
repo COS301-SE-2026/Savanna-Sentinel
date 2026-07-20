@@ -20,5 +20,10 @@ class Settings:
         "30",
     ))
 
+    # Email (Resend)
+    RESEND_API_KEY: str = os.environ["RESEND_API_KEY"]
+    RESEND_FROM_ADDRESS: str = os.environ["RESEND_FROM_ADDRESS"]
+    FRONTEND_BASE_URL: str = os.environ["FRONTEND_BASE_URL"]
+
 
 settings = Settings()
