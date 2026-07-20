@@ -22,6 +22,15 @@ function renderDeleteAccounts() {
     return render(<DeleteAccounts />);
 }
 
+async function openDeleteDialog(
+    user: ReturnType<typeof userEvent.setup>,
+    rowIndex = 0,
+) {
+    const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
+    await user.click(deleteButtons[rowIndex]);
+    return screen.findByRole("dialog");
+}
+
 describe("DeleteAccounts - Delete Accounts", () => {
     it("shows a loading indicator then renders non-admin active users", async () => {
         renderDeleteAccounts();
@@ -83,12 +92,7 @@ describe("DeleteAccounts - Delete Accounts", () => {
 
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", {
-            name: /delete/i,
-        });
-        await user.click(deleteButtons[0]);
-
-        const dialog = await screen.findByRole("dialog");
+        const dialog = await openDeleteDialog(user);
         expect(
             within(dialog).getByText(/delete john doe's account/i),
         ).toBeInTheDocument();
@@ -100,12 +104,7 @@ describe("DeleteAccounts - Delete Accounts", () => {
 
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", {
-            name: /delete/i,
-        });
-        await user.click(deleteButtons[0]);
-
-        const dialog = await screen.findByRole("dialog");
+        const dialog = await openDeleteDialog(user);
         await user.click(
             within(dialog).getByRole("button", { name: "Cancel" }),
         );
@@ -120,12 +119,7 @@ describe("DeleteAccounts - Delete Accounts", () => {
 
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", {
-            name: /delete/i,
-        });
-        await user.click(deleteButtons[0]);
-
-        const dialog = await screen.findByRole("dialog");
+        const dialog = await openDeleteDialog(user);
         await user.click(
             within(dialog).getByRole("button", { name: /confirm/i }),
         );
@@ -150,12 +144,7 @@ describe("DeleteAccounts - Delete Accounts", () => {
 
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", {
-            name: /delete/i,
-        });
-        await user.click(deleteButtons[0]);
-
-        const dialog = await screen.findByRole("dialog");
+        const dialog = await openDeleteDialog(user);
         await user.click(
             within(dialog).getByRole("button", { name: /confirm/i }),
         );
@@ -201,12 +190,7 @@ describe("DeleteAccounts - Delete Accounts", () => {
 
         await screen.findByText("ranger1");
 
-        const deleteButtons = screen.getAllByRole("button", {
-            name: /delete/i,
-        });
-        await user.click(deleteButtons[0]);
-
-        const dialog = await screen.findByRole("dialog");
+        const dialog = await openDeleteDialog(user);
         await user.click(
             within(dialog).getByRole("button", {
                 name: /cancel, close dialog/i,
