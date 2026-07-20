@@ -1,15 +1,21 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import DeleteAccounts from "@/components/admin/DeleteAccounts";
-import { deleteAccountsHandlers } from "./mocks/deleteAccountsHandlers";
+import {
+    deleteAccountsHandlers,
+    resetMockActiveUsers,
+} from "./mocks/deleteAccountsHandlers";
 
 const server = setupServer(...deleteAccountsHandlers);
 
 beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+    server.resetHandlers();
+    resetMockActiveUsers();
+});
 afterAll(() => server.close());
 
 function renderDeleteAccounts() {
@@ -108,7 +114,7 @@ describe("DeleteAccounts - Delete Accounts", () => {
         expect(screen.getByText("ranger1")).toBeInTheDocument();
     });
 
-    it("confirm closes the dialog and leaves the row in place", async () => {
+    it("confirm closes the dialog and removes the deleted user from the list", async () => {
         const user = userEvent.setup();
         renderDeleteAccounts();
 
@@ -125,6 +131,39 @@ describe("DeleteAccounts - Delete Accounts", () => {
         );
 
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        await waitFor(() =>
+            expect(screen.queryByText("ranger1")).not.toBeInTheDocument(),
+        );
+        expect(screen.getByText("analyst2")).toBeInTheDocument();
+    });
+
+    it("shows an error and keeps the row when the delete request fails", async () => {
+        server.use(
+            http.delete(
+                "**/v1/users/:id",
+                () => new HttpResponse(null, { status: 500 }),
+            ),
+        );
+
+        const user = userEvent.setup();
+        renderDeleteAccounts();
+
+        await screen.findByText("ranger1");
+
+        const deleteButtons = screen.getAllByRole("button", {
+            name: /delete/i,
+        });
+        await user.click(deleteButtons[0]);
+
+        const dialog = await screen.findByRole("dialog");
+        await user.click(
+            within(dialog).getByRole("button", { name: /confirm/i }),
+        );
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(
+            await screen.findByText(/failed to delete account/i),
+        ).toBeInTheDocument();
         expect(screen.getByText("ranger1")).toBeInTheDocument();
     });
 
