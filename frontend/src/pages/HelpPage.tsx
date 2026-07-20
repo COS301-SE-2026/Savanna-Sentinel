@@ -1,3 +1,11 @@
+import {
+    Tabs,
+    TabsList,
+    TabsTrigger,
+    TabsContent,
+    tabsListVariants
+} from "@/components/ui/tabs"
+
 // Quick access to VALUABLE RESOURCES such as help center links, tutorials and FAQs
 
 // CHECKLIST
@@ -76,6 +84,20 @@
 
 export default function HelpPage() {
     return (
-        <></>
+        <>
+            <Tabs >
+                <TabsList>
+                    <TabsTrigger value="placeholder1">placeholder one</TabsTrigger>
+                    <TabsTrigger value="placeholder2">placeholder two</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="placeholder1">
+                    <p>this is a placeholder</p>
+                </TabsContent>
+                <TabsContent value="placeholder2">
+                    <p>this is also a placeholder</p>
+                </TabsContent>
+            </Tabs>
+        </>
     )
 }

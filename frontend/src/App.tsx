@@ -15,6 +15,7 @@ import TipoffPage from "@/pages/TipoffPage";
 import AdminPage from "@/pages/AdminPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFoundPage from "@/pages/NotFoundPage";
+import HelpPage from "@/pages/HelpPage";
 
 const App = () => {
     return (
@@ -36,6 +37,7 @@ const App = () => {
                         <Route path="/ingestion" element={<IngestionPage />} />
                         <Route path="/tipoffs" element={<TipoffPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/help" element={<HelpPage />} />
                     </Route>
                 </Route>
 
