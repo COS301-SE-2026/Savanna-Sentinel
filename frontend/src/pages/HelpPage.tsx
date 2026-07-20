@@ -3,57 +3,93 @@ import {
     TabsList,
     TabsTrigger,
     TabsContent,
-    tabsListVariants
 } from "@/components/ui/tabs"
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 
 // Quick access to VALUABLE RESOURCES such as help center links, tutorials and FAQs
 
 // CHECKLIST
 // [] FAQ (first or nah?)
 // [] Dashboard
-// [] Map
-// [] Reports
-// [] Patrol Planner
-// [] Profile
 // [] Link to user manual
 
-// Only bullet points, need to still read tone of brand style guide
+function Dashboard() {
+    return (
+        <></>
+    )
+}
 
-/* Dashboard
+// Do i need to explain the map and the controls? if so i just need to know the controls
+function Map() {
+    return(
+        <Card>
+            <CardHeader>
+                <CardTitle>Time Range Slider</CardTitle>
+                <CardDescription>
+                    <ul>
+                        <li>You may drag the slider to increase or decrease the view date</li>
+                        <li>The time range slider allows one to see the risk map at past time intervals</li>
+                    </ul>
+                </CardDescription>
 
-*/
 
-/* Map
-    - Time range slider
-        > You may drag the slider to increase or decrease the view date
-        > The time range slider allows one to see the risk map at past time intervals
+                <CardTitle>Layers</CardTitle>
+                <CardDescription>
+                    <ul>
+                        <li>You can select and deselect multiple options</li>
+                        <li>Risk Heatmap: toggles the risk heatmap overlay</li>
+                        <li>Patrol Routes: toggles the patrol routes overlay</li>
+                        <li>Incidents: toggles the location of incident reports overlay</li>
+                        <li>Water sources??: toggles the location of water sources overlay</li>
+                        <li>Fence lines??: toggles the ...?</li>
+                    </ul>
+                </CardDescription>
 
-    - Layers
-        > You can select and deselect multiple options
-        > Risk Heatmap: toggles the risk heatmap overlay
-        > Patrol Routes: toggles the patrol routes overlay
-        > Incidents: toggles the location of incident reports overlay
-        > Water sources??: toggles the location of water sources overlay
-        > Fence lines??: toggles the ...?
 
-    - Summary
-        > Critical cells: Indicates the number of cells marked as high-risk and high-alert
-        > High-risk cells: Indicates the number of cells marked as being high-risk areas
-        > Incidents(30d): Indicates the number of incidents reported within the past 30 days
-        > Last updated: Indicates when the date when last the risk heat map was updated
+                <CardTitle>Summary</CardTitle>
+                <CardDescription>
+                    <ul>
+                        <li>Critical cells: Indicates the number of cells marked as high-risk and high-alert</li>
+                        <li>High-risk cells: Indicates the number of cells marked as being high-risk areas</li>
+                        <li>Incidents(30d): Indicates the number of incidents reported within the past 30 days</li>
+                        <li>Last updated: Indicates when the date when last the risk heat map was updated</li>
+                    </ul>
+                </CardDescription>
 
-    - Risk level
-        > Indicates the colour mapping legend for different risk zone cells
 
-    - Model
-        > Explains AI model was used to produce the heatmap
-        > F1score: ..?
-        > Cells: Indicates the amount of cells being evaluted/used
+                <CardTitle>Risk Level</CardTitle>
+                <CardDescription>
+                    <ul>
+                        <li>Indicates the colour mapping legend for different risk zone cells</li>
+                    </ul>
+                </CardDescription>
 
-    * Do i need to explain the map and the controls? if so i just need to know the controls
-    
-*/
 
+                <CardTitle>Model</CardTitle>
+                <CardDescription>
+                    <ul>
+                        <li>Explains AI model was used to produce the heatmap</li>
+                        <li>F1score: ..?</li>
+                        <li>Cells: Indicates the amount of cells being evaluted/used</li>
+                    </ul>
+                </CardDescription>
+            </CardHeader>
+        </Card>
+    )
+}
+
+function Reports() {
+    return(
+        <></>
+    )
+}
 /* Reports
     You may click the new report button to file a new field report
 
@@ -62,6 +98,11 @@ import {
     - You may search and filter different reports
 */
 
+function Patrol() {
+    return(
+        <></>
+    )
+}
 /* Patrol
     - Route Parameters
         > Start location: Set the start location for the patrol route
@@ -70,6 +111,11 @@ import {
         > Suggested route: Give the stats of the generated route
 */
 
+function Profile() {
+    return(
+        <></>
+    )
+}
 /* Profile
     - Profile details
         > You may change your first and/or last name
@@ -84,9 +130,9 @@ import {
 
 export default function HelpPage() {
     return (
-        <>
+        <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
             <Tabs defaultValue="faq">
-                <TabsList>
+                <TabsList className="bg-(--color-color-surface-raised)">
                     <TabsTrigger value="faq">FAQs</TabsTrigger>
                     <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                     <TabsTrigger value="map">Map</TabsTrigger>
@@ -96,29 +142,29 @@ export default function HelpPage() {
                 </TabsList>
 
                 <TabsContent value="faq">
-                    <p>faqs</p>
+                    {/* todo */}
                 </TabsContent>
 
                 <TabsContent value="dashboard">
-                    <p>dashboard</p>
+                    <Dashboard />
                 </TabsContent>
 
                 <TabsContent value="map">
-                    <p>map</p>
+                    <Map />
                 </TabsContent>
 
                 <TabsContent value="reports">
-                    <p>reports</p>
+                    <Reports />
                 </TabsContent>
 
                 <TabsContent value="patrol">
-                    <p>patrol</p>
+                    <Patrol />
                 </TabsContent>
 
                 <TabsContent value="profile">
-                    <p>profile</p>
+                    <Profile />
                 </TabsContent>
             </Tabs>
-        </>
+        </div>
     )
 }
