@@ -20,7 +20,7 @@ test.describe("Registration Flow", () => {
         const registerButton = page.getByRole("button", {name: /register/i});
         await registerButton.click();
 
-        const requiredErrors = page.locator("p.text-red-300");
+        const requiredErrors = page.locator("form p");
 
         await expect(requiredErrors).toHaveCount(6);
         await expect(requiredErrors).toHaveText([
@@ -47,9 +47,8 @@ test.describe("Registration Flow", () => {
         await page.getByLabel(/last name/i).fill("Test");
         await page.getByLabel(/username/i).fill(testUsername);
         await page.getByLabel(/email/i).fill(testEmail);
-        await page.getByRole("textbox", { name: "Password" }).fill("SuperSecurePassword123!");
-        await page.getByRole("combobox", { name: "Role" }).click();
-        await page.getByRole("option", {name: "Ranger"}).click();
+        await page.getByLabel("Password", { exact: true }).fill("SuperSecurePassword123!");
+        await page.getByLabel(/role/i).selectOption({label: "Ranger"})
         await page.getByRole("button", {name: "Register"}).click();
 
         await expect(page.getByRole("heading", {name : "REQUEST SENT"})).toBeVisible()
@@ -74,9 +73,8 @@ test.describe("Registration Flow", () => {
         await page.getByLabel(/last name/i).fill("Test");
         await page.getByLabel(/username/i).fill(testUsername);
         await page.getByLabel(/email/i).fill(testEmail);
-        await page.getByRole("textbox", { name: "Password" }).fill("SuperSecurePassword123!");
-        await page.getByRole("combobox", { name: "Role" }).click();
-        await page.getByRole("option", {name: "Ranger"}).click();
+        await page.getByLabel("Password", { exact: true }).fill("SuperSecurePassword123!");
+        await page.getByLabel(/role/i).selectOption({label: "Ranger"})
         await page.getByRole("button", {name: "Register"}).click();
         await expect(page.getByRole("heading", {name : "REQUEST SENT"})).toBeVisible();
 
@@ -87,14 +85,11 @@ test.describe("Registration Flow", () => {
         await page.getByLabel(/last name/i).fill("User");
         await page.getByLabel(/username/i).fill(testUsername);
         await page.getByLabel(/email/i).fill(testEmail);
-        await page.getByRole("textbox", { name: "Password" }).fill("AnotherValidPassword123!");
-        await page.getByRole("combobox", { name: "Role" }).click();
-        await page.getByRole("option", {name: "Ranger"}).click();
+        await page.getByLabel("Password", { exact: true }).fill("SuperSecurePassword123!");
+        await page.getByLabel(/role/i).selectOption({label: "Ranger"})
         await page.getByRole("button", {name: "Register"}).click();
 
-        const error = page.getByRole("alert")
-        await expect(error).toBeVisible();
-        await expect(error).toHaveText("Email or username is already in use.");
+        await expect(page.getByText("Email or username is already in use.")).toBeVisible();
 
         deleteUserFromDb(testEmail, testUsername);
     })
