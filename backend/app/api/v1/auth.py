@@ -4,7 +4,7 @@ Auth router POST /v1/auth/login, /v1/auth/refresh, /v1/auth/logout.
 This file is the HTTP layer only. Business logic lives in AuthService.
 """
 
-from typing import Annotated
+from typing import Annotated, Union
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +15,9 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.auth import (
     LoginRequest,
     LogoutRequest,
+    MFAChallengeResponse,
+    MFAResendRequest,
+    MFAVerifyRequest,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
@@ -56,8 +59,8 @@ async def register(
 
 @router.post(
     "/login",
-    response_model=TokenResponse,
-    summary="Log in and receive JWT tokens",
+    response_model=Union[TokenResponse, MFAChallengeResponse],
+    summary="Log in and receive JWT tokens, or an MFA challenge for admins",
 )
 async def login(
     body: LoginRequest,
@@ -68,6 +71,37 @@ async def login(
     if result is None:
         raise _INVALID_CREDENTIALS
     return result
+
+
+@router.post(
+    "/mfa/verify",
+    response_model=TokenResponse,
+    summary="Verify an admin's emailed MFA code and receive JWT tokens",
+)
+async def verify_mfa(
+    body: MFAVerifyRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    service = AuthService(UserRepository(db))
+    result = await service.verify_mfa(body.mfa_token, body.code)
+    if result is None:
+        raise _INVALID_CREDENTIALS
+    return result
+
+
+@router.post(
+    "/mfa/resend",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Resend the admin's MFA code",
+)
+async def resend_mfa(
+    body: MFAResendRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    service = AuthService(UserRepository(db))
+    ok = await service.resend_mfa(body.mfa_token)
+    if not ok:
+        raise _INVALID_CREDENTIALS
 
 
 @router.post(
