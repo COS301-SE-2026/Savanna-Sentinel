@@ -85,17 +85,38 @@ import {
 export default function HelpPage() {
     return (
         <>
-            <Tabs >
+            <Tabs defaultValue="faq">
                 <TabsList>
-                    <TabsTrigger value="placeholder1">placeholder one</TabsTrigger>
-                    <TabsTrigger value="placeholder2">placeholder two</TabsTrigger>
+                    <TabsTrigger value="faq">FAQs</TabsTrigger>
+                    <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+                    <TabsTrigger value="map">Map</TabsTrigger>
+                    <TabsTrigger value="reports">Reports</TabsTrigger>
+                    <TabsTrigger value="patrol">Patrol Planner</TabsTrigger>
+                    <TabsTrigger value="profile">User Profile</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="placeholder1">
-                    <p>this is a placeholder</p>
+                <TabsContent value="faq">
+                    <p>faqs</p>
                 </TabsContent>
-                <TabsContent value="placeholder2">
-                    <p>this is also a placeholder</p>
+
+                <TabsContent value="dashboard">
+                    <p>dashboard</p>
+                </TabsContent>
+
+                <TabsContent value="map">
+                    <p>map</p>
+                </TabsContent>
+
+                <TabsContent value="reports">
+                    <p>reports</p>
+                </TabsContent>
+
+                <TabsContent value="patrol">
+                    <p>patrol</p>
+                </TabsContent>
+
+                <TabsContent value="profile">
+                    <p>profile</p>
                 </TabsContent>
             </Tabs>
         </>
