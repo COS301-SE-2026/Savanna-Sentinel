@@ -40,16 +40,28 @@ import {
 
 interface UserRowProps {
     user: UserResponse;
+    onDeleted: () => void;
 }
 
-export const UserRow = ({ user }: UserRowProps) => {
+export const UserRow = ({ user, onDeleted }: UserRowProps) => {
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const fullName = `${user.first_name} ${user.last_name}`;
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         setIsConfirmOpen(false);
-        // soft delete endpoint
+        setIsDeleting(true);
+        setError(null);
+        try {
+            await usersApi.softDeleteUser(user.id);
+            onDeleted();
+        } catch {
+            setError("Failed to delete account.");
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     return (
@@ -69,9 +81,10 @@ export const UserRow = ({ user }: UserRowProps) => {
                 <TableCell className={cellClass}>
                     <Button
                         variant="destructive"
+                        disabled={isDeleting}
                         onClick={() => setIsConfirmOpen(true)}
                     >
-                        Delete
+                        {isDeleting ? "Deleting..." : "Delete"}
                     </Button>
                 </TableCell>
             </TableRow>
@@ -103,6 +116,17 @@ export const UserRow = ({ user }: UserRowProps) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {error && (
+                <TableRow className={rowClass}>
+                    <TableCell
+                        colSpan={5}
+                        className="bg-status-critical/5 px-4 py-1.5 text-xs italic text-status-critical-text"
+                    >
+                        {error}
+                    </TableCell>
+                </TableRow>
+            )}
         </>
     );
 };
@@ -124,6 +148,7 @@ export const DeleteAccounts = () => {
         direction,
         requestSort,
         users,
+        refetch,
     } = useManagedUsers(usersApi.getActiveUsers, sortAccessors, {
         transform: excludeAdmins,
     });
@@ -180,7 +205,11 @@ export const DeleteAccounts = () => {
                             />
                         ) : (
                             sortedUsers.map((user) => (
-                                <UserRow key={user.id} user={user} />
+                                <UserRow
+                                    key={user.id}
+                                    user={user}
+                                    onDeleted={refetch}
+                                />
                             ))
                         )}
                     </TableBody>
