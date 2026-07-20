@@ -1,17 +1,7 @@
 import asyncio
-import inspect
 import os
 
-import pytest
-import pytest_asyncio
 from dotenv import load_dotenv
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-
-from app.models.user import Base
 
 _ENV_PATH = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(_ENV_PATH)
@@ -19,29 +9,32 @@ load_dotenv(_ENV_PATH)
 os.environ.setdefault("JWT_SECRET", "Testing-secret-not-used-in-production")
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://localhost/savanna_sentinel")
 
+# noqa is due to code NEEDING to be executed before all imports, to fix config errors
+import pytest  # noqa: E402
+import pytest_asyncio  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy.ext.asyncio import (  # noqa: E402
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
-
+from app.core.dependencies import get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.user import Base, User  # noqa: E402
 
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "asyncio: mark a test function as async")
 
-
-def pytest_pyfunc_call(pyfuncitem):
-    if "asyncio" not in pyfuncitem.keywords:
-        return None
-
-    test_function = pyfuncitem.obj
-    if not inspect.iscoroutinefunction(test_function):
-        return None
-
-    test_arguments = {
-        name: pyfuncitem.funcargs[name]
-        for name in pyfuncitem._fixtureinfo.argnames
-    }
-
-    asyncio.run(test_function(**test_arguments))
-    return True
+@pytest.fixture(scope="session")
+def event_loop():
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
 
 
 @pytest.fixture(autouse=True)
@@ -65,3 +58,26 @@ async def db_session():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
+
+@pytest.fixture
+def client(db_session):
+    async def override_get_db():
+        yield db_session
+    def override_require_roles():
+        return User(
+            id="00000000-0000-0000-0000-000000000000",
+            username="test_analyst",
+            email="analyst@savannasentinel.com",
+            first_name="Test",
+            last_name="Analyst",
+            hashed_password="dummy_hash_for_testing",
+            role="analyst",
+            is_active=True,
+        )
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    app.dependency_overrides.clear()

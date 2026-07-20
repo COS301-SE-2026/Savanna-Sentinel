@@ -9,8 +9,5 @@
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" }
-  ],
-  "include": [
-    "playwright.config.ts"
   ]
 }

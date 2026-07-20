@@ -125,7 +125,9 @@ class UserRepository:
         return user
 
     async def get_users(self, req: UsersRequest ) -> list[UsersResponse]:
-        stmt = select(User).where(User.role != "admin")
+        stmt = select(User).where(
+            User.role != "admin", User.deleted_at.is_(None),
+        )
 
         if req.is_active is not None:
             stmt = stmt.where(User.is_active == req.is_active)
@@ -142,8 +144,11 @@ class UserRepository:
         return result.scalars().all()
 
     async def count_users(self, req: UsersRequest) -> int:
-        stmt = select(func.count(),
-                      ).select_from(User).where(User.role != "admin")
+        stmt = (
+            select(func.count())
+            .select_from(User)
+            .where(User.role != "admin", User.deleted_at.is_(None))
+        )
 
         if req.is_active is not None:
             stmt = stmt.where(User.is_active == req.is_active)
@@ -163,7 +168,7 @@ class UserRepository:
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
 
-        if not user:
+        if not user or user.deleted_at is not None:
             return None
 
         user.is_active = is_active
@@ -178,7 +183,7 @@ class UserRepository:
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
 
-        if not user:
+        if not user or user.is_active or user.deleted_at is not None:
             return None
 
         del_stmt = delete(User).where(User.id == user_id)
@@ -197,6 +202,20 @@ class UserRepository:
             return None
 
         user.role = new_role
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def soft_delete_user(self, user_id: str) -> Optional[User]:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user or not user.is_active or user.deleted_at is not None:
+            return None
+
+        user.is_active = False
+        user.deleted_at = datetime.now(timezone.utc)
         await self.db.commit()
         await self.db.refresh(user)
         return user

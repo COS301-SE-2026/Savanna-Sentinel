@@ -10,5 +10,5 @@
     "bracketSpacing": true,
     "bracketSameLine": false,
     "objectWrap": "preserve",
-    "arrowParens": "always"   
+    "arrowParens": "always"
 }
