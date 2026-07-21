@@ -1,9 +1,4 @@
-import {
-    Tabs,
-    TabsList,
-    TabsTrigger,
-    TabsContent,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
     Card,
     CardContent,
@@ -55,8 +50,8 @@ function Faq() {
                         How do I file a report?
                     </CardTitle>
                     <p>
-                        Open Reports and select New Report. Then enter the report
-                        details and submit it for review.
+                        Open Reports and select New Report. Then enter the
+                        report details and submit it for review.
                     </p>
                 </div>
 
@@ -92,8 +87,8 @@ function Reports() {
                     Field Reports
                 </CardTitle>
                 <CardDescription className="text-base text-color-surface-deep">
-                    Use this page to view submitted reports, create a new report, 
-                    and narrow the list with search and filters.
+                    Use this page to view submitted reports, create a new
+                    report, and narrow the list with search and filters.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5 text-base">
@@ -101,9 +96,7 @@ function Reports() {
                     <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
                         New Report
                     </CardTitle>
-                    <p>
-                        Select New Report to file a new field report.
-                    </p>
+                    <p>Select New Report to file a new field report.</p>
                 </div>
 
                 <div>
@@ -112,7 +105,9 @@ function Reports() {
                     </CardTitle>
                     <ul className="list-disc pl-5 space-y-1">
                         <li>Search reports using the search box.</li>
-                        <li>Use Filter to narrow results by report criteria.</li>
+                        <li>
+                            Use Filter to narrow results by report criteria.
+                        </li>
                     </ul>
                 </div>
 
@@ -125,8 +120,13 @@ function Reports() {
                         <li>Date: when the report was submitted.</li>
                         <li>Ranger: the user who submitted the report.</li>
                         <li>Type: the report category.</li>
-                        <li>Location: the grid location linked to the report.</li>
-                        <li>Status: current report state, such as Open, Under Review, or Closed.</li>
+                        <li>
+                            Location: the grid location linked to the report.
+                        </li>
+                        <li>
+                            Status: current report state, such as Open, Under
+                            Review, or Closed.
+                        </li>
                     </ul>
                 </div>
 
@@ -135,13 +135,13 @@ function Reports() {
                         Status
                     </CardTitle>
                     <p>
-                        Open reports are active, Under Review reports are being checked, 
-                        and Closed reports are complete.
+                        Open reports are active, Under Review reports are being
+                        checked, and Closed reports are complete.
                     </p>
                 </div>
             </CardContent>
         </Card>
-    )
+    );
 }
 
 function Patrol() {
@@ -152,7 +152,8 @@ function Patrol() {
                     Patrol Planner
                 </CardTitle>
                 <CardDescription className="text-base text-color-surface-deep">
-                    Use the route panel to define the patrol constraints and review the suggested route metrics.
+                    Use the route panel to define the patrol constraints and
+                    review the suggested route metrics.
                 </CardDescription>
             </CardHeader>
 
@@ -162,9 +163,15 @@ function Patrol() {
                         Route Parameters
                     </CardTitle>
                     <ul className="text-base list-disc pl-5 space-y-1">
-                        <li>Start location: select the patrol starting point.</li>
-                        <li>Patrol duration: set the target duration in hours.</li>
-                        <li>Priority: choose what the route should prioritise.</li>
+                        <li>
+                            Start location: select the patrol starting point.
+                        </li>
+                        <li>
+                            Patrol duration: set the target duration in hours.
+                        </li>
+                        <li>
+                            Priority: choose what the route should prioritise.
+                        </li>
                     </ul>
                 </div>
 
@@ -173,10 +180,15 @@ function Patrol() {
                         Suggested Route
                     </CardTitle>
                     <ul className="text-base list-disc pl-5 space-y-1">
-                        <li>Distance shows the total route length in kilometres.</li>
+                        <li>
+                            Distance shows the total route length in kilometres.
+                        </li>
                         <li>Est. time shows the expected patrol time.</li>
                         <li>Waypoints shows how many stops are included.</li>
-                        <li>Risk coverage shows the percentage of risk covered by the route.</li>
+                        <li>
+                            Risk coverage shows the percentage of risk covered
+                            by the route.
+                        </li>
                     </ul>
                 </div>
 
@@ -185,7 +197,8 @@ function Patrol() {
                         Route Generation
                     </CardTitle>
                     <p className="text-base">
-                        Select Generate Route to build the route from the chosen parameters.
+                        Select Generate Route to build the route from the chosen
+                        parameters.
                     </p>
                 </div>
             </CardContent>
@@ -201,7 +214,8 @@ function Profile() {
                     Profile
                 </CardTitle>
                 <CardDescription className="text-base text-color-surface-deep">
-                    Update your name details or change your password from this page.
+                    Update your name details or change your password from this
+                    page.
                 </CardDescription>
             </CardHeader>
 
@@ -224,9 +238,17 @@ function Profile() {
                     </CardTitle>
                     <ul className="text-base list-disc pl-5 space-y-1">
                         <li>Current password: enter your existing password.</li>
-                        <li>New password: enter a password with at least 8 characters.</li>
-                        <li>Confirm password: re-enter the new password exactly.</li>
-                        <li>The new password must not match the current password.</li>
+                        <li>
+                            New password: enter a password with at least 8
+                            characters.
+                        </li>
+                        <li>
+                            Confirm password: re-enter the new password exactly.
+                        </li>
+                        <li>
+                            The new password must not match the current
+                            password.
+                        </li>
                     </ul>
                 </div>
 
@@ -235,8 +257,8 @@ function Profile() {
                         Password Rules
                     </CardTitle>
                     <p className="text-base">
-                        Password changes require all fields to be filled, the new
-                        password to meet the length requirement, and the
+                        Password changes require all fields to be filled, the
+                        new password to meet the length requirement, and the
                         confirmation field to match.
                     </p>
                 </div>
@@ -251,11 +273,21 @@ export default function HelpPage() {
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
             <Tabs defaultValue="faq">
                 <TabsList className="bg-(--color-color-surface-raised)">
-                    <TabsTrigger className="text-sm" value="faq">FAQ</TabsTrigger>
-                    <TabsTrigger className="text-sm" value="reports">Reports</TabsTrigger>
-                    <TabsTrigger className="text-sm" value="patrol">Patrol Planner</TabsTrigger>
-                    <TabsTrigger className="text-sm" value="profile">User Profile</TabsTrigger>
-                    <TabsTrigger className="text-sm" value="link"><Link to="/">User Manual</Link></TabsTrigger>
+                    <TabsTrigger className="text-sm" value="faq">
+                        FAQ
+                    </TabsTrigger>
+                    <TabsTrigger className="text-sm" value="reports">
+                        Reports
+                    </TabsTrigger>
+                    <TabsTrigger className="text-sm" value="patrol">
+                        Patrol Planner
+                    </TabsTrigger>
+                    <TabsTrigger className="text-sm" value="profile">
+                        User Profile
+                    </TabsTrigger>
+                    <TabsTrigger className="text-sm" value="link">
+                        <Link to="/">User Manual</Link>
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="faq">
