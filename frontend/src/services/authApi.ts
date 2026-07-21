@@ -22,6 +22,17 @@ export interface TokenResponse {
     };
 }
 
+export interface MfaChallengeResponse {
+    mfa_required: true;
+    mfa_token: string;
+    expires_in: number;
+}
+
+export interface MfaVerifyPayload {
+    mfa_token: string;
+    code: string;
+}
+
 export interface RegisterPayload {
     username: string;
     email: string;
@@ -48,9 +59,21 @@ export const authApi = {
      * POST /v1/auth/login
      * JWT NOTE: Backend must return TokenResponse on success
      * On ANY failure (wrong password, unknown username, inactive account)
+     * Admin accounts get MfaChallengeResponse.
      */
-    login: (payload: LoginPayload): Promise<TokenResponse> =>
-        api.post<TokenResponse>("/auth/login", payload).then((r) => r.data),
+    login: (
+        payload: LoginPayload,
+    ): Promise<TokenResponse | MfaChallengeResponse> =>
+        api
+            .post<TokenResponse | MfaChallengeResponse>("/auth/login", payload)
+            .then((r) => r.data),
+
+    verifyMfa: (payload: MfaVerifyPayload): Promise<TokenResponse> =>
+        api
+            .post<TokenResponse>("/auth/mfa/verify", payload)
+            .then((r) => r.data),
+    resendMfa: (mfa_token: string): Promise<void> =>
+        api.post("/auth/mfa/resend", { mfa_token }).then(() => undefined),
 
     /**
      * POST /v1/auth/refresh
