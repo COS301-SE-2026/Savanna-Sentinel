@@ -62,7 +62,7 @@ jobs:
       - name: Wait for health check
         run: |
           echo "Waiting for backend to respond"
-          until curl -s http://localhost/v1/health; do
+          until curl -s http://localhost:8000/v1/health; do
             sleep 2
           done
           echo "Backend is ready!"
