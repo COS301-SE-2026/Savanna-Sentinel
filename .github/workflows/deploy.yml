@@ -1,8 +1,16 @@
 name: Deploy to production
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows:
+     - "Frontend CI Pipeline"
+     - "Backend CI Pipeline"
+     - "E2E Tests CI pipeline"
+    branches:
+      - main
+    types:
+      - completed
+
   workflow_dispatch:
     inputs:
       ref:
@@ -15,6 +23,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch'}} || (github.event_workflow_run.conclusion == 'success') }}
     concurrency:
       group: production-deploy
       cancel-in-progress: false
