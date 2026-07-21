@@ -33,6 +33,10 @@ jobs:
           DATABASE_URL=postgresql+asyncpg://sentinel:sentinel_dev_password@db:5432/savanna_sentinel
           JWT_SECRET=ci-secret-not-used-in-production
           REDIS_URL=redis://redis:6379/0
+          RESEND_API_KEY=re_ci_dummy_key
+          RESEND_FROM_ADDRESS=onboarding@resend.dev
+          FRONTEND_BASE_URL=http://localhost:3000
+          MFA_ENABLED=false
           EOF
 
       - name: Start Docker services
