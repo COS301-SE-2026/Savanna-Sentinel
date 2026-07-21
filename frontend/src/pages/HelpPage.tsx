@@ -11,18 +11,25 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 
 // Quick access to VALUABLE RESOURCES such as help center links, tutorials and FAQs
 
 // CHECKLIST
-// [] FAQ (first or nah?)
-// [] Dashboard
 // [] Link to user manual
+
+function Faq() {
+    return (
+        <></>
+    )
+}
 
 function Dashboard() {
     return (
-        <></>
+        <Card>
+            <CardHeader>
+                <CardTitle>Placeholder</CardTitle>
+            </CardHeader>
+        </Card>
     )
 }
 
@@ -87,46 +94,65 @@ function Map() {
 
 function Reports() {
     return(
-        <></>
+        <Card>
+            <CardHeader>
+                <CardDescription>
+                    <p>You may click the new report button to file a new field report</p>
+                </CardDescription>
+                <CardDescription>
+                    <p>.. Explaination of the field report needed??</p>
+                </CardDescription>
+                <CardDescription>
+                    <p>You may search and filter different reports</p>
+                </CardDescription>
+            </CardHeader>
+        </Card>
     )
 }
-/* Reports
-    You may click the new report button to file a new field report
-
-    - .. Explaination of the field report needed??
-
-    - You may search and filter different reports
-*/
 
 function Patrol() {
     return(
-        <></>
+        <Card>
+            <CardHeader>
+                <CardDescription>
+                    <CardTitle>Route Parameters</CardTitle>
+                    <CardDescription>
+                        <ul>
+                            <li>Start location: Set the start location for the patrol route</li>
+                            <li>Patrol duration: Set how long you would like your patrol to roughly take in hours</li>
+                            <li>Priority: Select what options the algorithm should prioritize when generating the route. are these self explainitory??</li>
+                            <li>Suggested route: Give the stats of the generated route</li>
+                        </ul>
+                    </CardDescription>
+                </CardDescription>
+            </CardHeader>
+        </Card>
     )
 }
-/* Patrol
-    - Route Parameters
-        > Start location: Set the start location for the patrol route
-        > Patrol duration: Set how long you would like your patrol to roughly take in hours
-        > Priority: Select what options the algorithm should prioritize when generating the route. are these self explainitory??
-        > Suggested route: Give the stats of the generated route
-*/
 
 function Profile() {
     return(
-        <></>
+        <Card>
+            <CardHeader>
+                <CardTitle>Profile details</CardTitle>
+                <CardDescription>
+                    <p>You may change your first and/or last name</p>
+                </CardDescription>
+
+                <CardTitle>Changing your password</CardTitle>
+                <CardDescription>
+                    <ul>
+                        <li>You need to enter your current password</li>
+                        <li>You must follow the onscreen suggestion to create your new password (must be 8 characters long)</li>
+                        <li>You must confirm your password by re-entering your new password</li>
+                        <li>The Confirmed and new password fields must match.</li>
+                        <li>The new password cannot be the same as the old password.</li>
+                    </ul>
+                </CardDescription>
+            </CardHeader>
+        </Card>
     )
 }
-/* Profile
-    - Profile details
-        > You may change your first and/or last name
-    
-    - Change Password
-        > You need to enter your current password
-        > You must follow the onscreen suggestion to create your new password (must be 8 characters long)
-        > You must confirm your password by re-entering your new password
-        > The Confirmed and new password fields must match.
-        > The new password cannot be the same as the old password.
-*/
 
 export default function HelpPage() {
     return (
@@ -142,7 +168,7 @@ export default function HelpPage() {
                 </TabsList>
 
                 <TabsContent value="faq">
-                    {/* todo */}
+                    <Faq />
                 </TabsContent>
 
                 <TabsContent value="dashboard">
