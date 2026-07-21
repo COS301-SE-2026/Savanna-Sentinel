@@ -17,10 +17,11 @@ on:
       - "docker-compose*.yml"
       - ".github/workflows/**"
   
-  permissions:
-    contents: read
+permissions:
+  contents: read
 
-  jobs:
+jobs:
+  e2e-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +34,7 @@ on:
       
       - name: Install Frontend Dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: npm ci --ignore-scripts
       
       - name: Start Application Stack
         run: docker compose up -d --build
@@ -41,7 +42,7 @@ on:
       - name: Wait for health check
         run: |
           echo "Waiting for backend to respond"
-          until curl - s http://localhost/v1/health; do
+          until curl -s http://localhost/v1/health; do
             sleep 2
           done
           echo "Backend is ready!"
@@ -56,18 +57,18 @@ on:
       - name: Install Playwright Browsers with Dependencies
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: ./frontend
-        run: npx playwright install --with-deps
+        run: npx --no-install playwright install --with-deps
 
       - name: Install Playwright OS Dependencies
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         working-directory: ./frontend
-        run: npx playwright install-deps
+        run: npx --no-install playwright install-deps
 
       - name: Run Playwright tests
         working-directory: ./frontend
         env:
           FRONTEND_URL: http://localhost:5173
-        run: npx playwright test
+        run: npx --no-install playwright test
 
       - name: Stop Docker Stack
         if: always()
