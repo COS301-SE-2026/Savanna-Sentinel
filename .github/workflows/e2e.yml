@@ -35,6 +35,26 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: ./frontend
         run: npm ci --ignore-scripts
+
+      - name: Create Backend .env file
+        env:
+          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          MINIO_ACCESS: ${{ secrets.TEST_MINIO_ACCESS_KEY }}
+          MINIO_SECRET: ${{ secrets.TEST_MINIO_SECRET_KEY }}
+
+        run: |
+          cat <<EOF > backend/.env
+          DATABASE_URL=${DATABASE_URL}
+          JWT_SECRET=${JWT_SECRET}
+          JWT_ALGORITHM=HS256
+          ACCESS_TOKEN_EXPIRE_SECONDS=3600
+          REFRESH_TOKEN_EXPIRE_DAYS=7
+          REDIS_URL=redis://redis:6379/0
+          MINIO_ENDPOINT=minio:9000
+          MINIO_ACCESS_KEY=${MINIO_ACCESS}
+          MINIO_SECRET_KEY=${MINIO_SECRET}
+          EOF
       
       - name: Start Application Stack
         run: docker compose up -d --build
