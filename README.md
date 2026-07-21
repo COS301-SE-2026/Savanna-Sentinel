@@ -9,6 +9,7 @@
 [![Backend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/backend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Backend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/backend-ci.yml)
 [![Frontend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/frontend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Frontend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/frontend-ci.yml)
 [![Deploy](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/deploy.yml?branch=main&style=for-the-badge&logo=githubactions&label=Deploy)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/deploy.yml)
+[![Status](https://img.shields.io/badge/Status-online-brightgreen?style=for-the-badge)](https://savannasentinel.co.za)
 [![Uptime](https://img.shields.io/uptimerobot/ratio/m803474731-546495294e59595cdcf16770?style=for-the-badge&logo=uptimerobot&label=Uptime)](https://stats.uptimerobot.com/qEIREIc10V)
 
 [![Open Issues](https://img.shields.io/github/issues/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=F0883E&label=Open%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)
@@ -22,7 +23,7 @@
 
 ## Live system
 
-[https://13.60.118.121.sslip.io](https://13.60.118.121.sslip.io)
+[https://savannasentinel.co.za](https://savannasentinel.co.za)
 
 ## Documentation
 
