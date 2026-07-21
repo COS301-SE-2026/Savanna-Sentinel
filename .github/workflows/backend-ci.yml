@@ -2,15 +2,15 @@ name: Backend CI pipeline
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
     paths:
-      - 'backend/**'
-      - '.github/workflows/**'
+      - "backend/**"
+      - ".github/workflows/**"
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
     paths:
-      - 'backend/**'
-      - '.github/workflows/**'
+      - "backend/**"
+      - ".github/workflows/**"
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Create backend .env for CI
         run: |
@@ -34,7 +34,7 @@ jobs:
           JWT_SECRET=ci-secret-not-used-in-production
           REDIS_URL=redis://redis:6379/0
           RESEND_API_KEY=re_ci_dummy_key
-          RESEND_FROM_ADDRESS=onboarding@resend.dev
+          RESEND_FROM_ADDRESS=noreply@savannasentinel.co.za
           FRONTEND_BASE_URL=http://localhost:3000
           MFA_ENABLED=false
           EOF
@@ -93,7 +93,7 @@ jobs:
         with:
           context: ./backend
           # Changing push: true in the workflow to send images to GitHub Container Registry or DockerHub.
-          push: false  # Don't push to a registry yet, just test the build
+          push: false # Don't push to a registry yet, just test the build
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
