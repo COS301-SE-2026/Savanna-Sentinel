@@ -26,68 +26,6 @@ function Faq() {
     );
 }
 
-// idk if i should even have this here??
-function Dashboard() {
-    return (
-        <Card>
-            <CardContent>
-                <p className="text-base">The dashboard</p>
-            </CardContent>
-        </Card>
-    );
-}
-
-// Do i need to explain the map and the controls? if so i just need to know the controls
-function Map() {
-    return(
-        <Card>
-            <CardContent>
-                <CardTitle className="text-lg text-brand-primary">Time Range Slider</CardTitle>
-                <ul className="text-base">
-                    <li>You may drag the slider to increase or decrease the view date</li>
-                    <li>The time range slider allows one to see the risk map at past time intervals</li>
-                </ul>
-            </CardContent>
-                
-            <CardContent>
-                <CardTitle className="text-lg text-brand-primary">Layers</CardTitle>
-                <ul className="text-base">
-                    <li>You can select and deselect multiple options</li>
-                    <li>Risk Heatmap: toggles the risk heatmap overlay</li>
-                    <li>Patrol Routes: toggles the patrol routes overlay</li>
-                    <li>Incidents: toggles the location of incident reports overlay</li>
-                    <li>Water sources??: toggles the location of water sources overlay</li>
-                    <li>Fence lines??: toggles the ...?</li>
-                </ul>
-            </CardContent>
-
-            <CardContent>
-                <CardTitle className="text-lg text-brand-primary">Summary</CardTitle>
-                <ul className="text-base">
-                    <li>Critical cells: Indicates the number of cells marked as high-risk and high-alert</li>
-                    <li>High-risk cells: Indicates the number of cells marked as being high-risk areas</li>
-                    <li>Incidents(30d): Indicates the number of incidents reported within the past 30 days</li>
-                    <li>Last updated: Indicates when the date when last the risk heat map was updated</li>
-                </ul>
-            </CardContent>
-
-            <CardContent>
-                <CardTitle className="text-lg text-brand-primary">Risk Level</CardTitle>
-                <p className="text-base">Indicates the colour mapping legend for different risk zone cells</p>
-            </CardContent>
-
-            <CardContent>
-                <CardTitle className="text-lg text-brand-primary">Model</CardTitle>
-                <ul className="text-base">
-                    <li>Explains AI model was used to produce the heatmap</li>
-                    <li>F1score: ..?</li>
-                    <li>Cells: Indicates the amount of cells being evaluted/used</li>
-                </ul>
-            </CardContent>
-        </Card>
-    );
-}
-
 function Reports() {
     return(
         <Card>
@@ -150,25 +88,15 @@ export default function HelpPage() {
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
             <Tabs defaultValue="faq">
                 <TabsList className="bg-(--color-color-surface-raised)">
-                    <TabsTrigger className="text-xl" value="faq">FAQ</TabsTrigger>
-                    <TabsTrigger className="text-xl" value="dashboard">Dashboard</TabsTrigger>
-                    <TabsTrigger className="text-xl" value="map">Map</TabsTrigger>
-                    <TabsTrigger className="text-xl" value="reports">Reports</TabsTrigger>
-                    <TabsTrigger className="text-xl" value="patrol">Patrol Planner</TabsTrigger>
-                    <TabsTrigger className="text-xl" value="profile">User Profile</TabsTrigger>
-                    <TabsTrigger className="text-xl" value="link"><Link to="/">User Manual</Link></TabsTrigger>
+                    <TabsTrigger className="text-lg" value="faq">FAQ</TabsTrigger>
+                    <TabsTrigger className="text-lg" value="reports">Reports</TabsTrigger>
+                    <TabsTrigger className="text-lg" value="patrol">Patrol Planner</TabsTrigger>
+                    <TabsTrigger className="text-lg" value="profile">User Profile</TabsTrigger>
+                    <TabsTrigger className="text-lg" value="link"><Link to="/">User Manual</Link></TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="faq">
                     <Faq />
-                </TabsContent>
-
-                <TabsContent value="dashboard">
-                    <Dashboard />
-                </TabsContent>
-
-                <TabsContent value="map">
-                    <Map />
                 </TabsContent>
 
                 <TabsContent value="reports">
