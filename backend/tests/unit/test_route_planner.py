@@ -68,11 +68,14 @@ def test_init_pheromones():
 
     pheromones = route_planner.init_pheromones(fixture.graph, config)
 
-    assert pheromones == {
-        ("start", "mid"): 4.2,
-        ("mid", "end"): 4.2,
-        ("start", "end"): 4.2,
+    assert pheromones.keys() == {
+        ("start", "mid"),
+        ("mid", "end"),
+        ("start", "end"),
     }
+    assert pheromones[("start", "mid")] == pytest.approx(4.2)
+    assert pheromones[("mid", "end")] == pytest.approx(4.2)
+    assert pheromones[("start", "end")] == pytest.approx(4.2)
 
 
 def test_feasible_edges_filter():
@@ -239,9 +242,9 @@ def test_construct_tour_stops_when_no_feasible_edge_exists(monkeypatch):
     )
 
     assert path == ["start"]
-    assert time_used == 0.0
-    assert fuel_used == 0.0
-    assert risk_total == 0.0
+    assert time_used == pytest.approx(0.0)
+    assert fuel_used == pytest.approx(0.0)
+    assert risk_total == pytest.approx(0.0)
 
 def test_run_phase_returns_best(
     monkeypatch,
@@ -279,7 +282,7 @@ def test_run_phase_returns_best(
     )
 
     assert best_path == ["start", "mid", "end"]
-    assert best_risk == 0.8
+    assert best_risk == pytest.approx(0.8)
     assert pheromones == {"updated": True}
     assert calls == [
         (["start", "mid", "end"], 0.8),
@@ -335,9 +338,9 @@ def test_to_planned_route_builds_geometry_and_sums_edge_costs():
 
     assert isinstance(route, PlannedRoute)
     assert route.suggested_path == ["start", "mid", "end"]
-    assert route.estimated_time_min == 20.0
-    assert route.estimated_fuel_l == 3.0
-    assert route.risk_coverage == 0.83
+    assert route.estimated_time_min == pytest.approx(20.0)
+    assert route.estimated_fuel_l == pytest.approx(3.0)
+    assert route.risk_coverage == pytest.approx(0.83)
     assert route.path_geometry.type == "LineString"
     assert len(route.path_geometry.coordinates) >= 2
 
