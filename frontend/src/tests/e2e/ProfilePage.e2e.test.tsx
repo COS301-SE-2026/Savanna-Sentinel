@@ -72,4 +72,78 @@ test.describe("User profile update logic", () => {
         await expect(page.getByRole("heading", {name: "Profile Details", level: 2})).toBeVisible();
         await expect(page.locator("#first_name")).not.toHaveValue("");
     })
+
+    test("allow changing profile name", async({ page }) => {
+        await page.locator("#first_name").fill("AnotherName")
+        await page.locator("#last_name").fill("ALastName")
+
+        const saveButton = page.getByRole("button", {name: /Save/i})
+        await expect(saveButton).toBeEnabled()
+        await saveButton.click();
+
+        const dialog = page.locator("role=dialog")
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByText("Confirm profile changes")).toBeVisible();
+
+        await dialog.getByRole("button", {name: /Confirm Changes/i}).click();
+
+        await expect(dialog).not.toBeVisible();
+        await expect(page.locator("output")).toHaveText("Profile updated");
+        await expect(page.locator("#first_name")).toHaveValue("AnotherName");
+        await expect(page.locator("#last_name")).toHaveValue("ALastName");
+
+        //Perform cleanup by updating again
+        await page.locator("#first_name").fill(userCleanup!.first_name);
+        await page.locator("#last_name").fill(userCleanup!.last_name);
+        await page.getByRole("button", {name: /Save/i}).click();
+        await page.getByRole("button", {name: /Confirm Changes/i}).click();
+    })
+
+    test("Reset button resets values without making API calls", async ({ page }) => {
+        await page.locator("#first_name").fill("AnotherName")
+
+        const resetButton = page.getByRole("button", {name: /Reset/i})
+        await expect(resetButton).toBeEnabled()
+        await resetButton.click();
+
+        await expect(page.locator("#first_name")).toHaveValue(userCleanup!.first_name);
+        await expect(resetButton).toBeDisabled();
+    })
+    
+    test("Password should match frontend boundries before a submission can be made", async ({ page }) => {
+        await page.locator("#current_password").fill(userCleanup!.password);
+        await page.locator("#new_password").fill("NewSecurePassword123!");
+        await page.locator("#confirm_password").fill("MismatchedPassword9!");
+
+        const changePasswordButton = page.getByRole("button", { name: /Change Password/i});
+
+        await expect(changePasswordButton).toBeDisabled();
+    })
+    test("should successfully change password, redirect to login, and authenticate with new password", async ({ page }) => {
+        await page.locator("#current_password").fill(userCleanup!.password);
+        await page.locator("#new_password").fill("NewSecurePassword123!");
+        await page.locator("#confirm_password").fill("NewSecurePassword123!");
+
+        const changePasswordButton = page.getByRole("button", { name: /Change Password/i});
+        await expect(changePasswordButton).toBeEnabled();
+        await changePasswordButton.click();
+        await page.getByRole("button", {name: /Confirm Changes/i}).click();
+
+        await expect(page).toHaveURL("/login");
+
+        //Confirm old password no longer works
+        await page.getByPlaceholder("Username").fill(userCleanup!.username);
+        await page.getByPlaceholder("Password").fill(userCleanup!.password);
+        const loginButton = page.getByRole("button", {name: /log in/i});
+        await loginButton.click();
+        await expect(page.getByText("Login failed")).toBeVisible();
+        await expect(page.getByText("Incorrect username or password. Check your details and try again.")).toBeVisible()
+
+        // Test new password works
+        await page.getByPlaceholder("Password").clear();
+        await page.getByPlaceholder("Password").fill("NewSecurePassword123!");
+        await loginButton.click();
+
+        await expect(page).toHaveURL("/dashboard")
+    })
 })
