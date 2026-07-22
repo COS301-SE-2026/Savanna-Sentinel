@@ -1,6 +1,6 @@
 import { TableRow, TableCell } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { rowClass, cellClass } from "@/components/admin/userTableStyles";
+import { rowClass, cellClass } from "@/components/ui/table-styles";
 
 interface EmptyTableRowProps {
     colSpan: number;

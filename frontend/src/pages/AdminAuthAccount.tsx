@@ -28,11 +28,7 @@ import {
     NameCell,
     RoleBadgeCell,
 } from "@/components/admin/UserIdentityCells";
-import {
-    theadClass,
-    cellClass,
-    rowClass,
-} from "@/components/admin/userTableStyles";
+import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
 
 interface UserRowProps {
     user: UserResponse;

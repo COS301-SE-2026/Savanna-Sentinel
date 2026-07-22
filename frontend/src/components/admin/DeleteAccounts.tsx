@@ -32,11 +32,7 @@ import {
     standardUserSortAccessors as sortAccessors,
     STANDARD_USER_COLUMNS as USER_COLUMNS,
 } from "@/components/admin/standardUserColumns";
-import {
-    theadClass,
-    cellClass,
-    rowClass,
-} from "@/components/admin/userTableStyles";
+import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
 
 interface UserRowProps {
     user: UserResponse;
