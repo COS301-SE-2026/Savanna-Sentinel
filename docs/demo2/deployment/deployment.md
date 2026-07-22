@@ -1,4 +1,3 @@
-
 # Deployment
 
 Savanna Sentinel runs on a single AWS EC2 instance, with the full stack under Docker Compose.
@@ -7,10 +6,10 @@ works, and how to roll back.
 
 ## Environments
 
-| Environment | Where it runs                                | URL                       |
-| ----------- | -------------------------------------------- | ------------------------- |
+| Environment | Where it runs                              | URL                     |
+| ----------- | ------------------------------------------ | ----------------------- |
 | Development | Local machine,`docker compose up`          | `http://localhost:5173` |
-| Production  | AWS EC2,`docker compose --profile prod up` | see README                |
+| Production  | AWS EC2,`docker compose --profile prod up` | see README              |
 
 No separate staging environment exists. Pull requests with required CI checks
 (`backend-ci.yml`, `frontend-ci.yml`) are the gate before anything reaches `main`, and only
@@ -22,10 +21,10 @@ No separate staging environment exists. Pull requests with required CI checks
 - Services: `db` (Postgres+PostGIS), `redis`, `minio`, `backend`, `frontend`, `caddy`.
 - `caddy` is the only service exposed on ports 80/443 - everything else stays on the internal
   Compose network.
-- TLS comes from Let's Encrypt via Caddy, for whatever hostname `SITE_ADDRESS` is set to. We currently use
-  a free [sslip.io](https://sslip.io) hostname (`<elastic-ip>.sslip.io`) instead of a purchased
-  domain - it resolves to the instance's IP automatically, and Caddy can still get a real
-  certificate for it.
+- TLS comes from Let's Encrypt via Caddy, for whatever hostname `SITE_ADDRESS` is set to. The
+  domain is `savannasentinel.co.za` (`www` included), with `A` records at the registrar pointing
+  both at the instance's Elastic IP - Caddy requests and renews the certificate for it
+  automatically on container start.
 
 ## First-time setup
 
@@ -41,7 +40,23 @@ Skip this if the instance already exists.
 Ubuntu Server 24.04 LTS, `t3.small`, 30GB gp3 storage, using the key pair and security group
 above. Allocate an Elastic IP and associate it with the instance.
 
-### 3. Install Docker
+### 3. Point DNS at the instance
+
+At the domain registrar, create:
+
+- `A` record: `@` -> `<elastic-ip>`
+- `CNAME` record: `www` -> `<elastic-ip>`
+
+Give it time to propagate before continuing - Caddy's certificate request in step 6 will fail if
+the domain doesn't resolve to this instance yet. Check with:
+
+```bash
+dig +short savannasentinel.co.za
+```
+
+It should return only the Elastic IP, nothing else.
+
+### 4. Install Docker
 
 ```bash
 ssh -i your-key.pem ubuntu@<elastic-ip>
@@ -50,7 +65,7 @@ sudo usermod -aG docker $USER
 # log out and back in for the group change to apply
 ```
 
-### 4. Clone and configure
+### 5. Clone and configure
 
 ```bash
 git clone https://github.com/COS301-SE-2026/Savanna-Sentinel.git
@@ -76,7 +91,7 @@ POSTGRES_PASSWORD=<strong password>
 POSTGRES_DB=savanna_sentinel
 MINIO_ROOT_USER=sentinel_minio
 MINIO_ROOT_PASSWORD=<strong password>
-SITE_ADDRESS=<elastic-ip>.sslip.io
+SITE_ADDRESS=savannasentinel.co.za www.savannasentinel.co.za
 ```
 
 `backend/.env`, from `backend/.env.example`:
@@ -96,16 +111,19 @@ REDIS_URL=redis://redis:6379/0
 MINIO_ENDPOINT=minio:9000
 MINIO_ACCESS_KEY=sentinel_minio
 MINIO_SECRET_KEY=<same MINIO_ROOT_PASSWORD>
-FRONTEND_ORIGIN=https://<elastic-ip>.sslip.io
+RESEND_API_KEY=<Resend API key>
+RESEND_FROM_ADDRESS=noreply@savannasentinel.co.za
+FRONTEND_BASE_URL=https://savannasentinel.co.za
+MFA_ENABLED=true
 ```
 
-### 5. First launch
+### 6. First launch
 
 ```bash
 docker compose -f docker-compose.yml --profile prod up -d --build
 ```
 
-Verify: `curl https://<elastic-ip>.sslip.io/v1/health` should return `{"status":"ok"}`.
+Verify: `curl https://savannasentinel.co.za/v1/health` should return `{"status":"ok"}`.
 
 ## CD pipeline
 
@@ -120,9 +138,9 @@ Verify: `curl https://<elastic-ip>.sslip.io/v1/health` should return `{"status":
 
 Set under repo Settings -> Secrets and variables -> Actions:
 
-| Secret          | Value                                                            |
-| --------------- | ---------------------------------------------------------------- |
-| `EC2_HOST`    | Elastic IP                                                       |
+| Secret        | Value                                                          |
+| ------------- | -------------------------------------------------------------- |
+| `EC2_HOST`    | Elastic IP                                                     |
 | `EC2_USER`    | `ubuntu`                                                       |
 | `EC2_SSH_KEY` | Private key contents (`.pem` file) for the instance's key pair |
 

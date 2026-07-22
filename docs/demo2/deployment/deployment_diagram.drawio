@@ -1,6 +1,6 @@
 <mxfile host="Electron" pages="2">
   <diagram name="Production" id="T8k7ZvoasH1VdkIALa_N">
-    <mxGraphModel dx="2384" dy="2176" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1810" dy="1805" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -131,7 +131,7 @@
         <mxCell id="mM8kD6yVDtogUWzt-O8x-7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=default;fillColor=none;align=center;verticalAlign=middle;rounded=0;dashed=1;" value="Security Group: inbound 22, 80, 443" vertex="1">
           <mxGeometry height="20" width="200" x="414" y="500" as="geometry" />
         </mxCell>
-        <mxCell id="mM8kD6yVDtogUWzt-O8x-9" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;dashed=1;" value="Elastic IP -&amp;gt; 13.60.118.121.sslip.io" vertex="1">
+        <mxCell id="mM8kD6yVDtogUWzt-O8x-9" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;dashed=1;" value="Elastic IP -&amp;gt;&amp;nbsp;savannasentinel.co.za" vertex="1">
           <mxGeometry height="20" width="200" x="414" y="530" as="geometry" />
         </mxCell>
         <mxCell id="mM8kD6yVDtogUWzt-O8x-58" edge="1" parent="1" source="mM8kD6yVDtogUWzt-O8x-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="mM8kD6yVDtogUWzt-O8x-5">
