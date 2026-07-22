@@ -6,7 +6,7 @@ export function getSpeciesOptions(reports: DraftReport[]): string[] {
     const species = new Set(
         reports.map((r) => r.species).filter((s) => s !== ""),
     );
-    return Array.from(species).sort();
+    return Array.from(species).sort((a, b) => a.localeCompare(b));
 }
 
 export function useReportSearchFilter(

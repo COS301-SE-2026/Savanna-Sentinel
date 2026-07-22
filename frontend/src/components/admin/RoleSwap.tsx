@@ -33,11 +33,7 @@ import {
     standardUserSortAccessors as sortAccessors,
     STANDARD_USER_COLUMNS as USER_COLUMNS,
 } from "@/components/admin/standardUserColumns";
-import {
-    theadClass,
-    cellClass,
-    rowClass,
-} from "@/components/ui/table-styles";
+import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
 
 const ASSIGNABLE_ROLES = [
     { value: "ranger", label: "Ranger" },

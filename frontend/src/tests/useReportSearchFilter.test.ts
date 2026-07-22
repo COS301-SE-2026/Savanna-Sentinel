@@ -211,4 +211,12 @@ describe("getSpeciesOptions", () => {
         const reports = [makeReport({ reportType: "incident", species: "" })];
         expect(getSpeciesOptions(reports)).toEqual([]);
     });
+
+    it("sorts case-insensitively instead of by Unicode code point", () => {
+        const reports = [
+            makeReport({ reportType: "sighting", species: "Elephant" }),
+            makeReport({ reportType: "sighting", species: "buffalo" }),
+        ];
+        expect(getSpeciesOptions(reports)).toEqual(["buffalo", "Elephant"]);
+    });
 });
