@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 
 const RESEND_COOLDOWN_SECONDS = 30;
 const CODE_LENGTH = 6;
+const BOX_IDS = Array.from({ length: CODE_LENGTH }, () => crypto.randomUUID());
 
 const boxClassName =
     "h-14 w-12 rounded-md border-[1.5px] border-color-input-border bg-color-surface-raised text-center text-2xl font-semibold text-color-text-primary shadow-xs outline-none transition-[color,box-shadow,border-color] focus:border-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary disabled:cursor-not-allowed disabled:opacity-50";
@@ -35,7 +36,7 @@ function MfaCodeBoxes({
     onChange,
     autoFocus = false,
     disabled = false,
-}: MfaCodeBoxesProps) {
+}: Readonly<MfaCodeBoxesProps>) {
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     function setDigit(index: number, digit: string) {
@@ -73,9 +74,9 @@ function MfaCodeBoxes({
 
     return (
         <>
-            {Array.from({ length: CODE_LENGTH }).map((_, index) => (
+            {BOX_IDS.map((id, index) => (
                 <input
-                    key={index}
+                    key={id}
                     ref={(el) => {
                         inputRefs.current[index] = el;
                     }}
@@ -111,7 +112,7 @@ export function MfaCodeDialog({
     onSubmit,
     onResend,
     isSubmitting = false,
-}: MfaCodeDialogProps) {
+}: Readonly<MfaCodeDialogProps>) {
     const [code, setCode] = useState("");
     const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
 
@@ -149,10 +150,9 @@ export function MfaCodeDialog({
                             Enter the code sent to your email:
                         </p>
 
-                        <div
-                            role="group"
+                        <fieldset
                             aria-labelledby="mfa-code-label"
-                            className="flex gap-2"
+                            className="m-0 flex gap-2 border-0 p-0"
                         >
                             <MfaCodeBoxes
                                 value={code}
@@ -160,7 +160,7 @@ export function MfaCodeDialog({
                                 autoFocus
                                 disabled={isSubmitting}
                             />
-                        </div>
+                        </fieldset>
 
                         <Button
                             type="button"

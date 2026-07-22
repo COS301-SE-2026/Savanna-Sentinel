@@ -20,24 +20,24 @@ class FakeMFARedis:
     def __init__(self):
         self.store: dict[str, str] = {}
 
-    async def set(self, key, value, ex=None):
+    async def set(self, key, value, ex=None):  # NOSONAR
         self.store[key] = value
 
-    async def get(self, key):
+    async def get(self, key):  # NOSONAR
         return self.store.get(key)
 
-    async def incr(self, key):
+    async def incr(self, key):  # NOSONAR
         value = int(self.store.get(key, "0")) + 1
         self.store[key] = str(value)
         return value
 
-    async def expire(self, key, seconds):
+    async def expire(self, key, seconds):  # NOSONAR
         return key in self.store
 
-    async def delete(self, key):
+    async def delete(self, key):  # NOSONAR
         self.store.pop(key, None)
 
-    async def exists(self, key):
+    async def exists(self, key):  # NOSONAR
         return key in self.store
 
 
@@ -84,7 +84,7 @@ class FakeAuthRepository:
     async def get_by_username(self, username: str):
         return self.users.get(username)
 
-    async def get_by_id(self, user_id: str):
+    async def get_by_id(self, user_id: str):  # NOSONAR
         for user in self.users.values():
             if user.id == user_id:
                 return user
@@ -267,7 +267,7 @@ async def test_verify_mfa_correct_code_returns_tokens(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_verify_mfa_wrong_code_returns_none(monkeypatch):
-    service, sent, _ = make_mfa_service(monkeypatch)
+    service, _, _ = make_mfa_service(monkeypatch)
 
     challenge = await service.login("admin", "SecurePass1!")
 
