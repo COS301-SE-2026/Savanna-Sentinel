@@ -9,8 +9,7 @@ export interface AuthUser {
 }
 
 export type LoginResult =
-    | { mfaRequired: false }
-    | { mfaRequired: true; mfaToken: string };
+    { mfaRequired: false } | { mfaRequired: true; mfaToken: string };
 
 interface AuthState {
     accessToken: string | null;
