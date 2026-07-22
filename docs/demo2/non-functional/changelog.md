@@ -15,3 +15,7 @@
 - Removed constraints and tech stack from document, moving them to appropriate locations
   - Constraints will be moved to architectural requirements
   - Tech stack will be moved to the SAS
+
+### V1.2.1 (22 July 2026)
+
+- Minor Spelling Corrections
