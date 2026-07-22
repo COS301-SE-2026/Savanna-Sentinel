@@ -63,7 +63,7 @@ function MfaCodeBoxes({
         }
     }
 
-    function handlePaste(index: number, e: ClipboardEvent<HTMLInputElement>) {
+    function handlePaste(e: ClipboardEvent<HTMLInputElement>) {
         const pasted = e.clipboardData.getData("text").replace(/\D/g, "");
         if (!pasted) return;
         e.preventDefault();
@@ -90,7 +90,7 @@ function MfaCodeBoxes({
                     value={value[index] ?? ""}
                     onChange={(e) => handleChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
-                    onPaste={(e) => handlePaste(index, e)}
+                    onPaste={handlePaste}
                     className={boxClassName}
                 />
             ))}
