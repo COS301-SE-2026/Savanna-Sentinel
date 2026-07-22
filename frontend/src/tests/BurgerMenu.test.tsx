@@ -95,8 +95,8 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Dashboard")).toBeInTheDocument();
         expect(screen.getByText("Map")).toBeInTheDocument();
         expect(screen.getByText("Ingestion")).toBeInTheDocument();
+        expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
-        expect(screen.queryByText("Reports")).not.toBeInTheDocument();
         expect(screen.queryByText("Patrol Planner")).not.toBeInTheDocument();
         expect(screen.queryByText("Admin")).not.toBeInTheDocument();
     });

@@ -28,6 +28,7 @@ window.HTMLElement.prototype.setPointerCapture = () => {};
 window.HTMLElement.prototype.releasePointerCapture = () => {};
 
 window.HTMLElement.prototype.scrollIntoView = () => {};
+window.scrollTo = () => {};
 
 window.matchMedia =
     window.matchMedia ||
