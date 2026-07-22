@@ -69,7 +69,6 @@
   "overrides": {
     "eslint-plugin-react": {
       "eslint": "$eslint"
-    },
-    "rolldown": "1.2.0"
+    }
   }
 }
