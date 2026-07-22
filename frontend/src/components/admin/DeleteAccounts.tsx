@@ -36,7 +36,7 @@ import {
     theadClass,
     cellClass,
     rowClass,
-} from "@/components/admin/userTableStyles";
+} from "@/components/ui/table-styles";
 
 interface UserRowProps {
     user: UserResponse;

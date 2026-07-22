@@ -37,7 +37,7 @@ import {
     theadClass,
     cellClass,
     rowClass,
-} from "@/components/admin/userTableStyles";
+} from "@/components/ui/table-styles";
 
 const ASSIGNABLE_ROLES = [
     { value: "ranger", label: "Ranger" },

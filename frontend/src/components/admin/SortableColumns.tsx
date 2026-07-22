@@ -1,4 +1,4 @@
-import { SortableTableHead } from "@/components/admin/SortableTableHead";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import type { SortDirection } from "@/hooks/useSort";
 
 interface Column<K extends string> {
