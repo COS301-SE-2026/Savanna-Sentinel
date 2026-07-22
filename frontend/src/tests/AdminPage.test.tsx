@@ -5,12 +5,18 @@ import userEvent from "@testing-library/user-event";
 import AdminPage from "@/pages/AdminPage";
 import { authHandlers } from "./mocks/adminauthHandlers";
 import { roleSwapHandlers } from "./mocks/roleSwapHandlers";
-import { deleteAccountsHandlers } from "./mocks/deleteAccountsHandlers";
+import {
+    deleteAccountsHandlers,
+    resetMockActiveUsers,
+} from "./mocks/deleteAccountsHandlers";
 
 const server = setupServer();
 
 beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+    server.resetHandlers();
+    resetMockActiveUsers();
+});
 afterAll(() => server.close());
 
 describe("AdminPage", () => {

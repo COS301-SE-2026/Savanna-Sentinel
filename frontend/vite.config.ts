@@ -1,4 +1,4 @@
-import { defineConfig, configDefaults } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
@@ -14,7 +14,10 @@ export default defineConfig({
         globals: true,
         environment: "jsdom",
         setupFiles: "./src/tests/setup.ts",
-        exclude: [...configDefaults.exclude, "src/tests/e2e/**"],
+        exclude: [
+            ...configDefaults.exclude,
+            'src/tests/e2e/**/*'
+        ]
     },
     build: {
         outDir: "web-build",
