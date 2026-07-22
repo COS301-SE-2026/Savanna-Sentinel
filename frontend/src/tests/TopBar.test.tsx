@@ -59,15 +59,20 @@ describe("TopBar", () => {
         expect(screen.getByText("Savanna Sentinel")).toBeInTheDocument();
     });
 
-    it("renders Notifications and Help icon buttons with no click behavior", () => {
+    it("renders Notifications with no click behavior", () => {
         setUser("janedoe");
         renderTopBar();
         expect(
             screen.getByRole("button", { name: "Notifications" }),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole("button", { name: "Help" }),
-        ).toBeInTheDocument();
+    });
+
+    it("renders Help button with link to help page", () => {
+        setUser("janedoe");
+        renderTopBar();
+        const helpButton = screen.getByRole("link", { name: "Help" });
+        expect(helpButton).toBeInTheDocument();
+        expect(helpButton).toHaveAttribute("href", "/help");
     });
 
     it("renders the avatar with initials derived from the username, linking to /profile", () => {
