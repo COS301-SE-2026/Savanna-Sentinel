@@ -92,17 +92,42 @@ export default function ReportsPage() {
         }
     };
 
-    const handleSave = (localId: string, input: DraftReportInput) => {
-        setReports((prev) =>
-            prev.map((r) => (r.localId === localId ? { ...r, ...input } : r)),
-        );
-        notifySafe("Draft saved", "Your report has been updated.");
-        window.scrollTo({ top: 0, behavior: "smooth" });
+    const handleSave = async (localId: string, input: DraftReportInput) => {
+        const payload: ReportUpdate = {
+            description: input.description,
+            location:
+                (input.lat !== null && input.lon !== null) ?
+                { lat: input.lat, lon: input.lon } :
+                undefined,
+            occurred_at: input.occurredAt,
+            incident_type: input.incidentType || undefined,
+            severity: input.severity || undefined,
+            species: input.species || undefined,
+            count: input.count ?? undefined,
+            images: input.photos.map((p) => p.previewUrl),
+        }
+
+        try {
+            await reportsApi.updateReport(localId, payload);
+
+            setReports((prev) =>
+                prev.map((r) => (r.localId === localId ? { ...r, ...input } : r)),
+            );
+            notifySafe("Draft saved", "Your report has been updated.");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        } catch (err) {
+            notifySafe("Upate failed", "Unable to update report");
+        }
     };
 
-    const handleDelete = (localId: string) => {
-        setReports((prev) => prev.filter((r) => r.localId !== localId));
-        notifySafe("Report deleted");
+    const handleDelete = async (localId: string) => {
+        try {
+            await reportsApi.deleteReport(localId);
+            setReports((prev) => prev.filter((r) => r.localId !== localId));
+            notifySafe("Report deleted");
+        } catch (err) {
+            notifySafe("Delete failed");
+        }
     };
 
     return (
@@ -131,11 +156,15 @@ export default function ReportsPage() {
                 )}
 
                 <TabsContent value="all" className="mt-6">
-                    <ReportList
-                        reports={reports}
-                        canSubmit={canSubmit}
-                        onGoToNewReport={() => setActiveTab("new")}
-                    />
+                    {isLoading ? (
+                        <p>Loading reports...</p>
+                    ) : (
+                        <ReportList
+                            reports={reports}
+                            canSubmit={canSubmit}
+                            onGoToNewReport={() => setActiveTab("new")}
+                        />
+                    )}
                 </TabsContent>
             </Tabs>
         </div>
