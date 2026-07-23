@@ -8,16 +8,35 @@ import { notifySafe } from "@/components/ui/toast";
 import type { DraftReport, DraftReportInput } from "@/types/reports";
 import { reportsApi } from "@/services/reportsApi";
 import type {
-    LocationResponse,
-    LocationLatLon,
-    ReportResponse,
     ReportListItem,
-    ReportListResponse,
-    ReportSubmitResponse,
     ReportCreate,
     ReportUpdate,
-    ListReportsQueryParams,
 } from "@/services/reportsApi";
+
+function mapToDraft(item: ReportListItem): DraftReport {
+    return {
+        localId: item.report_id,
+        submittedBy: item.submitted_by,
+        reportType: item.report_type as "incident" | "sighting",
+        description: item.description,
+        incidentType: item.incident_type || "",
+        severity: (item.severity as "low" | "medium" | "high") || null,
+        species: item.species || "",
+        count: item.count ?? null,
+        occurredAt: item.occurred_at,
+        lat: item.location?.lat ?? null,
+        lon: item.location?.lon ?? null,
+        photos: (item.images || []).map((url) => ({
+            file: new File([], "", { type: "image/placeholder" }),
+            previewUrl: url,
+        })),
+        createdAt: item.created_at,
+        syncStatus: "pending",
+    };
+}
+
+// todo
+// implement the media upload
 
 // todo
 // this array should live in a Dexie table so drafts carry on reload
@@ -37,6 +56,7 @@ export default function ReportsPage() {
                 setReports(res.results.map(mapToDraft));
             } catch (err) {
                 notifySafe("Error", "Failed to fetch reports");
+                console.error(err);
             } finally {
                 setIsLoading(false);
             }
@@ -44,6 +64,7 @@ export default function ReportsPage() {
         fetchReports();
     }, []);
 
+    // should this not be user?.id or smth
     const myDrafts = useMemo(
         () => reports.filter((r) => r.submittedBy === user?.username),
         [reports, user?.username],
@@ -58,9 +79,7 @@ export default function ReportsPage() {
             return;
         }
 
-        // TODO: check if this works.. keeping here for now
-        const imageUrls: string[] = input.photos.map((p) => p.previewUrl);
-
+        // Stubbed Media upload for now
         const payload: ReportCreate = {
             report_type: input.reportType,
             location: { lat: input.lat, lon: input.lon },
@@ -70,7 +89,7 @@ export default function ReportsPage() {
             severity: input.severity || undefined,
             species: input.species || undefined,
             count: input.count ?? undefined,
-            images: imageUrls,
+            images: [],
             sync_status: "pending",
         };
 
@@ -89,10 +108,12 @@ export default function ReportsPage() {
             window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (err) {
             notifySafe("Submission failed", "Could not send report to the server");
+            console.error(err);
         }
     };
 
     const handleSave = async (localId: string, input: DraftReportInput) => {
+        // Stubbed media upload for now
         const payload: ReportUpdate = {
             description: input.description,
             location:
@@ -104,7 +125,7 @@ export default function ReportsPage() {
             severity: input.severity || undefined,
             species: input.species || undefined,
             count: input.count ?? undefined,
-            images: input.photos.map((p) => p.previewUrl),
+            images: [],
         }
 
         try {
@@ -169,26 +190,4 @@ export default function ReportsPage() {
             </Tabs>
         </div>
     );
-}
-
-function mapToDraft(item: ReportListItem): DraftReport {
-    return {
-        localId: item.report_id,
-        submittedBy: item.submitted_by,
-        reportType: item.report_type as "incident" | "sighting",
-        description: item.description,
-        incidentType: item.incident_type || "",
-        severity: (item.severity as "low" | "medium" | "high") || null,
-        species: item.species || "",
-        count: item.count ?? null,
-        occurredAt: item.occurred_at,
-        lat: item.location?.lat ?? null,
-        lon: item.location?.lon ?? null,
-        photos: (item.images || []).map((url) => ({
-        file: new File([], ""), // Placeholder for now
-        previewUrl: url,
-        })),
-        createdAt: item.created_at,
-        syncStatus: "pending",
-    };
 }
