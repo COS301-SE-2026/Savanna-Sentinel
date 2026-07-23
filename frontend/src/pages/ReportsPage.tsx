@@ -1,4 +1,4 @@
-import * as React from "react";
+import React, { useEffect, useState, useMemo } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/store/authStore";
@@ -6,6 +6,18 @@ import { NewReportTab } from "@/components/reports/NewReportTab";
 import { ReportList } from "@/components/reports/ReportList";
 import { notifySafe } from "@/components/ui/toast";
 import type { DraftReport, DraftReportInput } from "@/types/reports";
+import { reportsApi } from "@/services/reportsApi";
+import type {
+    LocationResponse,
+    LocationLatLon,
+    ReportResponse,
+    ReportListItem,
+    ReportListResponse,
+    ReportSubmitResponse,
+    ReportCreate,
+    ReportUpdate,
+    ListReportsQueryParams,
+} from "@/services/reportsApi";
 
 // todo
 // this array should live in a Dexie table so drafts carry on reload
@@ -15,8 +27,24 @@ export default function ReportsPage() {
     const [reports, setReports] = React.useState<DraftReport[]>([]);
     const canSubmit = user?.role === "ranger" || user?.role === "admin";
     const [activeTab, setActiveTab] = React.useState(canSubmit ? "new" : "all");
+    const [isLoading, setIsLoading] = useState(false);
 
-    const myDrafts = React.useMemo(
+    useEffect(() => {
+        async function fetchReports() {
+            setIsLoading(true);
+            try {
+                const res = await reportsApi.listReports();
+                setReports(res.results.map(mapToDraft));
+            } catch (err) {
+                notifySafe("Error", "Failed to fetch reports");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchReports();
+    }, []);
+
+    const myDrafts = useMemo(
         () => reports.filter((r) => r.submittedBy === user?.username),
         [reports, user?.username],
     );
@@ -83,4 +111,26 @@ export default function ReportsPage() {
             </Tabs>
         </div>
     );
+}
+
+function mapToDraft(item: ReportListItem): DraftReport {
+    return {
+        localId: item.report_id,
+        submittedBy: item.submitted_by,
+        reportType: item.report_type as "incident" | "sighting",
+        description: item.description,
+        incidentType: item.incident_type || "",
+        severity: (item.severity as "low" | "medium" | "high") || null,
+        species: item.species || "",
+        count: item.count ?? null,
+        occurredAt: item.occurred_at,
+        lat: item.location?.lat ?? null,
+        lon: item.location?.lon ?? null,
+        photos: (item.images || []).map((url) => ({
+        file: new File([], ""), // Placeholder for now
+        previewUrl: url,
+        })),
+        createdAt: item.created_at,
+        syncStatus: "pending",
+    };
 }
