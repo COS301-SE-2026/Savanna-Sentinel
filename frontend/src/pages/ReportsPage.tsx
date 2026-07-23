@@ -75,7 +75,7 @@ export default function ReportsPage() {
 
         // Validate coords
         if (input.lat === null || input.lon === null) {
-            notifySafe("Error", "Locational coordinates are required")
+            notifySafe("Error", "Locational coordinates are required");
             return;
         }
 
@@ -95,7 +95,7 @@ export default function ReportsPage() {
 
         try {
             const res = await reportsApi.submitReport(payload);
-            
+
             const newReport: DraftReport = {
                 ...input,
                 localId: res.report_id,
@@ -104,10 +104,16 @@ export default function ReportsPage() {
                 syncStatus: "pending",
             };
             setReports((prev) => [...prev, newReport]);
-            notifySafe("Report submitted", "Your report has been queued to sync.");
+            notifySafe(
+                "Report submitted",
+                "Your report has been queued to sync.",
+            );
             window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (err) {
-            notifySafe("Submission failed", "Could not send report to the server");
+            notifySafe(
+                "Submission failed",
+                "Could not send report to the server",
+            );
             console.error(err);
         }
     };
@@ -117,22 +123,24 @@ export default function ReportsPage() {
         const payload: ReportUpdate = {
             description: input.description,
             location:
-                (input.lat !== null && input.lon !== null) ?
-                { lat: input.lat, lon: input.lon } :
-                undefined,
+                input.lat !== null && input.lon !== null
+                    ? { lat: input.lat, lon: input.lon }
+                    : undefined,
             occurred_at: input.occurredAt,
             incident_type: input.incidentType || undefined,
             severity: input.severity || undefined,
             species: input.species || undefined,
             count: input.count ?? undefined,
             images: [],
-        }
+        };
 
         try {
             await reportsApi.updateReport(localId, payload);
 
             setReports((prev) =>
-                prev.map((r) => (r.localId === localId ? { ...r, ...input } : r)),
+                prev.map((r) =>
+                    r.localId === localId ? { ...r, ...input } : r,
+                ),
             );
             notifySafe("Draft saved", "Your report has been updated.");
             window.scrollTo({ top: 0, behavior: "smooth" });
