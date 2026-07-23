@@ -7,8 +7,6 @@ from app.schemas.route import PlannedRoute, RouteRequest
 from app.services.route_service import generate_route_job, get_routes
 from app.workers.tasks.route_tasks import _serialize_route
 
-pytestmark = pytest.mark.asyncio
-
 
 def _make_route(path, risk):
     return PlannedRoute(
@@ -37,10 +35,10 @@ def _make_request(num_alternatives=3):
 
 
 @patch("app.services.route_service.run_route_planning_job")
-async def test_generate_route_job_enqueues_with_request_fields(mock_task):
+def test_generate_route_job_enqueues_with_request_fields(mock_task):
     request = _make_request(num_alternatives=2)
 
-    result = await generate_route_job(request, user=MagicMock())
+    result = generate_route_job(request)
 
     mock_task.apply_async.assert_called_once()
     call = mock_task.apply_async.call_args
@@ -56,10 +54,10 @@ async def test_generate_route_job_enqueues_with_request_fields(mock_task):
 
 
 @patch("app.services.route_service.run_route_planning_job")
-async def test_generate_route_job_returns_queued_response(mock_task):
+def test_generate_route_job_returns_queued_response(mock_task):
     request = _make_request()
 
-    result = await generate_route_job(request, user=MagicMock())
+    result = generate_route_job(request)
 
     assert result.job_id == result.request_id
     assert result.park_id == "klaserie"
@@ -68,11 +66,11 @@ async def test_generate_route_job_returns_queued_response(mock_task):
 
 
 @patch("app.services.route_service.run_route_planning_job")
-async def test_generate_route_job_ids_are_unique_per_call(mock_task):
+def test_generate_route_job_ids_are_unique_per_call(mock_task):
     request = _make_request()
 
-    first = await generate_route_job(request, user=MagicMock())
-    second = await generate_route_job(request, user=MagicMock())
+    first = generate_route_job(request)
+    second = generate_route_job(request)
 
     assert first.job_id != second.job_id
 
@@ -80,8 +78,8 @@ async def test_generate_route_job_ids_are_unique_per_call(mock_task):
 # get_routes - no request_id
 
 
-async def test_get_routes_without_request_id_returns_empty_listing():
-    result = await get_routes(user=MagicMock(), request_id=None)
+def test_get_routes_without_request_id_returns_empty_listing():
+    result = get_routes(request_id=None)
 
     assert result.total == 0
     assert result.results == []
@@ -89,10 +87,8 @@ async def test_get_routes_without_request_id_returns_empty_listing():
     assert result.status is None
 
 
-async def test_get_routes_without_request_id_still_paginates_response():
-    result = await get_routes(
-        user=MagicMock(), request_id=None, page=3, page_size=5,
-    )
+def test_get_routes_without_request_id_still_paginates_response():
+    result = get_routes(request_id=None, page=3, page_size=5)
 
     assert result.page == 3
     assert result.page_size == 5
@@ -113,14 +109,14 @@ async def test_get_routes_without_request_id_still_paginates_response():
     ],
 )
 @patch("app.services.route_service.celery_app")
-async def test_get_routes_maps_celery_state_to_status(
+def test_get_routes_maps_celery_state_to_status(
     mock_celery_app, celery_state, expected_status,
 ):
     mock_celery_app.AsyncResult.return_value = MagicMock(
         state=celery_state, result=None,
     )
 
-    result = await get_routes(user=MagicMock(), request_id="job-123")
+    result = get_routes(request_id="job-123")
 
     mock_celery_app.AsyncResult.assert_called_once_with("job-123")
     assert result.status == expected_status
@@ -133,9 +129,7 @@ async def test_get_routes_maps_celery_state_to_status(
 
 
 @patch("app.services.route_service.celery_app")
-async def test_get_routes_success_deserializes_results_and_counts(
-    mock_celery_app,
-):
+def test_get_routes_success_deserializes_results_and_counts(mock_celery_app):
     routes = [_make_route(["a", "b"], 0.9), _make_route(["a", "c"], 0.5)]
     mock_celery_app.AsyncResult.return_value = MagicMock(
         state="SUCCESS",
@@ -147,7 +141,7 @@ async def test_get_routes_success_deserializes_results_and_counts(
         },
     )
 
-    result = await get_routes(user=MagicMock(), request_id="job-123")
+    result = get_routes(request_id="job-123")
 
     assert result.status == "completed"
     assert result.num_alternatives_requested == 3
@@ -160,7 +154,7 @@ async def test_get_routes_success_deserializes_results_and_counts(
 
 
 @patch("app.services.route_service.celery_app")
-async def test_get_routes_success_paginates_results(mock_celery_app):
+def test_get_routes_success_paginates_results(mock_celery_app):
     routes = [_make_route([str(i)], float(i)) for i in range(5)]
     mock_celery_app.AsyncResult.return_value = MagicMock(
         state="SUCCESS",
@@ -172,9 +166,7 @@ async def test_get_routes_success_paginates_results(mock_celery_app):
         },
     )
 
-    result = await get_routes(
-        user=MagicMock(), request_id="job-123", page=2, page_size=2,
-    )
+    result = get_routes(request_id="job-123", page=2, page_size=2)
 
     assert result.total == 5
     assert result.page == 2

@@ -1,5 +1,3 @@
-import asyncio
-
 from app.repositories.route_repository import (
     build_park_graph,
     find_nearest_node,
@@ -30,13 +28,12 @@ def run_route_planning_job(
 ) -> dict:
     """Run plan_routes() and return however many alternatives were accepted.
 
-    Not `async def` - Celery does not await coroutine task functions, it
-    just hands one back without running it. build_park_graph is the only
-    async call here, bridged in with asyncio.run(). Job status/progress is
-    read from this task's own Celery result state (see get_routes) - there
-    is no separate persisted RouteJob record.
+    Not 'async def' - Celery does not await coroutine task functions, and
+    nothing this task calls is async anyway. Job status/progress is read
+    from this task's own Celery result state (see get_routes) - there is
+    no separate persisted RouteJob record.
     """
-    graph = asyncio.run(build_park_graph(None, park_id))
+    graph = build_park_graph(park_id)
     start_node_id = find_nearest_node(graph, start)
     end_node_id = find_nearest_node(graph, end)
 

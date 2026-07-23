@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.geo import GeoLineString, GeoPoint
 
@@ -51,6 +51,12 @@ class RouteJobResponse(BaseModel):
     status: str
     queued_at: str
 class RouteListResponse(BaseModel):
+    # "results" holds plain-dataclass PlannedRoute instances built in
+    # route_service._deserialize_route() from a Celery result payload, not
+    # validated pydantic objects - revalidate them here rather than trust
+    # them as-is.
+    model_config = ConfigDict(revalidate_instances="always")
+
     request_id: str | None = None
     status: str | None = None
     num_alternatives_requested: int | None = None

@@ -53,7 +53,5 @@ class Settings:
         ),
     )
 
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
-
 
 settings = Settings()

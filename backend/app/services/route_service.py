@@ -21,13 +21,17 @@ _CELERY_STATUS_MAP = {
 }
 
 
-async def generate_route_job(request: RouteRequest, user) -> RouteJobResponse:
+def generate_route_job(request: RouteRequest) -> RouteJobResponse:
     """Enqueue the background job and return its 202 payload.
 
     There is no persisted RouteJob record - the Celery task_id (== job_id ==
     request_id here, since nothing else exists to distinguish them) doubles
     as the job's identity, and its status/result live in the Celery result
     backend (Redis), read back out in get_routes().
+
+    TODO: no ownership is recorded against the requesting user - once a
+    RouteJob table exists, tie job_id to user.id so get_routes() can
+    reject requests for another user's job.
     """
     job_id = str(uuid.uuid4())
 
@@ -62,7 +66,7 @@ def _deserialize_route(data: dict) -> PlannedRoute:
     )
 
 
-async def get_routes(user, request_id=None, park_id=None, page=1, page_size=20):
+def get_routes(request_id=None, park_id=None, page=1, page_size=20):
     """Return job status and (paginated) results for a route request.
 
     When request_id is provided, loads the job's status and

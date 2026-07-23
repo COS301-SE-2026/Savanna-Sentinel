@@ -92,12 +92,12 @@ def _load_grid(park_id: str) -> ParkGraph:
     return ParkGraph(park_id=park_id, nodes=nodes, edges=edges)
 
 
-async def build_park_graph(db, park_id: str) -> ParkGraph:
-    """Assembles ParkGraph from park_id's grid + latest computed risk heatmap.
+def build_park_graph(park_id: str) -> ParkGraph:
+    """Assemble ParkGraph from park_id's grid.
 
-    `db` is currently unused - there is no persisted risk heatmap to join
-    against yet, so every node gets a neutral risk_score. Kept in the
-    signature so callers don't need to change once that lands.
+    No persisted risk heatmap exists yet, so every node gets a neutral
+    risk_score (see _load_grid). A 'db' param will be added back once
+    there is a heatmap to join against.
     """
     return _load_grid(park_id)
 

@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 from app.schemas.geo import GeoLineString
 from app.schemas.route import ParkGraph, PlannedRoute
@@ -43,7 +43,7 @@ def test_serialize_route_returns_plain_dict_with_geometry_dumped():
 
 @patch("app.workers.tasks.route_tasks.plan_routes")
 @patch("app.workers.tasks.route_tasks.find_nearest_node")
-@patch("app.workers.tasks.route_tasks.build_park_graph", new_callable=AsyncMock)
+@patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_wires_graph_lookup_and_planning(
     mock_build_graph, mock_find_nearest, mock_plan_routes,
 ):
@@ -62,7 +62,7 @@ def test_run_route_planning_job_wires_graph_lookup_and_planning(
         num_alternatives=3,
     )
 
-    mock_build_graph.assert_called_once_with(None, "klaserie")
+    mock_build_graph.assert_called_once_with("klaserie")
     assert mock_find_nearest.call_args_list[0].args == (
         graph, (31.05, -24.3),
     )
@@ -86,7 +86,7 @@ def test_run_route_planning_job_wires_graph_lookup_and_planning(
 
 @patch("app.workers.tasks.route_tasks.plan_routes")
 @patch("app.workers.tasks.route_tasks.find_nearest_node")
-@patch("app.workers.tasks.route_tasks.build_park_graph", new_callable=AsyncMock)
+@patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_found_count_may_be_less_than_requested(
     mock_build_graph, mock_find_nearest, mock_plan_routes,
 ):
@@ -114,7 +114,7 @@ def test_run_route_planning_job_found_count_may_be_less_than_requested(
 
 @patch("app.workers.tasks.route_tasks.plan_routes")
 @patch("app.workers.tasks.route_tasks.find_nearest_node")
-@patch("app.workers.tasks.route_tasks.build_park_graph", new_callable=AsyncMock)
+@patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_no_accepted_routes_returns_empty_results(
     mock_build_graph, mock_find_nearest, mock_plan_routes,
 ):

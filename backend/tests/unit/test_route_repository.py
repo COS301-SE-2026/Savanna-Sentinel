@@ -130,17 +130,10 @@ def test_load_grid_is_cached_across_calls(grid_2x2):
 
 # build_park_graph
 
-@pytest.mark.asyncio
-async def test_build_park_graph_delegates_to_load_grid(grid_2x2):
-    graph = await build_park_graph(db=None, park_id=grid_2x2)
+def test_build_park_graph_delegates_to_load_grid(grid_2x2):
+    graph = build_park_graph(grid_2x2)
     assert isinstance(graph, ParkGraph)
     assert graph.park_id == grid_2x2
-    assert len(graph.nodes) == 4
-
-@pytest.mark.asyncio
-async def test_build_park_graph_ignores_db_argument(grid_2x2):
-    """`db` is an unused placeholder until a risk-heatmap join exists."""
-    graph = await build_park_graph(db="not-a-real-session", park_id=grid_2x2)
     assert len(graph.nodes) == 4
 
 # find_nearest_node
@@ -186,21 +179,18 @@ def test_find_nearest_node_exact_match_returns_same_node():
 
 # Sanity checks against the real production grid file
 
-@pytest.mark.asyncio
-async def test_klaserie_grid_loads_full_graph():
-    graph = await build_park_graph(db=None, park_id="klaserie")
+def test_klaserie_grid_loads_full_graph():
+    graph = build_park_graph("klaserie")
     assert graph.park_id == "klaserie"
     assert len(graph.nodes) == 684
 
-@pytest.mark.asyncio
-async def test_klaserie_grid_edges_are_symmetric():
-    graph = await build_park_graph(db=None, park_id="klaserie")
+def test_klaserie_grid_edges_are_symmetric():
+    graph = build_park_graph("klaserie")
     pairs = {(e.from_node_id, e.to_node_id) for e in graph.edges}
     assert all((b, a) in pairs for a, b in pairs)
 
-@pytest.mark.asyncio
-async def test_klaserie_grid_coordinates_within_park_bounds():
-    graph = await build_park_graph(db=None, park_id="klaserie")
+def test_klaserie_grid_coordinates_within_park_bounds():
+    graph = build_park_graph("klaserie")
     for node in graph.nodes:
         lon, lat = node.location.coordinates
         assert 31.0 < lon < 31.4

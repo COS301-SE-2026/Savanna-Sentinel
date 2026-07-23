@@ -19,7 +19,7 @@ async def generate_route(
         request: RouteRequest,
         current_user: Annotated[User, Depends(get_current_user)],
     ):
-    return await generate_route_job(request, current_user)
+    return generate_route_job(request)
 
 @router.get(
     "",
@@ -33,7 +33,7 @@ async def list_routes(
         page: int = 1,
         page_size: int = 20,
     ):
-    return await get_routes(current_user, request_id, park_id, page, page_size)
+    return get_routes(request_id, park_id, page, page_size)
 
 @router.get(
     "/{route_id}",
@@ -44,4 +44,4 @@ async def get_route(
         route_id: str,
         current_user: Annotated[User, Depends(get_current_user)],
     ):
-    return await get_routes(current_user, request_id=route_id)
+    return get_routes(request_id=route_id)
