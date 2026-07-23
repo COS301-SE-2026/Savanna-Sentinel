@@ -2,7 +2,12 @@ import uuid
 from datetime import datetime, timezone
 
 from app.schemas.geo import GeoLineString
-from app.schemas.route import PlannedRoute, RouteJobResponse, RouteListResponse, RouteRequest
+from app.schemas.route import (
+    PlannedRoute,
+    RouteJobResponse,
+    RouteListResponse,
+    RouteRequest,
+)
 from app.workers.celery_app import celery_app
 from app.workers.tasks.route_tasks import run_route_planning_job
 
@@ -17,7 +22,7 @@ _CELERY_STATUS_MAP = {
 
 
 async def generate_route_job(request: RouteRequest, user) -> RouteJobResponse:
-    """Validates preconditions, enqueues the background job, returns 202 payload.
+    """Enqueue the background job and return its 202 payload.
 
     There is no persisted RouteJob record - the Celery task_id (== job_id ==
     request_id here, since nothing else exists to distinguish them) doubles
@@ -58,7 +63,9 @@ def _deserialize_route(data: dict) -> PlannedRoute:
 
 
 async def get_routes(user, request_id=None, park_id=None, page=1, page_size=20):
-    """Read path - when request_id is provided, loads the job's status and
+    """Return job status and (paginated) results for a route request.
+
+    When request_id is provided, loads the job's status and
     requested/found counts from the Celery result backend and returns its
     (paginated) results.
 
@@ -67,7 +74,9 @@ async def get_routes(user, request_id=None, park_id=None, page=1, page_size=20):
     task ids, so browsing/filtering by park_id alone always returns empty.
     """
     if request_id is None:
-        return RouteListResponse(total=0, page=page, page_size=page_size, results=[])
+        return RouteListResponse(
+            total=0, page=page, page_size=page_size, results=[],
+        )
 
     result = celery_app.AsyncResult(request_id)
     status = _CELERY_STATUS_MAP.get(result.state, result.state.lower())
@@ -83,7 +92,7 @@ async def get_routes(user, request_id=None, park_id=None, page=1, page_size=20):
         num_found = payload["num_alternatives_found"]
 
     start = (page - 1) * page_size
-    page_results = routes[start:start + page_size]
+    page_results = routes[start : start + page_size]
 
     return RouteListResponse(
         request_id=request_id,

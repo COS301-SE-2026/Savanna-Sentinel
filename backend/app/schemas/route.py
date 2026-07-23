@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
-from app.schemas.geo import GeoPoint
-from app.schemas.geo import GeoLineString
+
 from pydantic import BaseModel
+
+from app.schemas.geo import GeoLineString, GeoPoint
+
 
 @dataclass
 class GraphNode:

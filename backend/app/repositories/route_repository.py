@@ -31,7 +31,9 @@ def _load_grid(park_id: str) -> ParkGraph:
         geojson = json.load(f)
 
     epsg_code = geojson["crs"]["properties"]["name"].rsplit(":", 1)[-1]
-    to_wgs84 = Transformer.from_crs(f"EPSG:{epsg_code}", "EPSG:4326", always_xy=True)
+    to_wgs84 = Transformer.from_crs(
+        f"EPSG:{epsg_code}", "EPSG:4326", always_xy=True,
+    )
 
     cells = {}
     for feature in geojson["features"]:
@@ -47,7 +49,10 @@ def _load_grid(park_id: str) -> ParkGraph:
             "lat": lat,
         }
 
-    cell_width_m = geojson["features"][0]["properties"]["right"] - geojson["features"][0]["properties"]["left"]
+    cell_width_m = (
+        geojson["features"][0]["properties"]["right"]
+        - geojson["features"][0]["properties"]["left"]
+    )
     distance_km = cell_width_m / 1000
     est_time_min = distance_km / AVG_SPEED_KMH * 60
     est_fuel_l = distance_km * FUEL_L_PER_KM
@@ -63,20 +68,26 @@ def _load_grid(park_id: str) -> ParkGraph:
         for cell_id, cell in cells.items()
     ]
 
-    by_row_col = {(cell["row"], cell["col"]): cell_id for cell_id, cell in cells.items()}
+    by_row_col = {
+        (cell["row"], cell["col"]): cell_id for cell_id, cell in cells.items()
+    }
     edges = []
     for cell_id, cell in cells.items():
         for d_row, d_col in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            neighbor_id = by_row_col.get((cell["row"] + d_row, cell["col"] + d_col))
+            neighbor_id = by_row_col.get(
+                (cell["row"] + d_row, cell["col"] + d_col),
+            )
             if neighbor_id is None:
                 continue
-            edges.append(GraphEdge(
-                from_node_id=f"cell-{cell_id}",
-                to_node_id=f"cell-{neighbor_id}",
-                distance_km=distance_km,
-                est_time_min=est_time_min,
-                est_fuel_l=est_fuel_l,
-            ))
+            edges.append(
+                GraphEdge(
+                    from_node_id=f"cell-{cell_id}",
+                    to_node_id=f"cell-{neighbor_id}",
+                    distance_km=distance_km,
+                    est_time_min=est_time_min,
+                    est_fuel_l=est_fuel_l,
+                ),
+            )
 
     return ParkGraph(park_id=park_id, nodes=nodes, edges=edges)
 
@@ -96,5 +107,8 @@ def find_nearest_node(graph: ParkGraph, point: tuple[float, float]) -> str:
     lon, lat = point
     return min(
         graph.nodes,
-        key=lambda n: (n.location.coordinates[0] - lon) ** 2 + (n.location.coordinates[1] - lat) ** 2,
+        key=lambda n: (
+            (n.location.coordinates[0] - lon) ** 2
+            + (n.location.coordinates[1] - lat) ** 2
+        ),
     ).node_id

@@ -1,4 +1,6 @@
-def chaikin_smooth(points: list[tuple[float, float]], iterations: int = 2) -> list[tuple[float, float]]:
+def chaikin_smooth(
+    points: list[tuple[float, float]], iterations: int = 2,
+) -> list[tuple[float, float]]:
     for _ in range(iterations):
         new_points = [points[0]]
         for p0, p1 in zip(points, points[1:]):
