@@ -11,6 +11,8 @@ from app.workers.ml.path_smoothing import chaikin_smooth
 class ACOConfig:
     num_ants: int = 20
     total_iterations: int = 100
+    # len() of this bounds how many alternatives plan_routes() can ever
+    # return - keep RouteRequest.MAX_NUM_ALTERNATIVES in sync if it changes.
     phase_split: tuple[float, float, float] = (0.4, 0.3, 0.3)
     alpha: float = 1.0
     beta: float = 2.0

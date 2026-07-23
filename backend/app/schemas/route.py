@@ -1,8 +1,13 @@
 from dataclasses import dataclass, field
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.geo import GeoLineString, GeoPoint
+
+# Must match len(ACOConfig.phase_split) in app.workers.ml.route_planner -
+# plan_routes() silently truncates to that many phases, so requesting more
+# than this would otherwise be silently capped instead of rejected.
+MAX_NUM_ALTERNATIVES = 3
 
 
 @dataclass
@@ -36,7 +41,9 @@ class RouteRequest(BaseModel):
     end_point: GeoPoint
     max_time: float
     max_fuel: float
-    num_alternatives: int = 3 #ceiling, not a guarantee
+    # Ceiling, not a guarantee - plan_routes() may return fewer if the
+    # diversity/quality gate drops a phase.
+    num_alternatives: int = Field(default=3, ge=1, le=MAX_NUM_ALTERNATIVES)
 class RouteJobResponse(BaseModel):
     job_id: str
     request_id: str

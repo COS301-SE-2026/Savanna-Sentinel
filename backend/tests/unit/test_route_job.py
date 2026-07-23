@@ -1,5 +1,6 @@
 from app.models.route_job import RouteJob
 
+
 def test_route_job_declares_expected_fields():
     assert RouteJob.__annotations__ == {
         "request_id": str,
