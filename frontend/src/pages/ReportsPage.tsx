@@ -49,18 +49,47 @@ export default function ReportsPage() {
         [reports, user?.username],
     );
 
-    const handleCreate = (input: DraftReportInput) => {
+    const handleCreate = async (input: DraftReportInput) => {
         if (!user) return;
-        const newReport: DraftReport = {
-            ...input,
-            localId: crypto.randomUUID(),
-            submittedBy: user.username,
-            createdAt: new Date().toISOString(),
-            syncStatus: "pending",
+
+        // Validate coords
+        if (input.lat === null || input.lon === null) {
+            notifySafe("Error", "Locational coordinates are required")
+            return;
+        }
+
+        // TODO: check if this works.. keeping here for now
+        const imageUrls: string[] = input.photos.map((p) => p.previewUrl);
+
+        const payload: ReportCreate = {
+            report_type: input.reportType,
+            location: { lat: input.lat, lon: input.lon },
+            occurred_at: input.occurredAt,
+            description: input.description,
+            incident_type: input.incidentType || undefined,
+            severity: input.severity || undefined,
+            species: input.species || undefined,
+            count: input.count ?? undefined,
+            images: imageUrls,
+            sync_status: "pending",
         };
-        setReports((prev) => [...prev, newReport]);
-        notifySafe("Report submitted", "Your report has been queued to sync.");
-        window.scrollTo({ top: 0, behavior: "smooth" });
+
+        try {
+            const res = await reportsApi.submitReport(payload);
+            
+            const newReport: DraftReport = {
+                ...input,
+                localId: res.report_id,
+                submittedBy: res.submitted_by,
+                createdAt: res.created_at,
+                syncStatus: "pending",
+            };
+            setReports((prev) => [...prev, newReport]);
+            notifySafe("Report submitted", "Your report has been queued to sync.");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        } catch (err) {
+            notifySafe("Submission failed", "Could not send report to the server");
+        }
     };
 
     const handleSave = (localId: string, input: DraftReportInput) => {
