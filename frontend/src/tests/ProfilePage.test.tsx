@@ -251,4 +251,89 @@ describe("ProfilePage", () => {
             /you will be signed out/i,
         );
     });
+
+    it("resets the profile form back to the loaded values", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.clear(screen.getByLabelText(/first name/i));
+        await user.type(screen.getByLabelText(/first name/i), "Janet");
+        await user.clear(screen.getByLabelText(/last name/i));
+        await user.type(screen.getByLabelText(/last name/i), "Smithers");
+
+        await user.click(screen.getByRole("button", { name: /^reset$/i }));
+
+        expect(screen.getByLabelText(/first name/i)).toHaveValue("Jane");
+        expect(screen.getByLabelText(/last name/i)).toHaveValue("Ranger");
+    });
+
+    it("cancels pending profile changes without saving", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.clear(screen.getByLabelText(/first name/i));
+        await user.type(screen.getByLabelText(/first name/i), "Janet");
+        await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(updateProfile).not.toHaveBeenCalled();
+    });
+
+    it("closes the confirmation dialog via the header close button", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.clear(screen.getByLabelText(/first name/i));
+        await user.type(screen.getByLabelText(/first name/i), "Janet");
+        await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+        const dialog = await screen.findByRole("dialog");
+        await user.click(
+            screen.getByRole("button", { name: /cancel, close dialog/i }),
+        );
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(updateProfile).not.toHaveBeenCalled();
+        expect(dialog).not.toBeInTheDocument();
+    });
+
+    it("toggles the visibility of each password field", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        const currentPasswordInput = screen.getByLabelText(/current password/i);
+        const newPasswordInput = screen.getByLabelText(/^new password/i);
+        const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
+
+        expect(currentPasswordInput).toHaveAttribute("type", "password");
+        expect(newPasswordInput).toHaveAttribute("type", "password");
+        expect(confirmPasswordInput).toHaveAttribute("type", "password");
+
+        await user.click(
+            screen.getAllByRole("button", { name: /show password/i })[0],
+        );
+        expect(currentPasswordInput).toHaveAttribute("type", "text");
+
+        await user.click(
+            screen.getAllByRole("button", { name: /show password/i })[0],
+        );
+        expect(newPasswordInput).toHaveAttribute("type", "text");
+
+        await user.click(
+            screen.getAllByRole("button", { name: /show password/i })[0],
+        );
+        expect(confirmPasswordInput).toHaveAttribute("type", "text");
+
+        await user.click(
+            screen.getAllByRole("button", { name: /hide password/i })[0],
+        );
+        expect(currentPasswordInput).toHaveAttribute("type", "password");
+    });
 });

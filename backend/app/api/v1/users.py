@@ -5,8 +5,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, get_db, require_admin
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.user import User
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import (
     RoleChangeRequest,
@@ -16,6 +17,7 @@ from app.schemas.user import (
     UsersResponse,
     UsersResultResponse,
 )
+from app.services.audit_service import AuditService
 from app.services.user_service import UserService
 
 router = APIRouter(tags=["users"])
@@ -76,7 +78,7 @@ async def users(
         ],
         current_admin: Annotated[
             User,
-            Depends(require_admin),
+            Depends(require_roles(["admin"])),
         ],
     ):
     repo = UserRepository(db)
@@ -102,19 +104,44 @@ async def status_switch(
         ],
         current_admin: Annotated[
             User,
-            Depends(require_admin),
+            Depends(require_roles(["admin"])),
         ],
     ):
     repo = UserRepository(db)
-    service = UserService(repo)
+    service = UserService(repo, AuditService(AuditRepository(db)))
 
-    response_data = await service.switch_status(req.is_active, user_id)
+    response_data = await service.switch_status(
+        req.is_active, user_id, current_admin.id,
+    )
 
     if response_data is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User Id does not exist",
         )
+    return response_data
+
+@router.delete(
+    "/users/{user_id}",
+    response_model=UsersResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Soft-delete an approved user account",
+)
+async def soft_delete_user(
+        user_id: str,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_admin: Annotated[User, Depends(require_roles(["admin"]))],
+    ):
+    repo = UserRepository(db)
+    service = UserService(repo, AuditService(AuditRepository(db)))
+    response_data = await service.soft_delete(user_id, current_admin.id)
+
+    if response_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User Id does not exist or is not eligible for deletion",
+        )
+
     return response_data
 
 @router.delete(
@@ -131,13 +158,13 @@ async def admin_delete_user(
         ],
         current_admin: Annotated[
             User,
-            Depends(require_admin),
+            Depends(require_roles(["admin"])),
         ],
     ):
     repo=UserRepository(db)
-    service = UserService(repo)
+    service = UserService(repo, AuditService(AuditRepository(db)))
 
-    response_data = await service.admin_delete(user_id)
+    response_data = await service.admin_delete(user_id, current_admin.id)
 
     if response_data is None:
         raise HTTPException(
@@ -161,13 +188,15 @@ async def change_user_role(
         ],
         current_admin: Annotated[
             User,
-            Depends(require_admin),
+            Depends(require_roles(["admin"])),
         ],
     ):
     repo = UserRepository(db)
-    service = UserService(repo)
+    service = UserService(repo, AuditService(AuditRepository(db)))
 
-    response_data = await service.change_role(user_id, req.new_role.value)
+    response_data = await service.change_role(
+        user_id, req.new_role.value, current_admin.id,
+    )
 
     if response_data is None:
         raise HTTPException(

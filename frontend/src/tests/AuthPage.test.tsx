@@ -3,7 +3,13 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { authHandlers, mockUsers } from "./mocks/adminauthHandlers";
 import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
-import { render, screen, within, waitFor } from "@testing-library/react";
+import {
+    render,
+    screen,
+    within,
+    waitFor,
+    fireEvent,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const server = setupServer(...authHandlers);
@@ -55,7 +61,7 @@ describe("Authpage - Pending Registrations", () => {
             await screen.findByText(/failed to load pending registrations/i),
         ).toBeInTheDocument();
     });
-    it("Refreshes the page when accept is clicked, and calls the status update endpoint", async () => {
+    it("Refreshes the page when accept is confirmed, and calls the status update endpoint", async () => {
         renderAuthPage();
 
         const userRow = await screen.findByRole("row", { name: /ranger/i });
@@ -70,7 +76,11 @@ describe("Authpage - Pending Registrations", () => {
         );
 
         await userEvent.click(acceptButton);
-        expect(acceptButton).toBeDisabled();
+        const dialog = await screen.findByRole("dialog");
+        const confirmButton = within(dialog).getByRole("button", {
+            name: /confirm/i,
+        });
+        await userEvent.click(confirmButton);
 
         await waitFor(() => {
             expect(screen.queryByText("ranger1")).not.toBeInTheDocument();
@@ -78,7 +88,7 @@ describe("Authpage - Pending Registrations", () => {
 
         expect(screen.getByText("analyst2")).toBeInTheDocument();
     });
-    it("Refreshes the page when reject is clicked, and calls the status update endpoint", async () => {
+    it("Refreshes the page when reject is confirmed, and calls the status update endpoint", async () => {
         renderAuthPage();
 
         const userRow = await screen.findByRole("row", { name: /analyst2/i });
@@ -93,11 +103,32 @@ describe("Authpage - Pending Registrations", () => {
         );
 
         await userEvent.click(rejectButton);
-        expect(rejectButton).toBeDisabled();
+        const dialog = await screen.findByRole("dialog");
+        const confirmButton = within(dialog).getByRole("button", {
+            name: /confirm/i,
+        });
+        await userEvent.click(confirmButton);
 
         await waitFor(() => {
             expect(screen.queryByText("analyst2")).not.toBeInTheDocument();
         });
+    });
+    it("closes the dialog without calling the API when cancelled", async () => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", { name: /ranger/i });
+        const acceptButton = within(userRow).getByRole("button", {
+            name: /accept/i,
+        });
+
+        await userEvent.click(acceptButton);
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(
+            within(dialog).getByRole("button", { name: "Cancel" }),
+        );
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(screen.getByText("ranger1")).toBeInTheDocument();
     });
     it("Displays a warning when an admin somehow ends up in the list", async () => {
         server.use(
@@ -125,6 +156,10 @@ describe("Authpage - Pending Registrations", () => {
             name: /accept/i,
         });
         await userEvent.click(acceptButton);
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(
+            within(dialog).getByRole("button", { name: /confirm/i }),
+        );
 
         expect(
             await screen.findByText(/permission denied. cannot modify admins/i),
@@ -146,6 +181,10 @@ describe("Authpage - Pending Registrations", () => {
         );
 
         await userEvent.click(acceptButton);
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(
+            within(dialog).getByRole("button", { name: /confirm/i }),
+        );
 
         expect(await screen.findByText(/failed to accept user\./i));
         expect(acceptButton).not.toBeDisabled();
@@ -166,11 +205,101 @@ describe("Authpage - Pending Registrations", () => {
         );
 
         await userEvent.click(rejectButton);
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(
+            within(dialog).getByRole("button", { name: /confirm/i }),
+        );
 
         expect(
             await screen.findByText(/failed to reject user\./i),
         ).toBeInTheDocument();
         expect(rejectButton).not.toBeDisabled();
         expect(screen.getByText("analyst2")).toBeInTheDocument();
+    });
+    it("does not close the reject confirmation when clicking outside the dialog", async () => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", { name: /analyst2/i });
+        const rejectButton = within(userRow).getByRole("button", {
+            name: /reject/i,
+        });
+
+        await userEvent.click(rejectButton);
+        const dialog = await screen.findByRole("dialog");
+        expect(
+            within(dialog).getByText(/confirm rejection/i),
+        ).toBeInTheDocument();
+
+        fireEvent.pointerDown(document.body);
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+        expect(screen.getByText(/confirm rejection/i)).toBeInTheDocument();
+    });
+    it("still closes the accept confirmation when clicking outside the dialog", async () => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", { name: /ranger/i });
+        const acceptButton = within(userRow).getByRole("button", {
+            name: /accept/i,
+        });
+
+        await userEvent.click(acceptButton);
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+        fireEvent.pointerDown(document.body);
+        fireEvent.click(document.body);
+
+        await waitFor(() => {
+            expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        });
+    });
+
+    it("sorts pending registrations by each column when its header is clicked", async () => {
+        renderAuthPage();
+        await screen.findByRole("row", { name: /ranger/i });
+
+        const getUsernames = () =>
+            screen
+                .getAllByRole("row")
+                .slice(1)
+                .map((row) => within(row).getAllByRole("cell")[0].textContent);
+
+        await userEvent.click(screen.getByRole("button", { name: "Username" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await userEvent.click(screen.getByRole("button", { name: "Username" }));
+        expect(getUsernames()).toEqual(["ranger1", "analyst2"]);
+
+        await userEvent.click(screen.getByRole("button", { name: "Name" }));
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Role Claim" }),
+        );
+        expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Created At" }),
+        );
+        expect(getUsernames()).toEqual(["ranger1", "analyst2"]);
+    });
+
+    it("closes the accept confirmation via the header close button", async () => {
+        renderAuthPage();
+
+        const userRow = await screen.findByRole("row", { name: /ranger/i });
+        const acceptButton = within(userRow).getByRole("button", {
+            name: /accept/i,
+        });
+
+        await userEvent.click(acceptButton);
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(
+            within(dialog).getByRole("button", {
+                name: /cancel, close dialog/i,
+            }),
+        );
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 });

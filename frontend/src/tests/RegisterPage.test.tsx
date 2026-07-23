@@ -6,6 +6,7 @@ import { beforeAll, afterEach, afterAll, describe, it, expect } from "vitest";
 
 import { registerHandlers } from "./mocks/registerHandlers";
 import RegisterPage from "@/pages/RegisterPage";
+import { Toaster } from "@/components/ui/sonner";
 
 const server = setupServer(...registerHandlers);
 beforeAll(() => server.listen());
@@ -15,6 +16,7 @@ afterAll(() => server.close());
 function renderRegisterPage() {
     return render(
         <MemoryRouter initialEntries={["/register"]}>
+            <Toaster />
             <Routes>
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/login" element={<div>Login Page</div>} />
@@ -44,8 +46,9 @@ async function fillValidForm(overrides: Record<string, string> = {}) {
 }
 
 async function selectRole(name: RegExp) {
-    await userEvent.click(screen.getByRole("combobox"));
-    await userEvent.click(await screen.findByRole("option", { name }));
+    await userEvent.selectOptions(screen.getByRole("combobox"), [
+        screen.getByRole("option", { name }),
+    ]);
 }
 
 describe("RegisterPage", () => {

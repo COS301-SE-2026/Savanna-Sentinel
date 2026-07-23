@@ -39,4 +39,13 @@ VALUES
         'One',
         'admin',
         TRUE
+    ),
+    (
+        'ranger2',
+        'ranger2@sentinel.dev',
+        'pbkdf2_sha256$390000$7d8bba39b605046ea57002855d510f96$FQyiCRmcZDaBbjHgyDg7Ie1IKefBLnq7wOWzcI1Wlf4=',
+        'Ranger',
+        'Pending',
+        'ranger',
+        FALSE
     );

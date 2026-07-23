@@ -95,8 +95,8 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Dashboard")).toBeInTheDocument();
         expect(screen.getByText("Map")).toBeInTheDocument();
         expect(screen.getByText("Ingestion")).toBeInTheDocument();
+        expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
-        expect(screen.queryByText("Reports")).not.toBeInTheDocument();
         expect(screen.queryByText("Patrol Planner")).not.toBeInTheDocument();
         expect(screen.queryByText("Admin")).not.toBeInTheDocument();
     });
@@ -114,6 +114,20 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Tip-offs")).toBeInTheDocument();
         expect(screen.getByText("Admin")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
+    });
+
+    it("renders a divider immediately before the Profile nav item", async () => {
+        setUser("ranger");
+        renderMenu();
+        await openMenu();
+
+        const nav = screen.getByText("Dashboard").closest("nav");
+        expect(nav).not.toBeNull();
+        const children = Array.from(nav!.children);
+        const profileIndex = children.findIndex((el) =>
+            el.textContent?.includes("Profile"),
+        );
+        expect(children[profileIndex - 1].tagName).toBe("HR");
     });
 
     it("shows correct nav items for community_liaison", async () => {

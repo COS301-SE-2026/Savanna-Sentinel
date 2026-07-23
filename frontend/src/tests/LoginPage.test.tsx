@@ -1,11 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { setupServer } from "msw/node";
 import { beforeAll, afterEach, afterAll, describe, it, expect } from "vitest";
 
-import { authHandlers } from "./mocks/authHandlers";
+import { authHandlers, VALID_MFA_CODE } from "./mocks/authHandlers";
 import LoginPage from "@/pages/LoginPage";
+import { Toaster } from "@/components/ui/sonner";
 
 const server = setupServer(...authHandlers);
 beforeAll(() => server.listen());
@@ -15,6 +16,7 @@ afterAll(() => server.close());
 function renderLoginPage(initialPath = "/login") {
     return render(
         <MemoryRouter initialEntries={[initialPath]}>
+            <Toaster />
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/dashboard" element={<div>Dashboard</div>} />
@@ -110,5 +112,92 @@ describe("LoginPage - Savanna Sentinel", () => {
             "href",
             "/register",
         );
+    });
+
+    describe("admin MFA challenge", () => {
+        it("opens the MFA dialog instead of navigating for an admin login", async () => {
+            renderLoginPage();
+            await userEvent.type(screen.getByLabelText(/username/i), "admin");
+            await userEvent.type(
+                screen.getByLabelText(/^password$/i),
+                "SecurePass1!",
+            );
+            await userEvent.click(
+                screen.getByRole("button", { name: /log in/i }),
+            );
+
+            const dialog = await screen.findByRole("dialog");
+            expect(within(dialog).getByText(/mfa code/i)).toBeInTheDocument();
+            expect(
+                within(dialog).getByText(/enter the code sent to your email/i),
+            ).toBeInTheDocument();
+            expect(screen.queryByText(/dashboard/i)).not.toBeInTheDocument();
+        });
+
+        it("navigates to dashboard after verifying the correct code", async () => {
+            renderLoginPage();
+            await userEvent.type(screen.getByLabelText(/username/i), "admin");
+            await userEvent.type(
+                screen.getByLabelText(/^password$/i),
+                "SecurePass1!",
+            );
+            await userEvent.click(
+                screen.getByRole("button", { name: /log in/i }),
+            );
+
+            const dialog = await screen.findByRole("dialog");
+            const boxes = within(dialog).getAllByRole("textbox");
+            await userEvent.type(boxes[0], VALID_MFA_CODE);
+            await userEvent.click(
+                within(dialog).getByRole("button", { name: /verify/i }),
+            );
+
+            await waitFor(() => {
+                expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
+            });
+        });
+
+        it("shows an error and keeps the dialog open on a wrong code", async () => {
+            renderLoginPage();
+            await userEvent.type(screen.getByLabelText(/username/i), "admin");
+            await userEvent.type(
+                screen.getByLabelText(/^password$/i),
+                "SecurePass1!",
+            );
+            await userEvent.click(
+                screen.getByRole("button", { name: /log in/i }),
+            );
+
+            const dialog = await screen.findByRole("dialog");
+            const boxes = within(dialog).getAllByRole("textbox");
+            await userEvent.type(boxes[0], "000000");
+            await userEvent.click(
+                within(dialog).getByRole("button", { name: /verify/i }),
+            );
+
+            const banner = await screen.findByRole("alert");
+            expect(banner).toHaveTextContent(/incorrect or expired code/i);
+            expect(screen.getByRole("dialog")).toBeInTheDocument();
+        });
+
+        it("closes the dialog without navigating when cancelled", async () => {
+            renderLoginPage();
+            await userEvent.type(screen.getByLabelText(/username/i), "admin");
+            await userEvent.type(
+                screen.getByLabelText(/^password$/i),
+                "SecurePass1!",
+            );
+            await userEvent.click(
+                screen.getByRole("button", { name: /log in/i }),
+            );
+
+            const dialog = await screen.findByRole("dialog");
+            await userEvent.click(
+                within(dialog).getByRole("button", { name: "Cancel" }),
+            );
+
+            expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+            expect(screen.queryByText(/dashboard/i)).not.toBeInTheDocument();
+        });
     });
 });

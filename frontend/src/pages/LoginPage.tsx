@@ -3,13 +3,24 @@ import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { AxiosError } from "axios";
+import { notifyCritical, notifySafe } from "@/components/ui/toast";
 import { useAuthStore } from "@/store/authStore";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BrandPanel } from "@/components/auth/BrandPanel";
+import { PasswordVisibilityToggle } from "@/components/auth/PasswordVisibilityToggle";
+import { MfaCodeDialog } from "@/components/auth/MfaCodeDialog";
+import {
+    labelClass,
+    inputClass,
+    errorClass,
+    passwordToggleClass,
+} from "@/components/auth/authFormStyles";
 
 // Validation schema
 const loginSchema = z.object({
@@ -19,33 +30,16 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const labelClass = "text-white md:text-primary text-sm font-medium";
-const inputClass =
-    "bg-input md:bg-card text-foreground placeholder:text-muted-foreground border-0 md:border md:border-border focus-visible:ring-2 focus-visible:ring-white/40 md:focus-visible:ring-ring/40";
-const errorClass = "text-xs text-red-300 md:text-destructive";
-
-function BrandPanel() {
-    return (
-        <div className="hidden md:flex md:w-1/2 bg-brand-navy flex-col items-center justify-center gap-6 px-12">
-            <img
-                src="/icons/SavannaSentinelLogo.png"
-                alt=""
-                aria-hidden="true"
-                className="w-64 h-auto"
-            />
-            <p className="text-white/50 text-xs tracking-[0.22em] uppercase text-center">
-                Wildlife Conservation Monitoring
-            </p>
-        </div>
-    );
-}
-
 export default function LoginPage() {
     const navigate = useNavigate();
     const login = useAuthStore((s) => s.login);
+    const verifyMfa = useAuthStore((s) => s.verifyMfa);
+    const resendMfa = useAuthStore((s) => s.resendMfa);
 
     const [showPassword, setShowPassword] = useState(false);
-    const [serverError, setServerError] = useState<string | null>(null);
+    const [isMfaOpen, setIsMfaOpen] = useState(false);
+    const [mfaToken, setMfaToken] = useState<string | null>(null);
+    const [isMfaSubmitting, setIsMfaSubmitting] = useState(false);
 
     const {
         register,
@@ -57,29 +51,76 @@ export default function LoginPage() {
     });
 
     async function onSubmit(values: LoginFormValues) {
-        setServerError(null);
-
         try {
-            await login(values.username, values.password);
+            const result = await login(values.username, values.password);
+            if (result.mfaRequired) {
+                setMfaToken(result.mfaToken);
+                setIsMfaOpen(true);
+                return;
+            }
             navigate("/dashboard");
         } catch (err) {
             const axiosErr = err as AxiosError<{ detail: string }>;
 
             if (axiosErr.response?.status === 401) {
-                setServerError(
-                    "Incorrect username or password. Please try again.",
+                notifyCritical(
+                    "Login failed",
+                    "Incorrect username or password. Check your details and try again.",
                 );
             } else {
-                setServerError("Something went wrong. Please try again later.");
+                notifyCritical(
+                    "Login failed",
+                    "An error occurred. Try again later.",
+                );
             }
+        }
+    }
+
+    async function handleMfaSubmit(code: string) {
+        if (!mfaToken) return;
+
+        setIsMfaSubmitting(true);
+        try {
+            await verifyMfa(mfaToken, code);
+            setIsMfaOpen(false);
+            navigate("/dashboard");
+        } catch (err) {
+            const axiosErr = err as AxiosError<{ detail: string }>;
+
+            notifyCritical(
+                "Verification failed",
+                axiosErr.response?.status === 401
+                    ? "Incorrect or expired code. Try again."
+                    : "An error occurred. Try again later.",
+            );
+        } finally {
+            setIsMfaSubmitting(false);
+        }
+    }
+
+    async function handleMfaResend() {
+        if (!mfaToken) return;
+
+        try {
+            await resendMfa(mfaToken);
+            notifySafe("Code sent", "A new code has been emailed to you.");
+        } catch (err) {
+            const axiosErr = err as AxiosError<{ detail: string }>;
+
+            notifyCritical(
+                "Couldn't resend code",
+                axiosErr.response?.status === 429
+                    ? "Please wait a bit before requesting another code."
+                    : "An error occurred. Try again later.",
+            );
         }
     }
 
     return (
         <div className="min-h-screen flex flex-col md:flex-row">
-            <BrandPanel />
+            <BrandPanel logoAlt="" logoAriaHidden />
 
-            <div className="flex-1 flex flex-col items-center justify-center bg-brand-navy md:bg-background px-6 py-10">
+            <div className="flex-1 flex flex-col items-center justify-center bg-color-surface-deep md:bg-color-surface-bg px-6 py-10">
                 <img
                     src="/icons/SavannaSentinelLogo.png"
                     alt="Savanna Sentinel Logo"
@@ -87,18 +128,9 @@ export default function LoginPage() {
                 />
 
                 <div className="w-full max-w-[320px]">
-                    <h1 className="text-center text-2xl font-light tracking-[0.18em] text-white md:text-primary mb-8">
+                    <h1 className="text-center text-2xl font-light tracking-[0.18em] text-color-text-inverse md:text-color-text-primary mb-8">
                         LOGIN
                     </h1>
-
-                    {serverError && (
-                        <p
-                            role="alert"
-                            className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-center text-xs text-red-300 md:text-destructive"
-                        >
-                            {serverError}
-                        </p>
-                    )}
 
                     <form
                         onSubmit={handleSubmit(onSubmit)}
@@ -116,7 +148,10 @@ export default function LoginPage() {
                                 placeholder="Username"
                                 autoComplete="username"
                                 autoFocus
-                                className={inputClass}
+                                className={cn(
+                                    inputClass,
+                                    errors.username && "border-status-critical",
+                                )}
                                 {...register("username")}
                             />
 
@@ -138,28 +173,20 @@ export default function LoginPage() {
                                     type={showPassword ? "text" : "password"}
                                     placeholder="Password"
                                     autoComplete="current-password"
-                                    className={`${inputClass} pr-10`}
+                                    className={cn(
+                                        inputClass,
+                                        "pr-12",
+                                        errors.password &&
+                                            "border-status-critical",
+                                    )}
                                     {...register("password")}
                                 />
 
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label={
-                                        showPassword
-                                            ? "Hide password"
-                                            : "Show password"
-                                    }
-                                    onClick={() => setShowPassword((v) => !v)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-black transition-colors md:text-muted-foreground md:hover:text-foreground"
-                                >
-                                    {showPassword ? (
-                                        <EyeOff size={17} />
-                                    ) : (
-                                        <Eye size={17} />
-                                    )}
-                                </Button>
+                                <PasswordVisibilityToggle
+                                    isVisible={showPassword}
+                                    onToggle={() => setShowPassword((v) => !v)}
+                                    className={passwordToggleClass}
+                                />
                             </div>
 
                             {errors.password && (
@@ -173,7 +200,7 @@ export default function LoginPage() {
                             <Button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="bg-brand-light-blue md:bg-primary text-foreground md:text-primary-foreground hover:bg-brand-light-blue/80 md:hover:bg-primary/80 px-7 py-2.5 rounded-lg text-base transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="min-h-11 px-5 py-3 rounded-lg"
                             >
                                 {isSubmitting ? (
                                     <>
@@ -190,17 +217,26 @@ export default function LoginPage() {
                         </div>
                     </form>
 
-                    <p className="mt-7 text-center text-xs text-white/80 md:text-muted-foreground">
-                        Don’t have an account?{" "}
+                    <p className="mt-7 text-center text-xs text-color-text-inverse/80 md:text-color-text-secondary">
+                        Don&rsquo;t have an account?{" "}
                         <Link
                             to="/register"
-                            className="text-white hover:underline md:text-primary"
+                            className="rounded-sm px-1 font-semibold text-color-text-inverse transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-color-text-inverse md:text-brand-primary md:hover:text-color-surface-deep md:focus-visible:outline-brand-primary"
                         >
                             Register
                         </Link>
                     </p>
                 </div>
             </div>
+
+            <MfaCodeDialog
+                key={mfaToken}
+                open={isMfaOpen}
+                onOpenChange={setIsMfaOpen}
+                onSubmit={handleMfaSubmit}
+                onResend={handleMfaResend}
+                isSubmitting={isMfaSubmitting}
+            />
         </div>
     );
 }

@@ -4,3 +4,26 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
+
+export function formatRole(role: string) {
+    return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function currentLocalDatetime(): string {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+export function formatRelativeTime(timestamp: string) {
+    const diffMs = Date.now() - new Date(timestamp).getTime();
+    const diffMin = Math.max(0, Math.floor(diffMs / 60_000));
+
+    if (diffMin < 60) return `${diffMin} min ago`;
+
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr} hr ago`;
+
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay} day${diffDay === 1 ? "" : "s"} ago`;
+}
