@@ -146,6 +146,7 @@ export default function ReportsPage() {
             window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (err) {
             notifySafe("Upate failed", "Unable to update report");
+            console.error(err);
         }
     };
 
@@ -156,6 +157,7 @@ export default function ReportsPage() {
             notifySafe("Report deleted");
         } catch (err) {
             notifySafe("Delete failed");
+            console.error(err);
         }
     };
 

@@ -97,17 +97,28 @@ export interface ListReportsQueryParams {
 }
 
 export const reportsApi = {
-    submitReport: async (payload: ReportCreate): Promise<ReportSubmitResponse> =>
+    submitReport: async (
+        payload: ReportCreate,
+    ): Promise<ReportSubmitResponse> =>
         api.post<ReportSubmitResponse>("/reports", payload).then((r) => r.data),
 
-    listReports: async (payload?: ListReportsQueryParams): Promise<ReportListResponse> =>
-        api.get<ReportListResponse>("/reports", { params: payload }).then((r) => r.data),
+    listReports: async (
+        payload?: ListReportsQueryParams,
+    ): Promise<ReportListResponse> =>
+        api
+            .get<ReportListResponse>("/reports", { params: payload })
+            .then((r) => r.data),
 
-    updateReport: async (reportId: string, payload: ReportUpdate): Promise<ReportSubmitResponse> =>
-        api.patch<ReportSubmitResponse>(`/reports/${reportId}`, payload).then((r) => r.data),
+    updateReport: async (
+        reportId: string,
+        payload: ReportUpdate,
+    ): Promise<ReportSubmitResponse> =>
+        api
+            .patch<ReportSubmitResponse>(`/reports/${reportId}`, payload)
+            .then((r) => r.data),
 
     deleteReport: async (reportId: string): Promise<void> => {
-        await api.delete(`/reports/${reportId}`)
+        await api.delete(`/reports/${reportId}`);
     },
 
     getReport: async (reportId: string): Promise<ReportResponse> =>
