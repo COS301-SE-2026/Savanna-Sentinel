@@ -10,8 +10,8 @@ import React, { useState } from "react";
 import { type ChangeEvent } from "react";
 import {
     FILE_SCHEMA,
-    type Expectation,
     type ColDef,
+    validateData,
 } from "@/lib/ingestionSchema";
 import { ingestionApi } from "@/services/ingestionApi";
 
@@ -71,30 +71,6 @@ const parseServerError = (error: unknown): ServerErrorDetail | null => {
         return axiosError.response?.data?.detail ?? null;
     }
     return null;
-};
-
-const validateData = (value: string, expected: Expectation): boolean => {
-    if (!value) {
-        return false;
-    }
-
-    switch (expected) {
-        case "number":
-            return !Number.isNaN(Number(value));
-        case "boolean":
-            return (
-                value.toLowerCase() === "true" ||
-                value.toLowerCase() === "false" ||
-                value.toLowerCase() === "1" ||
-                value.toLowerCase() === "0"
-            );
-        case "date":
-            return !Number.isNaN(Date.parse(value));
-        //Add more data types as needed here
-        case "string":
-        default:
-            return true;
-    }
 };
 
 const IngestionPage = () => {
