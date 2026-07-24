@@ -13,6 +13,7 @@ import type {
     ReportUpdate,
 } from "@/services/reportsApi";
 
+// Helper functions
 function mapToDraft(item: ReportListItem): DraftReport {
     return {
         localId: item.report_id,
@@ -34,6 +35,21 @@ function mapToDraft(item: ReportListItem): DraftReport {
         syncStatus: "pending",
     };
 }
+
+function formatToUTC(dateString: string): string {
+    const parsed = new Date(dateString);
+    if (isNaN(parsed.getTime())) {
+        return new Date().toISOString();
+    }
+
+    const now = new Date();
+    if (parsed > now) {
+        return now.toISOString();
+    }
+
+    return parsed.toISOString();
+}
+// Helper functions end
 
 // todo
 // implement the media upload
@@ -85,7 +101,7 @@ export default function ReportsPage() {
         const payload: ReportCreate = {
             report_type: input.reportType,
             location: { lat: input.lat, lon: input.lon },
-            occurred_at: input.occurredAt,
+            occurred_at: formatToUTC(input.occurredAt),
             description: input.description,
             incident_type: input.incidentType || undefined,
             severity: input.severity || undefined,
@@ -128,7 +144,7 @@ export default function ReportsPage() {
                 input.lat !== null && input.lon !== null
                     ? { lat: input.lat, lon: input.lon }
                     : undefined,
-            occurred_at: input.occurredAt,
+            occurred_at: formatToUTC(input.occurredAt),
             incident_type: input.incidentType || undefined,
             severity: input.severity || undefined,
             species: input.species || undefined,
@@ -190,6 +206,7 @@ export default function ReportsPage() {
 
                 <TabsContent value="all" className="mt-6">
                     {isLoading ? (
+                        //replace with a better loading state, like the skeleton loading
                         <p>Loading reports...</p>
                     ) : (
                         <ReportList
