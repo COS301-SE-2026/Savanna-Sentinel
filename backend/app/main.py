@@ -5,6 +5,7 @@ from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.ingestion import router as ingestion_router
 from app.api.v1.reports import router as reports_router
+from app.api.v1.routes import router as routes_router
 
 # As other routers are built, import and include them here:
 from app.api.v1.users import router as users_router
@@ -29,6 +30,7 @@ app.add_middleware(
 # Routers
 app.include_router(auth_router, prefix="/v1")
 app.include_router(users_router, prefix="/v1")
+app.include_router(routes_router, prefix="/v1")
 
 app.include_router(ingestion_router, prefix="/v1")
 app.include_router(reports_router, prefix="/v1")
