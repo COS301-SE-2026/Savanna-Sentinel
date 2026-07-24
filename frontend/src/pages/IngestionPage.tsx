@@ -1,33 +1,10 @@
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import React, { useState } from "react";
-import {
-    FILE_SCHEMA,
-    type ColDef,
-    validateData,
-} from "@/lib/ingestionSchema";
+import { useState } from "react";
+import { FILE_SCHEMA, validateData } from "@/lib/ingestionSchema";
 import { ingestionApi } from "@/services/ingestionApi";
 import { UploadWizard } from "@/components/ingestion/UploadWizard";
+import { DataPreview } from "@/components/ingestion/DataPreview";
 
 const BATCH_SIZE = 500;
-
-interface DataRowProps {
-    rowIndex: number;
-    cells: string[];
-    schema: ColDef[];
-    rowServerErrors?: ServerValidationError[];
-    onCellChange: (
-        rowIndex: number,
-        cellIndex: number,
-        newValue: string,
-    ) => void;
-}
 
 interface ServerValidationError {
     column: string;
@@ -210,113 +187,19 @@ const IngestionPage = () => {
                     <button onClick={handleDataSubmission}>
                         Submit Current Batch
                     </button>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                {FILE_SCHEMA.map((col) => (
-                                    <TableHead key={col.name}>
-                                        {col.name} ({col.type})
-                                    </TableHead>
-                                ))}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {parsedRows.map((row, i) => {
-                                const rowKey = `row_${i + 1}`;
-                                const rowErrors = serverErrors
-                                    ? serverErrors[rowKey]
-                                    : undefined;
-
-                                return (
-                                    <DataRow
-                                        key={rowKey}
-                                        rowIndex={i}
-                                        cells={row}
-                                        schema={FILE_SCHEMA}
-                                        rowServerErrors={rowErrors}
-                                        onCellChange={handleCellChange}
-                                    />
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
+                    {parsedRows.length > 0 && (
+                        <DataPreview
+                            schema={FILE_SCHEMA}
+                            rows={parsedRows}
+                            serverErrors={serverErrors}
+                            onCellChange={handleCellChange}
+                        />
+                    )}
                 </div>
             ) : (
                 !isComplete && "No data loaded"
             )}
         </div>
-    );
-};
-
-const DataRow: React.FC<DataRowProps> = ({
-    rowIndex,
-    cells,
-    schema,
-    rowServerErrors,
-    onCellChange,
-}) => {
-    return (
-        <TableRow>
-            {schema.map((typeDef, i) => {
-                //Mark missing data as empty
-                const cellValue = cells[i] ?? "";
-
-                //Mark something out of bounds invalid automatically
-                const isTypeValid = typeDef
-                    ? validateData(cellValue, typeDef.type)
-                    : false;
-
-                const isEmpty = cellValue === "";
-
-                const matchingServerError = rowServerErrors?.find(
-                    (err) => err.column === typeDef.name,
-                );
-                const hasServerError = !!matchingServerError;
-                const isInvalid = !isTypeValid || isEmpty || hasServerError;
-
-                const shouldHighlightBg = isEmpty || hasServerError;
-
-                let titleMessage: string | undefined = undefined;
-                if (isEmpty) {
-                    titleMessage = `Field "${typeDef.name}" is missing/empty`;
-                } else if (!isTypeValid) {
-                    titleMessage = `Expected ${typeDef.type} but got "${cellValue}"`;
-                } else if (matchingServerError) {
-                    titleMessage = `Server Validation Failed: ${matchingServerError.message}`;
-                }
-
-                return (
-                    <TableCell key={typeDef.name}>
-                        <div>
-                            <input
-                                type="text"
-                                value={cellValue}
-                                className={
-                                    matchingServerError ? "border-red-500" : ""
-                                }
-                                onChange={(e) =>
-                                    onCellChange(rowIndex, i, e.target.value)
-                                }
-                                style={{
-                                    backgroundColor: shouldHighlightBg
-                                        ? "rgb(239, 30, 30, 0.15)"
-                                        : "transparent",
-                                    color: isInvalid ? "red" : "inherit",
-                                    fontWeight: isInvalid ? "bold" : "normal",
-                                    border: matchingServerError
-                                        ? "1px solid red"
-                                        : "none",
-                                    outline: matchingServerError
-                                        ? "none"
-                                        : undefined,
-                                }}
-                                title={titleMessage}
-                            />
-                        </div>
-                    </TableCell>
-                );
-            })}
-        </TableRow>
     );
 };
 
