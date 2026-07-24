@@ -42,6 +42,7 @@ jobs:
           DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
           MINIO_ACCESS: ${{ secrets.TEST_MINIO_ACCESS_KEY }}
           MINIO_SECRET: ${{ secrets.TEST_MINIO_SECRET_KEY }}
+          RESEND_SECRET: ${{ secrets.TEST_RESEND_API_KEY }}
 
         run: |
           cat <<EOF > backend/.env
@@ -54,6 +55,10 @@ jobs:
           MINIO_ENDPOINT=minio:9000
           MINIO_ACCESS_KEY=${MINIO_ACCESS}
           MINIO_SECRET_KEY=${MINIO_SECRET}
+          RESEND_API_KEY=${RESEND_SECRET}
+          RESEND_FROM_ADDRESS=noreply@savannasentinel.co.za
+          MFA_ENABLED=false
+          FRONTEND_BASE_URL=http://localhost:5173
           EOF
       
       - name: Start Application Stack
