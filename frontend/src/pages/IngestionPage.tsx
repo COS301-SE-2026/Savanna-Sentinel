@@ -3,6 +3,10 @@ import { FILE_SCHEMA, validateData } from "@/lib/ingestionSchema";
 import { ingestionApi } from "@/services/ingestionApi";
 import { UploadWizard } from "@/components/ingestion/UploadWizard";
 import { DataPreview } from "@/components/ingestion/DataPreview";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
+import { ValidationErrors } from "@/components/ingestion/ValidationErrors";
 
 const BATCH_SIZE = 500;
 
@@ -119,7 +123,7 @@ const IngestionPage = () => {
     };
     const handleDataSubmission = async () => {
         if (!isDataValid()) {
-            alert("Cannot submit, validation errors exist in this batch");
+            notifyCritical("Cannot submit", "This batch has validation errors.");
             return;
         }
 
@@ -136,7 +140,7 @@ const IngestionPage = () => {
             if (nextLine >= allLines.length) {
                 setIsComplete(true);
                 setParsedRows([]);
-                alert("Success! The entire file has been uploaded");
+                notifySafe("Upload complete", "The entire file has been ingested.");
             } else {
                 loadBatch(allLines, nextLine);
             }
@@ -177,23 +181,34 @@ const IngestionPage = () => {
             <h1>File contents</h1>
             {allLines.length > 0 && parsedRows.length > 0 ? (
                 <div>
-                    <h3>
-                        Displaying rows {currentLineNumber} to{" "}
-                        {Math.min(
-                            currentLineNumber + parsedRows.length - 1,
-                            allLines.length - 1,
-                        )}
-                    </h3>
-                    <button onClick={handleDataSubmission}>
-                        Submit Current Batch
-                    </button>
+                    {allLines.length > 0 && !isComplete && (
+                        <div className="mb-4 space-y-1">
+                            <Progress
+                                value={(currentLineNumber / allLines.length) * 100}
+                            />
+                            <p className="text-xs text-color-text-secondary">
+                                Rows {currentLineNumber}–
+                                {Math.min(
+                                    currentLineNumber + parsedRows.length - 1,
+                                    allLines.length - 1,
+                                )}{" "}
+                                of {allLines.length}
+                            </p>
+                        </div>
+                    )}
+                    <ValidationErrors errors={serverErrors} />
                     {parsedRows.length > 0 && (
-                        <DataPreview
-                            schema={FILE_SCHEMA}
-                            rows={parsedRows}
-                            serverErrors={serverErrors}
-                            onCellChange={handleCellChange}
-                        />
+                        <>
+                            <Button onClick={handleDataSubmission} className="mb-4">
+                                Submit Current Batch
+                            </Button>
+                            <DataPreview
+                                schema={FILE_SCHEMA}
+                                rows={parsedRows}
+                                serverErrors={serverErrors}
+                                onCellChange={handleCellChange}
+                            />
+                        </>
                     )}
                 </div>
             ) : (
