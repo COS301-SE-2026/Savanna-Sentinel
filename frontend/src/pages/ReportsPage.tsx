@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import { NewReportTab } from "@/components/reports/NewReportTab";
 import { ReportList } from "@/components/reports/ReportList";
 import { notifySafe } from "@/components/ui/toast";
+import { toDatetimeLocalValue } from "@/lib/utils";
 import type { DraftReport, DraftReportInput } from "@/types/reports";
 import { reportsApi } from "@/services/reportsApi";
 import type {
@@ -24,7 +25,7 @@ function mapToDraft(item: ReportListItem): DraftReport {
         severity: (item.severity as "low" | "medium" | "high") || null,
         species: item.species || "",
         count: item.count ?? null,
-        occurredAt: item.occurred_at,
+        occurredAt: toDatetimeLocalValue(new Date(item.occurred_at)),
         lat: item.location?.lat ?? null,
         lon: item.location?.lon ?? null,
         photos: (item.images || []).map((url) => ({
@@ -32,7 +33,7 @@ function mapToDraft(item: ReportListItem): DraftReport {
             previewUrl: url,
         })),
         createdAt: item.created_at,
-        syncStatus: "pending",
+        syncStatus: item.sync_status as DraftReport["syncStatus"],
     };
 }
 
@@ -82,10 +83,12 @@ export default function ReportsPage() {
         fetchReports();
     }, []);
 
-    // should this not be user?.id or smth
     const myDrafts = useMemo(
-        () => reports.filter((r) => r.submittedBy === user?.username),
-        [reports, user?.username],
+        () =>
+            reports.filter(
+                (r) => r.submittedBy === user?.id && r.syncStatus !== "synced",
+            ),
+        [reports, user?.id],
     );
 
     const handleCreate = async (input: DraftReportInput) => {

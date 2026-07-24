@@ -56,8 +56,7 @@ describe("ReportsPage", () => {
         });
         vi.mocked(reportsApi.submitReport).mockResolvedValue({
             report_id: "rep-123",
-            // dk if this is username or user id? same question in ReportsPage.tsx
-            submitted_by: "ranger1",
+            submitted_by: "u1",
             created_at: new Date().toISOString(),
         } as Awaited<ReturnType<typeof reportsApi.submitReport>>);
         vi.mocked(reportsApi.updateReport).mockResolvedValue(
