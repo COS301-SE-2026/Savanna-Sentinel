@@ -37,6 +37,8 @@ function mapToDraft(item: ReportListItem): DraftReport {
 
 // todo
 // implement the media upload
+// Note: reason media upload not done is because no
+//       mino upload is present and thus cannot be done yet
 
 // todo
 // this array should live in a Dexie table so drafts carry on reload
