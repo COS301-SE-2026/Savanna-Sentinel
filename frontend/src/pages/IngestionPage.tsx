@@ -7,13 +7,13 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import React, { useState } from "react";
-import { type ChangeEvent } from "react";
 import {
     FILE_SCHEMA,
     type ColDef,
     validateData,
 } from "@/lib/ingestionSchema";
 import { ingestionApi } from "@/services/ingestionApi";
+import { UploadWizard } from "@/components/ingestion/UploadWizard";
 
 const BATCH_SIZE = 500;
 
@@ -74,7 +74,6 @@ const parseServerError = (error: unknown): ServerErrorDetail | null => {
 };
 
 const IngestionPage = () => {
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [parsedRows, setParsedRows] = useState<string[][]>([]);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [currentLineNumber, setCurrentLineNumber] = useState<number>(1);
@@ -97,74 +96,10 @@ const IngestionPage = () => {
         setServerErrors(null);
     };
 
-    const validateSchema = async (file: File): Promise<boolean> => {
-        try {
-            const text = await file.text();
-            const lines = text
-                .split(/\r?\n/)
-                .map((line) => line.trim())
-                .filter((line) => line !== "");
-            const firstLine = lines[0];
-
-            if (!firstLine) {
-                setErrorMessage(
-                    "The uploaded file is empty, please ensure the first row of the file indicates column headings.",
-                );
-                setSelectedFile(null);
-                setParsedRows([]);
-                return false;
-            }
-            const headers = firstLine.split(",").map((header) => header.trim());
-            if (
-                headers.length !== FILE_SCHEMA.length ||
-                !FILE_SCHEMA.every((col, i) => headers[i] === col.name)
-            ) {
-                setErrorMessage(
-                    "Invalid first row, please ensure that the first row matches the expected schema.",
-                );
-                setSelectedFile(null);
-                setParsedRows([]);
-                return false;
-            }
-            setAllLines(lines);
-            loadBatch(lines, 1);
-
-            return true;
-        } catch (error: unknown) {
-            setErrorMessage("Error reading the file. Please contact support.");
-            console.error(error);
-            setSelectedFile(null);
-            setParsedRows([]);
-            return false;
-        }
-    };
-
-    const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-        const files = event.target.files;
-        //Use only the first selected file
-        if (!files || files.length === 0) {
-            return;
-        }
-
-        const file = files[0];
-
-        if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
-            setErrorMessage("The program only accepts .csv files.");
-            event.target.value = "";
-            return;
-        }
-
-        //Clear error messages
-        setErrorMessage(null);
-        setServerErrors(null);
+    const handleFileAccepted = (lines: string[]) => {
+        setAllLines(lines);
         setIsComplete(false);
-        const isValid = await validateSchema(file);
-        if (!isValid) {
-            event.target.value = "";
-            return;
-        }
-
-        setSelectedFile(file);
+        loadBatch(lines, 1);
     };
 
     const handleCellChange = (
@@ -224,7 +159,6 @@ const IngestionPage = () => {
             if (nextLine >= allLines.length) {
                 setIsComplete(true);
                 setParsedRows([]);
-                setSelectedFile(null);
                 alert("Success! The entire file has been uploaded");
             } else {
                 loadBatch(allLines, nextLine);
@@ -253,13 +187,9 @@ const IngestionPage = () => {
             <h1 className="mb-6 font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
                 Data Ingestion
             </h1>
-            {/* File type should always be .csv but adding it for dynamic reasons*/}
-            <input
-                type="file"
-                accept=".csv"
-                aria-label="CSV file upload"
-                onChange={handleFileUpload}
-            />
+            {allLines.length === 0 && (
+                <UploadWizard onFileAccepted={handleFileAccepted} />
+            )}
             {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
             {isComplete && (
                 <p style={{ color: "green" }}>
@@ -268,7 +198,7 @@ const IngestionPage = () => {
             )}
 
             <h1>File contents</h1>
-            {selectedFile && parsedRows.length > 0 ? (
+            {allLines.length > 0 && parsedRows.length > 0 ? (
                 <div>
                     <h3>
                         Displaying rows {currentLineNumber} to{" "}
