@@ -249,8 +249,10 @@ const IngestionPage = () => {
         }
     };
     return (
-        <div>
-            <h1>Example File Upload location</h1>
+        <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
+            <h1 className="mb-6 font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
+                Data Ingestion
+            </h1>
             {/* File type should always be .csv but adding it for dynamic reasons*/}
             <input
                 type="file"
