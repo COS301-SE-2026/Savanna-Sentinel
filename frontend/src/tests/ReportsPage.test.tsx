@@ -4,9 +4,19 @@ import userEvent from "@testing-library/user-event";
 import ReportsPage from "@/pages/ReportsPage";
 import { useAuthStore } from "@/store/authStore";
 import { notifySafe } from "@/components/ui/toast";
+import { reportsApi } from "@/services/reportsApi";
 
 vi.mock("@/components/ui/toast", () => ({
     notifySafe: vi.fn(),
+}));
+
+vi.mock("@/services/reportsApi", () => ({
+    reportsApi: {
+        listReports: vi.fn(),
+        submitReport: vi.fn(),
+        updateReport: vi.fn(),
+        deleteReport: vi.fn(),
+    },
 }));
 
 function setUser(role: string) {
@@ -38,10 +48,24 @@ describe("ReportsPage", () => {
         URL.createObjectURL = vi.fn(() => "blob:mock-url");
         URL.revokeObjectURL = vi.fn();
         vi.mocked(notifySafe).mockClear();
+        vi.mocked(reportsApi.listReports).mockResolvedValue({
+            results: [],
+            total: 0,
+            page: 1,
+            page_size: 10,
+        });
+        vi.mocked(reportsApi.submitReport).mockResolvedValue({
+            report_id: "rep-123",
+            submitted_by: "ranger1", // dk if this is username or user id? same question in ReportsPage.tsx
+            created_at: new Date().toISOString(),
+        } as any);
+        vi.mocked(reportsApi.updateReport).mockResolvedValue({} as any);
+        vi.mocked(reportsApi.deleteReport).mockResolvedValue({} as any);
         vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     });
 
     afterEach(() => {
+        vi.clearAllMocks();
         useAuthStore.setState({
             user: null,
             accessToken: null,
