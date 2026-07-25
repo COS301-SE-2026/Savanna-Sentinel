@@ -1,12 +1,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ReportsPage from "@/pages/ReportsPage";
 import { useAuthStore } from "@/store/authStore";
 import { notifySafe } from "@/components/ui/toast";
+import { reportsApi } from "@/services/reportsApi";
 
 vi.mock("@/components/ui/toast", () => ({
     notifySafe: vi.fn(),
+}));
+
+vi.mock("@/services/reportsApi", () => ({
+    reportsApi: {
+        listReports: vi.fn(),
+        submitReport: vi.fn(),
+        updateReport: vi.fn(),
+        deleteReport: vi.fn(),
+    },
 }));
 
 function setUser(role: string) {
@@ -38,10 +48,30 @@ describe("ReportsPage", () => {
         URL.createObjectURL = vi.fn(() => "blob:mock-url");
         URL.revokeObjectURL = vi.fn();
         vi.mocked(notifySafe).mockClear();
+        vi.mocked(reportsApi.listReports).mockResolvedValue({
+            results: [],
+            total: 0,
+            page: 1,
+            page_size: 10,
+        });
+        vi.mocked(reportsApi.submitReport).mockResolvedValue({
+            report_id: "rep-123",
+            submitted_by: "u1",
+            created_at: new Date().toISOString(),
+        } as Awaited<ReturnType<typeof reportsApi.submitReport>>);
+        vi.mocked(reportsApi.updateReport).mockResolvedValue(
+            {} as Awaited<ReturnType<typeof reportsApi.updateReport>>,
+        );
+        vi.mocked(reportsApi.deleteReport).mockResolvedValue(
+            {} as unknown as Awaited<
+                ReturnType<typeof reportsApi.deleteReport>
+            >,
+        );
         vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     });
 
     afterEach(() => {
+        vi.clearAllMocks();
         useAuthStore.setState({
             user: null,
             accessToken: null,
@@ -49,7 +79,52 @@ describe("ReportsPage", () => {
         });
     });
 
-    it("shows both tabs for a ranger, defaulting to New Report", () => {
+    it("fetches and renders reports on load", async () => {
+        vi.mocked(reportsApi.listReports).mockResolvedValueOnce({
+            results: [
+                {
+                    report_id: "rep-1",
+                    submitted_by: "ranger1",
+                    report_type: "incident",
+                    description: "Initial poached snare",
+                    incident_type: "Snare Found",
+                    severity: "high",
+                    occurred_at: "2026-01-01T00:00:00Z",
+                    location: { lat: -25.1, lon: 28.1 },
+                    images: [],
+                    created_at: "2026-01-01T00:00:00Z",
+                } as unknown as Awaited<
+                    ReturnType<typeof reportsApi.listReports>
+                >["results"][number],
+            ],
+            total: 1,
+            page: 1,
+            page_size: 10,
+        });
+
+        setUser("ranger");
+        render(<ReportsPage />);
+        await userEvent.click(screen.getByRole("tab", { name: "All Reports" }));
+        expect(
+            await screen.findByText("Initial poached snare"),
+        ).toBeInTheDocument();
+    });
+
+    it("shows a toast notification if fetching reports fail", async () => {
+        vi.mocked(reportsApi.listReports).mockRejectedValueOnce(
+            new Error("Network error"),
+        );
+        setUser("ranger");
+        render(<ReportsPage />);
+        await waitFor(() => {
+            expect(notifySafe).toHaveBeenCalledWith(
+                "Error",
+                "Failed to fetch reports",
+            );
+        });
+    });
+
+    it("shows both tabs for a ranger, defaulting to New Report", async () => {
         setUser("ranger");
         render(<ReportsPage />);
         expect(screen.getByRole("tab", { name: "New Report" })).toHaveAttribute(
@@ -61,7 +136,7 @@ describe("ReportsPage", () => {
         ).toBeInTheDocument();
     });
 
-    it("shows only All Reports for an analyst, with no submit controls", () => {
+    it("shows only All Reports for an analyst, with no submit controls", async () => {
         setUser("analyst");
         render(<ReportsPage />);
         expect(
@@ -96,6 +171,19 @@ describe("ReportsPage", () => {
         );
     });
 
+    it("shows a toast on submission failure, handles submission failure", async () => {
+        vi.mocked(reportsApi.submitReport).mockRejectedValueOnce(
+            new Error("Validation error"),
+        );
+        setUser("ranger");
+        render(<ReportsPage />);
+        await submitMinimalIncidentReport("Snare found near the river");
+        expect(notifySafe).toHaveBeenCalledWith(
+            "Submission failed",
+            "Could not send report to the server",
+        );
+    });
+
     it("shows a toast and scrolls to top when a report is submitted", async () => {
         setUser("ranger");
         render(<ReportsPage />);
@@ -121,6 +209,7 @@ describe("ReportsPage", () => {
         await userEvent.click(
             screen.getByRole("button", { name: "Save Draft" }),
         );
+        expect(reportsApi.updateReport).toHaveBeenCalled();
         expect(notifySafe).toHaveBeenCalledWith(
             "Draft saved",
             "Your report has been updated.",
@@ -144,6 +233,7 @@ describe("ReportsPage", () => {
         await userEvent.click(
             screen.getByRole("button", { name: "Delete Report" }),
         );
+        expect(reportsApi.deleteReport).toHaveBeenCalled();
         expect(notifySafe).toHaveBeenCalledWith("Report deleted");
     });
 });

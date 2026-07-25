@@ -263,13 +263,18 @@ export function ReportList({
                                             {report.submittedBy}
                                         </TableCell>
                                         <TableCell className={cellClass}>
-                                            {/* todo
-                                                once syncing works,
-                                                a synced report should render
-                                                Badge variant="safe" "Synced" */}
-                                            <Badge variant="caution">
-                                                Pending Sync
-                                            </Badge>
+                                            {report.syncStatus === "synced" ? (
+                                                <Badge variant="safe">
+                                                    Synced
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="caution">
+                                                    {report.syncStatus ===
+                                                    "offline"
+                                                        ? "Offline"
+                                                        : "Pending Sync"}
+                                                </Badge>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}

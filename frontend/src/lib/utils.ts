@@ -9,10 +9,13 @@ export function formatRole(role: string) {
     return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function currentLocalDatetime(): string {
-    const now = new Date();
+export function toDatetimeLocalValue(date: Date): string {
     const pad = (n: number) => String(n).padStart(2, "0");
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function currentLocalDatetime(): string {
+    return toDatetimeLocalValue(new Date());
 }
 
 export function formatRelativeTime(timestamp: string) {
