@@ -13,7 +13,10 @@ describe("LandingPage", () => {
         );
 
         expect(
-            screen.getByRole("heading", { level: 1, name: /savanna\s*sentinel/i }),
+            screen.getByRole("heading", {
+                level: 1,
+                name: /savanna\s*sentinel/i,
+            }),
         ).toBeInTheDocument();
 
         const loginLink = screen.getByRole("link", { name: /log in/i });
