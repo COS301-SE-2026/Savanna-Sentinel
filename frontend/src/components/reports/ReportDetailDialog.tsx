@@ -135,9 +135,15 @@ export function ReportDetailDialog({
                                         {report.submittedBy}
                                     </DetailField>
                                     <DetailField label="Sync Status">
-                                        <Badge variant="caution">
-                                            Pending Sync
-                                        </Badge>
+                                        {report.syncStatus === "synced" ? (
+                                            <Badge variant="safe">Synced</Badge>
+                                        ) : (
+                                            <Badge variant="caution">
+                                                {report.syncStatus === "offline"
+                                                    ? "Offline"
+                                                    : "Pending Sync"}
+                                            </Badge>
+                                        )}
                                     </DetailField>
                                 </div>
 
