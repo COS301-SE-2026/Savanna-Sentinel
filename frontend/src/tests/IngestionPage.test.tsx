@@ -417,4 +417,51 @@ describe("Logic tests - Batch logic", () => {
 
         uploadSpy.mockRestore();
     });
+
+    it("surfaces FastAPI's raw request-validation error shape on the batch", async () => {
+        const user = userEvent.setup();
+
+        const customError = {
+            response: {
+                status: 422,
+                data: {
+                    detail: [
+                        {
+                            type: "int_from_float",
+                            loc: ["body", "records", 0, "id"],
+                            msg: "Input should be a valid integer, got a number with a fractional part",
+                        },
+                    ],
+                },
+            },
+        };
+
+        const uploadSpy = vi
+            .spyOn(ingestionApi, "uploadFile")
+            .mockRejectedValue(customError);
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\n1.5,active"], "test.csv", {
+            type: "text/csv",
+        });
+
+        await user.upload(getFileInput(), csvFile);
+
+        const submitButton = screen.getByRole("button", { name: /submit/i });
+        await user.click(submitButton);
+
+        expect(uploadSpy).toHaveBeenCalledTimes(1);
+
+        expect(screen.queryByText(/network issue/i)).not.toBeInTheDocument();
+        expect(
+            screen.getByText(
+                "Input should be a valid integer, got a number with a fractional part",
+            ),
+        ).toBeInTheDocument();
+
+        const badId = screen.getByDisplayValue("1.5");
+        expect(badId).toHaveAttribute("aria-invalid", "true");
+
+        uploadSpy.mockRestore();
+    });
 });

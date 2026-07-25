@@ -8,7 +8,6 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
-import { ValidationErrors } from "@/components/ingestion/ValidationErrors";
 
 const BATCH_SIZE = 500;
 
@@ -41,18 +40,69 @@ interface ServerErrorDetail {
     message?: string;
     errors?: ServerErrorsMap;
 }
+interface FastApiValidationError {
+    type: string;
+    loc: (string | number)[];
+    msg: string;
+}
+
+const isFastApiValidationErrors = (
+    detail: unknown,
+): detail is FastApiValidationError[] =>
+    Array.isArray(detail) &&
+    detail.every(
+        (item) =>
+            item &&
+            typeof item === "object" &&
+            Array.isArray((item as { loc?: unknown }).loc) &&
+            typeof (item as { msg?: unknown }).msg === "string",
+    );
+
+// loc looks like ["body", "records", <row index>, <column name>]
+const mapFastApiErrorsToServerErrors = (
+    errors: FastApiValidationError[],
+): ServerErrorsMap => {
+    const map: ServerErrorsMap = {};
+
+    errors.forEach(({ loc, msg, type }) => {
+        const rowIndex = loc.find((part) => typeof part === "number");
+        const column = loc[loc.length - 1];
+        if (typeof rowIndex !== "number" || typeof column !== "string") {
+            return;
+        }
+
+        const rowKey = `row_${rowIndex + 1}`;
+        map[rowKey] = [
+            ...(map[rowKey] ?? []),
+            { column, error_type: type, message: msg },
+        ];
+    });
+
+    return map;
+};
 
 const parseServerError = (error: unknown): ServerErrorDetail | null => {
-    if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as {
-            response?: {
-                data?: {
-                    detail?: ServerErrorDetail;
-                };
-            };
-        };
-        return axiosError.response?.data?.detail ?? null;
+    if (!error || typeof error !== "object" || !("response" in error)) {
+        return null;
     }
+
+    const axiosError = error as {
+        response?: { data?: { detail?: unknown } };
+    };
+    const detail = axiosError.response?.data?.detail;
+
+    if (isFastApiValidationErrors(detail)) {
+        return {
+            message:
+                "Some records in this batch failed validation. Correct the highlighted cells and resubmit.",
+            errors: mapFastApiErrorsToServerErrors(detail),
+        };
+    }
+
+    if (detail && typeof detail === "object") {
+        return detail as ServerErrorDetail;
+    }
+
     return null;
 };
 
@@ -222,7 +272,6 @@ const IngestionPage = () => {
                             </p>
                         </div>
                     )}
-                    <ValidationErrors errors={serverErrors} />
                     {parsedRows.length > 0 && (
                         <>
                             <div className="mb-4 flex gap-2">
