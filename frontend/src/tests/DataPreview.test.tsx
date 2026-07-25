@@ -40,7 +40,13 @@ describe("DataPreview", () => {
                 schema={schema}
                 rows={[["1", "Alice"]]}
                 serverErrors={{
-                    row_1: [{ column: "name", error_type: "duplicate", message: "Duplicate name" }],
+                    row_1: [
+                        {
+                            column: "name",
+                            error_type: "duplicate",
+                            message: "Duplicate name",
+                        },
+                    ],
                 }}
                 onCellChange={vi.fn()}
             />,

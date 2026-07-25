@@ -16,10 +16,17 @@ describe("UploadWizard", () => {
         const user = userEvent.setup({ applyAccept: false });
         render(<UploadWizard onFileAccepted={onFileAccepted} />);
 
-        const input = screen.getByLabelText(/drop csv here/i, { selector: "input" });
-        await user.upload(input, new File(["x"], "data.txt", { type: "text/plain" }));
+        const input = screen.getByLabelText(/drop csv here/i, {
+            selector: "input",
+        });
+        await user.upload(
+            input,
+            new File(["x"], "data.txt", { type: "text/plain" }),
+        );
 
-        expect(await screen.findByText(/only \.csv files/i)).toBeInTheDocument();
+        expect(
+            await screen.findByText(/only \.csv files/i),
+        ).toBeInTheDocument();
         expect(onFileAccepted).not.toHaveBeenCalled();
     });
 
@@ -28,10 +35,16 @@ describe("UploadWizard", () => {
         const user = userEvent.setup();
         render(<UploadWizard onFileAccepted={onFileAccepted} />);
 
-        const input = screen.getByLabelText(/drop csv here/i, { selector: "input" });
+        const input = screen.getByLabelText(/drop csv here/i, {
+            selector: "input",
+        });
         await user.upload(input, makeCsvFile("wrong,header\n1,2"));
 
-        expect(await screen.findByText(/doesn't match the expected column schema/i)).toBeInTheDocument();
+        expect(
+            await screen.findByText(
+                /doesn't match the expected column schema/i,
+            ),
+        ).toBeInTheDocument();
         expect(onFileAccepted).not.toHaveBeenCalled();
     });
 
@@ -40,7 +53,9 @@ describe("UploadWizard", () => {
         const user = userEvent.setup();
         render(<UploadWizard onFileAccepted={onFileAccepted} />);
 
-        const input = screen.getByLabelText(/drop csv here/i, { selector: "input" });
+        const input = screen.getByLabelText(/drop csv here/i, {
+            selector: "input",
+        });
         await user.upload(input, makeCsvFile(`${header}\nrow1data`));
 
         expect(onFileAccepted).toHaveBeenCalledWith([header, "row1data"]);

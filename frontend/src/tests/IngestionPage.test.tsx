@@ -6,15 +6,16 @@ import { ingestionApi, type IngestionResponse } from "@/services/ingestionApi";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
 
 //Intercept the schema and replace it with a consistent schema that is seperate from the file
-//Disabled since it must match vi standards
-// eslint-disable-next-line @typescript-eslint/naming-convention
 const DEFAULT_SCHEMA = [
     { name: "id", type: "number" },
     { name: "status", type: "string" },
 ];
+//Disabled since it must match vi standards
+// eslint-disable-next-line @typescript-eslint/naming-convention
 let vi_mockSchema = DEFAULT_SCHEMA;
 vi.mock("@/lib/ingestionSchema", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("@/lib/ingestionSchema")>();
+    const actual =
+        await importOriginal<typeof import("@/lib/ingestionSchema")>();
     return {
         ...actual,
         get FILE_SCHEMA() {
@@ -74,7 +75,9 @@ describe("Rendering tests - File upload errors (not content) ", () => {
         await user.upload(getFileInput(), csvFile);
 
         expect(
-            await screen.findByText(/doesn't match the expected column schema/i),
+            await screen.findByText(
+                /doesn't match the expected column schema/i,
+            ),
         ).toBeInTheDocument();
     });
 
@@ -85,7 +88,9 @@ describe("Rendering tests - File upload errors (not content) ", () => {
         //Mock file reader to make it throw an error everytime, simulating file error
         const readAsTextSpy = vi
             .spyOn(File.prototype, "text")
-            .mockRejectedValue(new Error("Simulated browser file read failure"));
+            .mockRejectedValue(
+                new Error("Simulated browser file read failure"),
+            );
 
         const csvFile = new File(["id,status\n"], "test.csv", {
             type: "text/csv",
@@ -252,7 +257,9 @@ describe("Logic tests - Batch logic", () => {
 
         await user.upload(getFileInput(), largeCsvFile);
 
-        const progress = await screen.findByText(/Rows\s*1\s*[-–]\s*500\s*of\s*503/i);
+        const progress = await screen.findByText(
+            /Rows\s*1\s*[-–]\s*500\s*of\s*503/i,
+        );
         expect(progress).toBeInTheDocument();
 
         const progressbar = screen.getByRole("progressbar");
@@ -381,7 +388,9 @@ describe("Logic tests - Batch logic", () => {
             /Validation failed for some records/i,
         );
         expect(summary).toBeInTheDocument();
-        expect(screen.getByText("Input should be a valid string")).toBeInTheDocument();
+        expect(
+            screen.getByText("Input should be a valid string"),
+        ).toBeInTheDocument();
 
         const badStatus = screen.getByDisplayValue("12345");
         expect(badStatus).toHaveAttribute("aria-invalid", "true");

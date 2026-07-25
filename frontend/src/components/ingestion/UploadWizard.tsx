@@ -27,17 +27,21 @@ export function UploadWizard({ onFileAccepted }: UploadWizardProps) {
 
             const firstLine = lines[0];
             if (!firstLine) {
-                setError("The uploaded file is empty. The first row must be column headings.");
+                setError(
+                    "The uploaded file is empty. The first row must be column headings.",
+                );
                 return;
             }
 
             const headers = firstLine.split(",").map((h) => h.trim());
-            const schemaMatches =
+            const isSchemaMatch =
                 headers.length === FILE_SCHEMA.length &&
                 FILE_SCHEMA.every((col, i) => headers[i] === col.name);
 
-            if (!schemaMatches) {
-                setError("The first row doesn't match the expected column schema.");
+            if (!isSchemaMatch) {
+                setError(
+                    "The first row doesn't match the expected column schema.",
+                );
                 return;
             }
 

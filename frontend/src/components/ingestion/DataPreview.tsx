@@ -22,10 +22,19 @@ interface DataPreviewProps {
     schema: ColDef[];
     rows: string[][];
     serverErrors: ServerErrorsMap | null;
-    onCellChange: (rowIndex: number, cellIndex: number, newValue: string) => void;
+    onCellChange: (
+        rowIndex: number,
+        cellIndex: number,
+        newValue: string,
+    ) => void;
 }
 
-export function DataPreview({ schema, rows, serverErrors, onCellChange }: DataPreviewProps) {
+export function DataPreview({
+    schema,
+    rows,
+    serverErrors,
+    onCellChange,
+}: DataPreviewProps) {
     return (
         <div className="overflow-x-auto rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
             <Table>
@@ -47,25 +56,43 @@ export function DataPreview({ schema, rows, serverErrors, onCellChange }: DataPr
                             <TableRow key={rowKey} className={rowClass}>
                                 {schema.map((col, cellIndex) => {
                                     const value = row[cellIndex] ?? "";
-                                    const isTypeValid = validateData(value, col.type);
+                                    const isTypeValid = validateData(
+                                        value,
+                                        col.type,
+                                    );
                                     const isEmpty = value === "";
-                                    const serverError = rowErrors?.find((e) => e.column === col.name);
-                                    const isInvalid = !isTypeValid || isEmpty || !!serverError;
+                                    const serverError = rowErrors?.find(
+                                        (e) => e.column === col.name,
+                                    );
+                                    const isInvalid =
+                                        !isTypeValid ||
+                                        isEmpty ||
+                                        !!serverError;
 
                                     let message: string | undefined;
-                                    if (isEmpty) message = `"${col.name}" is missing`;
-                                    else if (!isTypeValid) message = `Expected ${col.type}, got "${value}"`;
-                                    else if (serverError) message = serverError.message;
+                                    if (isEmpty)
+                                        message = `"${col.name}" is missing`;
+                                    else if (!isTypeValid)
+                                        message = `Expected ${col.type}, got "${value}"`;
+                                    else if (serverError)
+                                        message = serverError.message;
 
                                     return (
-                                        <TableCell key={col.name} className={cellClass}>
+                                        <TableCell
+                                            key={col.name}
+                                            className={cellClass}
+                                        >
                                             <div className="flex flex-col gap-1">
                                                 <Input
                                                     value={value}
                                                     aria-invalid={isInvalid}
                                                     title={message}
                                                     onChange={(e) =>
-                                                        onCellChange(rowIndex, cellIndex, e.target.value)
+                                                        onCellChange(
+                                                            rowIndex,
+                                                            cellIndex,
+                                                            e.target.value,
+                                                        )
                                                     }
                                                     className={
                                                         isInvalid
@@ -74,7 +101,9 @@ export function DataPreview({ schema, rows, serverErrors, onCellChange }: DataPr
                                                     }
                                                 />
                                                 {isInvalid && message && (
-                                                    <Badge variant="critical">{message}</Badge>
+                                                    <Badge variant="critical">
+                                                        {message}
+                                                    </Badge>
                                                 )}
                                             </div>
                                         </TableCell>

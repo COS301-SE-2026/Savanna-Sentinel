@@ -123,7 +123,10 @@ const IngestionPage = () => {
     };
     const handleDataSubmission = async () => {
         if (!isDataValid()) {
-            notifyCritical("Cannot submit", "This batch has validation errors.");
+            notifyCritical(
+                "Cannot submit",
+                "This batch has validation errors.",
+            );
             return;
         }
 
@@ -140,7 +143,10 @@ const IngestionPage = () => {
             if (nextLine >= allLines.length) {
                 setIsComplete(true);
                 setParsedRows([]);
-                notifySafe("Upload complete", "The entire file has been ingested.");
+                notifySafe(
+                    "Upload complete",
+                    "The entire file has been ingested.",
+                );
             } else {
                 loadBatch(allLines, nextLine);
             }
@@ -184,7 +190,9 @@ const IngestionPage = () => {
                     {allLines.length > 0 && !isComplete && (
                         <div className="mb-4 space-y-1">
                             <Progress
-                                value={(currentLineNumber / allLines.length) * 100}
+                                value={
+                                    (currentLineNumber / allLines.length) * 100
+                                }
                             />
                             <p className="text-xs text-color-text-secondary">
                                 Rows {currentLineNumber}–
@@ -199,7 +207,10 @@ const IngestionPage = () => {
                     <ValidationErrors errors={serverErrors} />
                     {parsedRows.length > 0 && (
                         <>
-                            <Button onClick={handleDataSubmission} className="mb-4">
+                            <Button
+                                onClick={handleDataSubmission}
+                                className="mb-4"
+                            >
                                 Submit Current Batch
                             </Button>
                             <DataPreview

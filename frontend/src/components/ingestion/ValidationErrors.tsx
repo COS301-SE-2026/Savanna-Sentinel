@@ -17,7 +17,8 @@ export function ValidationErrors({ errors }: ValidationErrorsProps) {
     return (
         <div className="mb-4 rounded-md border border-status-critical bg-status-critical/[0.06] px-4 py-3 text-sm text-status-critical-text">
             <p className="font-semibold">
-                {affectedRows} row{affectedRows === 1 ? "" : "s"} failed server validation
+                {affectedRows} row{affectedRows === 1 ? "" : "s"} failed server
+                validation
             </p>
             <ul className="mt-1 list-inside list-disc">
                 {Object.entries(errors).map(([rowKey, rowErrors]) => (
