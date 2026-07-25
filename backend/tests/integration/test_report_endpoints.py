@@ -141,10 +141,11 @@ async def _soft_delete_report(report_id: str) -> None:
     async with _Session() as session:
         async with session.begin():
             await session.execute(
-                text("UPDATE field_reports "
-                     "SET deleted_at = NOW() "
-                     "WHERE id = :rid",
-                    ),
+                text(
+                    "UPDATE field_reports "
+                    "SET deleted_at = NOW() "
+                    "WHERE id = :rid",
+                ),
                 {"rid": report_id},
             )
 
@@ -702,6 +703,29 @@ async def test_admin_gets_any_report_returns_200():
 
 
 @pytest.mark.asyncio
+async def test_get_report_includes_uploaded_images():
+    uid = await _create_user("test_ranger_sc21a")
+    image_urls = [
+        "http://localhost:9000/savanna-sentinel-media/reports/a.jpg",
+        "http://localhost:9000/savanna-sentinel-media/reports/b.jpg",
+    ]
+    async with _client() as c:
+        post_r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(images=image_urls),
+            headers=_auth_header(uid),
+        )
+        assert post_r.status_code == 201
+        rid = post_r.json()["report_id"]
+        get_r = await c.get(f"/v1/reports/{rid}", headers=_auth_header(uid))
+    assert get_r.status_code == 200
+    returned = sorted(get_r.json()["images"])
+    for stored, signed in zip(sorted(image_urls), returned):
+        assert signed.startswith(stored)
+        assert "X-Amz-Signature=" in signed
+
+
+@pytest.mark.asyncio
 async def test_nonexistent_report_returns_404():
     uid = await _create_user("test_ranger3_sc21")
     fake_id = "00000000-0000-0000-0000-000000000000"
@@ -791,6 +815,27 @@ async def test_list_response_item_shape():
     assert "lon" in item["location"]
     assert "sync_status" in item
     assert item["sync_status"] == "synced"
+
+
+@pytest.mark.asyncio
+async def test_list_includes_signed_view_urls_for_uploaded_images():
+    uid = await _create_user("test_ranger_sc20h")
+    stored_url = "http://localhost:9000/savanna-sentinel-media/reports/c.jpg"
+    async with _client() as c:
+        post_r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(images=[stored_url]),
+            headers=_auth_header(uid),
+        )
+        assert post_r.status_code == 201
+        list_r = await c.get("/v1/reports", headers=_auth_header(uid))
+    item = next(
+        i
+        for i in list_r.json()["results"]
+        if i["report_id"] == post_r.json()["report_id"]
+    )
+    assert item["images"][0].startswith(stored_url)
+    assert "X-Amz-Signature=" in item["images"][0]
 
 
 @pytest.mark.asyncio
