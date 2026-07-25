@@ -205,6 +205,23 @@ describe("Rendering tests - File validation tests, test various files that succe
         expect(screen.queryByText(/expected number/i)).not.toBeInTheDocument();
     });
 
+    it("lets the user cancel after uploading a file with invalid data", async () => {
+        const user = userEvent.setup();
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\ntest,"], "test.csv", {
+            type: "text/csv",
+        });
+
+        await user.upload(getFileInput(), csvFile);
+        await screen.findAllByRole("textbox");
+
+        await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+        expect(screen.queryByRole("table")).not.toBeInTheDocument();
+        expect(getFileInput()).toBeInTheDocument();
+    });
+
     it("shows a success toast after the final batch uploads", async () => {
         vi_mockSchema = [
             { name: "id", type: "number" },
@@ -330,9 +347,7 @@ describe("Logic tests - Batch logic", () => {
         const submitButton = screen.getByRole("button", { name: /submit/i });
         await user.click(submitButton);
 
-        const success = await screen.findByText(
-            /File batching sequence completed/i,
-        );
+        const success = await screen.findByText(/upload complete/i);
         expect(success).toBeInTheDocument();
 
         expect(screen.queryByRole("table")).not.toBeInTheDocument();
@@ -340,6 +355,11 @@ describe("Logic tests - Batch logic", () => {
             "Upload complete",
             "The entire file has been ingested.",
         );
+
+        await user.click(
+            screen.getByRole("button", { name: /upload another file/i }),
+        );
+        expect(getFileInput()).toBeInTheDocument();
 
         uploadSpy.mockRestore();
     });

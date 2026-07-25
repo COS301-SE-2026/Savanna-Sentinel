@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { CircleCheck } from "lucide-react";
 import { FILE_SCHEMA, validateData } from "@/lib/ingestionSchema";
 import { ingestionApi } from "@/services/ingestionApi";
 import { UploadWizard } from "@/components/ingestion/UploadWizard";
 import { DataPreview } from "@/components/ingestion/DataPreview";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { ValidationErrors } from "@/components/ingestion/ValidationErrors";
 
@@ -81,6 +83,15 @@ const IngestionPage = () => {
         setAllLines(lines);
         setIsComplete(false);
         loadBatch(lines, 1);
+    };
+
+    const handleReset = () => {
+        setParsedRows([]);
+        setErrorMessage(null);
+        setCurrentLineNumber(1);
+        setAllLines([]);
+        setIsComplete(false);
+        setServerErrors(null);
     };
 
     const handleCellChange = (
@@ -179,9 +190,17 @@ const IngestionPage = () => {
             )}
             {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
             {isComplete && (
-                <p style={{ color: "green" }}>
-                    File batching sequence completed
-                </p>
+                <EmptyState
+                    className="mb-4"
+                    icon={CircleCheck}
+                    title="Upload complete"
+                    body="The entire file has been ingested."
+                    action={
+                        <Button onClick={handleReset}>
+                            Upload another file
+                        </Button>
+                    }
+                />
             )}
 
             <h1>File contents</h1>
@@ -207,12 +226,14 @@ const IngestionPage = () => {
                     <ValidationErrors errors={serverErrors} />
                     {parsedRows.length > 0 && (
                         <>
-                            <Button
-                                onClick={handleDataSubmission}
-                                className="mb-4"
-                            >
-                                Submit Current Batch
-                            </Button>
+                            <div className="mb-4 flex gap-2">
+                                <Button variant="outline" onClick={handleReset}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleDataSubmission}>
+                                    Submit Current Batch
+                                </Button>
+                            </div>
                             <DataPreview
                                 schema={FILE_SCHEMA}
                                 rows={parsedRows}
