@@ -10,6 +10,7 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 
 _UPLOAD_URL_EXPIRY_SECONDS = 300
+_VIEW_URL_EXPIRY_SECONDS = 900
 _BOTO_CONFIG = BotoConfig(
     signature_version="s3v4",
     s3={"addressing_style": "path"},
@@ -101,3 +102,16 @@ class MediaService:
             "object_url": object_url,
             "expires_in": _UPLOAD_URL_EXPIRY_SECONDS,
         }
+
+    def generate_view_url(self, object_url: str) -> str:
+        marker = f"/{settings.MINIO_BUCKET}/"
+        marker_index = object_url.find(marker)
+        if marker_index == -1:
+            return object_url
+
+        object_key = object_url[marker_index + len(marker) :]
+        return self._public_client.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={"Bucket": settings.MINIO_BUCKET, "Key": object_key},
+            ExpiresIn=_VIEW_URL_EXPIRY_SECONDS,
+        )
