@@ -11,6 +11,7 @@ from app.core.config import settings
 
 UNSUPPORTED = "Unsupported Algorithm"
 
+
 class JWTError(Exception):
     """Raised when a token cannot be decoded or validated."""
 
@@ -41,10 +42,12 @@ class _JWTAdapter:
             raise JWTError(UNSUPPORTED)
 
         header = {"alg": "HS256", "typ": "JWT"}
-        header_segment = _b64url_encode(json.dumps(
-            header,
-            separators=(",", ":"),
-        ).encode("utf-8"))
+        header_segment = _b64url_encode(
+            json.dumps(
+                header,
+                separators=(",", ":"),
+            ).encode("utf-8"),
+        )
         payload_segment = _b64url_encode(
             json.dumps(
                 _serialize_payload(payload),
@@ -74,12 +77,13 @@ class _JWTAdapter:
                 ".",
                 2,
             )
-            signing_input = (
-                f"{header_segment}."
-                f"{payload_segment}"
-            ).encode("ascii")
+            signing_input = (f"{header_segment}.{payload_segment}").encode(
+                "ascii",
+            )
             expected_signature = hmac.new(
-                secret_key.encode("utf-8"), signing_input, hashlib.sha256,
+                secret_key.encode("utf-8"),
+                signing_input,
+                hashlib.sha256,
             ).digest()
             if not hmac.compare_digest(
                 _b64url_decode(signature_segment),
@@ -93,10 +97,9 @@ class _JWTAdapter:
 
             payload = json.loads(_b64url_decode(payload_segment))
             expires_at = payload.get("exp")
-            if (
-                expires_at is not None
-                and datetime.now(timezone.utc).timestamp() >= float(expires_at)
-            ):
+            if expires_at is not None and datetime.now(
+                timezone.utc,
+            ).timestamp() >= float(expires_at):
                 raise JWTError("Token has expired")
             return payload
         except JWTError:
@@ -164,9 +167,9 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(
-        subject: str,
-        expires_delta: Optional[timedelta] = None,
-    ) -> str:
+    subject: str,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
     """
     Create a signed JWT access token.
 
@@ -178,9 +181,9 @@ def create_access_token(
     )
 
     payload = {
-        "sub": subject, # subject = user ID
-        "exp": expire, # expiry timestamp
-        "type": "access", # lets us reject refresh tokens used as access tokens
+        "sub": subject,  # subject = user ID
+        "exp": expire,  # expiry timestamp
+        "type": "access",  # lets us reject refresh tokens used as access tokens
         "iat": datetime.now(timezone.utc),
         "jti": str(uuid.uuid4()),
     }
@@ -202,6 +205,27 @@ def create_refresh_token(subject: str) -> str:
         "sub": subject,
         "exp": expire,
         "type": "refresh",
+        "iat": datetime.now(timezone.utc),
+        "jti": str(uuid.uuid4()),
+    }
+
+    return jwt.encode(
+        payload,
+        settings.JWT_SECRET,
+        algorithm=settings.ALGORITHM,
+    )
+
+
+def create_mfa_pending_token(subject: str) -> str:
+    """Create a signed short-lived token proving the password step passed."""
+    expire = datetime.now(timezone.utc) + timedelta(
+        seconds=settings.MFA_CODE_TTL_SECONDS,
+    )
+
+    payload = {
+        "sub": subject,
+        "exp": expire,
+        "type": "mfa_pending",
         "iat": datetime.now(timezone.utc),
         "jti": str(uuid.uuid4()),
     }

@@ -9,6 +9,12 @@ export function formatRole(role: string) {
     return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export function currentLocalDatetime(): string {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
 export function formatRelativeTime(timestamp: string) {
     const diffMs = Date.now() - new Date(timestamp).getTime();
     const diffMin = Math.max(0, Math.floor(diffMs / 60_000));

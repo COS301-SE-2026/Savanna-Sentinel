@@ -42,9 +42,6 @@ class UserResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-
-
-
 @dataclass
 class LoginRequest:
     """Body sent by the client to POST /v1/auth/login."""
@@ -90,3 +87,27 @@ class LogoutRequest:
     """Body sent by the client to POST /v1/auth/logout."""
 
     refresh_token: str
+
+
+@dataclass
+class MFAChallengeResponse:
+    """Returned from /login instead of tokens when the account requires MFA."""
+
+    mfa_token: str
+    expires_in: int
+    mfa_required: bool = True
+
+
+@dataclass
+class MFAVerifyRequest:
+    """Body sent by the client to POST /v1/auth/mfa/verify."""
+
+    mfa_token: str
+    code: str
+
+
+@dataclass
+class MFAResendRequest:
+    """Body sent by the client to POST /v1/auth/mfa/resend."""
+
+    mfa_token: str

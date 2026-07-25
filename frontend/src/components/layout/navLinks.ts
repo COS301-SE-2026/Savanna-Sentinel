@@ -35,7 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Reports",
         path: "/reports",
         icon: FileText,
-        roles: ["ranger", "admin"],
+        roles: ["ranger", "analyst", "admin"],
     },
     {
         label: "Patrol Planner",

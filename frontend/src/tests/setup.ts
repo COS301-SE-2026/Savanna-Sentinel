@@ -1,6 +1,15 @@
 import "@testing-library/jest-dom";
 import { beforeAll, afterAll } from "vitest";
 
+const jsdomWindow = (globalThis as unknown as { jsdom?: { window: Window } })
+    .jsdom?.window;
+if (jsdomWindow?.localStorage) {
+    Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        value: jsdomWindow.localStorage,
+    });
+}
+
 const originalError = console.error.bind(console);
 beforeAll(() => {
     console.error = (...args: unknown[]) => {
@@ -28,6 +37,7 @@ window.HTMLElement.prototype.setPointerCapture = () => {};
 window.HTMLElement.prototype.releasePointerCapture = () => {};
 
 window.HTMLElement.prototype.scrollIntoView = () => {};
+window.scrollTo = () => {};
 
 window.matchMedia =
     window.matchMedia ||

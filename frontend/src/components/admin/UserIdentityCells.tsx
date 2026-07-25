@@ -1,6 +1,6 @@
 import { TableCell } from "@/components/ui/table";
 import { cn, formatRole } from "@/lib/utils";
-import { cellClass } from "@/components/admin/userTableStyles";
+import { cellClass } from "@/components/ui/table-styles";
 
 export function UsernameCell({ value }: { value: string }) {
     return (

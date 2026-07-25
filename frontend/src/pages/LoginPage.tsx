@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { AxiosError } from "axios";
-import { notifyCritical } from "@/components/ui/toast";
+import { notifyCritical, notifySafe } from "@/components/ui/toast";
 import { useAuthStore } from "@/store/authStore";
 
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BrandPanel } from "@/components/auth/BrandPanel";
 import { PasswordVisibilityToggle } from "@/components/auth/PasswordVisibilityToggle";
+import { MfaCodeDialog } from "@/components/auth/MfaCodeDialog";
 import {
     labelClass,
     inputClass,
@@ -32,8 +33,13 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
     const navigate = useNavigate();
     const login = useAuthStore((s) => s.login);
+    const verifyMfa = useAuthStore((s) => s.verifyMfa);
+    const resendMfa = useAuthStore((s) => s.resendMfa);
 
     const [showPassword, setShowPassword] = useState(false);
+    const [isMfaOpen, setIsMfaOpen] = useState(false);
+    const [mfaToken, setMfaToken] = useState<string | null>(null);
+    const [isMfaSubmitting, setIsMfaSubmitting] = useState(false);
 
     const {
         register,
@@ -46,7 +52,12 @@ export default function LoginPage() {
 
     async function onSubmit(values: LoginFormValues) {
         try {
-            await login(values.username, values.password);
+            const result = await login(values.username, values.password);
+            if (result.mfaRequired) {
+                setMfaToken(result.mfaToken);
+                setIsMfaOpen(true);
+                return;
+            }
             navigate("/dashboard");
         } catch (err) {
             const axiosErr = err as AxiosError<{ detail: string }>;
@@ -62,6 +73,46 @@ export default function LoginPage() {
                     "An error occurred. Try again later.",
                 );
             }
+        }
+    }
+
+    async function handleMfaSubmit(code: string) {
+        if (!mfaToken) return;
+
+        setIsMfaSubmitting(true);
+        try {
+            await verifyMfa(mfaToken, code);
+            setIsMfaOpen(false);
+            navigate("/dashboard");
+        } catch (err) {
+            const axiosErr = err as AxiosError<{ detail: string }>;
+
+            notifyCritical(
+                "Verification failed",
+                axiosErr.response?.status === 401
+                    ? "Incorrect or expired code. Try again."
+                    : "An error occurred. Try again later.",
+            );
+        } finally {
+            setIsMfaSubmitting(false);
+        }
+    }
+
+    async function handleMfaResend() {
+        if (!mfaToken) return;
+
+        try {
+            await resendMfa(mfaToken);
+            notifySafe("Code sent", "A new code has been emailed to you.");
+        } catch (err) {
+            const axiosErr = err as AxiosError<{ detail: string }>;
+
+            notifyCritical(
+                "Couldn't resend code",
+                axiosErr.response?.status === 429
+                    ? "Please wait a bit before requesting another code."
+                    : "An error occurred. Try again later.",
+            );
         }
     }
 
@@ -177,6 +228,15 @@ export default function LoginPage() {
                     </p>
                 </div>
             </div>
+
+            <MfaCodeDialog
+                key={mfaToken}
+                open={isMfaOpen}
+                onOpenChange={setIsMfaOpen}
+                onSubmit={handleMfaSubmit}
+                onResend={handleMfaResend}
+                isSubmitting={isMfaSubmitting}
+            />
         </div>
     );
 }

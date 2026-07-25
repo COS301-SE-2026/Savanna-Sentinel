@@ -4,9 +4,9 @@ services:
   db:
     image: postgis/postgis:16-3.4
     environment:
-      POSTGRES_USER: sentinel
-      POSTGRES_PASSWORD: sentinel_dev_password
-      POSTGRES_DB: savanna_sentinel
+      POSTGRES_USER: ${POSTGRES_USER:-sentinel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinel_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-savanna_sentinel}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init-db:/docker-entrypoint-initdb.d:ro
@@ -34,8 +34,8 @@ services:
   minio:
     image: minio/minio:latest
     environment:
-      MINIO_ROOT_USER: sentinel_minio
-      MINIO_ROOT_PASSWORD: sentinel_minio_secret
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-sentinel_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-sentinel_minio_secret}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -64,17 +64,44 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  worker:
+    build:
+      context: ./backend
+    command: celery -A app.workers.celery_app worker --loglevel=info
+    env_file:
+      - ./backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend
       target: prod
-    ports:
-      - "3000:80"
     depends_on:
       - backend
+    restart: unless-stopped
+
+  caddy:
+    profiles: ["prod"]
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    depends_on:
+      - frontend
     restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
   minio_data:
+  caddy_data:
