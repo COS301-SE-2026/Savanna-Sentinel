@@ -25,9 +25,29 @@
 [https://13.60.118.121.sslip.io](https://13.60.118.121.sslip.io)
 
 ## Documentation
+<details>
+<summary><h3>Demo 1</h3></summary>
 
-- [Software Requirements Specification (SRS)](https://github.com/COS301-SE-2026/Savanna-Sentinel/blob/main/docs/SRS.md)
+- [Software Requirements Specification (SRS)](./docs/demo1/SRS.md)
 - [GitHub Project Board](https://github.com/orgs/COS301-SE-2026/projects/72/)
+
+</details>
+
+<details>
+<summary><h3>Demo 2</h3></summary>
+
+**Please note:** The interactive brand style guide must be downloaded and opened in the browser.
+The SRS contains an abridged version of the use cases, full use case documentation can be found [here](./docs/demo2/DevDocs(Not-For-Review)/use-cases/Use%20Case%20Diagram%20%26%20Scope.pdf)
+
+- [Software Requirements Specification (SRS)](./docs/demo2/PDF/SRS.pdf)
+- [Software Archiecture Specification (SAS)](./docs/demo2/PDF/SAS.pdf)
+- [Coding Standards](./docs/demo2/PDF/Coding%20Standards.pdf)
+- [Testing Policy](./docs/demo2/PDF/Testing%20Policy.pdf)
+- [User Manual](./docs/demo2/PDF/User%20Manual.pdf)
+- [Brand Style Guide](./docs/demo2/PDF/Savanna%20Sentinel%20Brand%20Style%20Guide.pdf)
+- [Interactive Brand Style Guide](./docs/demo2/DevDocs(Not-For-Review)/brand-style/brand_style_guide.html)
+
+</details>
 
 ## Team
 

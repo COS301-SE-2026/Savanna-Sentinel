@@ -1,3 +1,8 @@
+# V2.1 (2026-07-25)
+
+* Updated to match use case diagram changes
+* NFR quantification will come in a later update.
+
 # V2 (2026-07-22)
 
 - Merged Introduction and Overall Description into Introduction

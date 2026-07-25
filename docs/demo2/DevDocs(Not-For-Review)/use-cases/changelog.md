@@ -1,5 +1,11 @@
 # Changelog
 
+### V2.1 (2026-07-25)
+
+* Added 2FA extension use case
+* Fixed heading on dashboard subsystem
+* Added Admin subsystem
+
 ### V2 (Demo 1 -> V2)
 
 - Refactored entire diagram to match feedback

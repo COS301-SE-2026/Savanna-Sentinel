@@ -159,6 +159,11 @@ This is a summarised version of the Use Cases document. For more information, pl
 
 ![Dashboard Subsystem](../use-cases/images/sav_sent_use_cases_dash_light.png)
 
+
+### 3.7 Admin Subsystem
+
+![Dashboard Subsystem](../use-cases/images/sav_sent_use_cases_admin_light.png)
+
 ## 4. Functional Requirements
 
 Dedicated Functional Requiremnts document [here](../functional-requirements/FunctionalRequirements.md)
@@ -340,6 +345,7 @@ Dedicated Functional Requiremnts document [here](../functional-requirements/Func
 - **R9.1.7:** The system will provide a password recovery mechanism whereby a user submits their registered email address and the system sends a time-limited, single-use password reset link to that address.
 - **R9.1.8:** Following a valid password reset link will allow the user to set a new password without providing their current one.
 - **R9.1.9:** The system will invalidate a password reset token after its first use or after its expiry, whichever occurs first.
+- **R9.1.10**: The system will request a pin to be entered that will be sent to the user’s email when the account is identified to have admin role permissions
 
 #### 4.9.2 - R9.2: User Registration
 
