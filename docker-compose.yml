@@ -62,6 +62,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: unless-stopped
 
   worker:
@@ -96,8 +98,10 @@ services:
       - caddy_data:/data
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      MEDIA_SITE_ADDRESS: ${MEDIA_SITE_ADDRESS:-media.localhost}
     depends_on:
       - frontend
+      - minio
     restart: unless-stopped
 
 volumes:

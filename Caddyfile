@@ -1,3 +1,7 @@
 {$SITE_ADDRESS:localhost} {
 	reverse_proxy frontend:80
 }
+
+{$MEDIA_SITE_ADDRESS:media.localhost} {
+	reverse_proxy minio:9000
+}
