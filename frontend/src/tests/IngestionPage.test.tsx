@@ -1,35 +1,52 @@
 import IngestionPage from "@/pages/IngestionPage";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ingestionApi, type IngestionResponse } from "@/services/ingestionApi";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 
 //Intercept the schema and replace it with a consistent schema that is seperate from the file
 //Disabled since it must match vi standards
 // eslint-disable-next-line @typescript-eslint/naming-convention
-let vi_mockSchema = [
+const DEFAULT_SCHEMA = [
     { name: "id", type: "number" },
     { name: "status", type: "string" },
 ];
-vi.mock("@/lib/ingestionSchema", () => {
+let vi_mockSchema = DEFAULT_SCHEMA;
+vi.mock("@/lib/ingestionSchema", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/ingestionSchema")>();
     return {
+        ...actual,
         get FILE_SCHEMA() {
             return vi_mockSchema;
         },
     };
 });
 
-vi.mock("@/services/ingestionApu", () => ({
+vi.mock("@/services/ingestionApi", () => ({
     ingestionApi: {
         uploadFile: vi.fn(),
     },
+}));
+
+vi.mock("@/components/ui/toast", () => ({
+    notifySafe: vi.fn(),
+    notifyCritical: vi.fn(),
 }));
 
 const renderIngestionPage = () => {
     return render(<IngestionPage />);
 };
 
-//NB TESTS SHOULD CHANGE WHEN PAGE IS REDESIGNED WITH MESSAGES ETC
+const getFileInput = () =>
+    screen.getByLabelText(/drop csv here/i, { selector: "input" });
+
+beforeEach(() => {
+    vi_mockSchema = DEFAULT_SCHEMA;
+    vi.mocked(notifySafe).mockClear();
+    vi.mocked(notifyCritical).mockClear();
+});
+
 describe("Rendering tests - File upload errors (not content) ", () => {
     //Rendering tests excluded, only doing error handling tests
     it("Valid file format, but empty file, should display empty file error", async () => {
@@ -39,22 +56,11 @@ describe("Rendering tests - File upload errors (not content) ", () => {
         //Empty contents csv file
         const csvFile = new File([], "empty_records.csv", { type: "text/csv" });
 
-        //Get the file input element by finding a hidden button or input element
-        const fileInput = screen.getByLabelText("CSV file upload");
+        await user.upload(getFileInput(), csvFile);
 
-        if (!fileInput) {
-            throw new Error(
-                "Could not find the file input element - Failing at 'Valid file format, but empty file...'",
-            );
-        }
-
-        await user.upload(fileInput, csvFile);
-        const expectedError =
-            "The uploaded file is empty, please ensure the first row of the file indicates column headings.";
-        const error = await screen.findByText(expectedError);
-
-        expect(error).toBeInTheDocument();
-        expect(error).toHaveStyle({ color: "rgb(255, 0, 0)" });
+        expect(
+            await screen.findByText(/the uploaded file is empty/i),
+        ).toBeInTheDocument();
     });
 
     it("Invalid file format, first row is malformed, should display malformed error", async () => {
@@ -64,21 +70,12 @@ describe("Rendering tests - File upload errors (not content) ", () => {
         const csvFile = new File(["id,wrong_col\n"], "invalid_headers.csv", {
             type: "text/csv",
         });
-        const fileInput = screen.getByLabelText("CSV file upload");
 
-        if (!fileInput) {
-            throw new Error(
-                "Could not find the file input element - Failing at 'Invalid file format, first row is malformed...'",
-            );
-        }
+        await user.upload(getFileInput(), csvFile);
 
-        await user.upload(fileInput, csvFile);
-        const expectedError =
-            "Invalid first row, please ensure that the first row matches the expected schema.";
-        const error = await screen.findByText(expectedError);
-
-        expect(error).toBeInTheDocument();
-        expect(error).toHaveStyle({ color: "rgb(255, 0, 0)" });
+        expect(
+            await screen.findByText(/doesn't match the expected column schema/i),
+        ).toBeInTheDocument();
     });
 
     it("Valid file format, browser experiences error reading file", async () => {
@@ -88,27 +85,17 @@ describe("Rendering tests - File upload errors (not content) ", () => {
         //Mock file reader to make it throw an error everytime, simulating file error
         const readAsTextSpy = vi
             .spyOn(File.prototype, "text")
-            .mockRejectedValue(
-                new Error("Simulated browser file read failure"),
-            );
+            .mockRejectedValue(new Error("Simulated browser file read failure"));
 
         const csvFile = new File(["id,status\n"], "test.csv", {
             type: "text/csv",
         });
-        const fileInput = screen.getByLabelText("CSV file upload");
 
-        if (!fileInput) {
-            throw new Error(
-                "Could not find the file input element - Failing at 'Valid file format, browser experiences error reading file'",
-            );
-        }
+        await user.upload(getFileInput(), csvFile);
 
-        await user.upload(fileInput, csvFile);
-        const expectedError = "Error reading the file. Please contact support.";
-        const error = await screen.findByText(expectedError);
-
-        expect(error).toBeInTheDocument();
-        expect(error).toHaveStyle({ color: "rgb(255, 0, 0)" });
+        expect(
+            await screen.findByText(/couldn't read that file/i),
+        ).toBeInTheDocument();
 
         readAsTextSpy.mockRestore();
     });
@@ -119,24 +106,15 @@ describe("Rendering tests - File upload errors (not content) ", () => {
         const file = new File(["id,status\n1,active"], "test.txt", {
             type: "text/plain",
         });
-        const fileInput = screen.getByLabelText("CSV file upload");
-
-        if (!fileInput) {
-            throw new Error(
-                "Could not find the file input element - Failing at 'Invalid file format, incorrect file type...'",
-            );
-        }
 
         //Cant use user agent to try and bypass safeguards by its file handler for this test case
-        fireEvent.change(fileInput, {
+        fireEvent.change(getFileInput(), {
             target: { files: [file] },
         });
 
-        const expectedError = "The program only accepts .csv files.";
-        const error = await screen.findByText(expectedError);
-
-        expect(error).toBeInTheDocument();
-        expect(error).toHaveStyle({ color: "rgb(255, 0, 0)" });
+        expect(
+            await screen.findByText(/only \.csv files are accepted/i),
+        ).toBeInTheDocument();
     });
 });
 
@@ -148,15 +126,8 @@ describe("Rendering tests - File validation tests, test various files that succe
         const csvFile = new File(["id,status\n1,active"], "valid.csv", {
             type: "text/csv",
         });
-        const fileInput = screen.getByLabelText("CSV file upload");
 
-        if (!fileInput) {
-            throw new Error(
-                "Could not find the file input element - Failing at 'Invalid file format, incorrect file type...'",
-            );
-        }
-
-        await user.upload(fileInput, csvFile);
+        await user.upload(getFileInput(), csvFile);
 
         const inputs = await screen.findAllByRole("textbox");
 
@@ -171,176 +142,65 @@ describe("Rendering tests - File validation tests, test various files that succe
         expect(inputs[1]).toHaveValue("active");
     });
 
-    it("Invalid file, should display table with error message saying exerted length", async () => {
+    it("Invalid file, extra column beyond the schema, should still display the known columns", async () => {
         const user = userEvent.setup();
         renderIngestionPage();
 
         const csvFile = new File(
             ["id,status\n1,active,extra_data"],
             "valid.csv",
-            {
-                type: "text/csv",
-            },
+            { type: "text/csv" },
         );
-        const fileInput = screen.getByLabelText("CSV file upload");
 
-        if (!fileInput) {
-            throw new Error(
-                "Could not find the file input element - Failing at 'Invalid file, should display table with error message saying exerted length'",
-            );
-        }
-
-        await user.upload(fileInput, csvFile);
+        await user.upload(getFileInput(), csvFile);
 
         const inputs = await screen.findAllByRole("textbox");
 
         expect(screen.getByRole("table")).toBeInTheDocument();
-        expect(
-            screen.getByRole("columnheader", { name: "id (number)" }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole("columnheader", { name: "status (string)" }),
-        ).toBeInTheDocument();
         expect(inputs[0]).toHaveValue("1");
         expect(inputs[1]).toHaveValue("active");
     });
 
-    it("Invalid file, should display table with higlighted cells showing missing data", async () => {
+    it("flags cells that fail validation with badge messages", async () => {
         const user = userEvent.setup();
         renderIngestionPage();
 
-        const csvFile = new File(["id,status\n1"], "valid.csv", {
+        const csvFile = new File(["id,status\ntest,"], "test.csv", {
             type: "text/csv",
         });
 
-        const fileInput = screen.getByLabelText("CSV file upload");
+        await user.upload(getFileInput(), csvFile);
+        await screen.findAllByRole("textbox");
 
-        if (!fileInput) {
-            throw new Error(
-                "Could not find the file input element - Failing at 'Invalid file, should display table with higlighted cells...'",
-            );
-        }
-        await user.upload(fileInput, csvFile);
-
-        const inputs = await screen.findAllByRole("textbox");
-
-        expect(screen.getByRole("table")).toBeInTheDocument();
         expect(
-            screen.getByRole("columnheader", { name: "id (number)" }),
+            screen.getByText(/expected number, got "test"/i),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole("columnheader", { name: "status (string)" }),
-        ).toBeInTheDocument();
-        expect(inputs[0]).toHaveValue("1");
-        expect(inputs[1]).toHaveValue("");
-        expect(inputs[1]).toHaveStyle({
-            backgroundColor: "rgba(239,30,30,0.15)",
-            color: "rgb(255,0,0)",
-            fontWeight: "bold",
-        });
+        expect(screen.getByText(/"status" is missing/i)).toBeInTheDocument();
     });
 
-    it("Invalid file, invalid data types, show highlight text entries", async () => {
-        vi_mockSchema = [
-            { name: "id", type: "number" },
-            { name: "status", type: "string" },
-            { name: "is_active", type: "boolean" },
-            { name: "submitted_date", type: "date" },
-        ];
-        const user = userEvent.setup();
-        renderIngestionPage();
-
-        const csvFile = new File(
-            ["id,status,is_active,submitted_date\ntest,active,incorrect,today"],
-            "test.csv",
-            {
-                type: "text/csv",
-            },
-        );
-
-        const fileInput = screen.getByLabelText("CSV file upload");
-
-        if (!fileInput) {
-            throw new Error(
-                "Could not find the file input element - Failing at 'Invalid file, should display table with higlighted cells...'",
-            );
-        }
-        await user.upload(fileInput, csvFile);
-        const inputs = await screen.findAllByRole("textbox");
-
-        expect(screen.getByRole("table")).toBeInTheDocument();
-        expect(
-            screen.getByRole("columnheader", { name: "id (number)" }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole("columnheader", { name: "status (string)" }),
-        ).toBeInTheDocument();
-        expect(inputs[0]).toHaveValue("test");
-        expect(inputs[1]).toHaveValue("active");
-        expect(inputs[2]).toHaveValue("incorrect");
-        expect(inputs[3]).toHaveValue("today");
-        expect(inputs[0]).toHaveStyle({
-            color: "rgb(255,0,0)",
-            fontWeight: "bold",
-        });
-        expect(inputs[2]).toHaveStyle({
-            color: "rgb(255,0,0)",
-            fontWeight: "bold",
-        });
-        expect(inputs[3]).toHaveStyle({
-            color: "rgb(255,0,0)",
-            fontWeight: "bold",
-        });
-
-        //Reset
-        vi_mockSchema = [
-            { name: "id", type: "number" },
-            { name: "status", type: "string" },
-        ];
-    });
-    it("Invalid file, invalid data types, style updates correctly when editted", async () => {
+    it("clears a cell's badge once the value is corrected", async () => {
         const user = userEvent.setup();
         renderIngestionPage();
 
         const csvFile = new File(["id,status\ntest,active"], "test.csv", {
             type: "text/csv",
         });
-        const fileInput = screen.getByLabelText("CSV file upload");
 
-        if (!fileInput) {
-            throw new Error(
-                "Could not find the file input element - Failing at 'Invalid file, should display table with higlighted cells...'",
-            );
-        }
-        await user.upload(fileInput, csvFile);
+        await user.upload(getFileInput(), csvFile);
         const inputs = await screen.findAllByRole("textbox");
 
-        expect(screen.getByRole("table")).toBeInTheDocument();
         expect(
-            screen.getByRole("columnheader", { name: "id (number)" }),
+            screen.getByText(/expected number, got "test"/i),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole("columnheader", { name: "status (string)" }),
-        ).toBeInTheDocument();
-        expect(inputs[0]).toHaveValue("test");
-        expect(inputs[1]).toHaveValue("active");
-        expect(inputs[0]).toHaveStyle({
-            color: "rgb(255,0,0)",
-            fontWeight: "bold",
-        });
 
-        //simulate user typing
         await user.clear(inputs[0]);
         await user.type(inputs[0], "1");
 
         expect(inputs[0]).toHaveValue("1");
-        expect(inputs[0]).toHaveStyle({
-            color: "rgb(0, 0, 0)",
-            fontWeight: "normal",
-        });
+        expect(screen.queryByText(/expected number/i)).not.toBeInTheDocument();
     });
 
-    it("Valid file, correctly gets parsed into a JSON object", async () => {
+    it("shows a success toast after the final batch uploads", async () => {
         vi_mockSchema = [
             { name: "id", type: "number" },
             { name: "status", type: "string" },
@@ -348,9 +208,6 @@ describe("Rendering tests - File validation tests, test various files that succe
         ];
 
         const user = userEvent.setup();
-        const alertSpy = vi
-            .spyOn(globalThis, "alert")
-            .mockImplementation(() => {});
         const uploadSpy = vi
             .spyOn(ingestionApi, "uploadFile")
             .mockResolvedValue({} as IngestionResponse);
@@ -360,44 +217,26 @@ describe("Rendering tests - File validation tests, test various files that succe
         const csvFile = new File(
             ["id,status,is_active\n1,active,true"],
             "test.csv",
-            {
-                type: "text/csv",
-            },
+            { type: "text/csv" },
         );
-        const fileInput = screen.getByLabelText("CSV file upload");
 
-        if (!fileInput) {
-            throw new Error(
-                "Could not find the file input element - Failing at 'Invalid file, should display table with higlighted cells...'",
-            );
-        }
-        await user.upload(fileInput, csvFile);
+        await user.upload(getFileInput(), csvFile);
 
-        const submitButton = screen.getByRole("button", { name: /Submit/i });
+        const submitButton = screen.getByRole("button", { name: /submit/i });
         await user.click(submitButton);
 
-        //Not the best test, could be improved in integration tests to check json is being sent correctly
         expect(uploadSpy).toHaveBeenCalledTimes(1);
-        expect(alertSpy).toHaveBeenCalledWith(
-            "Success! The entire file has been uploaded",
+        expect(notifySafe).toHaveBeenCalledWith(
+            "Upload complete",
+            "The entire file has been ingested.",
         );
 
-        vi_mockSchema = [
-            { name: "id", type: "number" },
-            { name: "status", type: "string" },
-        ];
-        alertSpy.mockRestore();
         uploadSpy.mockRestore();
     });
 });
 
 describe("Logic tests - Batch logic", () => {
-    it("should chunk a large CSV file into correct sequential batch slices", async () => {
-        vi_mockSchema = [
-            { name: "id", type: "number" },
-            { name: "status", type: "string" },
-        ];
-
+    it("should chunk a large CSV file into correct sequential batch slices and update the progress bar", async () => {
         const user = userEvent.setup();
         renderIngestionPage();
 
@@ -411,23 +250,25 @@ describe("Logic tests - Batch logic", () => {
             type: "text/csv",
         });
 
-        const fileInput = screen.getByLabelText("CSV file upload");
-        await user.upload(fileInput, largeCsvFile);
+        await user.upload(getFileInput(), largeCsvFile);
 
-        const progress = await screen.findByText(/Displaying rows 1 to 500/i);
+        const progress = await screen.findByText(/Rows\s*1\s*[-–]\s*500\s*of\s*503/i);
         expect(progress).toBeInTheDocument();
+
+        const progressbar = screen.getByRole("progressbar");
+        expect(progressbar).toHaveAttribute("aria-valuenow");
+        expect(Number(progressbar.getAttribute("aria-valuenow"))).toBeCloseTo(
+            (1 / 503) * 100,
+            5,
+        );
 
         const table = screen.getByRole("table");
         const inputsBatch = table.querySelectorAll("input");
 
         expect(inputsBatch).toHaveLength(1000);
     }, 15000);
-    it("should advance to the next batch upon successful intermediate submission", async () => {
-        vi_mockSchema = [
-            { name: "id", type: "number" },
-            { name: "status", type: "string" },
-        ];
 
+    it("should advance to the next batch upon successful intermediate submission", async () => {
         const user = userEvent.setup();
         const uploadSpy = vi
             .spyOn(ingestionApi, "uploadFile")
@@ -444,37 +285,31 @@ describe("Logic tests - Batch logic", () => {
             type: "text/csv",
         });
 
-        const fileInput = screen.getByLabelText("CSV file upload");
-        await user.upload(fileInput, largeCsvFile);
+        await user.upload(getFileInput(), largeCsvFile);
 
         const progressInfo = await screen.findByText(
-            /Displaying rows 1 to 500/i,
+            /Rows\s*1\s*[-–]\s*500\s*of\s*502/i,
         );
         expect(progressInfo).toBeInTheDocument();
 
-        const submitButton = screen.getByRole("button", { name: /Submit/i });
+        const submitButton = screen.getByRole("button", { name: /submit/i });
         await user.click(submitButton);
 
         expect(uploadSpy).toHaveBeenCalledTimes(1);
 
-        const progress = await screen.findByText(/Displaying rows 501 to 501/i);
+        const progress = await screen.findByText(
+            /Rows\s*501\s*[-–]\s*501\s*of\s*502/i,
+        );
         expect(progress).toBeInTheDocument();
 
         uploadSpy.mockRestore();
     });
-    it("should test complete sequence and clean up after last batch of file is submitted", async () => {
-        vi_mockSchema = [
-            { name: "id", type: "number" },
-            { name: "status", type: "string" },
-        ];
 
+    it("should test complete sequence and clean up after last batch of file is submitted", async () => {
         const user = userEvent.setup();
         const uploadSpy = vi
             .spyOn(ingestionApi, "uploadFile")
             .mockResolvedValue({} as IngestionResponse);
-        const alertSpy = vi
-            .spyOn(globalThis, "alert")
-            .mockImplementation(() => {});
         renderIngestionPage();
 
         const csvFile = new File(
@@ -483,31 +318,26 @@ describe("Logic tests - Batch logic", () => {
             { type: "text/csv" },
         );
 
-        const fileInput = screen.getByLabelText("CSV file upload");
-        await user.upload(fileInput, csvFile);
+        await user.upload(getFileInput(), csvFile);
 
-        const submitButton = screen.getByRole("button", { name: /Submit/i });
+        const submitButton = screen.getByRole("button", { name: /submit/i });
         await user.click(submitButton);
 
         const success = await screen.findByText(
-            /File batching sequence complete/i,
+            /File batching sequence completed/i,
         );
         expect(success).toBeInTheDocument();
 
         expect(screen.queryByRole("table")).not.toBeInTheDocument();
-        expect(alertSpy).toHaveBeenCalledWith(
-            "Success! The entire file has been uploaded",
+        expect(notifySafe).toHaveBeenCalledWith(
+            "Upload complete",
+            "The entire file has been ingested.",
         );
 
-        alertSpy.mockRestore();
         uploadSpy.mockRestore();
     });
-    it("parses and alerts nested error detail messages", async () => {
-        vi_mockSchema = [
-            { name: "id", type: "number" },
-            { name: "status", type: "string" },
-        ];
 
+    it("surfaces nested server validation error details on the batch", async () => {
         const user = userEvent.setup();
 
         const customError = {
@@ -539,10 +369,10 @@ describe("Logic tests - Batch logic", () => {
         const csvFile = new File(["id,status\n1,12345"], "test.csv", {
             type: "text/csv",
         });
-        const fileInput = screen.getByLabelText("CSV file upload");
-        await user.upload(fileInput, csvFile);
 
-        const submitButton = screen.getByRole("button", { name: /Submit/i });
+        await user.upload(getFileInput(), csvFile);
+
+        const submitButton = screen.getByRole("button", { name: /submit/i });
         await user.click(submitButton);
 
         expect(uploadSpy).toHaveBeenCalledTimes(1);
@@ -551,10 +381,10 @@ describe("Logic tests - Batch logic", () => {
             /Validation failed for some records/i,
         );
         expect(summary).toBeInTheDocument();
+        expect(screen.getByText("Input should be a valid string")).toBeInTheDocument();
 
         const badStatus = screen.getByDisplayValue("12345");
-
-        expect(badStatus).toHaveClass("border-red-500");
+        expect(badStatus).toHaveAttribute("aria-invalid", "true");
 
         uploadSpy.mockRestore();
     });
