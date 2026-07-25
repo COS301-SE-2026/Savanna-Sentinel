@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Optional
 
 from fastapi import HTTPException, status
 
+from app.services.media_service import MediaService
+
 if TYPE_CHECKING:
     from app.models.user import User
     from app.repositories.report_repository import ReportRepository
@@ -12,8 +14,13 @@ if TYPE_CHECKING:
 
 
 class ReportService:
-    def __init__(self, repo: ReportRepository):
+    def __init__(
+        self,
+        repo: ReportRepository,
+        media_service: Optional[MediaService] = None,
+    ):
         self.repo = repo
+        self.media_service = media_service or MediaService()
 
     async def create_report(
         self,
@@ -184,7 +191,7 @@ class ReportService:
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
         owner_id = current_user.id if current_user.role == "ranger" else None
-        return await self.repo.get_list(
+        results, total = await self.repo.get_list(
             owner_id=owner_id,
             report_type=report_type,
             severity=severity,
@@ -194,6 +201,9 @@ class ReportService:
             page=page,
             page_size=page_size,
         )
+        for item in results:
+            item["images"] = self._view_urls(item.get("images"))
+        return results, total
 
     async def get_report(
         self,
@@ -211,4 +221,10 @@ class ReportService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",
             )
+        report["images"] = self._view_urls(report.get("images"))
         return report
+
+    def _view_urls(self, images: Optional[list]) -> list:
+        return [
+            self.media_service.generate_view_url(url) for url in (images or [])
+        ]

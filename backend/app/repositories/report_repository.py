@@ -437,5 +437,21 @@ class ReportRepository:
         data = dict(row)
         raw_loc = data.get("location")
         data["location"] = json.loads(raw_loc) if raw_loc else None
-        data["images"] = []
+        data["images"] = await self._get_images(report_id)
         return data
+
+    async def _get_images(self, report_id: str) -> list:
+        event_id = await self._get_event_id(report_id)
+        if event_id is None:
+            return []
+
+        rows = (
+            await self.db.execute(
+                text("""
+                    SELECT image_url FROM photos
+                    WHERE geospatial_event_id = :eid
+                """),
+                {"eid": event_id},
+            )
+        ).fetchall()
+        return [row[0] for row in rows]
