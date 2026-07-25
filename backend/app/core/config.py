@@ -52,6 +52,8 @@ class Settings:
             "30",
         ),
     )
+    # CORS - deployed frontend origin
+    FRONTEND_ORIGIN: str | None = os.getenv("FRONTEND_ORIGIN")
 
 
 settings = Settings()
