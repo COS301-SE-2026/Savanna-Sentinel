@@ -43,6 +43,8 @@ class Settings:
         os.getenv("MINIO_ENDPOINT", "minio:9000"),
     )
 
+    MINIO_REGION: str = os.getenv("MINIO_REGION", "us-east-1")
+
     # Admin MFA (email otp)
     MFA_ENABLED: bool = os.getenv("MFA_ENABLED", "true").lower() == "true"
     MFA_CODE_TTL_SECONDS: int = int(
