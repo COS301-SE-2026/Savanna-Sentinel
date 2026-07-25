@@ -203,7 +203,6 @@ const IngestionPage = () => {
                 />
             )}
 
-            <h1>File contents</h1>
             {allLines.length > 0 && parsedRows.length > 0 ? (
                 <div>
                     {allLines.length > 0 && !isComplete && (
