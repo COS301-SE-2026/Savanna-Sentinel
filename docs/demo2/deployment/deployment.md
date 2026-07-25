@@ -21,10 +21,11 @@ No separate staging environment exists. Pull requests with required CI checks
 - Services: `db` (Postgres+PostGIS), `redis`, `minio`, `backend`, `frontend`, `caddy`.
 - `caddy` is the only service exposed on ports 80/443 - everything else stays on the internal
   Compose network.
-- TLS comes from Let's Encrypt via Caddy, for whatever hostname `SITE_ADDRESS` is set to. The
-  domain is `savannasentinel.co.za` (`www` included), with `A` records at the registrar pointing
-  both at the instance's Elastic IP - Caddy requests and renews the certificate for it
-  automatically on container start.
+- TLS comes from Let's Encrypt via Caddy, for whatever hostnames `SITE_ADDRESS` and
+  `MEDIA_SITE_ADDRESS` are set to. The domain is `savannasentinel.co.za` (`www` included) plus
+  `media.savannasentinel.co.za` for serving report/tip-off photos out of MinIO, with `A` records
+  at the registrar pointing all three at the instance's Elastic IP - Caddy requests and renews
+  certificates for them automatically on container start.
 
 ## First-time setup
 
@@ -46,6 +47,7 @@ At the domain registrar, create:
 
 - `A` record: `@` -> `<elastic-ip>`
 - `CNAME` record: `www` -> `<elastic-ip>`
+- `A` record: `media` -> `<elastic-ip>`
 
 Give it time to propagate before continuing - Caddy's certificate request in step 6 will fail if
 the domain doesn't resolve to this instance yet. Check with:
@@ -92,6 +94,7 @@ POSTGRES_DB=savanna_sentinel
 MINIO_ROOT_USER=sentinel_minio
 MINIO_ROOT_PASSWORD=<strong password>
 SITE_ADDRESS=savannasentinel.co.za www.savannasentinel.co.za
+MEDIA_SITE_ADDRESS=media.savannasentinel.co.za
 ```
 
 `backend/.env`, from `backend/.env.example`:
@@ -109,8 +112,12 @@ ACCESS_TOKEN_EXPIRE_SECONDS=3600
 REFRESH_TOKEN_EXPIRE_DAYS=7
 REDIS_URL=redis://redis:6379/0
 MINIO_ENDPOINT=minio:9000
+MINIO_PUBLIC_ENDPOINT=media.savannasentinel.co.za
 MINIO_ACCESS_KEY=sentinel_minio
 MINIO_SECRET_KEY=<same MINIO_ROOT_PASSWORD>
+MINIO_BUCKET=savanna-sentinel-media
+MINIO_USE_SSL=true
+MINIO_REGION=us-east-1
 RESEND_API_KEY=<Resend API key>
 RESEND_FROM_ADDRESS=noreply@savannasentinel.co.za
 FRONTEND_BASE_URL=https://savannasentinel.co.za

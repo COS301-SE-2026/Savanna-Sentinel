@@ -1,6 +1,6 @@
 <mxfile host="Electron" pages="2">
   <diagram name="Production" id="T8k7ZvoasH1VdkIALa_N">
-    <mxGraphModel dx="1810" dy="1805" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="2384" dy="2176" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -126,6 +126,16 @@
         <mxCell id="mM8kD6yVDtogUWzt-O8x-74" connectable="0" parent="mM8kD6yVDtogUWzt-O8x-73" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="HTTP, S3 API : 9000" vertex="1">
           <mxGeometry relative="1" x="0.7477" y="1" as="geometry">
             <mxPoint x="2" y="-9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nqkIbXDbvd3xw0XuIxQv-2" edge="1" parent="mM8kD6yVDtogUWzt-O8x-4" source="mM8kD6yVDtogUWzt-O8x-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0;exitDx=310;exitDy=105;exitPerimeter=0;entryX=-0.014;entryY=0.917;entryDx=0;entryDy=0;entryPerimeter=0;" target="mM8kD6yVDtogUWzt-O8x-13" value="HTTP, S3 API : 9000">
+          <mxGeometry relative="1" x="0.274" y="-8" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="130.03" y="358" />
+              <mxPoint x="130.03" y="398.37" />
+              <mxPoint x="41.66" y="398.37" />
+            </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="mM8kD6yVDtogUWzt-O8x-7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=default;fillColor=none;align=center;verticalAlign=middle;rounded=0;dashed=1;" value="Security Group: inbound 22, 80, 443" vertex="1">
@@ -347,6 +357,18 @@
         <mxCell id="X0ndUrHdvxW3anGZw0ce-6" connectable="0" parent="X0ndUrHdvxW3anGZw0ce-4" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="HTTP : 8000 (--reload)" vertex="1">
           <mxGeometry relative="1" x="-0.5332" y="-2" as="geometry">
             <mxPoint x="4" y="-12" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sHfsXtmWpNrSoQIGZEyy-0" edge="1" parent="61QGDHsJL5c5Oz2pOT3X-1" source="61QGDHsJL5c5Oz2pOT3X-37" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=-0.007;entryY=0.632;entryDx=0;entryDy=0;entryPerimeter=0;" target="61QGDHsJL5c5Oz2pOT3X-20">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="213.47" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sHfsXtmWpNrSoQIGZEyy-1" connectable="0" parent="sHfsXtmWpNrSoQIGZEyy-0" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="HTTP, S3 API : 9000" vertex="1">
+          <mxGeometry relative="1" x="-0.2931" y="5" as="geometry">
+            <mxPoint x="-1" y="-5" as="offset" />
           </mxGeometry>
         </mxCell>
       </root>
