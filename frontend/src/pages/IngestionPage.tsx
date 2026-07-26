@@ -213,20 +213,20 @@ const IngestionPage = () => {
         } catch (error: unknown) {
             console.error("File processing failed", error);
 
-            let errorMessage =
+            let resolvedMessage =
                 "A network issue occured while submitting this file";
 
             const detail = parseServerError(error);
             if (detail) {
                 if (detail.message) {
-                    errorMessage = detail.message;
+                    resolvedMessage = detail.message;
                 }
                 if (detail.errors) {
                     setServerErrors(detail.errors);
                 }
             }
 
-            setErrorMessage(errorMessage);
+            setErrorMessage(resolvedMessage);
         }
     };
 

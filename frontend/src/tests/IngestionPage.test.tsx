@@ -385,6 +385,55 @@ describe("Logic tests - Absolute row indexing across pages", () => {
 
         uploadSpy.mockRestore();
     });
+
+    it("clears a row's server error once its flagged cell is edited", async () => {
+        const user = userEvent.setup();
+
+        const customError = {
+            response: {
+                status: 422,
+                data: {
+                    detail: {
+                        message: "Validation failed for some records",
+                        errors: {
+                            row_1: [
+                                {
+                                    column: "status",
+                                    error_type: "value_error",
+                                    message: "Duplicate status value",
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        };
+
+        const uploadSpy = vi
+            .spyOn(ingestionApi, "uploadFile")
+            .mockRejectedValue(customError);
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\n1,dup"], "test.csv", {
+            type: "text/csv",
+        });
+
+        await user.upload(getFileInput(), csvFile);
+        await submitAll(user);
+
+        const badStatus = await screen.findByDisplayValue("dup");
+        expect(badStatus).toHaveAttribute("aria-invalid", "true");
+
+        await user.clear(badStatus);
+        await user.type(badStatus, "fixed");
+
+        expect(
+            screen.queryByText("Duplicate status value"),
+        ).not.toBeInTheDocument();
+        expect(badStatus).not.toHaveAttribute("aria-invalid", "true");
+
+        uploadSpy.mockRestore();
+    });
 });
 
 describe("Logic tests - Cancel confirmation", () => {
@@ -431,6 +480,89 @@ describe("Logic tests - Cancel confirmation", () => {
 
         expect(screen.queryByRole("table")).not.toBeInTheDocument();
         expect(getFileInput()).toBeInTheDocument();
+    });
+});
+
+describe("Logic tests - Client-side validation gate", () => {
+    it("blocks submission and never opens the confirm dialog when the file has validation errors", async () => {
+        const user = userEvent.setup();
+        const uploadSpy = vi.spyOn(ingestionApi, "uploadFile");
+        renderIngestionPage();
+
+        const csvFile = new File(
+            ["id,status\n1,active,extra_data"],
+            "test.csv",
+            { type: "text/csv" },
+        );
+
+        await user.upload(getFileInput(), csvFile);
+        await screen.findByRole("table");
+
+        await user.click(screen.getByRole("button", { name: /^submit/i }));
+
+        expect(notifyCritical).toHaveBeenCalledWith(
+            "Cannot submit",
+            "This file has validation errors.",
+        );
+        expect(
+            screen.queryByText(/confirm submission/i),
+        ).not.toBeInTheDocument();
+        expect(uploadSpy).not.toHaveBeenCalled();
+
+        uploadSpy.mockRestore();
+    });
+
+    it("dismisses the submit confirm dialog on Escape without submitting", async () => {
+        const user = userEvent.setup();
+        const uploadSpy = vi.spyOn(ingestionApi, "uploadFile");
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\n1,active"], "test.csv", {
+            type: "text/csv",
+        });
+
+        await user.upload(getFileInput(), csvFile);
+        await user.click(screen.getByRole("button", { name: /^submit/i }));
+
+        expect(
+            await screen.findByRole("heading", {
+                name: /confirm submission/i,
+            }),
+        ).toBeInTheDocument();
+
+        await user.keyboard("{Escape}");
+
+        expect(
+            screen.queryByRole("heading", { name: /confirm submission/i }),
+        ).not.toBeInTheDocument();
+        expect(uploadSpy).not.toHaveBeenCalled();
+
+        uploadSpy.mockRestore();
+    });
+
+    it("closes the submit confirm dialog when its Cancel button is clicked", async () => {
+        const user = userEvent.setup();
+        const uploadSpy = vi.spyOn(ingestionApi, "uploadFile");
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\n1,active"], "test.csv", {
+            type: "text/csv",
+        });
+
+        await user.upload(getFileInput(), csvFile);
+        await user.click(screen.getByRole("button", { name: /^submit/i }));
+
+        await screen.findByRole("heading", { name: /confirm submission/i });
+
+        await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+        expect(
+            screen.queryByRole("heading", { name: /confirm submission/i }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole("table")).toBeInTheDocument();
+        expect(uploadSpy).not.toHaveBeenCalled();
+
+        uploadSpy.mockRestore();
     });
 });
 
@@ -571,6 +703,31 @@ describe("Logic tests - Server error parsing", () => {
 
         const badId = screen.getByDisplayValue("1.5");
         expect(badId).toHaveAttribute("aria-invalid", "true");
+
+        uploadSpy.mockRestore();
+    });
+
+    it("falls back to a generic network-issue message when the rejection has no response body", async () => {
+        const user = userEvent.setup();
+
+        const uploadSpy = vi
+            .spyOn(ingestionApi, "uploadFile")
+            .mockRejectedValue(new Error("network down"));
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\n1,active"], "test.csv", {
+            type: "text/csv",
+        });
+
+        await user.upload(getFileInput(), csvFile);
+
+        await submitAll(user);
+
+        expect(
+            await screen.findByText(
+                /a network issue occured while submitting this file/i,
+            ),
+        ).toBeInTheDocument();
 
         uploadSpy.mockRestore();
     });
