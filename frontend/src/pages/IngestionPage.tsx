@@ -4,12 +4,9 @@ import { FILE_SCHEMA, validateData } from "@/lib/ingestionSchema";
 import { ingestionApi } from "@/services/ingestionApi";
 import { UploadWizard } from "@/components/ingestion/UploadWizard";
 import { DataPreview } from "@/components/ingestion/DataPreview";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
-
-const BATCH_SIZE = 500;
 
 interface ServerValidationError {
     column: string;
@@ -109,39 +106,28 @@ const parseServerError = (error: unknown): ServerErrorDetail | null => {
 const IngestionPage = () => {
     const [parsedRows, setParsedRows] = useState<string[][]>([]);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [currentLineNumber, setCurrentLineNumber] = useState<number>(1);
-    const [allLines, setAllLines] = useState<string[]>([]);
+    const [page, setPage] = useState<number>(1);
     const [isComplete, setIsComplete] = useState<boolean>(false);
     const [serverErrors, setServerErrors] = useState<ServerErrorsMap | null>(
         null,
     );
 
-    const loadBatch = (lines: string[], startLine: number) => {
-        const endLine = Math.min(startLine + BATCH_SIZE, lines.length);
-        const batchSlice = lines.slice(startLine, endLine);
-
-        const parsedBatch = batchSlice.map((line) =>
-            line.split(",").map((cell) => cell.trim()),
-        );
-
-        setParsedRows(parsedBatch);
-        setCurrentLineNumber(startLine);
-        setServerErrors(null);
-    };
-
     const handleFileAccepted = (lines: string[]) => {
-        setAllLines(lines);
+        const dataLines = lines.slice(1); // header already validated by UploadWizard
+        setParsedRows(
+            dataLines.map((line) => line.split(",").map((cell) => cell.trim())),
+        );
         setIsComplete(false);
-        loadBatch(lines, 1);
+        setServerErrors(null);
+        setPage(1);
     };
 
     const handleReset = () => {
         setParsedRows([]);
         setErrorMessage(null);
-        setCurrentLineNumber(1);
-        setAllLines([]);
         setIsComplete(false);
         setServerErrors(null);
+        setPage(1);
     };
 
     const handleCellChange = (
@@ -194,23 +180,16 @@ const IngestionPage = () => {
         const records = parsedRows.map(mapRowToRecord);
 
         try {
-            await ingestionApi.uploadFile(records, currentLineNumber);
+            await ingestionApi.uploadFile(records, 1);
 
             setErrorMessage(null);
             setServerErrors(null);
-
-            //Advance to the next batch
-            const nextLine = currentLineNumber + parsedRows.length;
-            if (nextLine >= allLines.length) {
-                setIsComplete(true);
-                setParsedRows([]);
-                notifySafe(
-                    "Upload complete",
-                    "The entire file has been ingested.",
-                );
-            } else {
-                loadBatch(allLines, nextLine);
-            }
+            setIsComplete(true);
+            setParsedRows([]);
+            notifySafe(
+                "Upload complete",
+                "The entire file has been ingested.",
+            );
         } catch (error: unknown) {
             console.error("Batch processing failed", error);
 
@@ -235,7 +214,7 @@ const IngestionPage = () => {
             <h1 className="mb-6 font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
                 Data Ingestion
             </h1>
-            {allLines.length === 0 && (
+            {parsedRows.length === 0 && !isComplete && (
                 <UploadWizard onFileAccepted={handleFileAccepted} />
             )}
             {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
@@ -253,45 +232,22 @@ const IngestionPage = () => {
                 />
             )}
 
-            {allLines.length > 0 && parsedRows.length > 0 ? (
+            {parsedRows.length > 0 ? (
                 <div>
-                    {allLines.length > 0 && !isComplete && (
-                        <div className="mb-4 space-y-1">
-                            <Progress
-                                value={
-                                    ((currentLineNumber - 1) /
-                                        (allLines.length - 1)) *
-                                    100
-                                }
-                            />
-                            <p className="text-xs text-color-text-secondary">
-                                Rows {currentLineNumber}–
-                                {Math.min(
-                                    currentLineNumber + parsedRows.length - 1,
-                                    allLines.length - 1,
-                                )}{" "}
-                                of {allLines.length - 1}
-                            </p>
-                        </div>
-                    )}
-                    {parsedRows.length > 0 && (
-                        <>
-                            <div className="mb-4 flex gap-2">
-                                <Button variant="outline" onClick={handleReset}>
-                                    Cancel
-                                </Button>
-                                <Button onClick={handleDataSubmission}>
-                                    Submit Current Batch
-                                </Button>
-                            </div>
-                            <DataPreview
-                                schema={FILE_SCHEMA}
-                                rows={parsedRows}
-                                serverErrors={serverErrors}
-                                onCellChange={handleCellChange}
-                            />
-                        </>
-                    )}
+                    <div className="mb-4 flex gap-2">
+                        <Button variant="outline" onClick={handleReset}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleDataSubmission}>
+                            Submit Current Batch
+                        </Button>
+                    </div>
+                    <DataPreview
+                        schema={FILE_SCHEMA}
+                        rows={parsedRows}
+                        serverErrors={serverErrors}
+                        onCellChange={handleCellChange}
+                    />
                 </div>
             ) : (
                 !isComplete && "No data loaded"
