@@ -8,6 +8,14 @@ import { Pagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 
 const REVIEW_PAGE_SIZE = 50;
 
@@ -114,6 +122,7 @@ const IngestionPage = () => {
     const [serverErrors, setServerErrors] = useState<ServerErrorsMap | null>(
         null,
     );
+    const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
 
     const totalPages = Math.max(1, Math.ceil(parsedRows.length / REVIEW_PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
@@ -136,6 +145,11 @@ const IngestionPage = () => {
         setIsComplete(false);
         setServerErrors(null);
         setPage(1);
+    };
+
+    const confirmCancel = () => {
+        setIsCancelConfirmOpen(false);
+        handleReset();
     };
 
     const handleCellChange = (
@@ -250,7 +264,10 @@ const IngestionPage = () => {
                         />
                     </div>
                     <div className="mb-4 flex gap-2">
-                        <Button variant="outline" onClick={handleReset}>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsCancelConfirmOpen(true)}
+                        >
                             Cancel
                         </Button>
                         <Button onClick={handleDataSubmission}>
@@ -268,6 +285,32 @@ const IngestionPage = () => {
             ) : (
                 !isComplete && "No data loaded"
             )}
+
+            <Dialog
+                open={isCancelConfirmOpen}
+                onOpenChange={setIsCancelConfirmOpen}
+            >
+                <DialogContent preventBackdropClose>
+                    <DialogHeader>
+                        <DialogTitle>Discard this upload?</DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>
+                        All loaded rows and any edits you&apos;ve made will be
+                        lost. This can&apos;t be undone.
+                    </DialogDescription>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsCancelConfirmOpen(false)}
+                        >
+                            Keep editing
+                        </Button>
+                        <Button variant="destructive" onClick={confirmCancel}>
+                            Discard
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
