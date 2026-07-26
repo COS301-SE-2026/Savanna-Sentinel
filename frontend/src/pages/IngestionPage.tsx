@@ -180,7 +180,7 @@ const IngestionPage = () => {
         if (!isDataValid()) {
             notifyCritical(
                 "Cannot submit",
-                "This batch has validation errors.",
+                "This file has validation errors.",
             );
             return;
         }
@@ -199,10 +199,10 @@ const IngestionPage = () => {
                 "The entire file has been ingested.",
             );
         } catch (error: unknown) {
-            console.error("Batch processing failed", error);
+            console.error("File processing failed", error);
 
             let errorMessage =
-                "A network issue occured while submitting this batch";
+                "A network issue occured while submitting this file";
 
             const detail = parseServerError(error);
             if (detail) {
@@ -254,7 +254,7 @@ const IngestionPage = () => {
                             Cancel
                         </Button>
                         <Button onClick={handleDataSubmission}>
-                            Submit Current Batch
+                            Submit (ALL)
                         </Button>
                     </div>
                     <DataPreview
