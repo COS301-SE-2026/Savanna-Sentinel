@@ -259,7 +259,9 @@ const IngestionPage = () => {
                         <div className="mb-4 space-y-1">
                             <Progress
                                 value={
-                                    (currentLineNumber / allLines.length) * 100
+                                    ((currentLineNumber - 1) /
+                                        (allLines.length - 1)) *
+                                    100
                                 }
                             />
                             <p className="text-xs text-color-text-secondary">
@@ -268,7 +270,7 @@ const IngestionPage = () => {
                                     currentLineNumber + parsedRows.length - 1,
                                     allLines.length - 1,
                                 )}{" "}
-                                of {allLines.length}
+                                of {allLines.length - 1}
                             </p>
                         </div>
                     )}
