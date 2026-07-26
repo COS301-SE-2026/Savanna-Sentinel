@@ -17,3 +17,4 @@
 - Added MEDIA_SITE_ADDRESS to the root .env, MINIO_PUBLIC_ENDPOINT/MINIO_USE_SSL/MINIO_BUCKET/
   MINIO_REGION to the backend/.env example
 - Updated deployment diagrams
+- added worker

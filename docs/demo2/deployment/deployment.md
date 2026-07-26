@@ -18,7 +18,7 @@ No separate staging environment exists. Pull requests with required CI checks
 ## Infrastructure
 
 - One EC2 instance (Ubuntu 24.04, t3.small) with an Elastic IP.
-- Services: `db` (Postgres+PostGIS), `redis`, `minio`, `backend`, `frontend`, `caddy`.
+- Services: `db` (Postgres+PostGIS), `redis`, `minio`, `backend`, `worker`, `frontend`, `caddy`.
 - `caddy` is the only service exposed on ports 80/443 - everything else stays on the internal
   Compose network.
 - TLS comes from Let's Encrypt via Caddy, for whatever hostnames `SITE_ADDRESS` and
