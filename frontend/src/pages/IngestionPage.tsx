@@ -102,7 +102,7 @@ const parseServerError = (error: unknown): ServerErrorDetail | null => {
     if (isFastApiValidationErrors(detail)) {
         return {
             message:
-                "Some records in this batch failed validation. Correct the highlighted cells and resubmit.",
+                "Some records in this file failed validation. Correct the highlighted cells and resubmit.",
             errors: mapFastApiErrorsToServerErrors(detail),
         };
     }
@@ -123,6 +123,8 @@ const IngestionPage = () => {
         null,
     );
     const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+    const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const totalPages = Math.max(1, Math.ceil(parsedRows.length / REVIEW_PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
@@ -191,14 +193,6 @@ const IngestionPage = () => {
         });
     };
     const handleDataSubmission = async () => {
-        if (!isDataValid()) {
-            notifyCritical(
-                "Cannot submit",
-                "This file has validation errors.",
-            );
-            return;
-        }
-
         const records = parsedRows.map(mapRowToRecord);
 
         try {
@@ -231,6 +225,28 @@ const IngestionPage = () => {
             setErrorMessage(errorMessage);
         }
     };
+
+    const onSubmitClick = () => {
+        if (!isDataValid()) {
+            notifyCritical(
+                "Cannot submit",
+                "This file has validation errors.",
+            );
+            return;
+        }
+        setIsSubmitConfirmOpen(true);
+    };
+
+    const confirmSubmission = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+        try {
+            await handleDataSubmission();
+        } finally {
+            setIsSubmitting(false);
+            setIsSubmitConfirmOpen(false);
+        }
+    };
     return (
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
             <h1 className="mb-6 font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
@@ -256,22 +272,20 @@ const IngestionPage = () => {
 
             {parsedRows.length > 0 ? (
                 <div>
-                    <div className="mb-4">
+                    <div className="mb-2">
                         <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
                             onPageChange={setPage}
                         />
                     </div>
-                    <div className="mb-4 flex gap-2">
+                    <div className="mb-4 flex items-center justify-between">
+                        <Button onClick={onSubmitClick}>Submit</Button>
                         <Button
                             variant="outline"
                             onClick={() => setIsCancelConfirmOpen(true)}
                         >
                             Cancel
-                        </Button>
-                        <Button onClick={handleDataSubmission}>
-                            Submit (ALL)
                         </Button>
                     </div>
                     <DataPreview
@@ -307,6 +321,41 @@ const IngestionPage = () => {
                         </Button>
                         <Button variant="destructive" onClick={confirmCancel}>
                             Discard
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={isSubmitConfirmOpen}
+                onOpenChange={(open) => {
+                    if (!open && !isSubmitting) setIsSubmitConfirmOpen(false);
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm submission</DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>
+                        You are about to submit this file for ingestion.
+                        Confirm to continue.
+                    </DialogDescription>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsSubmitConfirmOpen(false)}
+                            disabled={isSubmitting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={confirmSubmission}
+                            disabled={isSubmitting}
+                        >
+                            Confirm Submission
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -42,6 +42,13 @@ const renderIngestionPage = () => {
 const getFileInput = () =>
     screen.getByLabelText(/drop csv here/i, { selector: "input" });
 
+const submitAll = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole("button", { name: /^submit/i }));
+    await user.click(
+        screen.getByRole("button", { name: /confirm submission/i }),
+    );
+};
+
 beforeEach(() => {
     vi_mockSchema = DEFAULT_SCHEMA;
     vi.mocked(notifySafe).mockClear();
@@ -216,13 +223,14 @@ describe("Rendering tests - File validation tests, test various files that succe
         await user.upload(getFileInput(), csvFile);
         await screen.findAllByRole("textbox");
 
-        await user.click(screen.getByRole("button", { name: /cancel/i }));
+        await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+        await user.click(screen.getByRole("button", { name: /discard/i }));
 
         expect(screen.queryByRole("table")).not.toBeInTheDocument();
         expect(getFileInput()).toBeInTheDocument();
     });
 
-    it("shows a success toast after the final batch uploads", async () => {
+    it("shows a success toast after the file uploads", async () => {
         vi_mockSchema = [
             { name: "id", type: "number" },
             { name: "status", type: "string" },
@@ -244,8 +252,7 @@ describe("Rendering tests - File validation tests, test various files that succe
 
         await user.upload(getFileInput(), csvFile);
 
-        const submitButton = screen.getByRole("button", { name: /submit/i });
-        await user.click(submitButton);
+        await submitAll(user);
 
         expect(uploadSpy).toHaveBeenCalledTimes(1);
         expect(notifySafe).toHaveBeenCalledWith(
@@ -257,79 +264,180 @@ describe("Rendering tests - File validation tests, test various files that succe
     });
 });
 
-describe("Logic tests - Batch logic", () => {
-    it("should chunk a large CSV file into correct sequential batch slices and update the progress bar", async () => {
+describe("Logic tests - Review pagination", () => {
+    const makeLargeCsv = (rowCount: number) => {
+        const headers = "id,status\n";
+        const dataRows = Array.from(
+            { length: rowCount },
+            (_, i) => `${i + 1},ok`,
+        ).join("\n");
+        return new File([headers + dataRows], "test.csv", {
+            type: "text/csv",
+        });
+    };
+
+    it("paginates a file larger than one review page instead of rendering every row at once", async () => {
         const user = userEvent.setup();
         renderIngestionPage();
 
-        const headers = "id,status\n";
-        // Generate an array of length 502
-        const dataRows = Array.from(
-            { length: 502 },
-            (_, i) => `${i + 1}, pending`,
-        ).join("\n");
-        const largeCsvFile = new File([headers + dataRows], "test.csv", {
-            type: "text/csv",
-        });
+        await user.upload(getFileInput(), makeLargeCsv(60));
 
-        await user.upload(getFileInput(), largeCsvFile);
+        const table = await screen.findByRole("table");
+        
+        expect(table.querySelectorAll("input")).toHaveLength(100);
+        expect(screen.getByDisplayValue("1")).toBeInTheDocument();
+        expect(screen.queryByDisplayValue("51")).not.toBeInTheDocument();
 
-        const progress = await screen.findByText(
-            /Rows\s*1\s*[-–]\s*500\s*of\s*503/i,
-        );
-        expect(progress).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "2" }));
 
-        const progressbar = screen.getByRole("progressbar");
-        expect(progressbar).toHaveAttribute("aria-valuenow");
-        expect(Number(progressbar.getAttribute("aria-valuenow"))).toBeCloseTo(
-            (1 / 503) * 100,
-            5,
-        );
+        expect(await screen.findByDisplayValue("51")).toBeInTheDocument();
+        expect(screen.queryByDisplayValue("1")).not.toBeInTheDocument();
+        expect(table.querySelectorAll("input")).toHaveLength(20);
+    });
 
-        const table = screen.getByRole("table");
-        const inputsBatch = table.querySelectorAll("input");
-
-        expect(inputsBatch).toHaveLength(1000);
-    }, 15000);
-
-    it("should advance to the next batch upon successful intermediate submission", async () => {
+    it("keeps Submit (ALL) scoped to every parsed row regardless of which page is being viewed", async () => {
         const user = userEvent.setup();
         const uploadSpy = vi
             .spyOn(ingestionApi, "uploadFile")
             .mockResolvedValue({} as IngestionResponse);
         renderIngestionPage();
 
-        const headers = "id,status\n";
-        // Generate an array of length 501
-        const dataRows = Array.from(
-            { length: 501 },
-            (_, i) => `${i + 1}, pending`,
-        ).join("\n");
-        const largeCsvFile = new File([headers + dataRows], "test.csv", {
-            type: "text/csv",
-        });
+        await user.upload(getFileInput(), makeLargeCsv(60));
+        await screen.findByRole("table");
 
-        await user.upload(getFileInput(), largeCsvFile);
+        await user.click(screen.getByRole("button", { name: "2" }));
+        await screen.findByDisplayValue("51");
 
-        const progressInfo = await screen.findByText(
-            /Rows\s*1\s*[-–]\s*500\s*of\s*502/i,
-        );
-        expect(progressInfo).toBeInTheDocument();
-
-        const submitButton = screen.getByRole("button", { name: /submit/i });
-        await user.click(submitButton);
+        await submitAll(user);
 
         expect(uploadSpy).toHaveBeenCalledTimes(1);
-
-        const progress = await screen.findByText(
-            /Rows\s*501\s*[-–]\s*501\s*of\s*502/i,
-        );
-        expect(progress).toBeInTheDocument();
+        const [records, startRow] = uploadSpy.mock.calls[0];
+        expect(records).toHaveLength(60);
+        expect(startRow).toBe(1);
 
         uploadSpy.mockRestore();
     });
+});
 
-    it("should test complete sequence and clean up after last batch of file is submitted", async () => {
+describe("Logic tests - Absolute row indexing across pages", () => {
+    it("keys a server validation error to the file-absolute row, not the row's position on its page", async () => {
+        const user = userEvent.setup();
+
+        const customError = {
+            response: {
+                status: 422,
+                data: {
+                    detail: {
+                        message:
+                            "Validation failed for some records in this file, please correct and reupload",
+                        errors: {
+                            row_51: [
+                                {
+                                    column: "status",
+                                    error_type: "value_error",
+                                    message: "Duplicate status value",
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        };
+
+        const uploadSpy = vi
+            .spyOn(ingestionApi, "uploadFile")
+            .mockRejectedValue(customError);
+        renderIngestionPage();
+
+        const headers = "id,status\n";
+        const dataRows = Array.from(
+            { length: 60 },
+            (_, i) => `${i + 1},ok`,
+        ).join("\n");
+        const csvFile = new File([headers + dataRows], "test.csv", {
+            type: "text/csv",
+        });
+
+        await user.upload(getFileInput(), csvFile);
+        await screen.findByRole("table");
+
+        await user.click(screen.getByRole("button", { name: "2" }));
+        await screen.findByDisplayValue("51");
+
+        await submitAll(user);
+
+        expect(
+            await screen.findByText("Duplicate status value"),
+        ).toBeInTheDocument();
+
+        const flaggedId = screen.getByDisplayValue("51");
+        const flaggedRow = flaggedId.closest("tr");
+        expect(
+            flaggedRow?.querySelector('[aria-invalid="true"]'),
+        ).toBeInTheDocument();
+
+        // A different row on the same page must not be misflagged.
+        const otherId = screen.getByDisplayValue("52");
+        const otherRow = otherId.closest("tr");
+        expect(
+            otherRow?.querySelector('[aria-invalid="true"]'),
+        ).not.toBeInTheDocument();
+
+        uploadSpy.mockRestore();
+    });
+});
+
+describe("Logic tests - Cancel confirmation", () => {
+    it("does not discard the loaded file until the confirm dialog is accepted", async () => {
+        const user = userEvent.setup();
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\n1,active"], "test.csv", {
+            type: "text/csv",
+        });
+
+        await user.upload(getFileInput(), csvFile);
+        await screen.findByRole("table");
+
+        await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+        expect(
+            await screen.findByText(/discard this upload/i),
+        ).toBeInTheDocument();
+
+        expect(document.querySelector("table")).toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole("button", { name: /keep editing/i }),
+        );
+
+        expect(
+            screen.queryByText(/discard this upload/i),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole("table")).toBeInTheDocument();
+    });
+
+    it("discards the loaded file once the confirm dialog is accepted", async () => {
+        const user = userEvent.setup();
+        renderIngestionPage();
+
+        const csvFile = new File(["id,status\n1,active"], "test.csv", {
+            type: "text/csv",
+        });
+
+        await user.upload(getFileInput(), csvFile);
+        await screen.findByRole("table");
+
+        await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+        await user.click(screen.getByRole("button", { name: /discard/i }));
+
+        expect(screen.queryByRole("table")).not.toBeInTheDocument();
+        expect(getFileInput()).toBeInTheDocument();
+    });
+});
+
+describe("Logic tests - Full-file submission and cleanup", () => {
+    it("submits every parsed row in a single request and resets after success", async () => {
         const user = userEvent.setup();
         const uploadSpy = vi
             .spyOn(ingestionApi, "uploadFile")
@@ -344,8 +452,12 @@ describe("Logic tests - Batch logic", () => {
 
         await user.upload(getFileInput(), csvFile);
 
-        const submitButton = screen.getByRole("button", { name: /submit/i });
-        await user.click(submitButton);
+        await submitAll(user);
+
+        expect(uploadSpy).toHaveBeenCalledTimes(1);
+        const [records, startRow] = uploadSpy.mock.calls[0];
+        expect(records).toHaveLength(5);
+        expect(startRow).toBe(1);
 
         const success = await screen.findByText(/upload complete/i);
         expect(success).toBeInTheDocument();
@@ -363,8 +475,10 @@ describe("Logic tests - Batch logic", () => {
 
         uploadSpy.mockRestore();
     });
+});
 
-    it("surfaces nested server validation error details on the batch", async () => {
+describe("Logic tests - Server error parsing", () => {
+    it("surfaces nested server validation error details", async () => {
         const user = userEvent.setup();
 
         const customError = {
@@ -373,7 +487,7 @@ describe("Logic tests - Batch logic", () => {
                 data: {
                     detail: {
                         message:
-                            "Validation failed for some records on this batch, please correct and reupload",
+                            "Validation failed for some records in this file, please correct and reupload",
                         errors: {
                             row_1: [
                                 {
@@ -399,8 +513,7 @@ describe("Logic tests - Batch logic", () => {
 
         await user.upload(getFileInput(), csvFile);
 
-        const submitButton = screen.getByRole("button", { name: /submit/i });
-        await user.click(submitButton);
+        await submitAll(user);
 
         expect(uploadSpy).toHaveBeenCalledTimes(1);
 
@@ -418,7 +531,7 @@ describe("Logic tests - Batch logic", () => {
         uploadSpy.mockRestore();
     });
 
-    it("surfaces FastAPI's raw request-validation error shape on the batch", async () => {
+    it("surfaces FastAPI's raw request-validation error shape", async () => {
         const user = userEvent.setup();
 
         const customError = {
@@ -447,8 +560,7 @@ describe("Logic tests - Batch logic", () => {
 
         await user.upload(getFileInput(), csvFile);
 
-        const submitButton = screen.getByRole("button", { name: /submit/i });
-        await user.click(submitButton);
+        await submitAll(user);
 
         expect(uploadSpy).toHaveBeenCalledTimes(1);
 
