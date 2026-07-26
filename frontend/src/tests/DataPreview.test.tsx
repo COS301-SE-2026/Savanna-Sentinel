@@ -14,6 +14,7 @@ describe("DataPreview", () => {
             <DataPreview
                 schema={schema}
                 rows={[["1", "Alice"]]}
+                startIndex={0}
                 serverErrors={null}
                 onCellChange={vi.fn()}
             />,
@@ -27,6 +28,7 @@ describe("DataPreview", () => {
             <DataPreview
                 schema={schema}
                 rows={[["not-a-number", "Alice"]]}
+                startIndex={0}
                 serverErrors={null}
                 onCellChange={vi.fn()}
             />,
@@ -39,6 +41,7 @@ describe("DataPreview", () => {
             <DataPreview
                 schema={schema}
                 rows={[["1", "Alice"]]}
+                startIndex={0}
                 serverErrors={{
                     row_1: [
                         {
@@ -60,6 +63,7 @@ describe("DataPreview", () => {
             <DataPreview
                 schema={schema}
                 rows={[["1", "Alice"]]}
+                startIndex={0}
                 serverErrors={null}
                 onCellChange={onCellChange}
             />,

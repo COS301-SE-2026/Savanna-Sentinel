@@ -21,6 +21,7 @@ type ServerErrorsMap = Record<string, ServerValidationError[]>;
 interface DataPreviewProps {
     schema: ColDef[];
     rows: string[][];
+    startIndex: number;
     serverErrors: ServerErrorsMap | null;
     onCellChange: (
         rowIndex: number,
@@ -32,6 +33,7 @@ interface DataPreviewProps {
 export function DataPreview({
     schema,
     rows,
+    startIndex,
     serverErrors,
     onCellChange,
 }: DataPreviewProps) {
@@ -48,8 +50,9 @@ export function DataPreview({
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {rows.map((row, rowIndex) => {
-                        const rowKey = `row_${rowIndex + 1}`;
+                    {rows.map((row, localIndex) => {
+                        const absoluteIndex = startIndex + localIndex;
+                        const rowKey = `row_${absoluteIndex + 1}`;
                         const rowErrors = serverErrors?.[rowKey];
 
                         return (
@@ -89,7 +92,7 @@ export function DataPreview({
                                                     title={message}
                                                     onChange={(e) =>
                                                         onCellChange(
-                                                            rowIndex,
+                                                            absoluteIndex,
                                                             cellIndex,
                                                             e.target.value,
                                                         )

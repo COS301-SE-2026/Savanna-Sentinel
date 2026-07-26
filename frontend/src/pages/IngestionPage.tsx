@@ -117,6 +117,8 @@ const IngestionPage = () => {
 
     const totalPages = Math.max(1, Math.ceil(parsedRows.length / REVIEW_PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
+    const startIndex = (currentPage - 1) * REVIEW_PAGE_SIZE;
+    const pageRows = parsedRows.slice(startIndex, startIndex + REVIEW_PAGE_SIZE);
 
     const handleFileAccepted = (lines: string[]) => {
         const dataLines = lines.slice(1); // header already validated by UploadWizard
@@ -257,7 +259,8 @@ const IngestionPage = () => {
                     </div>
                     <DataPreview
                         schema={FILE_SCHEMA}
-                        rows={parsedRows}
+                        rows={pageRows}
+                        startIndex={startIndex}
                         serverErrors={serverErrors}
                         onCellChange={handleCellChange}
                     />
