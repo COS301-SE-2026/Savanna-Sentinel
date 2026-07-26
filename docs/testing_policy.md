@@ -4,6 +4,13 @@
 
 ## Table of Contents
 
+1. [Introduction](#introduction)
+2. [Testing Tools Used](#testing-tools-used)
+3. [Test Suite Process](#test-suite-process)
+4. [Testing Types &amp; Objectives](#testing-types--objectives)
+5. [Acceptance Criteria](#acceptance-criteria)
+6. [Stakeholders](#stakeholders)
+
 ---
 
 ## Introduction
