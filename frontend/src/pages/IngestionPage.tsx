@@ -4,9 +4,12 @@ import { FILE_SCHEMA, validateData } from "@/lib/ingestionSchema";
 import { ingestionApi } from "@/services/ingestionApi";
 import { UploadWizard } from "@/components/ingestion/UploadWizard";
 import { DataPreview } from "@/components/ingestion/DataPreview";
+import { Pagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
+
+const REVIEW_PAGE_SIZE = 50;
 
 interface ServerValidationError {
     column: string;
@@ -111,6 +114,9 @@ const IngestionPage = () => {
     const [serverErrors, setServerErrors] = useState<ServerErrorsMap | null>(
         null,
     );
+
+    const totalPages = Math.max(1, Math.ceil(parsedRows.length / REVIEW_PAGE_SIZE));
+    const currentPage = Math.min(page, totalPages);
 
     const handleFileAccepted = (lines: string[]) => {
         const dataLines = lines.slice(1); // header already validated by UploadWizard
@@ -234,6 +240,13 @@ const IngestionPage = () => {
 
             {parsedRows.length > 0 ? (
                 <div>
+                    <div className="mb-4">
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setPage}
+                        />
+                    </div>
                     <div className="mb-4 flex gap-2">
                         <Button variant="outline" onClick={handleReset}>
                             Cancel
