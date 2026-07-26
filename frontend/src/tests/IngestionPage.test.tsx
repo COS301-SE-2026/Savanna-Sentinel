@@ -283,7 +283,7 @@ describe("Logic tests - Review pagination", () => {
         await user.upload(getFileInput(), makeLargeCsv(60));
 
         const table = await screen.findByRole("table");
-        
+
         expect(table.querySelectorAll("input")).toHaveLength(100);
         expect(screen.getByDisplayValue("1")).toBeInTheDocument();
         expect(screen.queryByDisplayValue("51")).not.toBeInTheDocument();
@@ -407,9 +407,7 @@ describe("Logic tests - Cancel confirmation", () => {
 
         expect(document.querySelector("table")).toBeInTheDocument();
 
-        await user.click(
-            screen.getByRole("button", { name: /keep editing/i }),
-        );
+        await user.click(screen.getByRole("button", { name: /keep editing/i }));
 
         expect(
             screen.queryByText(/discard this upload/i),

@@ -126,13 +126,20 @@ const IngestionPage = () => {
     const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const totalPages = Math.max(1, Math.ceil(parsedRows.length / REVIEW_PAGE_SIZE));
+    const totalPages = Math.max(
+        1,
+        Math.ceil(parsedRows.length / REVIEW_PAGE_SIZE),
+    );
     const currentPage = Math.min(page, totalPages);
     const startIndex = (currentPage - 1) * REVIEW_PAGE_SIZE;
-    const pageRows = parsedRows.slice(startIndex, startIndex + REVIEW_PAGE_SIZE);
+    const pageRows = parsedRows.slice(
+        startIndex,
+        startIndex + REVIEW_PAGE_SIZE,
+    );
 
     const handleFileAccepted = (lines: string[]) => {
-        const dataLines = lines.slice(1); // header already validated by UploadWizard
+        // header already validated by UploadWizard
+        const dataLines = lines.slice(1);
         setParsedRows(
             dataLines.map((line) => line.split(",").map((cell) => cell.trim())),
         );
@@ -202,10 +209,7 @@ const IngestionPage = () => {
             setServerErrors(null);
             setIsComplete(true);
             setParsedRows([]);
-            notifySafe(
-                "Upload complete",
-                "The entire file has been ingested.",
-            );
+            notifySafe("Upload complete", "The entire file has been ingested.");
         } catch (error: unknown) {
             console.error("File processing failed", error);
 
@@ -228,10 +232,7 @@ const IngestionPage = () => {
 
     const onSubmitClick = () => {
         if (!isDataValid()) {
-            notifyCritical(
-                "Cannot submit",
-                "This file has validation errors.",
-            );
+            notifyCritical("Cannot submit", "This file has validation errors.");
             return;
         }
         setIsSubmitConfirmOpen(true);
@@ -337,8 +338,8 @@ const IngestionPage = () => {
                         <DialogTitle>Confirm submission</DialogTitle>
                     </DialogHeader>
                     <DialogDescription>
-                        You are about to submit this file for ingestion.
-                        Confirm to continue.
+                        You are about to submit this file for ingestion. Confirm
+                        to continue.
                     </DialogDescription>
                     <DialogFooter>
                         <Button
