@@ -6,7 +6,7 @@ export interface AuditLogRequest {
     target_type?: string,
     target_id?: string,
     page?: number,
-    page_size: 50,
+    page_size: number,
 }
 export interface AuditLogListItem {
     id: string,

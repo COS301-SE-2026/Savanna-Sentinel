@@ -1,4 +1,6 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import type { AuditLogListItem, AuditLogResponse, AuditLogRequest } from "@/services/auditApi";
+import { auditApi } from "@/services/auditApi";
 import {
     Table,
     TableBody,
@@ -11,6 +13,24 @@ import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
 import { SortableColumns } from "@/components/admin/SortableColumns";
 
 export default function AuditLog() {
+    const [logs, setLogs] = React.useState<AuditLogListItem[]>([]);
+    useEffect(() => {
+        async function fetchLogs() {
+            try {
+                const payload: AuditLogRequest = {
+                    page: 1,
+                    page_size: 50,
+                };
+                const res = await auditApi.getLogs(payload);
+                setLogs(res.results);
+            } catch (err) {
+                console.error(err);
+            }   
+        }
+
+        fetchLogs();
+    }, []);
+
     return (
         <div className="space-y-4">
             <div className="font-heading text-2xl leading-[1.15] font-bold text-brand-primary">
@@ -21,36 +41,31 @@ export default function AuditLog() {
                 <Table>
                     <TableHeader className="bg-brand-primary">
                         <TableRow className="hover:bg-transparent">
-                            <TableHead className={theadClass}>A</TableHead>
-                            <TableHead className={theadClass}>B</TableHead>
-                            <TableHead className={theadClass}>C</TableHead>
-                            <TableHead className={theadClass}>D</TableHead>
-                            <TableHead className={theadClass}>E</TableHead>
-                            <TableHead className={theadClass}>F</TableHead>
-                            <TableHead className={theadClass}>G</TableHead>
+                            <TableHead className={theadClass}>Actor ID</TableHead>
+                            <TableHead className={theadClass}>Action</TableHead>
+                            <TableHead className={theadClass}>Target</TableHead>
+                            <TableHead className={theadClass}>Target ID</TableHead>
+                            <TableHead className={theadClass}>Details</TableHead>
+                            <TableHead className={theadClass}>Created At</TableHead>
                         </TableRow>
                     </TableHeader>
 
                     <TableBody>
-                        <TableRow className={rowClass}>
-                            <TableCell className={cellClass}>1</TableCell>
-                            <TableCell className={cellClass}>2</TableCell>
-                            <TableCell className={cellClass}>3</TableCell>
-                            <TableCell className={cellClass}>4</TableCell>
-                            <TableCell className={cellClass}>5</TableCell>
-                            <TableCell className={cellClass}>6</TableCell>
-                            <TableCell className={cellClass}>7</TableCell>
-                        </TableRow>
-
-                        <TableRow className={rowClass}>
-                            <TableCell className={cellClass}>1</TableCell>
-                            <TableCell className={cellClass}>2</TableCell>
-                            <TableCell className={cellClass}>3</TableCell>
-                            <TableCell className={cellClass}>4</TableCell>
-                            <TableCell className={cellClass}>5</TableCell>
-                            <TableCell className={cellClass}>6</TableCell>
-                            <TableCell className={cellClass}>7</TableCell>
-                        </TableRow>
+                        {
+                            logs.map((log) => (
+                                <TableRow className={`${rowClass}`}>
+                                    <TableCell className={`${cellClass}`}>{log.actor_id}</TableCell>
+                                    <TableCell className={`${cellClass}`}>{log.action}</TableCell>
+                                    <TableCell className={`${cellClass}`}>{log.target_type}</TableCell>
+                                    <TableCell className={`${cellClass}`}>{log.target_id}</TableCell>
+                                    {
+                                    //<TableCell className={`${cellClass}`}>{log.details}</TableCell>
+                                    <TableCell className={`${cellClass}`}>details here</TableCell>
+                                    }
+                                    <TableCell className={`${cellClass}`}>{log.created_at}</TableCell>
+                                </TableRow>
+                            ))
+                        }
                     </TableBody>
                 </Table>
             </div>
