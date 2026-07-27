@@ -100,11 +100,11 @@ export default function AuditLog() {
                                     {log.target_id}
                                 </TableCell>
                                 <TableCell className={`${cellClass}`}>
-                                    {(log.details === null)
+                                    {log.details === null
                                         ? "No details"
-                                        : (("new_role" in log.details)
+                                        : "new_role" in log.details
                                           ? `Role changed to ${log.details.new_role}`
-                                          : JSON.stringify(log.details))}
+                                          : JSON.stringify(log.details)}
                                 </TableCell>
                                 <TableCell
                                     className={`${cellClass} text-nowrap`}

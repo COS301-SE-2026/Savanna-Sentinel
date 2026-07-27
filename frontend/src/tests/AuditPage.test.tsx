@@ -40,3 +40,45 @@ const createMockResponse = (
     ),
 });
 
+describe("AuditLog Component Testing", () => {
+    const mockedGetLogs = vi.mocked(auditApi.getLogs);
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("gets initial logs on mount", async () => {
+        mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 40, 20));
+        render(<AuditLog />);
+        expect(auditApi.getLogs).toHaveBeenCalledWith({
+            page: 1,
+            page_size: 20,
+        });
+        expect(await screen.findByText("ACTION_1")).toBeInTheDocument();
+        expect(screen.getByText("actor-1")).toBeInTheDocument();
+        expect(screen.getByText("Role changed to ranger")).toBeInTheDocument();
+    });
+
+    it("renders 'No details' fallback", async () => {
+        mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 2, 20));
+        render(<AuditLog />);
+        expect(await screen.findByText("No details")).toBeInTheDocument();
+    });
+
+    it("calls api when page changes", async () => {
+        const user = userEvent.setup();
+        mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 45, 20));
+        mockedGetLogs.mockResolvedValueOnce(createMockResponse(2, 45, 20));
+        render(<AuditLog />);
+
+        const nextButton = screen.getByRole("button", { name: /next|2/i });
+        await user.click(nextButton);
+
+        await waitFor(() => {
+            expect(auditApi.getLogs).toHaveBeenCalledWith({
+                page: 2,
+                page_size: 20,
+            });
+        });
+        expect(await screen.findByText("ACTION_21")).toBeInTheDocument();
+    });
+});
