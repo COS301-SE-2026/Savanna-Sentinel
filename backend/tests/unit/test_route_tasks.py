@@ -45,7 +45,9 @@ def test_serialize_route_returns_plain_dict_with_geometry_dumped():
 @patch("app.workers.tasks.route_tasks.find_nearest_node")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_wires_graph_lookup_and_planning(
-    mock_build_graph, mock_find_nearest, mock_plan_routes,
+    mock_build_graph,
+    mock_find_nearest,
+    mock_plan_routes,
 ):
     graph = ParkGraph(park_id="klaserie", nodes=[], edges=[])
     mock_build_graph.return_value = graph
@@ -60,11 +62,13 @@ def test_run_route_planning_job_wires_graph_lookup_and_planning(
         max_time_min=120.0,
         max_fuel_l=10.0,
         num_alternatives=3,
+        risk_by_cell={"cell-1": 0.6},
     )
 
-    mock_build_graph.assert_called_once_with("klaserie")
+    mock_build_graph.assert_called_once_with("klaserie", {"cell-1": 0.6})
     assert mock_find_nearest.call_args_list[0].args == (
-        graph, (31.05, -24.3),
+        graph,
+        (31.05, -24.3),
     )
     assert mock_find_nearest.call_args_list[1].args == (graph, (31.1, -24.2))
     mock_plan_routes.assert_called_once()
@@ -87,8 +91,35 @@ def test_run_route_planning_job_wires_graph_lookup_and_planning(
 @patch("app.workers.tasks.route_tasks.plan_routes")
 @patch("app.workers.tasks.route_tasks.find_nearest_node")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
+def test_run_route_planning_job_defaults_risk_by_cell_to_none(
+    mock_build_graph,
+    mock_find_nearest,
+    mock_plan_routes,
+):
+    graph = ParkGraph(park_id="klaserie", nodes=[], edges=[])
+    mock_build_graph.return_value = graph
+    mock_find_nearest.side_effect = ["cell-start", "cell-end"]
+    mock_plan_routes.return_value = []
+
+    run_route_planning_job(
+        park_id="klaserie",
+        start=(31.05, -24.3),
+        end=(31.1, -24.2),
+        max_time_min=120.0,
+        max_fuel_l=10.0,
+        num_alternatives=3,
+    )
+
+    mock_build_graph.assert_called_once_with("klaserie", None)
+
+
+@patch("app.workers.tasks.route_tasks.plan_routes")
+@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_found_count_may_be_less_than_requested(
-    mock_build_graph, mock_find_nearest, mock_plan_routes,
+    mock_build_graph,
+    mock_find_nearest,
+    mock_plan_routes,
 ):
     """num_alternatives_found must be honest, not padded to match request.
 
@@ -116,7 +147,9 @@ def test_run_route_planning_job_found_count_may_be_less_than_requested(
 @patch("app.workers.tasks.route_tasks.find_nearest_node")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_no_accepted_routes_returns_empty_results(
-    mock_build_graph, mock_find_nearest, mock_plan_routes,
+    mock_build_graph,
+    mock_find_nearest,
+    mock_plan_routes,
 ):
     graph = ParkGraph(park_id="klaserie", nodes=[], edges=[])
     mock_build_graph.return_value = graph
