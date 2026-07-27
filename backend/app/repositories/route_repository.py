@@ -1,4 +1,5 @@
 import json
+import math
 from functools import lru_cache
 from pathlib import Path
 
@@ -32,7 +33,9 @@ def _load_grid(park_id: str) -> ParkGraph:
 
     epsg_code = geojson["crs"]["properties"]["name"].rsplit(":", 1)[-1]
     to_wgs84 = Transformer.from_crs(
-        f"EPSG:{epsg_code}", "EPSG:4326", always_xy=True,
+        f"EPSG:{epsg_code}",
+        "EPSG:4326",
+        always_xy=True,
     )
 
     cells = {}
@@ -54,8 +57,7 @@ def _load_grid(park_id: str) -> ParkGraph:
         - geojson["features"][0]["properties"]["left"]
     )
     distance_km = cell_width_m / 1000
-    est_time_min = distance_km / AVG_SPEED_KMH * 60
-    est_fuel_l = distance_km * FUEL_L_PER_KM
+    diagonal_km = distance_km * math.sqrt(2)
 
     nodes = [
         GraphNode(
@@ -71,35 +73,56 @@ def _load_grid(park_id: str) -> ParkGraph:
     by_row_col = {
         (cell["row"], cell["col"]): cell_id for cell_id, cell in cells.items()
     }
+    orthogonal_offsets = ((1, 0), (-1, 0), (0, 1), (0, -1))
+    diagonal_offsets = ((1, 1), (1, -1), (-1, 1), (-1, -1))
     edges = []
     for cell_id, cell in cells.items():
-        for d_row, d_col in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            neighbor_id = by_row_col.get(
-                (cell["row"] + d_row, cell["col"] + d_col),
-            )
-            if neighbor_id is None:
-                continue
-            edges.append(
-                GraphEdge(
-                    from_node_id=f"cell-{cell_id}",
-                    to_node_id=f"cell-{neighbor_id}",
-                    distance_km=distance_km,
-                    est_time_min=est_time_min,
-                    est_fuel_l=est_fuel_l,
-                ),
-            )
+        for offsets, km in (
+            (orthogonal_offsets, distance_km),
+            (diagonal_offsets, diagonal_km),
+        ):
+            for d_row, d_col in offsets:
+                neighbor_id = by_row_col.get(
+                    (cell["row"] + d_row, cell["col"] + d_col),
+                )
+                if neighbor_id is None:
+                    continue
+                edges.append(
+                    GraphEdge(
+                        from_node_id=f"cell-{cell_id}",
+                        to_node_id=f"cell-{neighbor_id}",
+                        distance_km=km,
+                        est_time_min=km / AVG_SPEED_KMH * 60,
+                        est_fuel_l=km * FUEL_L_PER_KM,
+                    ),
+                )
 
     return ParkGraph(park_id=park_id, nodes=nodes, edges=edges)
 
 
-def build_park_graph(park_id: str) -> ParkGraph:
-    """Assemble ParkGraph from park_id's grid.
+def build_park_graph(
+    park_id: str,
+    risk_by_cell: dict[str, float] | None = None,
+) -> ParkGraph:
+    """Assemble ParkGraph from park_id's grid, with risk scores applied.
 
-    No persisted risk heatmap exists yet, so every node gets a neutral
-    risk_score (see _load_grid). A 'db' param will be added back once
-    there is a heatmap to join against.
+    _load_grid's result is lru_cache'd and shared across every caller, so
+    its nodes are never mutated here. A fresh GraphNode list is built on
+    every call instead, keeping the expensive file read/reprojection cached
+    while risk injection stays request-scoped. A cell_id absent from
+    risk_by_cell (or no risk_by_cell at all) gets a neutral 0.0.
     """
-    return _load_grid(park_id)
+    risk_by_cell = risk_by_cell or {}
+    base = _load_grid(park_id)
+    nodes = [
+        GraphNode(
+            node_id=n.node_id,
+            location=n.location,
+            risk_score=risk_by_cell.get(n.node_id, 0.0),
+        )
+        for n in base.nodes
+    ]
+    return ParkGraph(park_id=base.park_id, nodes=nodes, edges=base.edges)
 
 
 def find_nearest_node(graph: ParkGraph, point: tuple[float, float]) -> str:
