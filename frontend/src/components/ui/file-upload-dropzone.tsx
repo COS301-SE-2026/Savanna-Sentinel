@@ -1,3 +1,4 @@
+import { useState, type DragEvent } from "react";
 import { CircleX, UploadCloud } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -22,16 +23,48 @@ export function FileUploadDropzone({
     onFilesSelected,
 }: FileUploadDropzoneProps) {
     const isError = state === "error";
+    const [isDragging, setIsDragging] = useState(false);
+
+    const handleDragOver = (event: DragEvent<HTMLLabelElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+    };
+
+    const handleDragEnter = (event: DragEvent<HTMLLabelElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (event: DragEvent<HTMLLabelElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+        setIsDragging(false);
+    };
+
+    const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDragging(false);
+        onFilesSelected(event.dataTransfer.files);
+    };
 
     return (
         <label
             htmlFor={inputId}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
             className={cn(
                 "flex cursor-pointer flex-col items-center gap-2 rounded-lg border-[1.5px] px-6 py-8 text-center",
                 "has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-brand-primary has-[input:focus-visible]:[--tw-outline-style:solid]",
                 isError
                     ? "border-solid border-status-critical bg-status-critical/[0.06]"
-                    : "border-dashed border-color-input-border bg-color-surface-raised",
+                    : isDragging
+                      ? "border-solid border-brand-primary bg-brand-primary/[0.06]"
+                      : "border-dashed border-color-input-border bg-color-surface-raised",
             )}
         >
             <input
