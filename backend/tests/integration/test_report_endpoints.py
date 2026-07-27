@@ -752,13 +752,14 @@ async def test_no_token_returns_401():
 
 
 @pytest.mark.asyncio
-async def test_analyst_blocked_returns_403():
+async def test_analyst_can_view_others_report():
     analyst_id = await _create_user("test_analyst_sc21", role="analyst")
     uid = await _create_user("test_ranger5_sc21")
     rid = await _create_report(uid)
     async with _client() as c:
         r = await c.get(f"/v1/reports/{rid}", headers=_auth_header(analyst_id))
-    assert r.status_code == 403
+    assert r.status_code == 200
+    assert r.json()["id"] == rid
 
 
 # GET /v1/reports
@@ -877,11 +878,14 @@ async def test_list_no_token_returns_401():
 
 
 @pytest.mark.asyncio
-async def test_list_analyst_returns_403():
+async def test_list_analyst_sees_all_reports():
+    ranger_id = await _create_user("test_ranger_sc20i")
     analyst_id = await _create_user("test_analyst_sc20", role="analyst")
+    await _create_report(ranger_id)
     async with _client() as c:
         r = await c.get("/v1/reports", headers=_auth_header(analyst_id))
-    assert r.status_code == 403
+    assert r.status_code == 200
+    assert r.json()["total"] >= 1
 
 
 @pytest.mark.asyncio

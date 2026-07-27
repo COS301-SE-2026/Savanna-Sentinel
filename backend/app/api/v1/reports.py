@@ -70,7 +70,7 @@ async def list_reports(
     current_user: Annotated[User, Depends(get_current_user)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
-    if current_user.role not in ("ranger", "admin"):
+    if current_user.role not in ("ranger", "analyst", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=_ROLE_DENIED,
@@ -162,7 +162,7 @@ async def get_report(
     current_user: Annotated[User, Depends(get_current_user)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
-    if current_user.role not in ("ranger", "admin"):
+    if current_user.role not in ("ranger", "analyst", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=_ROLE_DENIED,
