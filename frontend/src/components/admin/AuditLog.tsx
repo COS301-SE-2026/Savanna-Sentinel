@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import type { AuditLogListItem, AuditLogResponse, AuditLogRequest } from "@/services/auditApi";
+import type { AuditLogListItem, AuditLogRequest } from "@/services/auditApi";
 import { auditApi } from "@/services/auditApi";
 import {
     Table,
@@ -11,13 +11,15 @@ import {
 } from "@/components/ui/table";
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
 import { Pagination } from "../ui/pagination";
-import { SortableColumns } from "@/components/admin/SortableColumns";
+
+// TODO
+// Sorting, and filtering
 
 export default function AuditLog() {
     const [logs, setLogs] = React.useState<AuditLogListItem[]>([]);
     const [currPage, setCurrPage] = React.useState(1);
     const [totalPages, setTotalPages] = React.useState(1);
-    const pageSize = 3;
+    const pageSize = 20;
 
     useEffect(() => {
         async function fetchLogs() {
@@ -28,11 +30,13 @@ export default function AuditLog() {
                 };
                 const res = await auditApi.getLogs(payload);
                 setCurrPage(res.page);
-                setTotalPages(Math.max(1, Math.ceil(res.total / res.page_size)));
+                setTotalPages(
+                    Math.max(1, Math.ceil(res.total / res.page_size)),
+                );
                 setLogs(res.results);
             } catch (err) {
                 console.error(err);
-            }   
+            }
         }
 
         fetchLogs();
@@ -42,8 +46,8 @@ export default function AuditLog() {
         try {
             const payload: AuditLogRequest = {
                 page: nextPage,
-                page_size: pageSize, 
-            }
+                page_size: pageSize,
+            };
 
             const res = await auditApi.getLogs(payload);
             setCurrPage(res.page);
@@ -63,36 +67,57 @@ export default function AuditLog() {
                 <Table>
                     <TableHeader className="bg-brand-primary">
                         <TableRow className="hover:bg-transparent">
-                            <TableHead className={theadClass}>Actor ID</TableHead>
+                            <TableHead className={theadClass}>
+                                Actor ID
+                            </TableHead>
                             <TableHead className={theadClass}>Action</TableHead>
                             <TableHead className={theadClass}>Target</TableHead>
-                            <TableHead className={theadClass}>Target ID</TableHead>
-                            <TableHead className={theadClass}>Details</TableHead>
-                            <TableHead className={theadClass}>Created At</TableHead>
+                            <TableHead className={theadClass}>
+                                Target ID
+                            </TableHead>
+                            <TableHead className={theadClass}>
+                                Details
+                            </TableHead>
+                            <TableHead className={theadClass}>
+                                Created At
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
 
                     <TableBody>
-                        {
-                            logs.map((log) => (
-                                <TableRow className={`${rowClass}`}>
-                                    <TableCell className={`${cellClass}`}>{log.actor_id}</TableCell>
-                                    <TableCell className={`${cellClass}`}>{log.action}</TableCell>
-                                    <TableCell className={`${cellClass}`}>{log.target_type}</TableCell>
-                                    <TableCell className={`${cellClass}`}>{log.target_id}</TableCell>
-                                    {
-                                    //<TableCell className={`${cellClass}`}>{log.details}</TableCell>
-                                    <TableCell className={`${cellClass}`}>details here</TableCell>
-                                    }
-                                    <TableCell className={`${cellClass}`}>{log.created_at}</TableCell>
-                                </TableRow>
-                            ))
-                        }
+                        {logs.map((log) => (
+                            <TableRow className={`${rowClass}`}>
+                                <TableCell className={`${cellClass}`}>
+                                    {log.actor_id}
+                                </TableCell>
+                                <TableCell className={`${cellClass}`}>
+                                    {log.action}
+                                </TableCell>
+                                <TableCell className={`${cellClass}`}>
+                                    {log.target_type}
+                                </TableCell>
+                                <TableCell className={`${cellClass}`}>
+                                    {log.target_id}
+                                </TableCell>
+                                <TableCell className={`${cellClass}`}>
+                                    {log.details === null
+                                        ? "No details"
+                                        : "new_role" in log.details
+                                        ? `Role changed to ${log.details.new_role}`
+                                        : JSON.stringify(log.details)}
+                                </TableCell>
+                                <TableCell
+                                    className={`${cellClass} text-nowrap`}
+                                >
+                                    {log.created_at}
+                                </TableCell>
+                            </TableRow>
+                        ))}
                     </TableBody>
                 </Table>
             </div>
 
-            <Pagination 
+            <Pagination
                 currentPage={currPage}
                 totalPages={totalPages}
                 onPageChange={(page) => handlePageChange(page)}
