@@ -3,7 +3,7 @@ import { sleep, check } from "k6"
 
 const BASE_URL = "http://localhost:8000/v1"
 
-const TEST_USERS = [
+const RANGER_USERS = [
     { username: "ranger1", password: "SentinelSeed1!" },
     { username: "ranger2", password: "SentinelSeed1!" },
     { username: "ranger3", password: "SentinelSeed1!" },
@@ -19,6 +19,13 @@ const TEST_USERS = [
     { username: "ranger13", password: "SentinelSeed1!" },
     { username: "ranger14", password: "SentinelSeed1!" },
     { username: "ranger15", password: "SentinelSeed1!" },
+]
+const ANALYST_USERS = [
+    { username: 'analyst1', password: 'SentinelSeed1!' },
+    { username: 'analyst2', password: 'SentinelSeed1!' },
+    { username: 'analyst3', password: 'SentinelSeed1!' },
+    { username: 'analyst4', password: 'SentinelSeed1!' },
+    { username: 'analyst5', password: 'SentinelSeed1!' },
 ]
 
 export const options = {
@@ -40,6 +47,12 @@ export const options = {
             exec: 'submit15ReportCheck',
             vus: 15,
             duration: '30s'
+        },
+        ingestion_scenario: {
+            executor: 'constant-vus',
+            exec: 'ingestion5Check',
+            vus: 5,
+            duration: '30s'
         }
     },
     thresholds: {
@@ -48,10 +61,10 @@ export const options = {
     }
 }
 
-export function setup() {
-    const tokens = []
+function authenticateUsers(userList) {
+    const tokens = [];
 
-    for(const user of TEST_USERS){
+    for(const user of userList){
         const loginRes = http.post(`${BASE_URL}/auth/login`, JSON.stringify(user), {
             headers: { "Content-Type": "application/json"}
         })
@@ -64,12 +77,49 @@ export function setup() {
             tokens.push(loginRes.json('access_token'))
         }
     }
+    return tokens;
+}
+export function setup() {
+    const rangerTokens = authenticateUsers(RANGER_USERS);
+    const analystTokens = authenticateUsers(ANALYST_USERS);
 
-    if (tokens.length === 0) {
-        throw new Error('Setup failed: Could not authenticate any test users.');
+    if (rangerTokens.length === 0) {
+        throw new Error('Setup failed: Could not authenticate ranger users.');
     }
 
-    return { tokens: tokens };
+    if (analystTokens.length === 0) {
+        throw new Error('Setup failed: Could not authenticate analyst users.');
+    }
+
+    return {
+        rangerTokens: rangerTokens,
+        analystTokens: analystTokens,
+    };
+}
+
+function generateStagingBatch(batchSize = 10){
+    const sourceSystems = ['sensor_network_alpha', 'patrol_unit_beta', 'satellite_feed'];
+    const dataDomains = ['telemetry', 'geospatial', 'surveillance'];
+    const eventTypes = ['sighting', 'incident', 'patrol_track'];
+    const priorities = ['low', 'medium', 'high'];
+
+    const records = []
+    for(let i = 0; i < batchSize; i++) {
+        records.push({
+            record_id: Math.floor(Math.random() * 1000000) + 1,
+            ingestion_timestamp: new Date().toISOString(),
+            source_system: sourceSystems[Math.floor(Math.random() * sourceSystems.length)],
+            data_domain: dataDomains[Math.floor(Math.random() * dataDomains.length)],
+            event_type: eventTypes[Math.floor(Math.random() * eventTypes.length)],
+            payload_size_kb: Math.floor(Math.random() * 50) + 1,
+            priority_level: priorities[Math.floor(Math.random() * priorities.length)],
+            retry_count: Math.floor(Math.random() * 3),
+            is_encrypted: Math.random() < 0.5,
+            status: 'pending',
+        })
+    }
+
+    return records;
 }
 
 export const base60HealthCheck = () => {
@@ -82,8 +132,8 @@ export const base60HealthCheck = () => {
     sleep(1)
 }
 export const login6Check = () => {
-    const userIndex = (__VU - 1) % TEST_USERS.length;
-    const payload = JSON.stringify(TEST_USERS[userIndex])
+    const userIndex = (__VU - 1) % RANGER_USERS.length;
+    const payload = JSON.stringify(RANGER_USERS[userIndex])
 
     const params = { headers: { 'Content-Type': 'application/json' } };
     const res = http.post(`${BASE_URL}/auth/login`, payload, params);
@@ -96,8 +146,8 @@ export const login6Check = () => {
 }
 
 export const submit15ReportCheck = (data) => {
-    const tokenIndex = (__VU - 1) % data.tokens.length;
-    const currentToken = data.tokens[tokenIndex]
+    const tokenIndex = (__VU - 1) % data.rangerTokens.length;
+    const currentToken = data.rangerTokens[tokenIndex]
 
     const isIncident = Math.random() < 0.5;
     const nowISO = new Date().toISOString();
@@ -166,4 +216,33 @@ export const submit15ReportCheck = (data) => {
     })
 
     sleep(2);
+}
+
+export const ingestion5Check = (data) => {
+    const tokenIndex = (__VU - 1) % data.analystTokens.length;
+    const currentToken = data.analystTokens[tokenIndex];
+
+    const payload = JSON.stringify({
+        records: generateStagingBatch(10),
+        start_row: 1
+    });
+
+    const params = {
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+        }
+    }
+
+    const res = http.post(`${BASE_URL}/ingestion/upload`, payload, params);
+
+    if (res.status !== 200) {
+        console.error(`Ingestion Error [${res.status}]: ${res.body}`);
+    }
+
+    check(res, {
+        'ingestion successful (200)': (r) => r.status === 200,
+    })
+
+    sleep(3)
 }
