@@ -43,6 +43,7 @@ def generate_route_job(request: RouteRequest) -> RouteJobResponse:
             "max_time_min": request.max_time,
             "max_fuel_l": request.max_fuel,
             "num_alternatives": request.num_alternatives,
+            "risk_by_cell": request.risk_by_cell,
         },
         task_id=job_id,
     )
@@ -79,7 +80,10 @@ def get_routes(request_id=None, park_id=None, page=1, page_size=20):
     """
     if request_id is None:
         return RouteListResponse(
-            total=0, page=page, page_size=page_size, results=[],
+            total=0,
+            page=page,
+            page_size=page_size,
+            results=[],
         )
 
     result = celery_app.AsyncResult(request_id)

@@ -22,9 +22,10 @@ def run_route_planning_job(
     park_id: str,
     start: tuple[float, float],
     end: tuple[float, float],
-    max_time_min: float,
-    max_fuel_l: float,
+    max_time_min: float | None,
+    max_fuel_l: float | None,
     num_alternatives: int,
+    risk_by_cell: dict[str, float] | None = None,
 ) -> dict:
     """Run plan_routes() and return however many alternatives were accepted.
 
@@ -33,7 +34,7 @@ def run_route_planning_job(
     from this task's own Celery result state (see get_routes) - there is
     no separate persisted RouteJob record.
     """
-    graph = build_park_graph(park_id)
+    graph = build_park_graph(park_id, risk_by_cell)
     start_node_id = find_nearest_node(graph, start)
     end_node_id = find_nearest_node(graph, end)
 
