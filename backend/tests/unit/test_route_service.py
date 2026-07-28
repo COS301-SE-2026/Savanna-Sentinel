@@ -20,7 +20,7 @@ def _make_route(path, risk):
     )
 
 
-def _make_request(num_alternatives=3):
+def _make_request(num_alternatives=3, risk_by_cell=None):
     return RouteRequest(
         park_id="klaserie",
         start_point=GeoPoint(coordinates=(31.05, -24.3)),
@@ -28,6 +28,7 @@ def _make_request(num_alternatives=3):
         max_time=120.0,
         max_fuel=10.0,
         num_alternatives=num_alternatives,
+        risk_by_cell=risk_by_cell or {},
     )
 
 
@@ -49,8 +50,22 @@ def test_generate_route_job_enqueues_with_request_fields(mock_task):
         "max_time_min": 120.0,
         "max_fuel_l": 10.0,
         "num_alternatives": 2,
+        "risk_by_cell": {},
     }
     assert call.kwargs["task_id"] == result.job_id
+
+
+@patch("app.services.route_service.run_route_planning_job")
+def test_generate_route_job_forwards_risk_by_cell(mock_task):
+    request = _make_request(risk_by_cell={"cell-1": 0.6, "cell-2": 0.2})
+
+    generate_route_job(request)
+
+    call = mock_task.apply_async.call_args
+    assert call.kwargs["kwargs"]["risk_by_cell"] == {
+        "cell-1": 0.6,
+        "cell-2": 0.2,
+    }
 
 
 @patch("app.services.route_service.run_route_planning_job")
@@ -110,10 +125,13 @@ def test_get_routes_without_request_id_still_paginates_response():
 )
 @patch("app.services.route_service.celery_app")
 def test_get_routes_maps_celery_state_to_status(
-    mock_celery_app, celery_state, expected_status,
+    mock_celery_app,
+    celery_state,
+    expected_status,
 ):
     mock_celery_app.AsyncResult.return_value = MagicMock(
-        state=celery_state, result=None,
+        state=celery_state,
+        result=None,
     )
 
     result = get_routes(request_id="job-123")
@@ -148,7 +166,8 @@ def test_get_routes_success_deserializes_results_and_counts(mock_celery_app):
     assert result.num_alternatives_found == 2
     assert result.total == 2
     assert [r.suggested_path for r in result.results] == [
-        ["a", "b"], ["a", "c"],
+        ["a", "b"],
+        ["a", "c"],
     ]
     assert [r.risk_coverage for r in result.results] == [0.9, 0.5]
 

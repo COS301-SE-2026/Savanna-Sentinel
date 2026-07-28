@@ -2,9 +2,10 @@ import math
 import random
 from dataclasses import dataclass
 
-from app.schemas.geo import GeoLineString, GeoPoint
-from app.schemas.route import GraphEdge, GraphNode, ParkGraph, PlannedRoute
+from app.schemas.geo import GeoLineString
+from app.schemas.route import ParkGraph, PlannedRoute
 from app.workers.ml.path_smoothing import chaikin_smooth
+from app.workers.ml.shortest_path import PathResult, dijkstra
 
 
 @dataclass
@@ -26,34 +27,10 @@ class ACOConfig:
 
 
 def init_pheromones(
-    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
     config: ACOConfig,
 ) -> dict[tuple[str, str], float]:
-    return {(e.from_node_id, e.to_node_id): config.tau_max for e in graph.edges}
-
-
-def _adjacency(graph: ParkGraph) -> dict[str, list[GraphEdge]]:
-    """Outgoing edges grouped by from_node_id, cached on the graph.
-
-    feasible_edges() used to linearly scan every edge in the graph on every
-    single step of every ants tour. This is graph-invariant data - safe to
-    compute once and reuse for the life of the graph object.
-    """
-    cached = getattr(graph, "_adjacency_cache", None)
-    if cached is None:
-        cached = {}
-        for e in graph.edges:
-            cached.setdefault(e.from_node_id, []).append(e)
-        graph._adjacency_cache = cached
-    return cached
-
-
-def _node_lookup(graph: ParkGraph) -> dict[str, GraphNode]:
-    cached = getattr(graph, "_node_lookup_cache", None)
-    if cached is None:
-        cached = {n.node_id: n for n in graph.nodes}
-        graph._node_lookup_cache = cached
-    return cached
+    return {pair: config.tau_max for pair in distance_matrix}
 
 
 def _node_risk(graph: ParkGraph) -> dict[str, float]:
@@ -64,137 +41,247 @@ def _node_risk(graph: ParkGraph) -> dict[str, float]:
     return cached
 
 
-def _min_per_km_rates(graph: ParkGraph) -> tuple[float, float]:
-    """Graph-wide best-case (minimum) per-km time/fuel rate, cached on graph."""
-    cached = getattr(graph, "_min_per_km_rates_cache", None)
+def _coverage_neighbors(graph: ParkGraph) -> dict[str, frozenset[str]]:
+    """node_id -> itself plus every node directly graph-adjacent to it.
+
+    Since this graph's edges are built from grid adjacency (see
+    route_repository._load_grid), a node's direct neighbours are its
+    geometric surroundings. Used as a patrol-presence/deterrence coverage
+    radius: a cell counts as covered if the route passes adjacent to it.
+
+    This is a documented simplification, and not specifically final.
+    """
+    cached = getattr(graph, "_coverage_neighbors_cache", None)
     if cached is None:
-        rates = [
-            (e.est_time_min / e.distance_km, e.est_fuel_l / e.distance_km)
-            for e in graph.edges
-            if e.distance_km > 0
-        ]
-        cached = (
-            (min(r[0] for r in rates), min(r[1] for r in rates))
-            if rates
-            else (0.0, 0.0)
-        )
-        graph._min_per_km_rates_cache = cached
+        undirected: dict[str, set[str]] = {}
+        for e in graph.edges:
+            undirected.setdefault(e.from_node_id, set()).add(e.to_node_id)
+            undirected.setdefault(e.to_node_id, set()).add(e.from_node_id)
+        cached = {
+            n.node_id: frozenset({n.node_id} | undirected.get(n.node_id, set()))
+            for n in graph.nodes
+        }
+        graph._coverage_neighbors_cache = cached
     return cached
 
 
-def _haversine_km(a: GeoPoint, b: GeoPoint) -> float:
-    lon1, lat1 = a.coordinates
-    lon2, lat2 = b.coordinates
-    earth_radius_km = 6371.0
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    h = (
-        math.sin(dphi / 2) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-    )
-    return 2 * earth_radius_km * math.asin(math.sqrt(h))
+def covered_nodes(graph: ParkGraph, path: list[str]) -> frozenset[str]:
+    """Every node covered by a path: the path's nodes plus their neighbours."""
+    neighbors = _coverage_neighbors(graph)
+    covered: set[str] = set()
+    for node_id in path:
+        covered |= neighbors.get(node_id, {node_id})
+    return frozenset(covered)
 
 
-def estimate_return_cost(
-    graph: ParkGraph, node_id: str, end_node_id: str,
-) -> tuple[float, float]:
-    """Straight-line lower-bound estimate of (time, fuel) to reach end node."""
-    node_lookup = _node_lookup(graph)
-    if node_id not in node_lookup or end_node_id not in node_lookup:
-        return 0.0, 0.0
-    distance_km = _haversine_km(
-        node_lookup[node_id].location, node_lookup[end_node_id].location,
-    )
-    # Use the graph's best-case (minimum) per-km rates so the estimate never
-    # exceeds the true remaining cost - required to be a valid lower bound.
-    min_time_per_km, min_fuel_per_km = _min_per_km_rates(graph)
-    return distance_km * min_time_per_km, distance_km * min_fuel_per_km
+DEFAULT_HIGH_RISK_THRESHOLD = 0.5
 
 
-def feasible_edges(
+def select_waypoints(
     graph: ParkGraph,
+    threshold: float = DEFAULT_HIGH_RISK_THRESHOLD,
+) -> list[str]:
+    """High-risk nodes needed to cover every high-risk node (greedy set cover).
+
+    A patrol only needs to get within one hop of a hotspot cell to count
+    it as covered (see covered_nodes/compute_risk_coverage), so treating
+    every single high-risk cell as a waypoint the route must physically
+    visit causes the search to weave back and forth across a dense cluster.
+    Picking a minimal representative set instead gives the macro route planner a
+    handful of stops per hotspot rather than one per cell.
+    """
+    node_risk = _node_risk(graph)
+    coverage_neighbors = _coverage_neighbors(graph)
+    high_risk = {nid for nid, score in node_risk.items() if score >= threshold}
+    uncovered = set(high_risk)
+    waypoints: list[str] = []
+    while uncovered:
+        best_node = max(
+            high_risk,
+            key=lambda nid: len(coverage_neighbors.get(nid, {nid}) & uncovered),
+        )
+        newly_covered = (
+            coverage_neighbors.get(best_node, {best_node}) & uncovered
+        )
+        if not newly_covered:
+            break
+        waypoints.append(best_node)
+        uncovered -= newly_covered
+    return waypoints
+
+
+def build_waypoint_distance_matrix(
+    graph: ParkGraph,
+    node_ids: list[str],
+) -> dict[tuple[str, str], PathResult]:
+    """All-pairs shortest paths among a small set of hub nodes.
+
+    One Dijkstra run per hub (start, end, and the hotspot waypoints from
+    select_waypoints. Not the full grid), so this stays cheap. A pair
+    absent from the result means 'to' isn't reachable from 'from' on the
+    graph. Self-pairs arent included.
+    """
+    matrix: dict[tuple[str, str], PathResult] = {}
+    for source in node_ids:
+        reachable = dijkstra(graph, source)
+        for target in node_ids:
+            if target == source:
+                continue
+            result = reachable.get(target)
+            if result is not None:
+                matrix[(source, target)] = result
+    return matrix
+
+
+def feasible_waypoints(
+    distance_matrix: dict[tuple[str, str], PathResult],
+    waypoint_ids: list[str],
     current_node: str,
     end_node_id: str,
     visited: set[str],
     time_remaining: float,
     fuel_remaining: float,
-) -> list[GraphEdge]:
+) -> list[str]:
+    """Unvisited waypoints (plus end node) reachable without stranding the tour.
+
+    Feasibility is checked against the exact precomputed shortest-path
+    cost from build_waypoint_distance_matrix, not an estimate. The old
+    cell-by-cell search only had a straight-line lower bound to work
+    with, but operating over a handful of hub nodes makes the real
+    number cheap to precompute for every pair up front.
+    """
     candidates = []
-    for e in _adjacency(graph).get(current_node, []):
-        if e.to_node_id in visited:
+    for target in list(dict.fromkeys([*waypoint_ids, end_node_id])):
+        if target in visited:
             continue
-        time_left_after = time_remaining - e.est_time_min
-        fuel_left_after = fuel_remaining - e.est_fuel_l
+        hop = distance_matrix.get((current_node, target))
+        if hop is None:
+            continue
+        time_left_after = time_remaining - hop.time_min
+        fuel_left_after = fuel_remaining - hop.fuel_l
         if time_left_after < 0 or fuel_left_after < 0:
             continue
-        est_return_time, est_return_fuel = estimate_return_cost(
-            graph, e.to_node_id, end_node_id,
-        )
-        if (
-            est_return_time > time_left_after
-            or est_return_fuel > fuel_left_after
-        ):
-            continue
-        candidates.append(e)
+        if target != end_node_id:
+            return_hop = distance_matrix.get((target, end_node_id))
+            if return_hop is None:
+                continue
+            if (
+                return_hop.time_min > time_left_after
+                or return_hop.fuel_l > fuel_left_after
+            ):
+                continue
+        candidates.append(target)
     return candidates
 
 
-def select_next_edge(
-    candidates: list[GraphEdge],
-    pheromones: dict,
-    graph: ParkGraph,
+def select_next_waypoint(
+    candidates: list[str],
+    pheromones: dict[tuple[str, str], float],
+    distance_matrix: dict[tuple[str, str], PathResult],
+    current_node: str,
+    node_risk: dict[str, float],
     config: ACOConfig,
-) -> GraphEdge | None:
+    covered: frozenset[str] = frozenset(),
+) -> str | None:
     if not candidates:
         return None
-    node_risk = _node_risk(graph)
     weights = []
-    for e in candidates:
-        tau = pheromones.get((e.from_node_id, e.to_node_id), config.tau_min)
-        heuristic = (node_risk.get(e.to_node_id, 0.0001) + 0.0001) / (
-            e.est_time_min + e.est_fuel_l + 1
-        )
+    for target in candidates:
+        tau = pheromones.get((current_node, target), config.tau_min)
+        # A candidate already within the tour's coverage radius so far
+        # contributes no further risk (mitigates revisiting issues)
+        risk = 0.0 if target in covered else node_risk.get(target, 0.0001)
+        hop = distance_matrix[(current_node, target)]
+        heuristic = (risk + 0.0001) / (hop.time_min + hop.fuel_l + 1)
         weights.append((tau**config.alpha) * (heuristic**config.beta))
     total = sum(weights)
     if total == 0:
         return random.choice(candidates)
     r = random.uniform(0, total)
     cumulative = 0.0
-    for edge, w in zip(candidates, weights):
+    for target, w in zip(candidates, weights):
         cumulative += w
         if r <= cumulative:
-            return edge
+            return target
     return candidates[-1]
 
 
-def construct_tour(
+def construct_waypoint_tour(
     graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    waypoint_ids: list[str],
     start_node_id: str,
     end_node_id: str,
-    max_time: float,
-    max_fuel: float,
+    max_time: float | None,
+    max_fuel: float | None,
     pheromones: dict,
     config: ACOConfig,
-) -> tuple[list[str], float, float, float]:
-    path, visited = [start_node_id], {start_node_id}
-    time_left, fuel_left, risk_total = max_time, max_fuel, 0.0
+) -> tuple[list[str], list[str], float, float, float]:
+    """One ant's tour over hub nodes, stitched from real shortest-path nodes.
+
+    Returns (waypoint_path, expanded_path, time_used, fuel_used, risk_total).
+    expanded_path is the actual raw-grid node sequence. Every consecutive
+    pair is a real graph edge, which is what geometry/cost/coverage get
+    computed from. risk_total is discounted the same way
+    select_next_waypoint's heuristic is: a node already covered by the
+    tour so far (including nodes merely passed through in transit) adds
+    nothing further, so the fitness ants are optimized for actually
+    matching the coverage metric shown to users, instead of just rewarding
+    whoever happens to touch the most cells directly.
+    """
     node_risk = _node_risk(graph)
+    coverage_neighbors = _coverage_neighbors(graph)
+    time_left = max_time if max_time is not None else math.inf
+    fuel_left = max_fuel if max_fuel is not None else math.inf
+    time_used, fuel_used, risk_total = 0.0, 0.0, 0.0
+
+    waypoint_path = [start_node_id]
+    expanded_path = [start_node_id]
+    visited = {start_node_id}
+    covered = set(coverage_neighbors.get(start_node_id, {start_node_id}))
     current = start_node_id
+
     while current != end_node_id:
-        candidates = feasible_edges(
-            graph, current, end_node_id, visited, time_left, fuel_left,
+        candidates = feasible_waypoints(
+            distance_matrix,
+            waypoint_ids,
+            current,
+            end_node_id,
+            visited,
+            time_left,
+            fuel_left,
         )
-        edge = select_next_edge(candidates, pheromones, graph, config)
-        if edge is None:
+        chosen = select_next_waypoint(
+            candidates,
+            pheromones,
+            distance_matrix,
+            current,
+            node_risk,
+            config,
+            frozenset(covered),
+        )
+        if chosen is None:
             break
-        path.append(edge.to_node_id)
-        visited.add(edge.to_node_id)
-        time_left -= edge.est_time_min
-        fuel_left -= edge.est_fuel_l
-        risk_total += node_risk.get(edge.to_node_id, 0.0)
-        current = edge.to_node_id
-    return path, max_time - time_left, max_fuel - fuel_left, risk_total
+        hop = distance_matrix[(current, chosen)]
+        time_left -= hop.time_min
+        fuel_left -= hop.fuel_l
+        time_used += hop.time_min
+        fuel_used += hop.fuel_l
+        # Union the whole hop's coverage before diffing against covered,
+        # so an earlier node's radius cant shadow a later node's credit
+        # based on loop order.
+        hop_covered: set[str] = set()
+        for node_id in hop.path[1:]:
+            hop_covered |= coverage_neighbors.get(node_id, {node_id})
+        newly_covered = hop_covered - covered
+        risk_total += sum(node_risk.get(n, 0.0) for n in newly_covered)
+        covered |= hop_covered
+        expanded_path.extend(hop.path[1:])
+        waypoint_path.append(chosen)
+        visited.add(chosen)
+        current = chosen
+
+    return waypoint_path, expanded_path, time_used, fuel_used, risk_total
 
 
 def update_pheromones(
@@ -214,7 +301,9 @@ def update_pheromones(
 
 
 def apply_partial_penalty(
-    pheromones: dict, used_path: list[str], config: ACOConfig,
+    pheromones: dict,
+    used_path: list[str],
+    config: ACOConfig,
 ) -> dict:
     penalized = dict(pheromones)
     for a, b in zip(used_path, used_path[1:]):
@@ -223,40 +312,103 @@ def apply_partial_penalty(
     return penalized
 
 
+def tour_efficiency(
+    risk_total: float,
+    time_used: float,
+    fuel_used: float,
+) -> float:
+    """Risk captured per unit of time/fuel spent getting it.
+
+    Raw summed risk favours padding the route to the full budget, since
+    almost any extra stop adds some risk. Risk-per-cost lets a short,
+    efficient tour beat a longer one that only picked up small risk.
+    """
+    return risk_total / (time_used + fuel_used + 1)
+
+
 def run_phase(
     graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    waypoint_ids: list[str],
     start_node_id: str,
     end_node_id: str,
-    max_time: float,
-    max_fuel: float,
+    max_time: float | None,
+    max_fuel: float | None,
     pheromones: dict,
     num_iterations: int,
     config: ACOConfig,
-) -> tuple[list[str], float, dict]:
-    best_path, best_risk = [], -1.0
+) -> tuple[list[str], list[str], float, dict]:
+    best_waypoint_path: list[str] = []
+    best_expanded_path: list[str] = []
+    best_risk, best_efficiency = -1.0, -1.0
     for _ in range(num_iterations):
         tours = []
         for _ in range(config.num_ants):
-            path, _, _, risk = construct_tour(
-                graph,
-                start_node_id,
-                end_node_id,
-                max_time,
-                max_fuel,
-                pheromones,
-                config,
+            waypoint_path, expanded_path, time_used, fuel_used, risk = (
+                construct_waypoint_tour(
+                    graph,
+                    distance_matrix,
+                    waypoint_ids,
+                    start_node_id,
+                    end_node_id,
+                    max_time,
+                    max_fuel,
+                    pheromones,
+                    config,
+                )
             )
-            if path[-1] == end_node_id:
-                tours.append((path, risk))
+            if waypoint_path[-1] == end_node_id:
+                tours.append(
+                    (waypoint_path, expanded_path, risk, time_used, fuel_used),
+                )
         if not tours:
             continue
-        iter_best_path, iter_best_risk = max(tours, key=lambda t: t[1])
+        iter_best = max(tours, key=lambda t: tour_efficiency(t[2], t[3], t[4]))
+        (
+            iter_best_waypoint_path,
+            iter_best_expanded_path,
+            iter_best_risk,
+            iter_best_time,
+            iter_best_fuel,
+        ) = iter_best
         pheromones = update_pheromones(
-            pheromones, iter_best_path, iter_best_risk, config,
+            pheromones,
+            iter_best_waypoint_path,
+            iter_best_risk,
+            config,
         )
-        if iter_best_risk > best_risk:
-            best_path, best_risk = iter_best_path, iter_best_risk
-    return best_path, best_risk, pheromones
+        iter_efficiency = tour_efficiency(
+            iter_best_risk,
+            iter_best_time,
+            iter_best_fuel,
+        )
+        if iter_efficiency > best_efficiency:
+            best_waypoint_path = iter_best_waypoint_path
+            best_expanded_path = iter_best_expanded_path
+            best_risk = iter_best_risk
+            best_efficiency = iter_efficiency
+    return best_waypoint_path, best_expanded_path, best_risk, pheromones
+
+
+def compute_risk_coverage(
+    graph: ParkGraph,
+    path: list[str],
+    threshold: float = DEFAULT_HIGH_RISK_THRESHOLD,
+) -> float:
+    """Fraction of the grid's high-risk cells the path covers, in [0, 1].
+
+    "Covers" means within one cell of the path (see covered_nodes()), a
+    patrol presence model rather than guaranteed detection. This is the
+    normalised figure shown to the user as "risk coverage".
+    """
+    node_risk = _node_risk(graph)
+    high_risk_nodes = {
+        nid for nid, score in node_risk.items() if score >= threshold
+    }
+    if not high_risk_nodes:
+        return 0.0
+    covered = covered_nodes(graph, path)
+    return len(high_risk_nodes & covered) / len(high_risk_nodes)
 
 
 def edge_set(path: list[str]) -> set[tuple[str, str]]:
@@ -272,7 +424,8 @@ def is_sufficiently_diverse(
     for prior in prior_paths:
         prior_edges = edge_set(prior)
         overlap_ratio = len(candidate_edges & prior_edges) / max(
-            len(candidate_edges | prior_edges), 1,
+            len(candidate_edges | prior_edges),
+            1,
         )
         if (1 - overlap_ratio) < threshold:
             return False
@@ -280,7 +433,9 @@ def is_sufficiently_diverse(
 
 
 def is_sufficient_quality(
-    candidate_risk: float, best_risk_so_far: float, config: ACOConfig,
+    candidate_risk: float,
+    best_risk_so_far: float,
+    config: ACOConfig,
 ) -> bool:
     """Reject a candidate whose risk_coverage is too far below the best.
 
@@ -295,22 +450,32 @@ def plan_routes(
     graph: ParkGraph,
     start_node_id: str,
     end_node_id: str,
-    max_time_min: float,
-    max_fuel_l: float,
+    max_time_min: float | None,
+    max_fuel_l: float | None,
     num_alternatives: int = 3,
     config: ACOConfig | None = None,
 ) -> list[PlannedRoute]:
     config = config or ACOConfig()
-    pheromones = init_pheromones(graph, config)
+    waypoint_ids = [
+        w
+        for w in select_waypoints(graph)
+        if w not in (start_node_id, end_node_id)
+    ]
+    hub_ids = list(dict.fromkeys([start_node_id, end_node_id, *waypoint_ids]))
+    distance_matrix = build_waypoint_distance_matrix(graph, hub_ids)
+    pheromones = init_pheromones(distance_matrix, config)
     iterations_per_phase = [
         int(config.total_iterations * f)
         for f in config.phase_split[:num_alternatives]
     ]
-    accepted_paths: list[list[str]] = []
+    accepted_waypoint_paths: list[list[str]] = []
+    accepted_expanded_paths: list[list[str]] = []
     accepted_risks: list[float] = []
     for n_iter in iterations_per_phase:
-        candidate_path, candidate_risk, pheromones = run_phase(
+        waypoint_path, expanded_path, candidate_risk, pheromones = run_phase(
             graph,
+            distance_matrix,
+            waypoint_ids,
             start_node_id,
             end_node_id,
             max_time_min,
@@ -319,48 +484,61 @@ def plan_routes(
             n_iter,
             config,
         )
-        if not candidate_path:
+        if not waypoint_path:
             continue
         best_so_far = max(accepted_risks) if accepted_risks else candidate_risk
         passes = is_sufficiently_diverse(
-            candidate_path, accepted_paths, config.diversity_threshold,
+            waypoint_path,
+            accepted_waypoint_paths,
+            config.diversity_threshold,
         ) and is_sufficient_quality(candidate_risk, best_so_far, config)
         if not passes:
             # one retry with a stronger penalty already in effect
             pheromones = apply_partial_penalty(
-                pheromones, candidate_path, config,
-            )
-            candidate_path, candidate_risk, pheromones = run_phase(
-                graph,
-                start_node_id,
-                end_node_id,
-                max_time_min,
-                max_fuel_l,
                 pheromones,
-                n_iter,
+                waypoint_path,
                 config,
             )
+            waypoint_path, expanded_path, candidate_risk, pheromones = (
+                run_phase(
+                    graph,
+                    distance_matrix,
+                    waypoint_ids,
+                    start_node_id,
+                    end_node_id,
+                    max_time_min,
+                    max_fuel_l,
+                    pheromones,
+                    n_iter,
+                    config,
+                )
+            )
             passes = (
-                candidate_path
+                waypoint_path
                 and is_sufficiently_diverse(
-                    candidate_path, accepted_paths, config.diversity_threshold,
+                    waypoint_path,
+                    accepted_waypoint_paths,
+                    config.diversity_threshold,
                 )
                 and is_sufficient_quality(candidate_risk, best_so_far, config)
             )
         if not passes:
             # drop this phase's result, do not force a weak/duplicate path in
             continue
-        accepted_paths.append(candidate_path)
+        accepted_waypoint_paths.append(waypoint_path)
+        accepted_expanded_paths.append(expanded_path)
         accepted_risks.append(candidate_risk)
-        pheromones = apply_partial_penalty(pheromones, candidate_path, config)
+        pheromones = apply_partial_penalty(pheromones, waypoint_path, config)
     return [
-        _to_planned_route(graph, p, r)
-        for p, r in zip(accepted_paths, accepted_risks)
+        _to_planned_route(graph, p, compute_risk_coverage(graph, p))
+        for p in accepted_expanded_paths
     ]
 
 
 def _to_planned_route(
-    graph: ParkGraph, path: list[str], risk_coverage: float,
+    graph: ParkGraph,
+    path: list[str],
+    risk_coverage: float,
 ) -> PlannedRoute:
     node_lookup = {n.node_id: n for n in graph.nodes}
     edge_lookup = {(e.from_node_id, e.to_node_id): e for e in graph.edges}
