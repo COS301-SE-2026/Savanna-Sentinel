@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthPage from "@/pages/AdminAuthAccount";
 import RoleSwap from "@/components/admin/RoleSwap";
 import DeleteAccounts from "@/components/admin/DeleteAccounts";
+import AuditLog from "@/components/admin/AuditLog";
 
 export default function AdminPage() {
     return (
@@ -17,6 +18,7 @@ export default function AdminPage() {
                     </TabsTrigger>
                     <TabsTrigger value="roles">Role Management</TabsTrigger>
                     <TabsTrigger value="delete">Delete Accounts</TabsTrigger>
+                    <TabsTrigger value="audit">Audit Log</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="accounts" className="mt-6">
@@ -29,6 +31,10 @@ export default function AdminPage() {
 
                 <TabsContent value="delete" className="mt-6">
                     <DeleteAccounts />
+                </TabsContent>
+
+                <TabsContent value="audit" className="mt-6">
+                    <AuditLog />
                 </TabsContent>
             </Tabs>
         </div>
