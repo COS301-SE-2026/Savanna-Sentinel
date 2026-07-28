@@ -42,12 +42,14 @@ jobs:
         id: deploy
         env:
           INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          EC2_APP_DIR: ${{ secrets.EC2_APP_DIR }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
           COMMAND_ID="$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy commit $IMAGE_TAG" \
-            --parameters "commands=[\"bash ${{ secrets.EC2_APP_DIR }}/infra/deploy.sh '$IMAGE_TAG' '${{ secrets.AWS_REGION }}'\"]" \
+            --parameters "commands=[\"bash $EC2_APP_DIR/infra/deploy.sh '$IMAGE_TAG' '$AWS_REGION'\"]" \
             --query "Command.CommandId" \
             --output text)"
           echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"

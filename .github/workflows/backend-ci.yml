@@ -101,13 +101,17 @@ jobs:
 
       - name: Set image tags
         id: tags
+        env:
+          IS_MAIN_PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          SHA: ${{ github.sha }}
         run: |
-          if [ "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}" = "true" ]; then
-            REPO="${{ steps.login-ecr.outputs.registry }}/savanna-sentinel-backend"
+          if [ "$IS_MAIN_PUSH" = "true" ]; then
+            REPO="$REGISTRY/savanna-sentinel-backend"
             {
               echo "tags<<EOF"
               echo "${REPO}:latest"
-              echo "${REPO}:${{ github.sha }}"
+              echo "${REPO}:${SHA}"
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
           else
