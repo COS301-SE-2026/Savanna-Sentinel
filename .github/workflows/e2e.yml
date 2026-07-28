@@ -1,27 +1,27 @@
-name: E2E Tests CI pipeline
+name: E2E Tests and Performance CI pipeline
 
 on:
   push:
     branches: ["main", "dev"]
     paths:
       - "frontend/**"
-      - 'backend/**'
+      - "backend/**"
       - "docker-compose*.yml"
       - ".github/workflows/**"
-    
+
   pull_request:
     branches: ["main", "dev"]
     paths:
       - "frontend/**"
-      - 'backend/**'
+      - "backend/**"
       - "docker-compose*.yml"
       - ".github/workflows/**"
-  
+
 permissions:
   contents: read
 
 jobs:
-  e2e-tests:
+  e2e-and-performance-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
           node-version: 24
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
-      
+
       - name: Install Frontend Dependencies
         working-directory: ./frontend
         run: npm ci --ignore-scripts
@@ -60,7 +60,7 @@ jobs:
           MFA_ENABLED=false
           FRONTEND_BASE_URL=http://localhost:5173
           EOF
-      
+
       - name: Start Application Stack
         run: docker compose up -d --build
 
@@ -71,14 +71,14 @@ jobs:
             sleep 2
           done
           echo "Backend is ready!"
-      
+
       - name: Cache Playwright Browsers
         uses: actions/cache@v4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
-      
+
       - name: Install Playwright Browsers with Dependencies
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: ./frontend
@@ -95,10 +95,51 @@ jobs:
           FRONTEND_URL: http://localhost:5173
         run: npx --no-install playwright test
 
+      - name: Setup K6
+        uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1.2.1
+
+      - name: Run k6 Performance Tests
+        run: |
+          k6 run frontend/src/tests/NFR/Performance.test.js --summary-export=frontend/k6-summary.json
+
+      - name: Parse k6 Results
+        if: always()
+        run: |
+          SUMMARY_FILE="frontend/k6-summary.json"
+
+          if [ -f "$SUMMARY_FILE" ]; then
+            P95=$(jq -r '.metrics.http_req_duration["p(95)"] // 0 | round' "$SUMMARY_FILE")
+          else
+            echo "::warning:: Summary file not found at $SUMMARY_FILE"
+            P95=0
+          fi
+
+          if [ "$P95" -gt 0 ] && [ "$P95" -lt 1000 ]; then
+            COLOR="brightgreen"
+          elif [ "$P95" -ge 1000 ] && [ "$P95" -lt 2000 ]; then
+            COLOR="yellow"
+          else
+            COLOR="red"
+          fi
+
+          echo "P95_VAL=${P95}ms" >> $GITHUB_ENV
+          echo "BADGE_COLOR=${COLOR}" >> $GITHUB_ENV
+
+      - name: Push Badge
+        if: always()
+        uses: schneegans/dynamic-badges-action@28b0fa8bdeb46170ac397105ece0c1fe58f68910 # v1.9.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: b7f75bd35ca62af2effd27966cbac1d7
+          filename: performance-badge.json
+          label: Performance (p95)
+          message: ${{ env.P95_VAL }}
+          color: ${{ env.BADGE_COLOR }}
+
       - name: Stop Docker Stack
         if: always()
         run: docker compose down -v
-      
+
       - name: Upload Playwright failure artefacts
         uses: actions/upload-artifact@v4
         if: failure()

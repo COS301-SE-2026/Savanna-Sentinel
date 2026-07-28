@@ -5,7 +5,7 @@ on:
     workflows:
       - "Frontend CI Pipeline"
       - "Backend CI Pipeline"
-      - "E2E Tests CI pipeline"
+      - "E2E Tests and Performance CI pipeline"
     branches:
       - main
     types:

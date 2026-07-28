@@ -14,6 +14,8 @@ services:
   worker:
     build:
       context: ./backend
+    volumes:
+      - ./backend:/app
 
   frontend:
     build:
@@ -26,3 +28,9 @@ services:
       - /app/node_modules
     environment:
       VITE_API_URL: http://localhost:8000/v1
+    # Vite requires more memory
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
