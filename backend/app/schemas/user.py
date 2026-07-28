@@ -1,13 +1,16 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
-from app.schemas.auth import RequestedRole
 from typing import Optional
 
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.auth import RequestedRole
+
+
 class UpdateProfileRequest(BaseModel):
-	first_name: str | None = None
-	last_name: str | None = None
-	current_password: str | None = None
-	new_password: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    current_password: str | None = None
+    new_password: str | None = None
 
 class UsersResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

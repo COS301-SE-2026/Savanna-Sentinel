@@ -55,3 +55,10 @@ uploads/
 # Coverage
 backend/coverage.xml
 frontend/coverage
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/
+frontend/playwright/.auth/

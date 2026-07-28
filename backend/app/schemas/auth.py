@@ -30,7 +30,7 @@ class RegisterRequest(BaseModel):
 
 
 class UserResponse(BaseModel):
-    """Returned after successful registration and by user management endpoints."""
+    """Returned after successful registration by user management endpoints."""
 
     id: str
     username: str
@@ -40,9 +40,6 @@ class UserResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
-
-
-
 
 
 @dataclass
@@ -66,7 +63,9 @@ class TokenUser:
 class TokenResponse:
     """
     Returned on successful login or refresh.
-    Field names here MUST match what the frontends TokenResponse interface expects.
+
+    Field names here MUST match what the frontends TokenResponse
+    interface expects.
     """
 
     access_token: str
@@ -88,3 +87,27 @@ class LogoutRequest:
     """Body sent by the client to POST /v1/auth/logout."""
 
     refresh_token: str
+
+
+@dataclass
+class MFAChallengeResponse:
+    """Returned from /login instead of tokens when the account requires MFA."""
+
+    mfa_token: str
+    expires_in: int
+    mfa_required: bool = True
+
+
+@dataclass
+class MFAVerifyRequest:
+    """Body sent by the client to POST /v1/auth/mfa/verify."""
+
+    mfa_token: str
+    code: str
+
+
+@dataclass
+class MFAResendRequest:
+    """Body sent by the client to POST /v1/auth/mfa/resend."""
+
+    mfa_token: str

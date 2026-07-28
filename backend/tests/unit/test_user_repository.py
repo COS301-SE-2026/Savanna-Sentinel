@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+import app.repositories.user_repository as user_repository
 from app.core.security import JWTError
 from app.repositories.user_repository import UserRepository
-import app.repositories.user_repository as user_repository
 
 
 @pytest.mark.asyncio

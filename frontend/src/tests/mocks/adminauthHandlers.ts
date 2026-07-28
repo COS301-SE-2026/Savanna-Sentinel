@@ -1,4 +1,4 @@
-import {http, HttpResponse} from "msw"
+import { http, HttpResponse } from "msw";
 
 export const mockUsers = {
     results: [
@@ -22,24 +22,24 @@ export const mockUsers = {
             is_active: false,
             created_at: "2026-05-12T14:30:00.000Z",
         },
-    ]
-}
+    ],
+};
 
 export const authHandlers = [
     http.get("**/v1/users", () => {
-        return HttpResponse.json(mockUsers)
+        return HttpResponse.json(mockUsers);
     }),
 
     http.patch("**/v1/users/:id/status", ({ params }) => {
         const { id } = params;
-        if(id === "admin-error-id"){
-            return new HttpResponse(null, {status: 401})
+        if (id === "admin-error-id") {
+            return new HttpResponse(null, { status: 401 });
         }
 
-        return HttpResponse.json({message: "Status updated successfully"})
+        return HttpResponse.json({ message: "Status updated successfully" });
     }),
 
     http.delete("**/v1/admin/users/delete/:id", () => {
-        return HttpResponse.json({message: "User reject successfully"})
-    })
-]
+        return HttpResponse.json({ message: "User reject successfully" });
+    }),
+];

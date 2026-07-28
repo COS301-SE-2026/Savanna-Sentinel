@@ -2,19 +2,19 @@ name: Backend CI pipeline
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
     paths:
-      - 'backend/**'
-      - '.github/workflows/**'
+      - "backend/**"
+      - ".github/workflows/**"
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
     paths:
-      - 'backend/**'
-      - '.github/workflows/**'
+      - "backend/**"
+      - ".github/workflows/**"
 
 permissions:
   contents: read
-  packages: write
+  id-token: write
 
 jobs:
   backend-check:
@@ -25,7 +25,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Create backend .env for CI
         run: |
@@ -33,16 +33,20 @@ jobs:
           DATABASE_URL=postgresql+asyncpg://sentinel:sentinel_dev_password@db:5432/savanna_sentinel
           JWT_SECRET=ci-secret-not-used-in-production
           REDIS_URL=redis://redis:6379/0
+          RESEND_API_KEY=re_ci_dummy_key
+          RESEND_FROM_ADDRESS=noreply@savannasentinel.co.za
+          FRONTEND_BASE_URL=http://localhost:3000
+          MFA_ENABLED=false
           EOF
 
       - name: Start Docker services
-        run: docker compose -f docker-compose.yml -p savanna-ci up -d db redis backend
+        run: docker compose -f docker-compose.yml -f docker-compose.override.yml -p savanna-ci up -d --build db redis backend
 
       - name: Install Dependencies
         run: |
-          pip install -r backend/requirements.txt
-          pip install ruff
-          pip install pytest-cov
+          pip install --require-hashes --only-binary=:all: -r backend/requirements.lock.txt
+          pip install --only-binary=:all: ruff==0.16.0
+          pip install --only-binary=:all: pytest-cov==7.1.0
 
       - name: Linter
         run: ruff check backend/
@@ -56,7 +60,7 @@ jobs:
 
       - name: Wait for backend to be ready
         run: |
-          until curl -sf http://localhost:8000/health; do
+          until curl -sf http://localhost:8000/v1/health; do
             echo "Waiting for backend..."
             sleep 2
           done
@@ -83,13 +87,39 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Configure AWS credentials
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
+
+      - name: Set image tags
+        id: tags
+        run: |
+          if [ "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}" = "true" ]; then
+            REPO="${{ steps.login-ecr.outputs.registry }}/savanna-sentinel-backend"
+            {
+              echo "tags<<EOF"
+              echo "${REPO}:latest"
+              echo "${REPO}:${{ github.sha }}"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=savanna-sentinel-backend:local" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build Backend
         uses: docker/build-push-action@v5
-
         with:
           context: ./backend
-          # Changing push: true in the workflow to send images to GitHub Container Registry or DockerHub.
-          push: false  # Don't push to a registry yet, just test the build
-          load: true
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

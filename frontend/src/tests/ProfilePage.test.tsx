@@ -1,406 +1,339 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import ProfilePage from "@/pages/ProfilePage";
 
 const { getMe, updateProfile, changePassword, logout } = vi.hoisted(() => ({
-  getMe: vi.fn(),
-  updateProfile: vi.fn(),
-  changePassword: vi.fn(),
-  logout: vi.fn(),
+    getMe: vi.fn(),
+    updateProfile: vi.fn(),
+    changePassword: vi.fn(),
+    logout: vi.fn(),
 }));
 
 vi.mock("@/services/usersApi", () => ({
-  usersApi: {
-    getMe,
-    updateProfile,
-    changePassword,
-  },
+    usersApi: {
+        getMe,
+        updateProfile,
+        changePassword,
+    },
 }));
 
 vi.mock("@/store/authStore", () => ({
-  useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
-    selector({ logout }),
+    useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
+        selector({ logout }),
 }));
 
 const createPlainUser = () => userEvent.setup();
 
 const profileResponse = {
-  id: "1",
-  username: "jranger",
-  email: "jane@example.com",
-  first_name: "Jane",
-  last_name: "Ranger",
-  role: "ranger",
+    id: "1",
+    username: "jranger",
+    email: "jane@example.com",
+    first_name: "Jane",
+    last_name: "Ranger",
+    role: "ranger",
 };
 
 describe("ProfilePage", () => {
-  beforeEach(() => {
-    vi.useRealTimers();
-    getMe.mockResolvedValue(profileResponse);
-    updateProfile.mockResolvedValue(profileResponse);
-    changePassword.mockResolvedValue(undefined);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.useRealTimers();
-  });
-
-  // --- Profile Loading Tests ---
-  it("loads the current profile", async () => {
-    render(<ProfilePage />);
-
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
-    expect(await screen.findByDisplayValue("Jane")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Ranger")).toBeInTheDocument();
-    expect(getMe).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows an error if profile fails to load", async () => {
-    getMe.mockRejectedValueOnce(new Error("Network error"));
-    render(<ProfilePage />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /failed to load profile/i,
-    );
-    expect(screen.queryByText(/loading profile.../i)).not.toBeInTheDocument();
-  });
-
-  // --- Profile Update Tests ---
-  it("disables save button when no changes are made", async () => {
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.click(screen.getByRole("button", { name: /edit/i }));
-    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
-  });
-
-  it("disables save button when all fields are cleared", async () => {
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.click(screen.getByRole("button", { name: /edit/i }));
-    await user.clear(screen.getByLabelText(/first name/i));
-    await user.clear(screen.getByLabelText(/last name/i));
-    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
-    expect(updateProfile).not.toHaveBeenCalled();
-  });
-
-  it("allows updating first name while last name is empty", async () => {
-    const updatedProfile = {
-      ...profileResponse,
-      first_name: "Janet",
-      last_name: "",
-    };
-    updateProfile.mockResolvedValueOnce(updatedProfile);
-
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.click(screen.getByRole("button", { name: /edit/i }));
-    await user.clear(screen.getByLabelText(/first name/i));
-    await user.type(screen.getByLabelText(/first name/i), "Janet");
-    await user.clear(screen.getByLabelText(/last name/i));
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
-
-    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: /confirm changes/i }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-
-    await waitFor(() => {
-      expect(updateProfile).toHaveBeenCalledWith({
-        first_name: "Janet",
-        last_name: "",
-      });
-    });
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      /profile updated/i,
-    );
-    expect(screen.getByLabelText(/first name/i)).toHaveValue("Janet");
-    expect(screen.getByLabelText(/last name/i)).toHaveValue("");
-  });
-
-  it("allows updating last name while first name is empty", async () => {
-    const updatedProfile = {
-      ...profileResponse,
-      first_name: "",
-      last_name: "Ranger-Smith",
-    };
-    updateProfile.mockResolvedValueOnce(updatedProfile);
-
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.click(screen.getByRole("button", { name: /edit/i }));
-    await user.clear(screen.getByLabelText(/first name/i));
-    await user.clear(screen.getByLabelText(/last name/i));
-    await user.type(screen.getByLabelText(/last name/i), "Ranger-Smith");
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
-
-    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: /confirm changes/i }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-
-    await waitFor(() => {
-      expect(updateProfile).toHaveBeenCalledWith({
-        first_name: "",
-        last_name: "Ranger-Smith",
-      });
-    });
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      /profile updated/i,
-    );
-    expect(screen.getByLabelText(/first name/i)).toHaveValue("");
-    expect(screen.getByLabelText(/last name/i)).toHaveValue("Ranger-Smith");
-  });
-
-  it("allows updating both first and last name", async () => {
-    const updatedProfile = {
-      ...profileResponse,
-      first_name: "Janet",
-      last_name: "Ranger-Smith",
-    };
-    updateProfile.mockResolvedValueOnce(updatedProfile);
-
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.click(screen.getByRole("button", { name: /edit/i }));
-    await user.clear(screen.getByLabelText(/first name/i));
-    await user.type(screen.getByLabelText(/first name/i), "Janet");
-    await user.clear(screen.getByLabelText(/last name/i));
-    await user.type(screen.getByLabelText(/last name/i), "Ranger-Smith");
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
-
-    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: /confirm changes/i }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-
-    await waitFor(() => {
-      expect(updateProfile).toHaveBeenCalledWith({
-        first_name: "Janet",
-        last_name: "Ranger-Smith",
-      });
-    });
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      /profile updated/i,
-    );
-    expect(screen.getByLabelText(/first name/i)).toHaveValue("Janet");
-    expect(screen.getByLabelText(/last name/i)).toHaveValue("Ranger-Smith");
-  });
-
-  it("shows an error message if profile update fails", async () => {
-    updateProfile.mockRejectedValueOnce(new Error("Update failed"));
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.click(screen.getByRole("button", { name: /edit/i }));
-    await user.type(screen.getByLabelText(/first name/i), "NewName");
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
-
-    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: /confirm changes/i }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /update failed/i,
-    );
-  });
-
-  // --- Password Change Tests ---
-  it("disables change password button when current password is empty", async () => {
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.type(
-      screen.getByLabelText(/^new password$/i),
-      "new-password-123",
-    );
-    await user.type(
-      screen.getByLabelText(/^confirm password$/i),
-      "new-password-123",
-    );
-    expect(
-      screen.getByRole("button", { name: /change password/i }),
-    ).toBeDisabled();
-    expect(changePassword).not.toHaveBeenCalled();
-  });
-
-  it("disables change password button when new password is empty", async () => {
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.type(
-      screen.getByLabelText(/^current password$/i),
-      "old-pass-123",
-    );
-    await user.type(
-      screen.getByLabelText(/^confirm password$/i),
-      "new-password-123",
-    );
-    expect(
-      screen.getByRole("button", { name: /change password/i }),
-    ).toBeDisabled();
-    expect(changePassword).not.toHaveBeenCalled();
-  });
-
-  it("disables change password button when new password length is less than 8", async () => {
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.type(
-      screen.getByLabelText(/^current password$/i),
-      "old-pass-123",
-    );
-    await user.type(screen.getByLabelText(/^new password$/i), "short");
-    await user.type(screen.getByLabelText(/^confirm password$/i), "short");
-
-    expect(
-      screen.getByRole("button", { name: /change password/i }),
-    ).toBeDisabled();
-    expect(changePassword).not.toHaveBeenCalled();
-  });
-
-  it("disables change password button when new password and confirm password do not match", async () => {
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.type(
-      screen.getByLabelText(/^current password$/i),
-      "old-pass-123",
-    );
-    await user.type(
-      screen.getByLabelText(/^new password$/i),
-      "new-password-123",
-    );
-    await user.type(screen.getByLabelText(/^confirm password$/i), "mismatch");
-
-    expect(
-      screen.getByRole("button", { name: /change password/i }),
-    ).toBeDisabled();
-    expect(changePassword).not.toHaveBeenCalled();
-  });
-
-  it("disables change password button when new password is the same as current password", async () => {
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.type(
-      screen.getByLabelText(/^current password$/i),
-      "SamePass123",
-    );
-    await user.type(screen.getByLabelText(/^new password$/i), "SamePass123");
-    await user.type(
-      screen.getByLabelText(/^confirm password$/i),
-      "SamePass123",
-    );
-
-    expect(
-      screen.getByRole("button", { name: /change password/i }),
-    ).toBeDisabled();
-    expect(changePassword).not.toHaveBeenCalled();
-  });
-
-  it("fails password update when current password does not match (server error)", async () => {
-    changePassword.mockRejectedValueOnce({
-      response: { data: { detail: "Current password is incorrect" } },
+    beforeEach(() => {
+        getMe.mockResolvedValue(profileResponse);
+        updateProfile.mockResolvedValue(profileResponse);
+        changePassword.mockResolvedValue(undefined);
     });
 
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.type(
-      screen.getByLabelText(/^current password$/i),
-      "wrong-pass-123",
-    );
-    await user.type(
-      screen.getByLabelText(/^new password$/i),
-      "new-password-123",
-    );
-    await user.type(
-      screen.getByLabelText(/^confirm password$/i),
-      "new-password-123",
-    );
-    await user.click(screen.getByRole("button", { name: /change password/i }));
-
-    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: /confirm changes/i }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /current password is incorrect/i,
-    );
-    expect(changePassword).toHaveBeenCalledWith(
-      "wrong-pass-123",
-      "new-password-123",
-    );
-  });
-
-  it("successfully changes password and logs out the user", async () => {
-    vi.useRealTimers();
-
-    render(<ProfilePage />);
-
-    await screen.findByDisplayValue("Jane");
-    const user = createPlainUser();
-
-    await user.type(
-      screen.getByLabelText(/^current password$/i),
-      "old-pass-123",
-    );
-    await user.type(
-      screen.getByLabelText(/^new password$/i),
-      "new-password-123",
-    );
-    await user.type(
-      screen.getByLabelText(/^confirm password$/i),
-      "new-password-123",
-    );
-
-    await user.click(screen.getByRole("button", { name: /change password/i }));
-    const dialog = await screen.findByRole("dialog");
-    expect(dialog).toBeInTheDocument();
-
-    const confirmBtn = screen.getByRole("button", { name: /confirm changes/i });
-    await user.click(confirmBtn);
-
-    expect(changePassword).toHaveBeenCalledWith(
-      "old-pass-123",
-      "new-password-123",
-    );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      /you will be signed out/i,
-    );
-    expect(logout).not.toHaveBeenCalled();
-
-    await vi.waitUntil(() => logout.mock.calls.length === 1, {
-      timeout: 2000,
-      interval: 50,
+    afterEach(() => {
+        vi.clearAllMocks();
+        vi.useRealTimers();
     });
 
-    expect(logout).toHaveBeenCalledTimes(1);
-  }, 10_000);
+    it("loads the current profile", async () => {
+        render(<ProfilePage />);
+
+        expect(screen.getByText(/loading/i)).toBeInTheDocument();
+        expect(await screen.findByDisplayValue("Jane")).toBeInTheDocument();
+        expect(screen.getByDisplayValue("Ranger")).toBeInTheDocument();
+        expect(getMe).toHaveBeenCalledTimes(1);
+    });
+
+    it("fails profile update when all fields are empty", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.clear(screen.getByLabelText(/first name/i));
+        await user.clear(screen.getByLabelText(/last name/i));
+        expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+        expect(updateProfile).not.toHaveBeenCalled();
+    });
+
+    it("passes when updating first name with empty last name", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.clear(screen.getByLabelText(/first name/i));
+        await user.type(screen.getByLabelText(/first name/i), "Janet");
+        await user.clear(screen.getByLabelText(/last name/i));
+        await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+        await user.click(
+            screen.getByRole("button", { name: /confirm changes/i }),
+        );
+
+        await waitFor(() => {
+            expect(updateProfile).toHaveBeenCalledWith({ first_name: "Janet" });
+        });
+        expect(await screen.findByRole("status")).toHaveTextContent(
+            /profile updated/i,
+        );
+    });
+
+    it("passes when updating last name with empty first name", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.clear(screen.getByLabelText(/first name/i));
+        await user.clear(screen.getByLabelText(/last name/i));
+        await user.type(screen.getByLabelText(/last name/i), "Ranger-Smith");
+        await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+        await user.click(
+            screen.getByRole("button", { name: /confirm changes/i }),
+        );
+
+        await waitFor(() => {
+            expect(updateProfile).toHaveBeenCalledWith({
+                last_name: "Ranger-Smith",
+            });
+        });
+        expect(await screen.findByRole("status")).toHaveTextContent(
+            /profile updated/i,
+        );
+    });
+
+    it("passes when updating both first and last name", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.clear(screen.getByLabelText(/first name/i));
+        await user.type(screen.getByLabelText(/first name/i), "Janet");
+        await user.clear(screen.getByLabelText(/last name/i));
+        await user.type(screen.getByLabelText(/last name/i), "Ranger-Smith");
+        await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+        await user.click(
+            screen.getByRole("button", { name: /confirm changes/i }),
+        );
+
+        await waitFor(() => {
+            expect(updateProfile).toHaveBeenCalledWith({
+                first_name: "Janet",
+                last_name: "Ranger-Smith",
+            });
+        });
+        expect(await screen.findByRole("status")).toHaveTextContent(
+            /profile updated/i,
+        );
+    });
+
+    it("fails password update when current password is empty", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.type(screen.getByLabelText(/new password/i), "new-pass-1");
+        expect(
+            screen.getByRole("button", { name: /change password/i }),
+        ).toBeDisabled();
+        expect(changePassword).not.toHaveBeenCalled();
+    });
+
+    it("fails password update when new password is empty", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.type(
+            screen.getByLabelText(/current password/i),
+            "old-pass-123",
+        );
+        expect(
+            screen.getByRole("button", { name: /change password/i }),
+        ).toBeDisabled();
+        expect(changePassword).not.toHaveBeenCalled();
+    });
+
+    it("fails password update when new password length is less than 8", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        // Using a password of length 7
+        await user.type(
+            screen.getByLabelText(/current password/i),
+            "old-pass-123",
+        );
+        await user.type(screen.getByLabelText(/new password/i), "1234567");
+        expect(
+            screen.getByRole("button", { name: /change password/i }),
+        ).toBeDisabled();
+        expect(changePassword).not.toHaveBeenCalled();
+    });
+
+    it("fails password update when current password does not match", async () => {
+        changePassword.mockRejectedValue({
+            response: { data: { detail: "Current password is incorrect" } },
+        });
+
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.type(
+            screen.getByLabelText(/current password/i),
+            "wrong-pass",
+        );
+        await user.type(screen.getByLabelText(/new password/i), "new-pass-123");
+        await user.type(
+            screen.getByLabelText(/confirm password/i),
+            "new-pass-123",
+        );
+        await user.click(
+            screen.getByRole("button", { name: /change password/i }),
+        );
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+        await user.click(
+            screen.getByRole("button", { name: /confirm changes/i }),
+        );
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            /current password is incorrect/i,
+        );
+    });
+
+    it("passes password update when current password matches and new password is valid", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        fireEvent.change(screen.getByLabelText(/current password/i), {
+            target: { value: "old-pass-123" },
+        });
+        fireEvent.change(screen.getByLabelText(/new password/i), {
+            target: { value: "new-pass-123" },
+        });
+        fireEvent.change(screen.getByLabelText(/confirm password/i), {
+            target: { value: "new-pass-123" },
+        });
+        fireEvent.click(
+            screen.getByRole("button", { name: /change password/i }),
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole("dialog")).toBeInTheDocument();
+        });
+        fireEvent.click(
+            screen.getByRole("button", { name: /confirm changes/i }),
+        );
+
+        await waitFor(() => {
+            expect(changePassword).toHaveBeenCalledWith(
+                "old-pass-123",
+                "new-pass-123",
+            );
+        });
+        expect(screen.getByRole("status")).toHaveTextContent(
+            /you will be signed out/i,
+        );
+    });
+
+    it("resets the profile form back to the loaded values", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.clear(screen.getByLabelText(/first name/i));
+        await user.type(screen.getByLabelText(/first name/i), "Janet");
+        await user.clear(screen.getByLabelText(/last name/i));
+        await user.type(screen.getByLabelText(/last name/i), "Smithers");
+
+        await user.click(screen.getByRole("button", { name: /^reset$/i }));
+
+        expect(screen.getByLabelText(/first name/i)).toHaveValue("Jane");
+        expect(screen.getByLabelText(/last name/i)).toHaveValue("Ranger");
+    });
+
+    it("cancels pending profile changes without saving", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.clear(screen.getByLabelText(/first name/i));
+        await user.type(screen.getByLabelText(/first name/i), "Janet");
+        await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(updateProfile).not.toHaveBeenCalled();
+    });
+
+    it("closes the confirmation dialog via the header close button", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        await user.clear(screen.getByLabelText(/first name/i));
+        await user.type(screen.getByLabelText(/first name/i), "Janet");
+        await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+        const dialog = await screen.findByRole("dialog");
+        await user.click(
+            screen.getByRole("button", { name: /cancel, close dialog/i }),
+        );
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(updateProfile).not.toHaveBeenCalled();
+        expect(dialog).not.toBeInTheDocument();
+    });
+
+    it("toggles the visibility of each password field", async () => {
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("Jane");
+        const user = createPlainUser();
+
+        const currentPasswordInput = screen.getByLabelText(/current password/i);
+        const newPasswordInput = screen.getByLabelText(/^new password/i);
+        const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
+
+        expect(currentPasswordInput).toHaveAttribute("type", "password");
+        expect(newPasswordInput).toHaveAttribute("type", "password");
+        expect(confirmPasswordInput).toHaveAttribute("type", "password");
+
+        await user.click(
+            screen.getAllByRole("button", { name: /show password/i })[0],
+        );
+        expect(currentPasswordInput).toHaveAttribute("type", "text");
+
+        await user.click(
+            screen.getAllByRole("button", { name: /show password/i })[0],
+        );
+        expect(newPasswordInput).toHaveAttribute("type", "text");
+
+        await user.click(
+            screen.getAllByRole("button", { name: /show password/i })[0],
+        );
+        expect(confirmPasswordInput).toHaveAttribute("type", "text");
+
+        await user.click(
+            screen.getAllByRole("button", { name: /hide password/i })[0],
+        );
+        expect(currentPasswordInput).toHaveAttribute("type", "password");
+    });
 });

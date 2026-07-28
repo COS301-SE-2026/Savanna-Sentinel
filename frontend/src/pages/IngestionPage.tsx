@@ -1,117 +1,368 @@
-import { Upload, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { useState } from "react";
+import { CircleCheck } from "lucide-react";
+import { FILE_SCHEMA, validateData } from "@/lib/ingestionSchema";
+import { ingestionApi } from "@/services/ingestionApi";
+import { UploadWizard } from "@/components/ingestion/UploadWizard";
+import { DataPreview } from "@/components/ingestion/DataPreview";
+import { Pagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 
-const METRICS = [
-  { label: "Accuracy",  value: "91.2%", delta: "+1.4% vs prev", up: true  },
-  { label: "Precision", value: "88.7%", delta: "+0.9% vs prev", up: true  },
-  { label: "Recall",    value: "86.4%", delta: "−0.3% vs prev", up: false },
-  { label: "F1 Score",  value: "0.875", delta: "+0.011 vs prev", up: true  },
-];
+const REVIEW_PAGE_SIZE = 50;
 
-const UPLOADS = [
-  { name: "incidents_jan_may2026.csv", size: "1.2 MB", date: "12 May 2026", rows: "3 840", status: "Processed" },
-  { name: "sightings_q1_2026.csv",     size: "840 KB", date: "1 Apr 2026",  rows: "2 101", status: "Processed" },
-  { name: "patrol_logs_2025.csv",      size: "3.1 MB", date: "15 Jan 2026", rows: "9 200", status: "Processed" },
-  { name: "incidents_dec2025.csv",     size: "620 KB", date: "3 Jan 2026",  rows: "1 440", status: "Failed"    },
-];
+interface ServerValidationError {
+    column: string;
+    error_type: string;
+    message: string;
+}
+type ServerErrorsMap = Record<string, ServerValidationError[]>;
 
-function StatusIcon({ status }: { status: string }) {
-  if (status === "Processed")
-    return <CheckCircle2 className="size-4 text-spot-green" />;
-  if (status === "Failed")
-    return <XCircle className="size-4 text-spot-red" />;
-  return <Clock className="size-4 text-spot-orange" />;
+const mapRowToRecord = (row: string[]): Record<string, unknown> => {
+    const record: Record<string, unknown> = {};
+
+    FILE_SCHEMA.forEach((col, i) => {
+        const value = row[i];
+        if (col.type === "number") {
+            record[col.name] = Number(value);
+        } else if (col.type === "boolean") {
+            record[col.name] =
+                value.toLowerCase() === "true" || value.toLowerCase() === "1";
+        } else {
+            record[col.name] = value;
+        }
+    });
+
+    return record;
+};
+
+interface ServerErrorDetail {
+    message?: string;
+    errors?: ServerErrorsMap;
+}
+interface FastApiValidationError {
+    type: string;
+    loc: (string | number)[];
+    msg: string;
 }
 
-export default function IngestionPage() {
-  return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div className="rounded-md bg-brand-dark-blue text-white px-4 py-2.5 text-sm flex items-center gap-2">
-        <Upload className="size-4 shrink-0" />
-        <span>
-          This page is still to come, but here's a little teaser.
-        </span>
-      </div>
+const isFastApiValidationErrors = (
+    detail: unknown,
+): detail is FastApiValidationError[] =>
+    Array.isArray(detail) &&
+    detail.every(
+        (item) =>
+            item &&
+            typeof item === "object" &&
+            Array.isArray((item as { loc?: unknown }).loc) &&
+            typeof (item as { msg?: unknown }).msg === "string",
+    );
 
-      <h1 className="text-2xl font-semibold text-foreground">Data Ingestion</h1>
+// loc looks like ["body", "records", <row index>, <column name>]
+const mapFastApiErrorsToServerErrors = (
+    errors: FastApiValidationError[],
+): ServerErrorsMap => {
+    const map: ServerErrorsMap = {};
 
-      <div className="rounded-lg border-2 border-dashed border-border bg-card flex flex-col items-center justify-center py-12 gap-3 opacity-70 cursor-not-allowed select-none">
-        <div className="size-12 rounded-full bg-muted flex items-center justify-center">
-          <Upload className="size-6 text-muted-foreground" />
-        </div>
-        <div className="text-center">
-          <p className="text-sm font-medium">Drop CSV file here or click to browse</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Accepts: incidents, sightings, patrol logs · Max 50 MB
-          </p>
-        </div>
-        <Button disabled size="sm" className="opacity-60">
-          Select File
-        </Button>
-      </div>
+    errors.forEach(({ loc, msg, type }) => {
+        const rowIndex = loc.find((part) => typeof part === "number");
+        const column = loc[loc.length - 1];
+        if (typeof rowIndex !== "number" || typeof column !== "string") {
+            return;
+        }
 
-      <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Current Model Performance
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {METRICS.map(({ label, value, delta, up }) => (
-            <div
-              key={label}
-              className="rounded-lg border border-border bg-card p-4"
+        const rowKey = `row_${rowIndex + 1}`;
+        map[rowKey] = [
+            ...(map[rowKey] ?? []),
+            { column, error_type: type, message: msg },
+        ];
+    });
+
+    return map;
+};
+
+const parseServerError = (error: unknown): ServerErrorDetail | null => {
+    if (!error || typeof error !== "object" || !("response" in error)) {
+        return null;
+    }
+
+    const axiosError = error as {
+        response?: { data?: { detail?: unknown } };
+    };
+    const detail = axiosError.response?.data?.detail;
+
+    if (isFastApiValidationErrors(detail)) {
+        return {
+            message:
+                "Some records in this file failed validation. Correct the highlighted cells and resubmit.",
+            errors: mapFastApiErrorsToServerErrors(detail),
+        };
+    }
+
+    if (detail && typeof detail === "object") {
+        return detail as ServerErrorDetail;
+    }
+
+    return null;
+};
+
+const IngestionPage = () => {
+    const [parsedRows, setParsedRows] = useState<string[][]>([]);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [page, setPage] = useState<number>(1);
+    const [isComplete, setIsComplete] = useState<boolean>(false);
+    const [serverErrors, setServerErrors] = useState<ServerErrorsMap | null>(
+        null,
+    );
+    const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+    const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const totalPages = Math.max(
+        1,
+        Math.ceil(parsedRows.length / REVIEW_PAGE_SIZE),
+    );
+    const currentPage = Math.min(page, totalPages);
+    const startIndex = (currentPage - 1) * REVIEW_PAGE_SIZE;
+    const pageRows = parsedRows.slice(
+        startIndex,
+        startIndex + REVIEW_PAGE_SIZE,
+    );
+
+    const handleFileAccepted = (lines: string[]) => {
+        // header already validated by UploadWizard
+        const dataLines = lines.slice(1);
+        setParsedRows(
+            dataLines.map((line) => line.split(",").map((cell) => cell.trim())),
+        );
+        setIsComplete(false);
+        setServerErrors(null);
+        setPage(1);
+    };
+
+    const handleReset = () => {
+        setParsedRows([]);
+        setErrorMessage(null);
+        setIsComplete(false);
+        setServerErrors(null);
+        setPage(1);
+    };
+
+    const confirmCancel = () => {
+        setIsCancelConfirmOpen(false);
+        handleReset();
+    };
+
+    const handleCellChange = (
+        rowIndex: number,
+        colIndex: number,
+        newValue: string,
+    ) => {
+        setParsedRows((prevRows) => {
+            const updatedRows = [...prevRows];
+            updatedRows[rowIndex] = [...updatedRows[rowIndex]];
+            updatedRows[rowIndex][colIndex] = newValue;
+            return updatedRows;
+        });
+
+        if (serverErrors) {
+            const rowKey = `row_${rowIndex + 1}`;
+            if (serverErrors[rowKey]) {
+                setServerErrors((prev) => {
+                    if (!prev) {
+                        return null;
+                    }
+                    const updated = { ...prev };
+                    delete updated[rowKey];
+                    return updated;
+                });
+            }
+        }
+    };
+
+    //Revalidate data after edit
+    const isDataValid = () => {
+        return parsedRows.every((row) => {
+            if (row.length !== FILE_SCHEMA.length) {
+                return false;
+            }
+            return row.every((cell, i) =>
+                validateData(cell, FILE_SCHEMA[i].type),
+            );
+        });
+    };
+    const handleDataSubmission = async () => {
+        const records = parsedRows.map(mapRowToRecord);
+
+        try {
+            await ingestionApi.uploadFile(records, 1);
+
+            setErrorMessage(null);
+            setServerErrors(null);
+            setIsComplete(true);
+            setParsedRows([]);
+            notifySafe("Upload complete", "The entire file has been ingested.");
+        } catch (error: unknown) {
+            console.error("File processing failed", error);
+
+            let resolvedMessage =
+                "A network issue occured while submitting this file";
+
+            const detail = parseServerError(error);
+            if (detail) {
+                if (detail.message) {
+                    resolvedMessage = detail.message;
+                }
+                if (detail.errors) {
+                    setServerErrors(detail.errors);
+                }
+            }
+
+            setErrorMessage(resolvedMessage);
+        }
+    };
+
+    const onSubmitClick = () => {
+        if (!isDataValid()) {
+            notifyCritical("Cannot submit", "This file has validation errors.");
+            return;
+        }
+        setIsSubmitConfirmOpen(true);
+    };
+
+    const confirmSubmission = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+        try {
+            await handleDataSubmission();
+        } finally {
+            setIsSubmitting(false);
+            setIsSubmitConfirmOpen(false);
+        }
+    };
+    return (
+        <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
+            <h1 className="mb-6 font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
+                Data Ingestion
+            </h1>
+            {parsedRows.length === 0 && !isComplete && (
+                <UploadWizard onFileAccepted={handleFileAccepted} />
+            )}
+            {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
+            {isComplete && (
+                <EmptyState
+                    className="mb-4"
+                    icon={CircleCheck}
+                    title="Upload complete"
+                    body="The entire file has been ingested."
+                    action={
+                        <Button onClick={handleReset}>
+                            Upload another file
+                        </Button>
+                    }
+                />
+            )}
+
+            {parsedRows.length > 0 ? (
+                <div>
+                    <div className="mb-2">
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setPage}
+                        />
+                    </div>
+                    <div className="mb-4 flex items-center justify-between">
+                        <Button onClick={onSubmitClick}>Submit</Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsCancelConfirmOpen(true)}
+                        >
+                            Cancel
+                        </Button>
+                    </div>
+                    <DataPreview
+                        schema={FILE_SCHEMA}
+                        rows={pageRows}
+                        startIndex={startIndex}
+                        serverErrors={serverErrors}
+                        onCellChange={handleCellChange}
+                    />
+                </div>
+            ) : (
+                !isComplete && "No data loaded"
+            )}
+
+            <Dialog
+                open={isCancelConfirmOpen}
+                onOpenChange={setIsCancelConfirmOpen}
             >
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className={`text-2xl font-bold mt-1 ${up ? "text-spot-green" : "text-spot-red"}`}>
-                {value}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-1">{delta}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+                <DialogContent preventBackdropClose>
+                    <DialogHeader>
+                        <DialogTitle>Discard this upload?</DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>
+                        All loaded rows and any edits you&apos;ve made will be
+                        lost. This can&apos;t be undone.
+                    </DialogDescription>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsCancelConfirmOpen(false)}
+                        >
+                            Keep editing
+                        </Button>
+                        <Button variant="destructive" onClick={confirmCancel}>
+                            Discard
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-      <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Recent Uploads
-        </h2>
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>File</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Rows</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {UPLOADS.map((u) => (
-                <TableRow key={u.name}>
-                  <TableCell className="font-mono text-xs">{u.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{u.size}</TableCell>
-                  <TableCell className="text-muted-foreground">{u.date}</TableCell>
-                  <TableCell>{u.rows}</TableCell>
-                  <TableCell>
-                    <span className="flex items-center gap-1.5">
-                      <StatusIcon status={u.status} />
-                      <span className="text-sm">{u.status}</span>
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+            <Dialog
+                open={isSubmitConfirmOpen}
+                onOpenChange={(open) => {
+                    if (!open && !isSubmitting) setIsSubmitConfirmOpen(false);
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm submission</DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>
+                        You are about to submit this file for ingestion. Confirm
+                        to continue.
+                    </DialogDescription>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsSubmitConfirmOpen(false)}
+                            disabled={isSubmitting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={confirmSubmission}
+                            disabled={isSubmitting}
+                        >
+                            Confirm Submission
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
-      </div>
-    </div>
-  );
-}
+    );
+};
+
+export default IngestionPage;

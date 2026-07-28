@@ -1,11 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+import { Toaster } from "@/components/ui/sonner";
+import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
 
-// Uncomment each route as the corresponding page is implemented:
 import DashboardPage from "@/pages/DashboardPage";
 import MapPage from "@/pages/MapPage";
 import ReportsPage from "@/pages/ReportsPage";
@@ -14,36 +15,39 @@ import IngestionPage from "@/pages/IngestionPage";
 import TipoffPage from "@/pages/TipoffPage";
 import AdminPage from "@/pages/AdminPage";
 import ProfilePage from "@/pages/ProfilePage";
+import NotFoundPage from "@/pages/NotFoundPage";
 
-export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
+const App = () => {
+    return (
+        <BrowserRouter>
+            <Toaster />
+            <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
 
-        {/* Public routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        
-        
+                {/* Protected routes - AppLayout renders TopBar + BurgerMenu for all children */}
+                <Route element={<ProtectedRoute />}>
+                    <Route element={<AppLayout />}>
+                        <Route path="/dashboard" element={<DashboardPage />} />
+                        <Route path="/admin" element={<AdminPage />} />
+                        <Route path="/map" element={<MapPage />} />
+                        <Route path="/reports" element={<ReportsPage />} />
+                        <Route path="/patrol" element={<PatrolPlannerPage />} />
+                        <Route path="/ingestion" element={<IngestionPage />} />
+                        <Route path="/tipoffs" element={<TipoffPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
+                    </Route>
+                </Route>
 
-        {/* Protected routes - AppLayout renders TopBar + BurgerMenu for all children */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/map" element={<MapPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/patrol" element={<PatrolPlannerPage />} />
-            <Route path="/ingestion" element={<IngestionPage />} />
-            <Route path="/tipoffs" element={<TipoffPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-          </Route>
-        </Route>
+                {/* authed users see 404, non logged in are redirected to login page */}
+                <Route element={<ProtectedRoute />}>
+                    <Route path="*" element={<NotFoundPage />} />
+                </Route>
+            </Routes>
+        </BrowserRouter>
+    );
+};
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-
-      </Routes>
-    </BrowserRouter>
-  );
-}
+export default App;

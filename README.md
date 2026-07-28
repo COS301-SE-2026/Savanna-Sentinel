@@ -1,42 +1,72 @@
 <div align="center">
-  <img src="docs/savanna-sentinel-logo.png" alt="Savanna Sentinel" width="420"/>
+  <img src="docs/assets/savanna-sentinel-logo.png" alt="Savanna Sentinel" width="420"/>
 
   <p>Wildlife conservation anti-poaching intelligence platform.<br/>
   Helping game reserve rangers, analysts, and community liaisons detect poaching hotspots,<br/>
   plan optimal patrols, and capture field data - even while offline.</p>
 
-  [![Codecov](https://img.shields.io/codecov/c/gh/COS301-SE-2026/Savanna-Sentinel/dev?style=for-the-badge&logo=codecov&label=Coverage&color=F01F7A)](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel)
-  [![Backend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/backend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Backend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/backend-ci.yml)
-  [![Frontend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/frontend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Frontend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/frontend-ci.yml)
+[![Codecov](https://img.shields.io/codecov/c/gh/COS301-SE-2026/Savanna-Sentinel/dev?style=for-the-badge&logo=codecov&label=Coverage&color=F01F7A)](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel)
+[![Backend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/backend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Backend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/frontend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Frontend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/frontend-ci.yml)
+[![Deploy](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/deploy.yml?branch=main&style=for-the-badge&logo=githubactions&label=Deploy)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/deploy.yml)
+[![Status](https://img.shields.io/badge/Status-online-brightgreen?style=for-the-badge)](https://savannasentinel.co.za)
+[![Uptime](https://img.shields.io/uptimerobot/ratio/m803474731-546495294e59595cdcf16770?style=for-the-badge&logo=uptimerobot&label=Uptime)](https://stats.uptimerobot.com/qEIREIc10V)
+![Performance/Latency](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Stephan-Kritzinger/b7f75bd35ca62af2effd27966cbac1d7/raw/performance-badge.json)
+[![HTTP Observatory Grade](https://img.shields.io/mozilla-observatory/grade/savannasentinel.co.za)](https://developer.mozilla.org/en-US/observatory/analyze?host=savannasentinel.co.za)
 
-  [![Open Issues](https://img.shields.io/github/issues/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=F0883E&label=Open%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)
-  [![Closed Issues](https://img.shields.io/github/issues-closed/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=A371F7&label=Closed%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues?q=is%3Aissue+is%3Aclosed)
+[![Open Issues](https://img.shields.io/github/issues/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=F0883E&label=Open%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)
+[![Closed Issues](https://img.shields.io/github/issues-closed/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=A371F7&label=Closed%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues?q=is%3Aissue+is%3Aclosed)
 
-  <br/><br/>
-  <img src="docs/epiuse-logo.png" alt="EPI-USE" width="110"/>
-  <br/><br/>
+<br/><br/>
+<img src="docs/assets/epiuse-logo.png" alt="EPI-USE" width="110"/>
+<br/><br/>
+
 </div>
 
-## Documentation
+## Live system
 
-- [Software Requirements Specification (SRS)](https://github.com/COS301-SE-2026/Savanna-Sentinel/blob/main/docs/SRS.md)
+[https://savannasentinel.co.za](https://savannasentinel.co.za)
+
+## Documentation
+<details>
+<summary><h3>Demo 1</h3></summary>
+
+- [Software Requirements Specification (SRS)](./docs/demo1/SRS.md)
 - [GitHub Project Board](https://github.com/orgs/COS301-SE-2026/projects/72/)
+
+</details>
+
+<details>
+<summary><h3>Demo 2</h3></summary>
+
+**Please note:** The interactive brand style guide must be downloaded and opened in the browser.
+The SRS contains an abridged version of the use cases, full use case documentation can be found [here](./docs/demo2/DevDocs(Not-For-Review)/use-cases/Use%20Case%20Diagram%20%26%20Scope.pdf)
+
+- [Software Requirements Specification (SRS)](./docs/demo2/PDF/SRS.pdf)
+- [Software Archiecture Specification (SAS)](./docs/demo2/PDF/SAS.pdf)
+- [Coding Standards](./docs/demo2/PDF/Coding%20Standards.pdf)
+- [Testing Policy](./docs/demo2/PDF/Testing%20Policy.pdf)
+- [User Manual](./docs/demo2/PDF/User%20Manual.pdf)
+- [Brand Style Guide](./docs/demo2/PDF/Savanna%20Sentinel%20Brand%20Style%20Guide.pdf)
+- [Interactive Brand Style Guide](./docs/demo2/DevDocs(Not-For-Review)/brand-style/brand_style_guide.html)
+
+</details>
 
 ## Team
 
 <div align="left">
-  <img src="docs/sigill-logo.png" alt="Sigill" width="200"/>
+  <img src="docs/assets/sigill-logo.png" alt="Sigill" width="200"/>
 </div>
 
 <br/>
 
-| Name | Role | GitHub | LinkedIn |
-|---|---|---|---|
-| David van Rooijen | Project Lead | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/davidvrjn) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/david-van-rooijen/) |
-| Stephan Kritzinger | Developer | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Stephan-Kritzinger) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/stephan-kritzinger-134702375/) |
-| Daniel Cohen | Developer | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Sashumi-6) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/daniel-cohen-057640235) |
-| Michael Koch | Developer | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/MichaelKoch23) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/michael-koch-6a8599240/) |
-| Dandré Nel | Developer | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DandreNel7) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/dandr%C3%A9-nel-065b70183/) |
+| Name               | Role         | GitHub                                                                                                                                         | LinkedIn                                                                                                                                                                 |
+| ------------------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| David van Rooijen  | Project Lead | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/davidvrjn)          | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/david-van-rooijen/)            |
+| Stephan Kritzinger | Developer    | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Stephan-Kritzinger) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/stephan-kritzinger-134702375/) |
+| Daniel Cohen       | Developer    | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Sashumi-6)          | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/daniel-cohen-057640235)        |
+| Michael Koch       | Developer    | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/MichaelKoch23)      | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/michael-koch-6a8599240/)       |
+| Dandré Nel         | Developer    | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DandreNel7)         | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/dandr%C3%A9-nel-065b70183/)    |
 
 ## Tech Stack
 
@@ -79,7 +109,8 @@
 
 ## Requirements
 
-- [Docker](https://docs.docker.com/get-docker/) + [Docker Compose](https://docs.docker.com/compose/) v2
+[![Docker](https://img.shields.io/badge/Docker-required-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/get-docker/)
+[![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 
 ## Quick Start
 
@@ -91,23 +122,23 @@ cp backend/.env.example backend/.env
 docker compose up --build
 ```
 
-| Service | URL |
-|---|---|
-| Frontend (dev) | http://localhost:5173 |
-| Backend API | http://localhost:8000 |
-| API docs | http://localhost:8000/docs |
-| MinIO console | http://localhost:9001 |
+| Service        | URL                        |
+| -------------- | -------------------------- |
+| Frontend (dev) | http://localhost:5173      |
+| Backend API    | http://localhost:8000      |
+| API docs       | http://localhost:8000/docs |
+| MinIO console  | http://localhost:9001      |
 
 ### Seed accounts
 
 All seed accounts use the password **`SentinelSeed1!`**
 
-| Username | Role |
-|---|---|
-| `ranger1` | Ranger |
-| `analyst1` | Analyst |
+| Username   | Role              |
+| ---------- | ----------------- |
+| `ranger1`  | Ranger            |
+| `analyst1` | Analyst           |
 | `liaison1` | Community Liaison |
-| `admin1` | Admin |
+| `admin1`   | Admin             |
 
 ## Development
 
