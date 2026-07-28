@@ -196,7 +196,7 @@ def select_next_waypoint(
         weights.append((tau**config.alpha) * (heuristic**config.beta))
     total = sum(weights)
     if total == 0:
-        return random.choice(candidates)
+        return random.choice(candidates)  # NOSONAR
     r = random.uniform(0, total)
     cumulative = 0.0
     for target, w in zip(candidates, weights):
