@@ -15,7 +15,7 @@ on:
 
 permissions:
   contents: read
-  packages: write
+  id-token: write
 
 jobs:
   frontend-check:
@@ -49,13 +49,41 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Configure AWS credentials
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
+
+      - name: Set image tags
+        id: tags
+        run: |
+          if [ "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}" = "true" ]; then
+            REPO="${{ steps.login-ecr.outputs.registry }}/savanna-sentinel-frontend"
+            {
+              echo "tags<<EOF"
+              echo "${REPO}:latest"
+              echo "${REPO}:${{ github.sha }}"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=savanna-sentinel-frontend:local" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build Frontend
         uses: docker/build-push-action@v5
-
         with:
           context: ./frontend
-          push: false
-          load: true
+          target: prod
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          tags: ${{ steps.tags.outputs.tags }}
           # leaving as commented for now until we use any API's in frontend, but this is a template
           # API_URL = ARG API_URL in dockerfile
           # secrets.API_URL = ENV VITE_API_URL=$API_URL in dockerfile
