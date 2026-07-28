@@ -25,6 +25,19 @@ CREATE TYPE event_type AS ENUM (
     'patrol_track'
 );
 
+CREATE TABLE file_ingestion_staging (
+    record_id           BIGINT,
+    ingestion_timestamp TIMESTAMPTZ,
+    source_system       TEXT,
+    data_domain         TEXT,
+    event_type          TEXT,
+    payload_size_kb     NUMERIC,
+    priority_level      TEXT,
+    retry_count         INT,
+    is_encrypted        BOOLEAN,
+    status              TEXT
+);
+
 CREATE TABLE users (
     id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     username      TEXT        NOT NULL UNIQUE,

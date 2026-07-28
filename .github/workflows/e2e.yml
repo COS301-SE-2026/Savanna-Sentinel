@@ -1,4 +1,4 @@
-name: E2E Tests CI pipeline
+name: E2E Tests and Performance CI pipeline
 
 on:
   push:
@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 jobs:
-  e2e-tests:
+  e2e-and-performance-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,6 +94,39 @@ jobs:
         env:
           FRONTEND_URL: http://localhost:5173
         run: npx --no-install playwright test
+
+      - name: Run k6 Performance Tests
+        uses: grafana/k6-action@v0.5.0
+        with:
+          filename: frontend/src/tests/NFR/Performance.test.js
+          flags: --summary-export=frontend/k6-summary.json
+      
+      - name: Parse k6 Results
+        if: always()
+        run: |
+          RAW_P95=$(jq '.metrics.http_req_duration.values["p(95)"]' k6-summary.json)
+          P95=$(printf "%.0f" "RAW_P95")
+          if ["$P95" -lt 1000]; then
+            COLOR="brightgreen"
+          elif ["$P95" -lt 2000]; then
+            COLOR="yellow"
+          else
+            COLOR="red"
+          fi
+
+          echo "P95_VAL=${P95}ms" >> $GITHUB_ENV
+          echo "BADGE_COLOR=${COLOR}" >> $GITHUB_ENV
+      
+      - name: Push Badge
+        if: always()
+        uses: schneegans/dynamic-badges-actions@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: b7f75bd35ca62af2effd27966cbac1d7
+          filename: performance-badge.json
+          label: Performance (p95)
+          message: ${{ env.P95_VAL }}
+          color: ${{ env.BADGE_COLOR }}
 
       - name: Stop Docker Stack
         if: always()
