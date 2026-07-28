@@ -1,352 +1,334 @@
-import { useRef, useEffect, useState } from "react";
-import { RouteIcon, Clock, Navigation, AlertCircle, Play } from "lucide-react";
+import { useEffect, useState } from "react";
+import type maplibregl from "maplibre-gl";
+
+import { MapView } from "@/components/map/MapView";
+import { MapControls } from "@/components/map/MapControls";
+import { MapLegend } from "@/components/map/MapLegend";
+import { HeatmapLayer } from "@/components/map/HeatmapLayer";
+import { PatrolRouteLayer } from "@/components/map/PatrolRouteLayer";
+import { PatrolPlannerForm } from "@/components/patrol/PatrolPlannerForm";
+import { RouteComparisonView } from "@/components/patrol/RouteComparisonView";
+import {
+    Drawer,
+    DrawerContent,
+    DrawerDescription,
+    DrawerTitle,
+} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import { riskApi } from "@/services/riskApi";
+import { routeApi } from "@/services/routeApi";
+import type { ParkGridResponse } from "@/services/riskApi";
+import { usePollRouteJob } from "@/hooks/usePollRouteJob";
+import { assignRandomRisk, parseGridCells } from "@/lib/riskGrid";
+import { notifyCritical } from "@/components/ui/toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import type { ArmedField, LatLon } from "@/types/patrol";
 
-const OSM_STYLE = {
-    version: 8,
-    sources: {
-        osm: {
-            type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution:
-                "© <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
-        },
-    },
-    layers: [
-        { id: "osm", type: "raster", source: "osm", minzoom: 0, maxzoom: 19 },
-    ],
-};
+const PARK_ID = "klaserie";
+const PARK_CENTER: [number, number] = [31.18, -24.2];
+const DEFAULT_ZOOM = 10;
 
-const START_LNG = 31.38;
-const START_LAT = -24.77;
-const CELL_W = 0.004;
-const CELL_H = 0.004;
-const COLS = 20;
-const ROWS = 13;
-const CENTER: [number, number] = [
-    START_LNG + (COLS * CELL_W) / 2,
-    START_LAT - (ROWS * CELL_H) / 2,
-];
+const COLLAPSED_SNAP = "148px";
+const EXPANDED_SNAP = 0.6;
 
-const GRID: number[][] = [
-    [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 1, 1, 2, 1, 1, 0, 0, 0, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0],
-    [0, 1, 1, 2, 2, 2, 1, 1, 0, 0, 1, 2, 2, 2, 1, 0, 0, 0, 0, 0],
-    [0, 1, 2, 2, 3, 3, 2, 1, 0, 0, 2, 2, 3, 3, 2, 1, 0, 0, 0, 0],
-    [1, 2, 2, 3, 4, 3, 2, 1, 0, 1, 2, 3, 4, 4, 3, 2, 1, 0, 0, 0],
-    [1, 2, 3, 4, 4, 3, 2, 1, 0, 1, 2, 3, 4, 3, 2, 2, 1, 0, 0, 0],
-    [0, 1, 2, 3, 3, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 1, 0, 0, 0],
-    [0, 1, 1, 2, 2, 2, 1, 0, 0, 0, 1, 1, 2, 2, 1, 0, 0, 0, 0, 0],
-    [0, 0, 1, 1, 2, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 3, 2, 1, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 1, 2, 2, 2, 1, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
-];
-
-function buildHeatmapGeoJSON() {
-    const features = [];
-    for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-            const val = GRID[r][c];
-            if (val === 0) continue;
-            const w = START_LNG + c * CELL_W;
-            const e = START_LNG + (c + 1) * CELL_W;
-            const n = START_LAT - r * CELL_H;
-            const s = START_LAT - (r + 1) * CELL_H;
-            features.push({
-                type: "Feature",
-                properties: { risk: val },
-                geometry: {
-                    type: "Polygon",
-                    coordinates: [
-                        [
-                            [w, n],
-                            [e, n],
-                            [e, s],
-                            [w, s],
-                            [w, n],
-                        ],
-                    ],
-                },
-            });
-        }
-    }
-    return { type: "FeatureCollection", features };
+function LoadingPill({ label }: { label: string }) {
+    return (
+        <div className="absolute top-2 left-2 z-[var(--z-sticky)] inline-flex items-center gap-2 rounded-md bg-color-surface-raised px-2 py-1 shadow-sm">
+            <span className="size-2 shrink-0 rounded-full bg-brand-steel" />
+            <span className="text-xs text-color-text-primary">{label}</span>
+        </div>
+    );
 }
 
-const WAYPOINTS: { lng: number; lat: number; label: string }[] = [
-    { lng: 31.385, lat: -24.812, label: "S" },
-    { lng: 31.396, lat: -24.799, label: "1" },
-    { lng: 31.408, lat: -24.787, label: "2" },
-    { lng: 31.421, lat: -24.793, label: "3" },
-    { lng: 31.433, lat: -24.78, label: "4" },
-    { lng: 31.445, lat: -24.793, label: "E" },
-];
+interface SidebarContentProps {
+    startPoint: LatLon | null;
+    endPoint: LatLon | null;
+    armedField: ArmedField;
+    onArmField: (field: "start" | "end") => void;
+    onStartPointChange: (point: LatLon | null) => void;
+    onEndPointChange: (point: LatLon | null) => void;
+    maxTime: string;
+    maxFuel: string;
+    onMaxTimeChange: (v: string) => void;
+    onMaxFuelChange: (v: string) => void;
+    onGenerate: () => void;
+    isGenerating: boolean;
+    jobStatus: ReturnType<typeof usePollRouteJob>["status"];
+    routes: ReturnType<typeof usePollRouteJob>["routes"];
+    selectedIndex: number;
+    onSelectRoute: (index: number) => void;
+    onClearRoutes: () => void;
+}
 
-const PRIORITY_OPTIONS = [
-    "Prioritise critical-risk zones",
-    "Minimise backtracking",
-    "Avoid water crossings",
-];
+function SidebarContent({
+    startPoint,
+    endPoint,
+    armedField,
+    onArmField,
+    onStartPointChange,
+    onEndPointChange,
+    maxTime,
+    maxFuel,
+    onMaxTimeChange,
+    onMaxFuelChange,
+    onGenerate,
+    isGenerating,
+    jobStatus,
+    routes,
+    selectedIndex,
+    onSelectRoute,
+    onClearRoutes,
+}: SidebarContentProps) {
+    return (
+        <div className="flex flex-col gap-5 p-4">
+            <PatrolPlannerForm
+                startPoint={startPoint}
+                endPoint={endPoint}
+                armedField={armedField}
+                onArmField={onArmField}
+                onStartPointChange={onStartPointChange}
+                onEndPointChange={onEndPointChange}
+                maxTime={maxTime}
+                maxFuel={maxFuel}
+                onMaxTimeChange={onMaxTimeChange}
+                onMaxFuelChange={onMaxFuelChange}
+                onGenerate={onGenerate}
+                isGenerating={isGenerating}
+                hasRoutes={routes.length > 0}
+                onClearRoutes={onClearRoutes}
+            />
+            <div>
+                <div className="mb-2 text-xs font-semibold text-color-text-primary uppercase tracking-wider">
+                    Alternatives
+                </div>
+                <RouteComparisonView
+                    status={jobStatus}
+                    routes={routes}
+                    selectedIndex={selectedIndex}
+                    onSelect={onSelectRoute}
+                />
+            </div>
+        </div>
+    );
+}
 
 export default function PatrolPlannerPage() {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const mapRef = useRef<maplibregl.Map | null>(null);
-    const [mapError, setMapError] = useState<string | null>(null);
+    const isMobile = useIsMobile();
+    const [map, setMap] = useState<maplibregl.Map | null>(null);
+
+    const [startPoint, setStartPoint] = useState<LatLon | null>(null);
+    const [endPoint, setEndPoint] = useState<LatLon | null>(null);
+    const [armedField, setArmedField] = useState<ArmedField>(null);
+    const [maxTime, setMaxTime] = useState("");
+    const [maxFuel, setMaxFuel] = useState("");
+
+    const [requestId, setRequestId] = useState<string | null>(null);
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const { status: jobStatus, routes } = usePollRouteJob(requestId);
+
+    const [prevRoutes, setPrevRoutes] = useState(routes);
+    if (routes !== prevRoutes) {
+        setPrevRoutes(routes);
+        setSelectedIndex(0);
+    }
+
+    const [grid, setGrid] = useState<ParkGridResponse | null>(null);
+    const [isGridLoading, setIsGridLoading] = useState(true);
+    const [riskByCell, setRiskByCell] = useState<Map<string, number>>(
+        new Map(),
+    );
+    const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
+        COLLAPSED_SNAP,
+    );
 
     useEffect(() => {
-        if (!containerRef.current) return;
-
-        let map: maplibregl.Map;
-        try {
-            map = new maplibregl.Map({
-                container: containerRef.current,
-                style: OSM_STYLE as maplibregl.StyleSpecification,
-                center: CENTER,
-                zoom: 12,
-                attributionControl: false,
+        let isCancelled = false;
+        riskApi
+            .getParkGrid(PARK_ID)
+            .then((response) => {
+                if (isCancelled) return;
+                setGrid(response);
+                setRiskByCell(assignRandomRisk(parseGridCells(response)));
+            })
+            .catch(() => {
+                if (!isCancelled) notifyCritical("Could not load risk grid");
+            })
+            .finally(() => {
+                if (!isCancelled) setIsGridLoading(false);
             });
-        } catch (e) {
-            const msg = String(e);
-            queueMicrotask(() => setMapError(msg));
-            return;
-        }
-
-        mapRef.current = map;
-        map.on("error", (e) =>
-            setMapError(e.error?.message ?? "Map failed to load"),
-        );
-
-        map.on("load", () => {
-            map.addSource("heatmap", {
-                type: "geojson",
-                data: buildHeatmapGeoJSON() as maplibregl.GeoJSONSourceSpecification["data"],
-            });
-            map.addLayer({
-                id: "heatmap-fill",
-                type: "fill",
-                source: "heatmap",
-                paint: {
-                    "fill-color": [
-                        "step",
-                        ["get", "risk"],
-                        "#06B050",
-                        2,
-                        "#FAE203",
-                        3,
-                        "#FF9300",
-                        4,
-                        "#C00000",
-                    ],
-                    "fill-opacity": 0.4,
-                },
-            });
-
-            map.addSource("route", {
-                type: "geojson",
-                data: {
-                    type: "Feature",
-                    properties: {},
-                    geometry: {
-                        type: "LineString",
-                        coordinates: WAYPOINTS.map((w) => [w.lng, w.lat]),
-                    },
-                } as maplibregl.GeoJSONSourceSpecification["data"],
-            });
-            map.addLayer({
-                id: "route-casing",
-                type: "line",
-                source: "route",
-                paint: {
-                    "line-color": "#003A6B",
-                    "line-width": 5,
-                    "line-opacity": 0.5,
-                },
-            });
-            map.addLayer({
-                id: "route-line",
-                type: "line",
-                source: "route",
-                paint: {
-                    "line-color": "#8EADC4",
-                    "line-width": 2.5,
-                    "line-dasharray": [3, 2],
-                },
-            });
-
-            WAYPOINTS.forEach(({ lng, lat, label }, i) => {
-                const isStart = label === "S";
-                const isEnd = label === "E";
-                const bg = isStart ? "#0070BF" : isEnd ? "#C00000" : "#ffffff";
-                const color = isStart || isEnd ? "#ffffff" : "#003A6B";
-
-                const el = document.createElement("div");
-                el.style.cssText = [
-                    "width:26px",
-                    "height:26px",
-                    "border-radius:50%",
-                    `background:${bg}`,
-                    "border:2.5px solid white",
-                    "display:flex",
-                    "align-items:center",
-                    "justify-content:center",
-                    `font-size:${isStart || isEnd ? 10 : 11}px`,
-                    "font-weight:700",
-                    `color:${color}`,
-                    "font-family:sans-serif",
-                    "box-shadow:0 2px 6px rgba(0,0,0,0.4)",
-                    "cursor:default",
-                ].join(";");
-                el.textContent = label;
-
-                new maplibregl.Marker({ element: el })
-                    .setLngLat([lng, lat])
-                    .setPopup(
-                        new maplibregl.Popup({ offset: 16 }).setText(
-                            i === 0
-                                ? "Start: Gate A"
-                                : i === WAYPOINTS.length - 1
-                                  ? "End: Gate A return"
-                                  : `Waypoint ${label}`,
-                        ),
-                    )
-                    .addTo(map);
-            });
-        });
-
         return () => {
-            map.remove();
-            mapRef.current = null;
+            isCancelled = true;
         };
     }, []);
 
+    function handleMapClick(lngLat: { lng: number; lat: number }) {
+        if (!armedField) return;
+        const point = { lat: lngLat.lat, lon: lngLat.lng };
+        if (armedField === "start") setStartPoint(point);
+        else setEndPoint(point);
+        setArmedField(null);
+    }
+
+    function handleRandomizeRisk() {
+        if (!grid) return;
+        setRiskByCell(assignRandomRisk(parseGridCells(grid)));
+    }
+
+    async function handleGenerate() {
+        if (!startPoint || !endPoint) return;
+        try {
+            const job = await routeApi.generateRoute({
+                park_id: PARK_ID,
+                start_point: {
+                    type: "Point",
+                    coordinates: [startPoint.lon, startPoint.lat],
+                },
+                end_point: {
+                    type: "Point",
+                    coordinates: [endPoint.lon, endPoint.lat],
+                },
+                max_time: maxTime.trim() === "" ? undefined : Number(maxTime),
+                max_fuel: maxFuel.trim() === "" ? undefined : Number(maxFuel),
+                num_alternatives: 3,
+                risk_by_cell: Object.fromEntries(riskByCell),
+            });
+            setRequestId(job.request_id);
+        } catch {
+            notifyCritical("Could not start route planning");
+        }
+    }
+
+    function handleClearRoutes() {
+        setRequestId(null);
+    }
+
+    const isGenerating = jobStatus === "queued" || jobStatus === "processing";
+    const isPickingActive = armedField !== null;
+
+    const sidebarProps: SidebarContentProps = {
+        startPoint,
+        endPoint,
+        armedField,
+        onArmField: setArmedField,
+        onStartPointChange: setStartPoint,
+        onEndPointChange: setEndPoint,
+        maxTime,
+        maxFuel,
+        onMaxTimeChange: setMaxTime,
+        onMaxFuelChange: setMaxFuel,
+        onGenerate: handleGenerate,
+        isGenerating,
+        onClearRoutes: handleClearRoutes,
+        jobStatus,
+        routes,
+        selectedIndex,
+        onSelectRoute: setSelectedIndex,
+    };
+
     return (
-        <div className="p-6 max-w-5xl mx-auto">
-            <div className="mb-5 rounded-md bg-brand-dark-blue text-white px-4 py-2.5 text-sm flex items-center gap-2">
-                <RouteIcon className="size-4 shrink-0" />
-                <span>
-                    This page is still to come, but here's a little teaser.
-                </span>
-            </div>
+        <div className="flex h-[calc(100vh-3.5rem)] flex-col md:flex-row">
+            {!isMobile && (
+                <aside className="w-[280px] shrink-0 overflow-y-auto border-r border-color-border bg-color-surface-raised">
+                    <SidebarContent {...sidebarProps} />
+                </aside>
+            )}
 
-            <h1 className="text-2xl font-semibold text-foreground mb-6">
-                Patrol Planner
-            </h1>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-4">
-                    <div className="rounded-lg border border-border bg-card p-4 space-y-4">
-                        <h2 className="text-sm font-semibold">
-                            Route Parameters
-                        </h2>
-
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">
-                                Start Location
-                            </label>
-                            <select
-                                disabled
-                                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-muted opacity-70 cursor-not-allowed"
-                            >
-                                <option>Gate A: Western entrance</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">
-                                Patrol Duration
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    readOnly
-                                    disabled
-                                    value="4"
-                                    className="w-16 border border-border rounded-md px-3 py-2 text-sm bg-muted opacity-70 cursor-not-allowed text-center"
-                                />
-                                <span className="text-sm text-muted-foreground">
-                                    hours
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">
-                                Priority
-                            </label>
-                            <div className="space-y-1.5">
-                                {PRIORITY_OPTIONS.map((opt) => (
-                                    <label
-                                        key={opt}
-                                        className="flex items-center gap-2 cursor-not-allowed opacity-75 text-sm"
-                                    >
-                                        <div className="size-4 rounded border-2 border-brand-dark-blue bg-brand-dark-blue flex items-center justify-center shrink-0">
-                                            <div className="size-1.5 bg-white rounded-sm" />
-                                        </div>
-                                        {opt}
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <Button disabled className="w-full opacity-60 gap-1.5">
-                            <Play className="size-4" />
-                            Generate Route
-                        </Button>
-                    </div>
-
-                    <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-                        <h2 className="text-sm font-semibold">
-                            Suggested Route
-                        </h2>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex items-center justify-between">
-                                <span className="flex items-center gap-2 text-muted-foreground">
-                                    <RouteIcon className="size-4" />
-                                    Distance
-                                </span>
-                                <span className="font-medium">18.4 km</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="flex items-center gap-2 text-muted-foreground">
-                                    <Clock className="size-4" />
-                                    Est. time
-                                </span>
-                                <span className="font-medium">3h 50m</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="flex items-center gap-2 text-muted-foreground">
-                                    <Navigation className="size-4" />
-                                    Waypoints
-                                </span>
-                                <span className="font-medium">6 stops</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="flex items-center gap-2 text-muted-foreground">
-                                    <AlertCircle className="size-4 text-spot-orange" />
-                                    Risk coverage
-                                </span>
-                                <span className="font-medium">74%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    className="md:col-span-2 rounded-lg border border-border overflow-hidden relative"
-                    style={{ height: 420 }}
+            <div className="relative min-h-0 flex-1">
+                <MapView
+                    center={PARK_CENTER}
+                    zoom={DEFAULT_ZOOM}
+                    onMapReady={setMap}
+                    onMapRemove={() => setMap(null)}
+                    onMapClick={handleMapClick}
+                    className={
+                        isPickingActive
+                            ? "absolute inset-0 cursor-crosshair"
+                            : "absolute inset-0"
+                    }
+                />
+                <MapControls
+                    map={map}
+                    defaultCenter={PARK_CENTER}
+                    defaultZoom={DEFAULT_ZOOM}
+                />
+                <MapLegend
+                    bottomClassName={
+                        isMobile ? "bottom-[calc(148px+0.5rem)]" : "bottom-2"
+                    }
+                />
+                <HeatmapLayer
+                    map={map}
+                    grid={grid}
+                    riskByCell={riskByCell}
+                    pickingActive={isPickingActive}
+                    isMobile={isMobile}
+                />
+                <PatrolRouteLayer
+                    map={map}
+                    startPoint={startPoint}
+                    endPoint={endPoint}
+                    routes={routes}
+                    selectedIndex={selectedIndex}
+                />
+                {isGridLoading && <LoadingPill label="Loading..." />}
+                {isGenerating && <LoadingPill label="Planning route..." />}
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRandomizeRisk}
+                    disabled={!grid}
+                    className={
+                        isMobile
+                            ? "absolute right-2 bottom-[calc(148px+2.5rem)] z-[var(--z-sticky)] bg-color-surface-raised shadow-sm"
+                            : "absolute right-2 bottom-10 z-[var(--z-sticky)] bg-color-surface-raised shadow-sm"
+                    }
                 >
-                    <div ref={containerRef} className="w-full h-full" />
-                    {mapError && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-muted/80 text-sm text-muted-foreground p-6 text-center">
-                            Map failed to initialise: {mapError}
-                        </div>
-                    )}
-                </div>
+                    Randomise risk
+                </Button>
             </div>
+
+            {isMobile && (
+                <Drawer
+                    modal={false}
+                    open
+                    snapPoints={[COLLAPSED_SNAP, EXPANDED_SNAP]}
+                    activeSnapPoint={drawerSnap}
+                    setActiveSnapPoint={setDrawerSnap}
+                >
+                    {/*
+                     * `h-full` is required, not cosmetic: vaul parks a
+                     * snap-point drawer by translating the content element
+                     * down by (viewport height - snap height), which only
+                     * lands correctly if that element spans the full
+                     * viewport. With the intrinsic height it would otherwise
+                     * take, the translate pushes the whole sheet off the
+                     * bottom of the screen. The inner wrapper does the
+                     * scrolling instead, and only once fully expanded, so a
+                     * swipe up from the collapsed snap drags the sheet rather
+                     * than scrolling its contents.
+                     */}
+                    <DrawerContent className="h-full">
+                        <DrawerTitle className="sr-only">
+                            Patrol planner
+                        </DrawerTitle>
+                        <DrawerDescription className="sr-only">
+                            Set start and end points, set time and fuel limits,
+                            generate patrol routes, and compare the
+                            alternatives.
+                        </DrawerDescription>
+                        <div
+                            className={
+                                drawerSnap === EXPANDED_SNAP
+                                    ? "min-h-0 flex-1 overflow-y-auto"
+                                    : "min-h-0 flex-1 overflow-hidden"
+                            }
+                        >
+                            <SidebarContent {...sidebarProps} />
+                        </div>
+                    </DrawerContent>
+                </Drawer>
+            )}
         </div>
     );
 }
