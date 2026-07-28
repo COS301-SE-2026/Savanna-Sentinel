@@ -12,6 +12,8 @@ services:
   worker:
     build:
       context: ./backend
+    volumes:
+      - ./backend:/app
 
   frontend:
     build:

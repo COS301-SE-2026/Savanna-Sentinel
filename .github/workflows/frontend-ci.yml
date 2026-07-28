@@ -25,19 +25,19 @@ jobs:
 
       - name: Install Dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Prettier
         working-directory: ./frontend
-        run: npx prettier --check "src/**/*/*.{ts,tsx}"
+        run: npm run format:check
 
       - name: Linter
         working-directory: ./frontend
-        run: npx eslint . # --max-warnings 0 # Strict linting
+        run: npm run lint # --max-warnings 0 # Strict linting
 
       - name: Tests (with coverage)
         working-directory: ./frontend
-        run: npx vitest run --coverage
+        run: npm run test:coverage
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

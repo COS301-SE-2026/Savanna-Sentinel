@@ -11,6 +11,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "format:check": "prettier --check \"src/**/*/*.{ts,tsx}\"",
+    "test:coverage": "vitest run --coverage",
     "preview": "vite preview"
   },
   "author": "SIGILL",
@@ -62,6 +64,7 @@
     "jsdom": "^29.1.1",
     "msw": "^2.14.6",
     "playwright": "^1.61.1",
+    "prettier": "3.9.6",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",
