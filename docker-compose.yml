@@ -19,6 +19,11 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.80'
+          memory: 500M
 
   redis:
     image: redis:7-alpine
@@ -30,6 +35,11 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 64M
 
   minio:
     image: minio/minio:latest
@@ -49,6 +59,11 @@ services:
       retries: 3
       start_period: 20s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 256M
 
   backend:
     image: ${ECR_REGISTRY:-local}/savanna-sentinel-backend:${IMAGE_TAG:-latest}
@@ -62,6 +77,11 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.60'
+          memory: 400M
 
   worker:
     image: ${ECR_REGISTRY:-local}/savanna-sentinel-backend:${IMAGE_TAG:-latest}
@@ -74,12 +94,22 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.30'
+          memory: 350M
 
   frontend:
     image: ${ECR_REGISTRY:-local}/savanna-sentinel-frontend:${IMAGE_TAG:-latest}
     depends_on:
       - backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
 
   caddy:
     profiles: ["prod"]
@@ -95,6 +125,11 @@ services:
     depends_on:
       - frontend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 128M
 
 volumes:
   postgres_data:
