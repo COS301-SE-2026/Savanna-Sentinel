@@ -159,7 +159,6 @@ This is a summarised version of the Use Cases document. For more information, pl
 
 ![Dashboard Subsystem](../use-cases/images/sav_sent_use_cases_dash_light.png)
 
-
 ### 3.7 Admin Subsystem
 
 ![Dashboard Subsystem](../use-cases/images/sav_sent_use_cases_admin_light.png)
@@ -408,15 +407,15 @@ Our system targets the following non-functional requirements
 
 #### 5.2.1 Security
 
-**Insert Quantification Here**
+Mozilla HTTP Observatory Badge on the main README page.
 
 #### 5.2.2 Reliability
 
-**Insert Quantification Here**
+Uptime Badge on the main README page
 
 #### 5.2.3 Performance
 
-**Insert Quantification Here**
+K6 Performance test with ~90 Concurrent users performing various tasks in estimated distributions, with a badge on the main README stating the p(95) response time
 
 #### 5.2.4 Availability
 

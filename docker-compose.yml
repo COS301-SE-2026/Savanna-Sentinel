@@ -108,8 +108,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.05'
-          memory: 64M
+          cpus: '0.5'
+          memory: 128M
 
   caddy:
     profiles: ["prod"]
@@ -128,7 +128,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.05'
+          cpus: '0.10'
           memory: 128M
 
 volumes:
