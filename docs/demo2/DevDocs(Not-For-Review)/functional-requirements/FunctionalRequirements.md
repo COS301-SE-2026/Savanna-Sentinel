@@ -27,8 +27,8 @@ The Functional Requirements provided below ensure that the Savanna Sentinel syst
 
 ## R1.1: Role Based Access Control (RBAC)
 
-- **R.1.1.1:** The system will support role-based access control with predefined roles including Ranger, Analyst, Community Liaison and Admin.
-- **R1.1.12:** The system will enforce server-side authentication using stateless sessions (JWT).
+- **R1.1.1:** The system will support role-based access control with predefined roles including Ranger, Analyst, Community Liaison and Admin.
+- **R1.1.2:** The system will enforce server-side authentication using stateless sessions (JWT).
 - **R1.1.3:** The system will restrict access to specific views, features, and map layers based on the authenticated user’s assigned role.
 
 ## R1.2: Audit and Security

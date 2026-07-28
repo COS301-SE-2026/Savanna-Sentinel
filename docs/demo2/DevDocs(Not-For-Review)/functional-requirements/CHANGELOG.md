@@ -1,6 +1,6 @@
 # Changelog - Functional Requirements
 
-## [Latest] - 2026-06-26
+## 2026-06-26
 
 ### Added
 - Final touches and formatting improvements to Functional Requirements document
@@ -14,3 +14,6 @@
 - Overall document polish and professional presentation
 - Consistency in requirement numbering and hierarchy
 - Clarity and accessibility of functional requirement specifications
+
+## 2026-07-22
+- Minor Spelling corrections
