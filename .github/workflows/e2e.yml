@@ -108,7 +108,7 @@ jobs:
           SUMMARY_FILE="frontend/k6-summary.json"
 
           if [ -f "$SUMMARY_FILE" ]; then
-            P95=$(jq -r '.metrics.http_req_duration.values["p(95)"] // 0 | round' "$SUMMARY_FILE")
+            P95=$(jq -r '.metrics.http_req_duration["p(95)"] // 0 | round' "$SUMMARY_FILE")
           else
             echo "::warning:: Summary file not found at $SUMMARY_FILE"
             P95=0
