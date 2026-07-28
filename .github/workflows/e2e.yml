@@ -95,20 +95,33 @@ jobs:
           FRONTEND_URL: http://localhost:5173
         run: npx --no-install playwright test
 
+      - name: Setup K6
+        uses: grafana/setup-k6-action@v1.2.1
+
       - name: Run k6 Performance Tests
-        uses: grafana/k6-action@v0.5.0
-        with:
-          filename: frontend/src/tests/NFR/Performance.test.js
-          flags: --summary-export=frontend/k6-summary.json
+        run: |
+          k6 run frontend/src/tests/NFR/Performance.test.js --summary-export=frontend/k6-summary.json
       
       - name: Parse k6 Results
         if: always()
         run: |
-          RAW_P95=$(jq '.metrics.http_req_duration.values["p(95)"]' k6-summary.json)
-          P95=$(printf "%.0f" "RAW_P95")
-          if ["$P95" -lt 1000]; then
+          SUMMARY_FILE="frontend/k6-summary.json"
+
+          if [ -f "$SUMMARY_FILE" ]; then
+            RAW_P95=$(jq '.metrics.http_req_duration.values["p(95)"]' "$SUMMARY_FILE")
+
+            if [ "$RAW_P95" != "null" ] && [ -n "$RAW_P95" ]; then
+              P95=$(printf "%.0f" "$RAW_P95")
+            else
+              P95=0
+            fi
+          else
+            P95-0
+          fi
+          
+          if [ "$P95" -gt 0 ] && [ "$P95" -lt 1000 ]; then
             COLOR="brightgreen"
-          elif ["$P95" -lt 2000]; then
+          elif [ "$P95" -ge 1000 ] && [ "$P95" -lt 2000 ]; then
             COLOR="yellow"
           else
             COLOR="red"
@@ -119,7 +132,7 @@ jobs:
       
       - name: Push Badge
         if: always()
-        uses: schneegans/dynamic-badges-actions@v1.7.0
+        uses: schneegans/dynamic-badges-action@v1.9.0
         with:
           auth: ${{ secrets.GIST_SECRET }}
           gistID: b7f75bd35ca62af2effd27966cbac1d7
