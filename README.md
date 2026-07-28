@@ -11,7 +11,7 @@
 [![Deploy](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/deploy.yml?branch=main&style=for-the-badge&logo=githubactions&label=Deploy)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/deploy.yml)
 [![Status](https://img.shields.io/badge/Status-online-brightgreen?style=for-the-badge)](https://savannasentinel.co.za)
 [![Uptime](https://img.shields.io/uptimerobot/ratio/m803474731-546495294e59595cdcf16770?style=for-the-badge&logo=uptimerobot&label=Uptime)](https://stats.uptimerobot.com/qEIREIc10V)
-![Performance/Latency](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Stephan-Kritzinger/b7f75bd35ca62af2effd27966cbac1d7/raw/performance-badjge.com)
+![Performance/Latency](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Stephan-Kritzinger/b7f75bd35ca62af2effd27966cbac1d7/raw/performance-badge.json)
 [![HTTP Observatory Grade](https://img.shields.io/mozilla-observatory/grade/savannasentinel.co.za)](https://developer.mozilla.org/en-US/observatory/analyze?host=savannasentinel.co.za)
 
 [![Open Issues](https://img.shields.io/github/issues/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=F0883E&label=Open%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)

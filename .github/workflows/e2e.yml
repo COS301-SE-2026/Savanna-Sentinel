@@ -108,17 +108,12 @@ jobs:
           SUMMARY_FILE="frontend/k6-summary.json"
 
           if [ -f "$SUMMARY_FILE" ]; then
-            RAW_P95=$(jq '.metrics.http_req_duration.values["p(95)"]' "$SUMMARY_FILE")
-
-            if [ "$RAW_P95" != "null" ] && [ -n "$RAW_P95" ]; then
-              P95=$(printf "%.0f" "$RAW_P95")
-            else
-              P95=0
-            fi
+            P95=$(jq -r '.metrics.http_req_duration.values["p(95)"] // 0 | round' "$SUMMARY_FILE")
           else
-            P95-0
+            echo "::warning:: Summary file not found at $SUMMARY_FILE"
+            P95=0
           fi
-          
+
           if [ "$P95" -gt 0 ] && [ "$P95" -lt 1000 ]; then
             COLOR="brightgreen"
           elif [ "$P95" -ge 1000 ] && [ "$P95" -lt 2000 ]; then
