@@ -1,10 +1,7 @@
 import {
-    LayoutDashboard,
-    Map,
     FileText,
     RouteIcon,
     Upload,
-    MessageSquare,
     ShieldCheck,
     User,
     type LucideIcon,
@@ -19,18 +16,6 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-    {
-        label: "Dashboard",
-        path: "/dashboard",
-        icon: LayoutDashboard,
-        roles: [],
-    },
-    {
-        label: "Map",
-        path: "/map",
-        icon: Map,
-        roles: ["ranger", "analyst", "admin"],
-    },
     {
         label: "Reports",
         path: "/reports",
@@ -48,12 +33,6 @@ export const NAV_ITEMS: NavItem[] = [
         path: "/ingestion",
         icon: Upload,
         roles: ["analyst", "admin"],
-    },
-    {
-        label: "Tip-offs",
-        path: "/tipoffs",
-        icon: MessageSquare,
-        roles: ["community_liaison", "admin"],
     },
     {
         label: "Admin",

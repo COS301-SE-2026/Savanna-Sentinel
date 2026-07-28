@@ -58,7 +58,7 @@ export default function LoginPage() {
                 setIsMfaOpen(true);
                 return;
             }
-            navigate("/dashboard");
+            navigate("/profile");
         } catch (err) {
             const axiosErr = err as AxiosError<{ detail: string }>;
 
@@ -83,7 +83,7 @@ export default function LoginPage() {
         try {
             await verifyMfa(mfaToken, code);
             setIsMfaOpen(false);
-            navigate("/dashboard");
+            navigate("/profile");
         } catch (err) {
             const axiosErr = err as AxiosError<{ detail: string }>;
 
