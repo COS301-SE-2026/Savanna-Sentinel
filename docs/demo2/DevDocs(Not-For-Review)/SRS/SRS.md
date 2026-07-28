@@ -411,7 +411,7 @@ Mozilla HTTP Observatory Badge on the main README page.
 
 #### 5.2.2 Reliability
 
-Uptime Badge on the main README page
+Uptime Badge on the main README page.
 
 #### 5.2.3 Performance
 
@@ -419,11 +419,13 @@ K6 Performance test with ~90 Concurrent users performing various tasks in estima
 
 #### 5.2.4 Availability
 
-**Insert Quantification Here**
+Automated restarts of crashing containers through docker, with a current website status badge on the README 
 
 #### 5.2.5 Maintainability
 
-**Insert Quantification Here**
+* Backend CI Status Badge
+* Frontend CI Status Badge
+* CodeCov Badge
 
 ---
 
