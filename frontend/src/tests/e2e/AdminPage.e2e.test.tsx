@@ -183,7 +183,7 @@ test.describe("Admin Role Swap Management", () => {
     }) => {
         const userRow = page
             .locator("tr")
-            .filter({ hasText: userCleanup!.username });
+            .filter({ hasText: userCleanup!.username }); 
         await expect(userRow).toBeVisible();
 
         const roleDropdown = userRow.locator("select");

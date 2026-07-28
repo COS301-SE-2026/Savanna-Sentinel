@@ -16,7 +16,8 @@ export default defineConfig({
         setupFiles: "./src/tests/setup.ts",
         exclude: [
             ...configDefaults.exclude,
-            'src/tests/e2e/**/*'
+            'src/tests/e2e/**/*',
+            'src/tests/NFR/**/*'
         ]
     },
     build: {

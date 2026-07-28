@@ -65,6 +65,7 @@ export const usersApi = {
             .get<PaginatedUsersResponse>("/users", {
                 params: {
                     is_active: true,
+                    page_size: 50,
                 },
             })
             .then((r) => r.data),
