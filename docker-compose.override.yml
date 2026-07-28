@@ -13,7 +13,7 @@ services:
     build:
       context: ./backend
     volumes:
-      - ./back:/app
+      - ./backend:/app
 
   frontend:
     build:

@@ -549,6 +549,36 @@ def test_select_next_waypoint_discounts_already_covered_candidates(monkeypatch):
     assert covered_choice == "w2"
 
 
+def test_select_next_waypoint_falls_back_to_random_when_weights_are_zero(
+    monkeypatch,
+):
+    """
+    Zero pheromone with alpha > 0 zeroes every weight.
+
+    Forcing the uniform-random fallback rather than a division by zero.
+    """
+    config = route_planner.ACOConfig(alpha=1.0, beta=1.0, tau_min=0.0)
+    matrix = {
+        ("start", "w1"): PathResult(
+            time_min=10.0,
+            fuel_l=1.5,
+            path=["start", "w1"],
+        ),
+    }
+    node_risk = {"w1": 0.7}
+    monkeypatch.setattr(route_planner.random, "choice", lambda seq: seq[0])
+
+    choice = route_planner.select_next_waypoint(
+        ["w1"],
+        {},
+        matrix,
+        "start",
+        node_risk,
+        config,
+    )
+    assert choice == "w1"
+
+
 # construct_waypoint_tour
 
 

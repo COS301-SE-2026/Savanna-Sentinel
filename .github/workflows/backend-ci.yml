@@ -44,7 +44,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install --only-binary=:all: -r backend/requirements.txt
+          pip install --require-hashes --only-binary=:all: -r backend/requirements.lock.txt
           pip install --only-binary=:all: ruff==0.16.0
           pip install --only-binary=:all: pytest-cov==7.1.0
 
