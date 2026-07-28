@@ -156,7 +156,9 @@ describe("BurgerMenu", () => {
         await userEvent.click(screen.getByText("Reports"));
 
         await waitFor(() => {
-            expect(screen.queryByText("Patrol Planner")).not.toBeInTheDocument();
+            expect(
+                screen.queryByText("Patrol Planner"),
+            ).not.toBeInTheDocument();
         });
     });
 
