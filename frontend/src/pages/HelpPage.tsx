@@ -61,7 +61,7 @@ function Faq() {
                     </CardTitle>
                     <p>
                         Open Patrol Planner, set the start location, duration,
-                        and amount of fuel to estimate, then select Generate Route.
+                        and priority, then select Generate Route.
                     </p>
                 </div>
 
@@ -88,7 +88,7 @@ function Reports() {
                 </CardTitle>
                 <CardDescription className="text-base text-color-surface-deep">
                     Use this page to view submitted reports, create a new
-                    report or draft and edit reports.
+                    report, and narrow the list with search and filters.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5 text-base">
@@ -97,32 +97,28 @@ function Reports() {
                         New Report Tab
                     </CardTitle>
                     <ul className="list-disc pl-5 space-y-1">
+                        <li>Search reports using the search box.</li>
                         <li>
-                            Select the report type as either an incident or a sighting.
+                            Use Filter to narrow results by report criteria.
                         </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
+                        Report Table
+                    </CardTitle>
+                    <ul className="list-disc pl-5 space-y-1">
+                        <li>Report ID: unique reference for each report.</li>
+                        <li>Date: when the report was submitted.</li>
+                        <li>Ranger: the user who submitted the report.</li>
+                        <li>Type: the report category.</li>
                         <li>
-                            Add a description to your report.
-                        </li>
-                        <li>
-                            Incident Report: Select the incident type and indicate the severity of it.
-                        </li>
-                        <li>
-                            Sighting Report: Select the species and how many were involved in the report.
-                        </li>
-                        <li>
-                            Enter the date when the event happened.
-                        </li>
-                        <li>
-                            You can either manually enter the coordinates where the event happened or click the 'Use current location'
-                            button to automatically use you current location.
+                            Location: the grid location linked to the report.
                         </li>
                         <li>
                             You may optionally upload photos with the report.
                         </li>
-                        <p className="text-base">
-                            Afterwards you may Submit the report. Then you may use the pagination at the top to see your submitted reports
-                            to either edit, draft or delete that previous report.
-                        </p>
                     </ul>
                 </div>
 
@@ -130,11 +126,9 @@ function Reports() {
                     <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
                         All Reports Tab
                     </CardTitle>
-                    <p className="text-base">
-                        Shows a table showing all the submitted reports. You may search and filter these reports.
-                    </p>
-                    <p className="text-base">
-                        Each report has a sync status, indicating the status of its sync with the server.
+                    <p>
+                        Open reports are active, Under Review reports are being
+                        checked, and Closed reports are complete.
                     </p>
                 </div>
             </CardContent>
@@ -150,8 +144,8 @@ function Patrol() {
                     Patrol Planner
                 </CardTitle>
                 <CardDescription className="text-base text-color-surface-deep">
-                    Use the Plan route panel to define the patrol constraints and
-                    review the suggested route.
+                    Use the route panel to define the patrol constraints and
+                    review the suggested route metrics.
                 </CardDescription>
             </CardHeader>
 
@@ -162,44 +156,28 @@ function Patrol() {
                     </CardTitle>
                     <ul className="text-base list-disc pl-5 space-y-1">
                         <li>
-                            Start and End location: Enter the coordinates, 
-                            or click the location icon and click on the map to select a starting point.
+                            Start location: select the patrol starting point.
                         </li>
                         <li>
-                            Max Time: An optional constraint to help generate a path that will conform to the restraint.
+                            Patrol duration: set the target duration in hours.
                         </li>
                         <li>
-                            Max Fuel: An optional constraint to help generate a path that will not consume more fuel than inputed.
+                            Priority: choose what the route should prioritise.
                         </li>
                     </ul>
-                    <p className="text-base space-y-2">
-                        Afterwards, click the generate routes button to generate routes. 
-                        If you need to, you may also click Clear routes to clear
-                        the currently generated routes.
-                    </p>
                 </div>
 
                 <div>
                     <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
                         Suggested, and Alternate Routes
                     </CardTitle>
-                    <p className="text-base space-y-2">
-                        The selected route is emphasized on the map, while the alternate routes are overlayed.
-                        This is done so you may compare your currently selected route to the alternatives.
-                        You may change the current selected route by clicking the 'Select' button in the top right of the route's card.
-                    </p>
-                    <p className="text-base space-y-2">
-                        The metrics for each route are as follows:
-                    </p>
                     <ul className="text-base list-disc pl-5 space-y-1">
                         <li>
-                            Est. Time: The estimated time it will take to complete the route.
+                            Distance shows the total route length in kilometres.
                         </li>
                         <li>
-                            Est. Fuel: The estimated fuel consumption the route will take.
-                        </li>
-                        <li>
-                            Risk Coverage: The percentage of risk areas covered by the route.
+                            Risk coverage shows the percentage of risk covered
+                            by the route.
                         </li>
                     </ul>
                 </div>
@@ -208,20 +186,10 @@ function Patrol() {
                     <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
                         The Map
                     </CardTitle>
-                    <ul className="text-base list-disc pl-5 space-y-1">
-                        <li>
-                            The Map controls are in the top right. You may also use your mouse wheel to scroll in and out to zoom in and out.
-                        </li>
-                        <li>
-                            In the bottom right is a legend describing how the colours in the heatmap corelate to risk values.
-                        </li>
-                        <li>
-                            Click on a cell to view information about that cell.
-                        </li>
-                        <li>
-                            Clicking on 'View Analysis' will open a panel with more information about that cell.
-                        </li>
-                    </ul>
+                    <p className="text-base">
+                        Select Generate Route to build the route from the chosen
+                        parameters.
+                    </p>
                 </div>
             </CardContent>
         </Card>
