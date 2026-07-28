@@ -17,3 +17,18 @@ export const FILE_SCHEMA: ColDef[] = [
     { name: "is_encrypted", type: "boolean" },
     { name: "status", type: "string" },
 ];
+
+export const validateData = (value: string, expected: Expectation): boolean => {
+    if (!value) return false;
+    switch (expected) {
+        case "number":
+            return !Number.isNaN(Number(value));
+        case "boolean":
+            return ["true", "false", "1", "0"].includes(value.toLowerCase());
+        case "date":
+            return !Number.isNaN(Date.parse(value));
+        case "string":
+        default:
+            return true;
+    }
+};
