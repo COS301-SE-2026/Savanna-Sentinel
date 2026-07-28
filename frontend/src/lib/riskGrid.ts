@@ -26,8 +26,13 @@ const HOTSPOT_INTENSITY_MAX = 1.0;
 const AMBIENT_JITTER_MAX = 0.1;
 const MAX_SCORE = 0.99;
 
+/** Mock heatmap data generator, not a security context. */
+function mockRandom(): number {
+    return Math.random(); /* NOSONAR */
+}
+
 function randomBetween(min: number, max: number): number {
-    return min + Math.random() * (max - min);
+    return min + mockRandom() * (max - min);
 }
 
 interface Hotspot {
@@ -48,7 +53,7 @@ export function assignRandomRisk(cells: GridCell[]): Map<string, number> {
         randomBetween(HOTSPOT_COUNT_MIN, HOTSPOT_COUNT_MAX + 1),
     );
     const hotspots: Hotspot[] = Array.from({ length: hotspotCount }, () => {
-        const anchor = cells[Math.floor(Math.random() * cells.length)];
+        const anchor = cells[Math.floor(mockRandom() * cells.length)];
         return {
             row: anchor.row,
             col: anchor.col,
@@ -71,7 +76,7 @@ export function assignRandomRisk(cells: GridCell[]): Map<string, number> {
                 Math.exp(-distSq / (2 * hotspot.sigma * hotspot.sigma));
             if (value > peak) peak = value;
         }
-        const jitter = Math.random() * AMBIENT_JITTER_MAX;
+        const jitter = mockRandom() * AMBIENT_JITTER_MAX;
         scores.set(cell.cellId, Math.min(peak + jitter, MAX_SCORE));
     }
     return scores;

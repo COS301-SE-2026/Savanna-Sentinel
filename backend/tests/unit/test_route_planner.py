@@ -840,8 +840,10 @@ def test_run_phase_returns_best(
 def test_run_phase_prefers_efficient_tour_over_longer_higher_risk_tour(
     monkeypatch,
 ):
-    """A short, efficient tour should win over a longer, higher-risk tour,
-    not always pad out to the full time/fuel budget for negligible risk."""
+    """A short, efficient tour should win over a longer, higher-risk tour.
+
+    Not always pad out to the full time/fuel budget for negligible risk.
+    """
     fixture = make_graph()
     config = route_planner.ACOConfig(num_ants=2)
     tour_path = [
@@ -1016,8 +1018,10 @@ def test_compute_risk_coverage_partial_ratio():
 
 
 def test_compute_risk_coverage_respects_custom_threshold():
-    """A lower threshold pulls p4 into the high-risk set too, dropping
-    coverage from 1.0 (only p3 counts) to 0.5 (p3 covered, p4 not)."""
+    """A lower threshold pulls p4 into the high-risk set too.
+
+    Dropping coverage from 1.0 (only p3 counts) to 0.5 (p3 covered, p4 not).
+    """
     graph = make_line_graph()
     coverage_default = route_planner.compute_risk_coverage(
         graph,

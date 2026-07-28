@@ -127,8 +127,7 @@ export function HeatmapLayer({
     useEffect(() => {
         if (!map || !grid) return;
         const source = map.getSource(SOURCE_ID) as
-            | maplibregl.GeoJSONSource
-            | undefined;
+            maplibregl.GeoJSONSource | undefined;
         if (!source) return;
         const cells = parseGridCells(grid);
         source.setData(buildGridFeatureCollection(cells, riskByCell));

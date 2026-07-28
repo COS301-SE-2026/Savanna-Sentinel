@@ -319,7 +319,9 @@ export default function PatrolPlannerPage() {
                         </DrawerDescription>
                         <div
                             className={
-                                drawerSnap === EXPANDED_SNAP
+                                typeof drawerSnap === "number" &&
+                                Math.abs(drawerSnap - EXPANDED_SNAP) <
+                                    Number.EPSILON
                                     ? "min-h-0 flex-1 overflow-y-auto"
                                     : "min-h-0 flex-1 overflow-hidden"
                             }
