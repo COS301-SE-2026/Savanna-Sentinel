@@ -77,13 +77,10 @@ describe("BurgerMenu", () => {
         renderMenu();
         await openMenu();
 
-        expect(screen.getByText("Dashboard")).toBeInTheDocument();
-        expect(screen.getByText("Map")).toBeInTheDocument();
         expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Patrol Planner")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
         expect(screen.queryByText("Ingestion")).not.toBeInTheDocument();
-        expect(screen.queryByText("Tip-offs")).not.toBeInTheDocument();
         expect(screen.queryByText("Admin")).not.toBeInTheDocument();
     });
 
@@ -92,8 +89,6 @@ describe("BurgerMenu", () => {
         renderMenu();
         await openMenu();
 
-        expect(screen.getByText("Dashboard")).toBeInTheDocument();
-        expect(screen.getByText("Map")).toBeInTheDocument();
         expect(screen.getByText("Ingestion")).toBeInTheDocument();
         expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
@@ -106,12 +101,9 @@ describe("BurgerMenu", () => {
         renderMenu();
         await openMenu();
 
-        expect(screen.getByText("Dashboard")).toBeInTheDocument();
-        expect(screen.getByText("Map")).toBeInTheDocument();
         expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Patrol Planner")).toBeInTheDocument();
         expect(screen.getByText("Ingestion")).toBeInTheDocument();
-        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
         expect(screen.getByText("Admin")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
     });
@@ -121,7 +113,7 @@ describe("BurgerMenu", () => {
         renderMenu();
         await openMenu();
 
-        const nav = screen.getByText("Dashboard").closest("nav");
+        const nav = screen.getByText("Reports").closest("nav");
         expect(nav).not.toBeNull();
         const children = Array.from(nav!.children);
         const profileIndex = children.findIndex((el) =>
@@ -130,15 +122,15 @@ describe("BurgerMenu", () => {
         expect(children[profileIndex - 1].tagName).toBe("HR");
     });
 
-    it("shows correct nav items for community_liaison", async () => {
+    it("shows only the Profile nav item for community_liaison", async () => {
         setUser("community_liaison");
         renderMenu();
         await openMenu();
 
-        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
-        expect(screen.queryByText("Dashboard")).toBeInTheDocument();
         expect(screen.queryByText("Reports")).not.toBeInTheDocument();
+        expect(screen.queryByText("Patrol Planner")).not.toBeInTheDocument();
+        expect(screen.queryByText("Ingestion")).not.toBeInTheDocument();
         expect(screen.queryByText("Admin")).not.toBeInTheDocument();
     });
 
@@ -152,7 +144,7 @@ describe("BurgerMenu", () => {
         );
 
         await waitFor(() => {
-            expect(screen.queryByText("Dashboard")).not.toBeInTheDocument();
+            expect(screen.queryByText("Reports")).not.toBeInTheDocument();
         });
     });
 
@@ -161,10 +153,12 @@ describe("BurgerMenu", () => {
         renderMenu();
         await openMenu();
 
-        await userEvent.click(screen.getByText("Dashboard"));
+        await userEvent.click(screen.getByText("Reports"));
 
         await waitFor(() => {
-            expect(screen.queryByText("Reports")).not.toBeInTheDocument();
+            expect(
+                screen.queryByText("Patrol Planner"),
+            ).not.toBeInTheDocument();
         });
     });
 

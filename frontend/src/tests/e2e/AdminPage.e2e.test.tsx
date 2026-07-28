@@ -50,7 +50,7 @@ test.describe("Admin authorising registrations", () => {
         const loginButton = page.getByRole("button", { name: /log in/i });
         await loginButton.click();
 
-        await expect(page).toHaveURL("/dashboard");
+        await expect(page).toHaveURL("/profile");
     });
 
     test.afterEach(async () => {
@@ -153,7 +153,7 @@ test.describe("Admin Role Swap Management", () => {
         const loginButton = page.getByRole("button", { name: /log in/i });
         await loginButton.click();
 
-        await expect(page).toHaveURL("/dashboard");
+        await expect(page).toHaveURL("/profile");
 
         //Prepare an active user
         const user = generateUser();

@@ -41,7 +41,7 @@ export function CellAnalysisPanel({
     const closeRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
-        closeRef.current?.focus();
+        closeRef.current?.focus({ preventScroll: true });
     }, []);
 
     const onClosedRef = useRef(onClosed);
