@@ -5,7 +5,7 @@ import { describe, it, expect } from "vitest";
 import NotFoundPage from "@/pages/NotFoundPage";
 
 describe("NotFoundPage", () => {
-    it("renders a 404 message with a link back to the dashboard", () => {
+    it("renders a 404 message with a link back to the profile page", () => {
         render(
             <MemoryRouter>
                 <NotFoundPage />
@@ -16,6 +16,6 @@ describe("NotFoundPage", () => {
         expect(screen.getByText(/page not found/i)).toBeInTheDocument();
 
         const link = screen.getByRole("link", { name: /return/i });
-        expect(link).toHaveAttribute("href", "/dashboard");
+        expect(link).toHaveAttribute("href", "/profile");
     });
 });

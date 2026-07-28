@@ -15,7 +15,7 @@ export default function NotFoundPage() {
                 </div>
 
                 <Button asChild>
-                    <Link to="/dashboard">Return</Link>
+                    <Link to="/profile">Return</Link>
                 </Button>
             </div>
         </div>
