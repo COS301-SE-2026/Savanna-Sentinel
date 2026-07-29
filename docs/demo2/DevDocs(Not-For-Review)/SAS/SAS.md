@@ -87,7 +87,7 @@ The technology requirements for Savanna Sentinel encompass the architectural and
 | Backend API     | Python FastAPI                          |
 | Background Jobs | Celery + Redis                          |
 | Database        | PostgreSQL +  PostGIS                   |
-| Object Storage  | MinIO                                   |
+| Object Storage  | Seaweed                                   |
 | AI / ML         | sckit-learn + GeoPandas + pandas + SHAP |
 | Security        | JWT(PyJWT, HS256)                       |
 | Reverse Proxy   | Caddy                                   |
@@ -143,7 +143,7 @@ Offline capability is a first class requirement. Rangers operate in reserves wit
 
 - Workbox precaches the application shell so the app loads without a network connection. The Background Sync API queues POST requests (incident reports, sightings) and replays them automatically when connectivity is restored.
 - Dexie.js provides a clean, typed API over IndexedDB to store draft field reports locally on the device. Timestamp based conflict resolution is applied server side when the upload reaches the FastAPI backend.
-- Photo uploads are queued as blob references in IndexedDB and uploaded to MinIO once online, avoiding data loss for large files.
+- Photo uploads are queued as blob references in IndexedDB and uploaded to Seaweed once online, avoiding data loss for large files.
 
 ### Backend API
 
@@ -181,13 +181,13 @@ The EPI-USE architectural requirements explicitly mandate PostGIS spatial indexi
 
 ### Object Storage
 
-**Chosen technology:** MinIO
+**Chosen technology:** Seaweed
 
 CSV uploads and optional photo classifications require blob storage separate from the relational database.
 
 - **API compatibility:** The application uses the standard boto3 Python SDK. If the project later migrates to AWS S3 or another provider, no code changes are required - only an environment variable update.
-- **Self hosted within budget:** MinIO runs as a Docker container within the same Compose stack. There are no per-GB transfer fees during development.
-- **Pre-signed URLs:** Allow the frontend to upload photos directly to MinIO without routing large files through the FastAPI backend, reducing server load.
+- **Self hosted within budget:** Seaweed runs as a Docker container within the same Compose stack. There are no per-GB transfer fees during development.
+- **Pre-signed URLs:** Allow the frontend to upload photos directly to Seaweed without routing large files through the FastAPI backend, reducing server load.
 
 ### AI / ML
 
@@ -228,7 +228,7 @@ All external traffic passes through Caddy before reaching the FastAPI backend.
 
 The architectural requirements require containerised deployment and a CI pipeline with automated testing.
 
-- **Docker Compose:** Defines the full local environment (FastAPI, Celery, Redis, PostgreSQL+PostGIS, MinIO, Caddy) as a single `docker compose up` command, ensuring all team members develop against identical dependencies.
+- **Docker Compose:** Defines the full local environment (FastAPI, Celery, Redis, PostgreSQL+PostGIS, Seaweed, Caddy) as a single `docker compose up` command, ensuring all team members develop against identical dependencies.
 - **GitHub Actions:** Runs on every push and pull request to main. The pipeline executes backend unit and integration tests (pytest), frontend unit tests (Vitest), SonarCloud static analysis, and Coveralls coverage upload. Merging to main is blocked if any stage fails.
 - **Branch protection rules:** Enforce mandatory pull requests and passing CI checks before merging.
 - **The main branch:** Always reflects a deployable state.
@@ -562,7 +562,7 @@ A transactional email service is required to deliver password reset links genera
 
 **Postconditions**
 
-- A pre-signed MinIO URL is generated allowing the client to upload directly to object storage.
+- A pre-signed Seaweed URL is generated allowing the client to upload directly to object storage.
 - The URL expires after 300 seconds.
 
 **Response `200 OK`**
@@ -598,7 +598,7 @@ A transactional email service is required to deliver password reset links genera
 - `report_type` must be one of: `incident`, `sighting`.
 - `location` must contain a valid latitude and longitude pair.
 - `occurred_at` must not be a future date and time.
-- Each entry in `images` must be a valid MinIO object URL previously obtained via SC-08.
+- Each entry in `images` must be a valid Seaweed object URL previously obtained via SC-08.
 - If `report_type` is `incident`, `incident_type` must be provided.
 - If `report_type` is `sighting`, `species` must be provided.
 
@@ -732,7 +732,7 @@ A transactional email service is required to deliver password reset links genera
 - `report_type` must be one of: `incident`, `sighting`.
 - `location` must contain a valid latitude and longitude pair.
 - `occurred_at` must not be a future date and time.
-- Each entry in `images` must be a valid MinIO object URL previously obtained via SC-08.
+- Each entry in `images` must be a valid Seaweed object URL previously obtained via SC-08.
 - If `report_type` is `incident`, `incident_type` must be provided.
 - If `report_type` is `sighting`, `species` must be provided.
 
@@ -1539,7 +1539,7 @@ List of containers:
 * Backend
 * DB
 * Redis
-* Minio
+* Seaweed
 
 **Secrets Management:** Github secrets are used for the development environment, such as for e2e testing, while a .env file is securely stored on the AWS
 
