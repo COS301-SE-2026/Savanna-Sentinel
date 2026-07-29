@@ -47,7 +47,7 @@ The SRS contains an abridged version of the use cases, full use case documentati
 - [Coding Standards](./docs/demo2/PDF/Coding%20Standards.pdf)
 - [Testing Policy](./docs/demo2/PDF/Testing%20Policy.pdf)
 - [User Manual](./docs/demo2/PDF/User%20Manual.pdf)
-- [Brand Style Guide](https://cos301-se-2026.github.io/Savanna-Sentinel/demo2/PDF/brand-style/brand_style_guide.html)
+- [Brand Style Guide](<https://cos301-se-2026.github.io/Savanna-Sentinel/demo2/DevDocs(Not-For-Review)/brand-style/brand_style_guide.html>)
 
 </details>
 
