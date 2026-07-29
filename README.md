@@ -8,11 +8,11 @@
 [![Codecov](https://img.shields.io/codecov/c/gh/COS301-SE-2026/Savanna-Sentinel/dev?style=for-the-badge&logo=codecov&label=Coverage&color=F01F7A)](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel)
 [![Backend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/backend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Backend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/backend-ci.yml)
 [![Frontend CI](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/frontend-ci.yml?branch=dev&style=for-the-badge&logo=github&label=Frontend%20CI)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/frontend-ci.yml)
+[![E2E Tests](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/e2e.yml?branch=dev&style=for-the-badge&logo=github&label=E2E%20Tests)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/e2e.yml)
 [![Deploy](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/Savanna-Sentinel/deploy.yml?branch=main&style=for-the-badge&logo=githubactions&label=Deploy)](https://github.com/COS301-SE-2026/Savanna-Sentinel/actions/workflows/deploy.yml)
 [![Status](https://img.shields.io/badge/Status-online-brightgreen?style=for-the-badge)](https://savannasentinel.co.za)
 [![Uptime](https://img.shields.io/uptimerobot/ratio/m803474731-546495294e59595cdcf16770?style=for-the-badge&logo=uptimerobot&label=Uptime)](https://stats.uptimerobot.com/qEIREIc10V)
-![Performance/Latency](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Stephan-Kritzinger/b7f75bd35ca62af2effd27966cbac1d7/raw/performance-badge.json)
-[![HTTP Observatory Grade](https://img.shields.io/mozilla-observatory/grade/savannasentinel.co.za)](https://developer.mozilla.org/en-US/observatory/analyze?host=savannasentinel.co.za)
+[![HTTP Observatory Grade](https://img.shields.io/mozilla-observatory/grade/savannasentinel.co.za?style=for-the-badge&label=Observatory)](https://developer.mozilla.org/en-US/observatory/analyze?host=savannasentinel.co.za)
 
 [![Open Issues](https://img.shields.io/github/issues/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=F0883E&label=Open%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues)
 [![Closed Issues](https://img.shields.io/github/issues-closed/COS301-SE-2026/Savanna-Sentinel?style=for-the-badge&color=A371F7&label=Closed%20Issues)](https://github.com/COS301-SE-2026/Savanna-Sentinel/issues?q=is%3Aissue+is%3Aclosed)
@@ -28,6 +28,7 @@
 [https://savannasentinel.co.za](https://savannasentinel.co.za)
 
 ## Documentation
+
 <details>
 <summary><h3>Demo 1</h3></summary>
 
@@ -39,16 +40,14 @@
 <details>
 <summary><h3>Demo 2</h3></summary>
 
-**Please note:** The interactive brand style guide must be downloaded and opened in the browser.
-The SRS contains an abridged version of the use cases, full use case documentation can be found [here](./docs/demo2/DevDocs(Not-For-Review)/use-cases/Use%20Case%20Diagram%20%26%20Scope.pdf)
+The SRS contains an abridged version of the use cases, full use case documentation can be found [here](<./docs/demo2/DevDocs(Not-For-Review)/use-cases/Use%20Case%20Diagram%20%26%20Scope.pdf>)
 
 - [Software Requirements Specification (SRS)](./docs/demo2/PDF/SRS.pdf)
 - [Software Archiecture Specification (SAS)](./docs/demo2/PDF/SAS.pdf)
 - [Coding Standards](./docs/demo2/PDF/Coding%20Standards.pdf)
 - [Testing Policy](./docs/demo2/PDF/Testing%20Policy.pdf)
 - [User Manual](./docs/demo2/PDF/User%20Manual.pdf)
-- [Brand Style Guide](./docs/demo2/PDF/Savanna%20Sentinel%20Brand%20Style%20Guide.pdf)
-- [Interactive Brand Style Guide](./docs/demo2/DevDocs(Not-For-Review)/brand-style/brand_style_guide.html)
+- [Brand Style Guide](<https://cos301-se-2026.github.io/Savanna-Sentinel/demo2/DevDocs(Not-For-Review)/brand-style/brand_style_guide.html>)
 
 </details>
 
@@ -101,7 +100,7 @@ The SRS contains an abridged version of the use cases, full use case documentati
 
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
-![MinIO](https://img.shields.io/badge/MinIO-C72E49?style=for-the-badge&logo=minio&logoColor=white)
+![SeaweedFS](https://img.shields.io/badge/SeaweedFS-00A98F?style=for-the-badge&logoColor=white)
 ![Caddy](https://img.shields.io/badge/Caddy-1F88C0?style=for-the-badge&logoColor=white)
 ![Resend](https://img.shields.io/badge/Resend-000000?style=for-the-badge&logoColor=white)
 
@@ -127,7 +126,6 @@ docker compose up --build
 | Frontend (dev) | http://localhost:5173      |
 | Backend API    | http://localhost:8000      |
 | API docs       | http://localhost:8000/docs |
-| MinIO console  | http://localhost:9001      |
 
 ### Seed accounts
 
@@ -150,8 +148,8 @@ The `docker-compose.override.yml` is applied automatically. It mounts source dir
 ### Running services individually
 
 ```bash
-# Start only infrastructure (DB, Redis, MinIO)
-docker compose up db redis minio
+# Start only infrastructure (DB, Redis, SeaweedFS)
+docker compose up db redis seaweedfs
 
 # Backend only (against local infra)
 cd backend

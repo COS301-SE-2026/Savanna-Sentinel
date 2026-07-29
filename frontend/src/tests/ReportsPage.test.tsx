@@ -5,6 +5,7 @@ import ReportsPage from "@/pages/ReportsPage";
 import { useAuthStore } from "@/store/authStore";
 import { notifySafe } from "@/components/ui/toast";
 import { reportsApi } from "@/services/reportsApi";
+import { mediaApi } from "@/services/mediaApi";
 
 vi.mock("@/components/ui/toast", () => ({
     notifySafe: vi.fn(),
@@ -16,6 +17,12 @@ vi.mock("@/services/reportsApi", () => ({
         submitReport: vi.fn(),
         updateReport: vi.fn(),
         deleteReport: vi.fn(),
+    },
+}));
+
+vi.mock("@/services/mediaApi", () => ({
+    mediaApi: {
+        uploadPhoto: vi.fn(),
     },
 }));
 
@@ -66,6 +73,9 @@ describe("ReportsPage", () => {
             {} as unknown as Awaited<
                 ReturnType<typeof reportsApi.deleteReport>
             >,
+        );
+        vi.mocked(mediaApi.uploadPhoto).mockResolvedValue(
+            "http://minio/reports/uploaded.jpg",
         );
         vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     });
@@ -181,6 +191,25 @@ describe("ReportsPage", () => {
         expect(notifySafe).toHaveBeenCalledWith(
             "Submission failed",
             "Could not send report to the server",
+        );
+    });
+
+    it("uploads attached photos through mediaApi and includes the returned url in the submitted report", async () => {
+        setUser("ranger");
+        const { container } = render(<ReportsPage />);
+        const fileInput = container.querySelector(
+            "input[type='file']",
+        ) as HTMLInputElement;
+        const photo = new File(["x"], "snare.jpg", { type: "image/jpeg" });
+        await userEvent.upload(fileInput, photo);
+
+        await submitMinimalIncidentReport("Snare found near the river");
+
+        expect(mediaApi.uploadPhoto).toHaveBeenCalledWith(photo);
+        expect(reportsApi.submitReport).toHaveBeenCalledWith(
+            expect.objectContaining({
+                images: ["http://minio/reports/uploaded.jpg"],
+            }),
         );
     });
 

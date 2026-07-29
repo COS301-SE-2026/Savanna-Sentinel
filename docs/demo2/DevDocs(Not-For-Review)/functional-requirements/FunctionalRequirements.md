@@ -131,7 +131,7 @@ The Functional Requirements provided below ensure that the Savanna Sentinel syst
 - **R6.1.7:** Each submitted field report will create a corresponding geospatial event of the matching type (Incident or Sighting).
 - **R6.1.8:** Offline field report data shall be persisted to the device using IndexedDB until synchronisation occurs.
 - **R6.1.9:** The system will optionally support capturing photo evidence associated with a field report.
-- **R6.1.10:** The system will upload captured photo evidence to S3-compatible storage (MinIO) via pre-signed URLs.
+- **R6.1.10:** The system will upload captured photo evidence to S3-compatible storage (Seaweed) via pre-signed URLs.
 
 ## R6.2: Field Report Management
 

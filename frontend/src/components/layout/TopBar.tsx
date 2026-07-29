@@ -48,8 +48,11 @@ export default function TopBar() {
                     </Popover.Root>
                 )}
                 <NotificationBell />
-                <Button variant="ghost" size="icon" aria-label="Help">
-                    <HelpCircleIcon className="size-5" />
+
+                <Button variant="ghost" size="icon" aria-label="Help" asChild>
+                    <Link to="/help">
+                        <HelpCircleIcon className="size-5" />
+                    </Link>
                 </Button>
                 <Link
                     to="/profile"

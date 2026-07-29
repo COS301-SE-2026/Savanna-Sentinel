@@ -2,7 +2,7 @@ name: Frontend CI pipeline
 
 on:
   push:
-    branches: ["main", "dev"]
+    branches: ["dev"]
     paths:
       - "frontend/**"
       - ".github/workflows/**"
@@ -12,6 +12,8 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/**"
+
+  workflow_call:
 
 permissions:
   contents: read
@@ -50,21 +52,21 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Configure AWS credentials
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_call'
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ secrets.AWS_ECR_PUSH_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Log in to Amazon ECR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_call'
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
 
       - name: Set image tags
         id: tags
         env:
-          IS_MAIN_PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          IS_MAIN_PUSH: ${{ github.event_name == 'workflow_call' }}
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           SHA: ${{ github.sha }}
         run: |
@@ -85,8 +87,8 @@ jobs:
         with:
           context: ./frontend
           target: prod
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          load: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          push: ${{ github.event_name == 'workflow_call' }}
+          load: ${{ !(github.event_name == 'workflow_call') }}
           tags: ${{ steps.tags.outputs.tags }}
           # leaving as commented for now until we use any API's in frontend, but this is a template
           # API_URL = ARG API_URL in dockerfile

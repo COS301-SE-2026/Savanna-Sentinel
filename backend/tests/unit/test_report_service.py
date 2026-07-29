@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -67,6 +67,14 @@ def _make_delete_service(report, soft_delete_result=True):
     repo.get_by_id.return_value = report
     repo.soft_delete.return_value = soft_delete_result
     return ReportService(repo)
+
+
+def _make_media_service():
+    media_service = MagicMock()
+    media_service.generate_view_url.side_effect = (
+        lambda url: f"{url}?signed=1"
+    )
+    return media_service
 
 
 def _make_create_service(result=None):
@@ -243,6 +251,22 @@ async def test_admin_gets_none_for_missing_report():
     assert result is None
 
 
+@pytest.mark.asyncio
+async def test_get_report_converts_stored_images_to_view_urls():
+    report = dict(_REPORT, images=["http://minio/bucket/reports/a.jpg"])
+    repo = AsyncMock()
+    repo.get_by_id.return_value = report
+    media_service = _make_media_service()
+    service = ReportService(repo, media_service=media_service)
+
+    result = await service.get_report(_REPORT["id"], _ranger())
+
+    media_service.generate_view_url.assert_called_once_with(
+        "http://minio/bucket/reports/a.jpg",
+    )
+    assert result["images"] == ["http://minio/bucket/reports/a.jpg?signed=1"]
+
+
 # get_reports
 
 
@@ -270,6 +294,25 @@ async def test_get_reports_returns_results_and_total():
     results, total = await service.get_reports(_ranger())
     assert total == 1
     assert results == items
+
+
+@pytest.mark.asyncio
+async def test_get_reports_converts_stored_images_to_view_urls():
+    items = [
+        {"report_id": "x", "images": ["http://minio/bucket/reports/a.jpg"]},
+        {"report_id": "y", "images": []},
+    ]
+    repo = AsyncMock()
+    repo.get_list.return_value = (items, 2)
+    media_service = _make_media_service()
+    service = ReportService(repo, media_service=media_service)
+
+    results, _ = await service.get_reports(_ranger())
+
+    assert results[0]["images"] == [
+        "http://minio/bucket/reports/a.jpg?signed=1",
+    ]
+    assert results[1]["images"] == []
 
 
 @pytest.mark.asyncio

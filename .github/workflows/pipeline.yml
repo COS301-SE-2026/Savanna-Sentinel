@@ -1,0 +1,24 @@
+name: Production Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  backend-ci:
+    uses: ./.github/workflows/backend-ci.yml
+    secrets: inherit
+
+  frontend-ci:
+    uses: ./.github/workflows/frontend-ci.yml
+    secrets: inherit
+
+  deploy:
+    needs: [backend-ci, frontend-ci]
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit

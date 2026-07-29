@@ -1,6 +1,6 @@
 <mxfile host="Electron">
   <diagram name="Page-1" id="2FANaipVQL65NZyhNFyV">
-    <mxGraphModel dx="1138" dy="201" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="3162" dy="1510" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -63,8 +63,8 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="-Su9fhEuCYk5Z8fKa3G5-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;" value="&lt;b&gt;backend-ci.yml : job &quot;backend-check&quot;&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;1. Checkout&amp;nbsp;(actions/checkout@v4)&lt;/div&gt;&lt;div&gt;2. Setup Python 3.11&lt;/div&gt;&lt;div&gt;3. Write CI-only backend/.env&lt;/div&gt;&lt;div&gt;4. docker compose up db redis backend&lt;/div&gt;&lt;div&gt;5. Install deps (pip, ruff, pytest-cov)&lt;/div&gt;&lt;div&gt;6. Ruff lint&lt;/div&gt;&lt;div&gt;7. Pytest unit tests -&amp;gt; artifact: unit-coverage.xml&lt;/div&gt;&lt;div&gt;8. Wait for /v1/health&lt;/div&gt;&lt;div&gt;9. Pytest integration tests -&amp;gt; artifact: int-coverage.xml&lt;/div&gt;&lt;div&gt;10. Tear down containers&lt;/div&gt;&lt;div&gt;11. Upload coverage -&amp;gt; Codecov&lt;/div&gt;&lt;div style=&quot;&quot;&gt;12. &amp;nbsp;Build image (Buildx) -&amp;gt; discarded after job&lt;/div&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="210" width="290" x="-140" y="420" as="geometry" />
+        <mxCell id="-Su9fhEuCYk5Z8fKa3G5-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;" value="&lt;b&gt;backend-ci.yml : job &quot;backend-check&quot;&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;1. Checkout&amp;nbsp;&lt;/div&gt;&lt;div&gt;2. Setup Python 3.11&lt;/div&gt;&lt;div&gt;3. Create backend .env for CI&lt;/div&gt;&lt;div&gt;4. Start Docker services&lt;/div&gt;&lt;div&gt;5. Install Dependencies&lt;/div&gt;&lt;div&gt;6. Linter&lt;/div&gt;&lt;div&gt;7. Unit Tests&lt;/div&gt;&lt;div&gt;8. Wait for backend to be ready&lt;/div&gt;&lt;div&gt;9. Integration Tests&lt;/div&gt;&lt;div&gt;10. Tear down Docker services&lt;/div&gt;&lt;div&gt;11. Upload coverage to Codecov&lt;/div&gt;&lt;div style=&quot;&quot;&gt;12. &amp;nbsp;Set up Docker Buildx&lt;/div&gt;&lt;/div&gt;&lt;div style=&quot;&quot;&gt;13.&amp;nbsp;Configure AWS credentials(workflow call)&lt;/div&gt;&lt;div style=&quot;&quot;&gt;14.&amp;nbsp;Log in to Amazon ECR(workflow call)&lt;br&gt;15.&amp;nbsp;Set image tags&lt;br&gt;16.Build Backend&lt;/div&gt;" vertex="1">
+          <mxGeometry height="260" width="290" x="-140" y="400" as="geometry" />
         </mxCell>
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-12" edge="1" parent="1" source="-Su9fhEuCYk5Z8fKa3G5-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
           <mxGeometry relative="1" as="geometry">
@@ -72,7 +72,7 @@
               <mxPoint y="390" />
               <mxPoint y="390" />
             </Array>
-            <mxPoint y="420" as="targetPoint" />
+            <mxPoint y="400" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-13" connectable="0" parent="-Su9fhEuCYk5Z8fKa3G5-12" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="YES" vertex="1">
@@ -117,15 +117,13 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="-Su9fhEuCYk5Z8fKa3G5-24" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;" value="&lt;b&gt;frontend-ci.yml : job &quot;frontend-check&quot;&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;div style=&quot;&quot;&gt;1. Checkout&lt;/div&gt;&lt;div style=&quot;&quot;&gt;2. npm ci&lt;/div&gt;&lt;div style=&quot;&quot;&gt;3. Prettier check&lt;/div&gt;&lt;div style=&quot;&quot;&gt;4. ESLint&lt;/div&gt;&lt;div style=&quot;&quot;&gt;5. Vitest run --coverage -&amp;gt; artifact: coverage/lcov.info&lt;/div&gt;&lt;div style=&quot;&quot;&gt;6. Upload coverage -&amp;gt; Codecov (external)&lt;/div&gt;&lt;div style=&quot;&quot;&gt;7. Build image (Buildx) -&amp;gt; not pushed, discarded after job&lt;/div&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="140" width="310" x="199" y="420" as="geometry" />
+        <mxCell id="-Su9fhEuCYk5Z8fKa3G5-24" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;" value="&lt;b&gt;frontend-ci.yml : job &quot;frontend-check&quot;&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;div style=&quot;&quot;&gt;1. Checkout&lt;/div&gt;&lt;div style=&quot;&quot;&gt;2.&amp;nbsp;&lt;span style=&quot;background-color: transparent;&quot;&gt;Install Dependencies&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;3. Prettier&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;&quot;&gt;4. Linter&lt;/div&gt;&lt;div style=&quot;&quot;&gt;5.&amp;nbsp;&lt;span style=&quot;background-color: transparent;&quot;&gt;Tests (with coverage)&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;6.&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;Upload coverage reports to Codecov&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;&quot;&gt;7. Set up Docker Buildx&lt;/div&gt;&lt;/div&gt;&lt;div style=&quot;&quot;&gt;8.&amp;nbsp;Configure AWS credentials(workflow call)&lt;br&gt;9.&amp;nbsp;Log in to Amazon ECR(workflow call)&lt;/div&gt;&lt;div style=&quot;&quot;&gt;10.&amp;nbsp;Set image tags&lt;/div&gt;&lt;div style=&quot;&quot;&gt;11.&amp;nbsp;Build Frontend&lt;/div&gt;" vertex="1">
+          <mxGeometry height="190" width="310" x="200" y="400" as="geometry" />
         </mxCell>
-        <mxCell id="-Su9fhEuCYk5Z8fKa3G5-25" edge="1" parent="1" source="-Su9fhEuCYk5Z8fKa3G5-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+        <mxCell id="-Su9fhEuCYk5Z8fKa3G5-25" edge="1" parent="1" source="-Su9fhEuCYk5Z8fKa3G5-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.484;entryY=-0.002;entryDx=0;entryDy=0;entryPerimeter=0;" target="-Su9fhEuCYk5Z8fKa3G5-24">
           <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="350" y="419" />
-            </Array>
-            <mxPoint x="350" y="420" as="targetPoint" />
+            <Array as="points" />
+            <mxPoint x="330" y="380" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-30" connectable="0" parent="-Su9fhEuCYk5Z8fKa3G5-25" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="YES" vertex="1">
@@ -147,14 +145,14 @@
         </mxCell>
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-43" connectable="0" parent="-Su9fhEuCYk5Z8fKa3G5-41" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="YES" vertex="1">
           <mxGeometry relative="1" x="0.0032" y="-2" as="geometry">
-            <mxPoint x="64" y="-28" as="offset" />
+            <mxPoint x="77" y="-18" as="offset" />
           </mxGeometry>
         </mxCell>
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-31" parent="1" style="rhombus;whiteSpace=wrap;html=1;" value="all steps passed?" vertex="1">
-          <mxGeometry height="80" width="80" x="310" y="605" as="geometry" />
+          <mxGeometry height="80" width="80" x="310" y="630" as="geometry" />
         </mxCell>
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-32" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e51400;strokeColor=#B20000;fontColor=#ffffff;" value="&amp;nbsp;frontend-check FAILED" vertex="1">
-          <mxGeometry height="50" width="70" x="190" y="620" as="geometry" />
+          <mxGeometry height="50" width="70" x="190" y="645" as="geometry" />
         </mxCell>
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-33" edge="1" parent="1" source="-Su9fhEuCYk5Z8fKa3G5-31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;dashed=1;" target="-Su9fhEuCYk5Z8fKa3G5-32">
           <mxGeometry relative="1" as="geometry" />
@@ -167,10 +165,10 @@
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-36" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="SonarCloud Code Analysis Report" vertex="1">
           <mxGeometry height="60" width="120" x="1040" y="430" as="geometry" />
         </mxCell>
-        <mxCell id="EJZz8dk70cVaRz4N-yKz-23" edge="1" parent="1" source="-Su9fhEuCYk5Z8fKa3G5-39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="EJZz8dk70cVaRz4N-yKz-22">
+        <mxCell id="EJZz8dk70cVaRz4N-yKz-23" edge="1" parent="1" source="-Su9fhEuCYk5Z8fKa3G5-39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.004;entryY=0.67;entryDx=0;entryDy=0;entryPerimeter=0;" target="EJZz8dk70cVaRz4N-yKz-22">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="-Su9fhEuCYk5Z8fKa3G5-39" parent="1" style="rhombus;whiteSpace=wrap;html=1;" value="Branch&lt;div&gt;&amp;nbsp;protection on main:&amp;nbsp;&lt;div&gt;requires backend-check&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;+&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;frontend-check +&amp;nbsp;&lt;/div&gt;&lt;div&gt;e2e tests&lt;/div&gt;&lt;/div&gt;" vertex="1">
+        <mxCell id="-Su9fhEuCYk5Z8fKa3G5-39" parent="1" style="rhombus;whiteSpace=wrap;html=1;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;Branch&lt;div&gt;&amp;nbsp;protection on main:&amp;nbsp;&lt;div&gt;requires backend-check&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;+&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;frontend-check +&amp;nbsp;&lt;/div&gt;&lt;div&gt;e2e tests&lt;/div&gt;&lt;/div&gt;&lt;div&gt;pass&lt;/div&gt;" vertex="1">
           <mxGeometry height="145" width="172.5" x="398.75" y="800" as="geometry" />
         </mxCell>
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-61" edge="1" parent="1" source="-Su9fhEuCYk5Z8fKa3G5-47" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="-Su9fhEuCYk5Z8fKa3G5-59">
@@ -204,8 +202,8 @@
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-66" edge="1" parent="1" source="-Su9fhEuCYk5Z8fKa3G5-59" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="-Su9fhEuCYk5Z8fKa3G5-62">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="-Su9fhEuCYk5Z8fKa3G5-59" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;" value="&lt;b&gt;deploy.yml : job &quot;deploy&quot;&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;div&gt;&lt;div&gt;1. SSH into EC2 using github secrets&amp;nbsp;&lt;/div&gt;&lt;div&gt;2. git fetch origin&lt;/div&gt;&lt;div&gt;3. git checkout &amp;lt;ref or github.sha&amp;gt;&lt;/div&gt;&lt;div&gt;4. docker compose -f docker-compose.yml --profile prod up -d --build -&amp;gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; built directly on the EC2 host from source&lt;/span&gt;&lt;/div&gt;&lt;div&gt;5. docker image prune -f&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="120" width="403.5" x="283.25" y="1115" as="geometry" />
+        <mxCell id="-Su9fhEuCYk5Z8fKa3G5-59" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;" value="&lt;b&gt;deploy.yml : job &quot;deploy&quot;&lt;/b&gt;&lt;div&gt;&lt;b&gt;(&lt;/b&gt;github actions)&lt;br&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;div&gt;&lt;div&gt;1. Configure AWS credentials&lt;/div&gt;&lt;div&gt;2. Deploy via AWS SSM&lt;/div&gt;&lt;div&gt;3. Show deploy output&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="97.5" width="166.75" x="401.62" y="1126.25" as="geometry" />
         </mxCell>
         <mxCell id="-Su9fhEuCYk5Z8fKa3G5-68" edge="1" parent="1" source="-Su9fhEuCYk5Z8fKa3G5-62" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="-Su9fhEuCYk5Z8fKa3G5-67">
           <mxGeometry relative="1" as="geometry" />
@@ -265,21 +263,21 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="EJZz8dk70cVaRz4N-yKz-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;" value="&lt;div&gt;&lt;b&gt;e2e.yml : job &quot;e2e-tests&quot;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;div style=&quot;&quot;&gt;&lt;div&gt;1. Checkout&lt;/div&gt;&lt;div&gt;2. Setup Node, npm ci (frontend)&lt;/div&gt;&lt;div&gt;3. Write backend/.env from secrets&lt;/div&gt;&lt;div&gt;4. docker compose up -d --build (full stack)&lt;/div&gt;&lt;div&gt;5. Wait for /v1/health&lt;/div&gt;&lt;div&gt;6. Cache/install Playwright browsers&lt;/div&gt;&lt;div&gt;7. npx playwright test&lt;/div&gt;&lt;div&gt;8. docker compose down -v (always)&lt;/div&gt;&lt;div&gt;9. Upload Playwright report artifact on failure&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="160" width="310" x="628.38" y="420" as="geometry" />
+        <mxCell id="EJZz8dk70cVaRz4N-yKz-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;" value="&lt;div&gt;&lt;b&gt;e2e.yml : job &quot;e2e-and-performance-tests&quot;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;div style=&quot;&quot;&gt;&lt;div&gt;1. Checkout&lt;/div&gt;&lt;div&gt;2. Setup Node&lt;br&gt;3. Install Frontend Dependencies&lt;/div&gt;&lt;div&gt;4. Create Backend .env file&lt;/div&gt;&lt;div&gt;5. Start Application Stack&lt;/div&gt;&lt;div&gt;6. Wait for health check&lt;/div&gt;&lt;div&gt;7. Cache Playwright Browsers&lt;br&gt;8.&amp;nbsp;Install Playwright Browsers with Dependencies&lt;/div&gt;&lt;div&gt;9. Run Playwright tests&lt;br&gt;10.&amp;nbsp;Setup K6&lt;br&gt;11.&amp;nbsp;Run k6 Performance Tests&lt;br&gt;12.&amp;nbsp;Stop Docker Stack&lt;br&gt;13.&amp;nbsp;Upload Playwright failure artefacts&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="220" width="310" x="627" y="385" as="geometry" />
         </mxCell>
-        <mxCell id="EJZz8dk70cVaRz4N-yKz-5" edge="1" parent="1" source="EJZz8dk70cVaRz4N-yKz-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="EJZz8dk70cVaRz4N-yKz-4">
+        <mxCell id="EJZz8dk70cVaRz4N-yKz-5" edge="1" parent="1" source="EJZz8dk70cVaRz4N-yKz-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.505;entryY=-0.001;entryDx=0;entryDy=0;entryPerimeter=0;" target="EJZz8dk70cVaRz4N-yKz-4">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="783.38" y="410" />
-              <mxPoint x="783.38" y="410" />
+              <mxPoint x="783.45" y="380" />
+              <mxPoint x="783.55" y="380" />
             </Array>
             <mxPoint x="756.75" y="420" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="EJZz8dk70cVaRz4N-yKz-6" connectable="0" parent="EJZz8dk70cVaRz4N-yKz-5" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="YES" vertex="1">
           <mxGeometry relative="1" x="-0.1333" y="-1" as="geometry">
-            <mxPoint x="21" y="4" as="offset" />
+            <mxPoint x="17" as="offset" />
           </mxGeometry>
         </mxCell>
         <mxCell id="EJZz8dk70cVaRz4N-yKz-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="skipped (no relevant changes)" vertex="1">
@@ -313,10 +311,15 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="EJZz8dk70cVaRz4N-yKz-25" edge="1" parent="1" source="EJZz8dk70cVaRz4N-yKz-22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="EJZz8dk70cVaRz4N-yKz-24">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="710" y="920" />
+              <mxPoint x="710" y="920" />
+            </Array>
+          </mxGeometry>
         </mxCell>
-        <mxCell id="EJZz8dk70cVaRz4N-yKz-22" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Push to main re-runs: backend-ci.yml, frontend-ci.yml, e2e.yml" vertex="1">
-          <mxGeometry height="60" width="120" x="650" y="842.5" as="geometry" />
+        <mxCell id="EJZz8dk70cVaRz4N-yKz-22" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;" value="&lt;b&gt;Push to main triggers &quot;pipeline.yml&quot;:&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;invoke as jobs via&amp;nbsp;&lt;/b&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;&lt;b&gt;workflow_call:&lt;/b&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;backend-ci.yml&amp;nbsp;&lt;/div&gt;&lt;div&gt;frontend-ci.yml&lt;/div&gt;" vertex="1">
+          <mxGeometry height="92.5" width="220" x="650" y="810" as="geometry" />
         </mxCell>
         <mxCell id="EJZz8dk70cVaRz4N-yKz-29" edge="1" parent="1" source="EJZz8dk70cVaRz4N-yKz-24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="-Su9fhEuCYk5Z8fKa3G5-47">
           <mxGeometry relative="1" as="geometry" />

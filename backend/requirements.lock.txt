@@ -165,6 +165,16 @@ billiard==4.2.4 \
     --hash=sha256:525b42bdec68d2b983347ac312f892db930858495db601b5836ac24e6477cde5 \
     --hash=sha256:55f542c371209e03cd5862299b74e52e4fbcba8250ba611ad94276b369b6a85f
     # via celery
+boto3==1.34.144 \
+    --hash=sha256:2f3e88b10b8fcc5f6100a9d74cd28230edc9d4fa226d99dd40a3ab38ac213673 \
+    --hash=sha256:b8433d481d50b68a0162c0379c0dd4aabfc3d1ad901800beb5b87815997511c1
+    # via -r requirements.txt
+botocore==1.34.162 \
+    --hash=sha256:2d918b02db88d27a75b48275e6fb2506e9adaaddbec1ffa6a8a0898b34e769be \
+    --hash=sha256:adc23be4fb99ad31961236342b7cbf3c0bfc62532cd02852196032e8c0d682f3
+    # via
+    #   boto3
+    #   s3transfer
 celery==5.6.3 \
     --hash=sha256:0808f42f80909c4d5833202360ffafb2a4f83f4d8e23e1285d926610e9a7afa6 \
     --hash=sha256:177006bd2054b882e9f01be59abd8529e88879ef50d7918a7050c5a9f4e12912
@@ -641,6 +651,12 @@ iniconfig==2.3.0 \
     --hash=sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730 \
     --hash=sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12
     # via pytest
+jmespath==1.1.0 \
+    --hash=sha256:472c87d80f36026ae83c6ddd0f1d05d4e510134ed462851fd5f754c8c3cbb88d \
+    --hash=sha256:a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64
+    # via
+    #   boto3
+    #   botocore
 kombu==5.6.2 \
     --hash=sha256:8060497058066c6f5aed7c26d7cd0d3b574990b09de842a8c5aaed0b92cc5a55 \
     --hash=sha256:efcfc559da324d41d61ca311b0c64965ea35b4c55cc04ee36e55386145dace93
@@ -1050,6 +1066,7 @@ python-dateutil==2.9.0.post0 \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
     # via
+    #   botocore
     #   celery
     #   freezegun
 python-dotenv==1.2.2 \
@@ -1156,6 +1173,10 @@ rsa==4.9.1 \
     # via
     #   -r requirements.txt
     #   python-jose
+s3transfer==0.10.4 \
+    --hash=sha256:244a76a24355363a68164241438de1b72f8781664920260c48465896b712a41e \
+    --hash=sha256:29edc09801743c21eb5ecbc617a152df41d3c287f67b615f73e5f750583666a7
+    # via boto3
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
@@ -1267,7 +1288,9 @@ tzlocal==5.4.4 \
 urllib3==2.7.0 \
     --hash=sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c \
     --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
-    # via requests
+    # via
+    #   botocore
+    #   requests
 uvicorn[standard]==0.51.0 \
     --hash=sha256:5d38af6cd620f2ae3849fb44fd4879e0890aa1febe8d47eb355fb45d93fe6a5b \
     --hash=sha256:f6f4b69b657c312f516dd2d268ab9ae6f254b11e4bac504f37b2ab58b24dd0b0

@@ -17,3 +17,6 @@
 
 ## 2026-07-22
 - Minor Spelling corrections
+
+## 2026-07-29
+- Switched MinIO for seaweed
