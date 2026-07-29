@@ -57,21 +57,21 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Configure AWS credentials
-        if: inputs.push_image
+        if: inputs.push_image == true
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ secrets.AWS_ECR_PUSH_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Log in to Amazon ECR
-        if: inputs.push_image
+        if: inputs.push_image == true
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
 
       - name: Set image tags
         id: tags
         env:
-          IS_MAIN_PUSH: ${{ inputs.push_image }}
+          IS_MAIN_PUSH: ${{ inputs.push_image == true }}
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           SHA: ${{ github.sha }}
         run: |
@@ -92,14 +92,7 @@ jobs:
         with:
           context: ./frontend
           target: prod
-          push: ${{ inputs.push_image }}
-          load: ${{ !inputs.push_image }}
-          tags: ${{ steps.tags.outputs.tags }}
-          # leaving as commented for now until we use any API's in frontend, but this is a template
-          # API_URL = ARG API_URL in dockerfile
-          # secrets.API_URL = ENV VITE_API_URL=$API_URL in dockerfile
-          # So 'build:pwa' command has context
-          # build-args: |
-          #   API_URL=${{ secrets.API_URL }}
+          push: ${{ inputs.push_image == true }}
+          load: ${{ inputs.push_image != true }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
