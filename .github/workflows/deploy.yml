@@ -1,15 +1,7 @@
 name: Deploy to production
 
 on:
-  workflow_run:
-    workflows:
-      - "Frontend CI Pipeline"
-      - "Backend CI Pipeline"
-      - "E2E Tests and Performance CI pipeline"
-    branches:
-      - main
-    types:
-      - completed
+  workflow_call:
 
   workflow_dispatch:
     inputs:
@@ -26,14 +18,11 @@ jobs:
     environment:
       name: production
       url: https://savannasentinel.co.za
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
     concurrency:
       group: production-deploy
       cancel-in-progress: false
     env:
-      IMAGE_TAG: ${{ github.event.inputs.ref || github.event.workflow_run.head_sha || github.sha }}
+      IMAGE_TAG: ${{ github.event.inputs.ref || github.sha }}
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
