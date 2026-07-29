@@ -18,3 +18,12 @@
   MINIO_REGION to the backend/.env example
 - Updated deployment diagrams
 - added worker
+
+### V4
+
+- Replaced SSH-based deploy with AWS Systems Manager.
+- Backend/frontend images are built and pushed to Amazon ECR in CI, no longer built on the
+  instance itself
+- Split the single deploy.yml into pipeline.yml -> backend-ci.yml / frontend-ci.yml -> deploy.yml.
+- Swapped MinIO for SeaweedFS - same S3-compatible API.
+- Updated both deployment diagrams (production and development)
