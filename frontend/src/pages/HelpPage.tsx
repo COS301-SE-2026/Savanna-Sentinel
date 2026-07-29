@@ -7,7 +7,6 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 
 // Quick access to VALUABLE RESOURCES such as help center links, tutorials and FAQs
 
@@ -350,10 +349,15 @@ export default function HelpPage() {
                 <TabsContent value="download">
                     <Card>
                         <CardContent>
-                            <Button>
-                                <Link to="https://github.com/COS301-SE-2026/Savanna-Sentinel/blob/main/docs/demo2/PDF/Coding%20Standards.pdf?raw=true">
+                            <Button asChild>
+                                <a
+                                    href="https://github.com/COS301-SE-2026/Savanna-Sentinel/blob/main/docs/demo2/PDF/User%20Manual.pdf?raw=true"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download
+                                >
                                     Click to Download the User Manual
-                                </Link>
+                                </a>
                             </Button>
                         </CardContent>
                     </Card>
