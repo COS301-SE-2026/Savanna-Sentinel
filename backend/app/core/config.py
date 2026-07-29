@@ -32,6 +32,19 @@ class Settings:
     # Redis
     REDIS_URL: str = os.environ["REDIS_URL"]
 
+    # MinIO / object storage
+    MINIO_ENDPOINT: str = os.getenv("MINIO_ENDPOINT", "seaweedfs:9000")
+    MINIO_ACCESS_KEY: str = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+    MINIO_SECRET_KEY: str = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+    MINIO_BUCKET: str = os.getenv("MINIO_BUCKET", "savanna-sentinel-media")
+    MINIO_USE_SSL: bool = os.getenv("MINIO_USE_SSL", "false").lower() == "true"
+    MINIO_PUBLIC_ENDPOINT: str = os.getenv(
+        "MINIO_PUBLIC_ENDPOINT",
+        os.getenv("MINIO_ENDPOINT", "seaweedfs:9000"),
+    )
+
+    MINIO_REGION: str = os.getenv("MINIO_REGION", "us-east-1")
+
     # Admin MFA (email otp)
     MFA_ENABLED: bool = os.getenv("MFA_ENABLED", "true").lower() == "true"
     MFA_CODE_TTL_SECONDS: int = int(

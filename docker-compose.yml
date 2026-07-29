@@ -22,7 +22,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.80'
+          cpus: "0.80"
           memory: 500M
 
   redis:
@@ -38,22 +38,41 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.10'
+          cpus: "0.10"
           memory: 64M
 
-  minio:
-    image: minio/minio:latest
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.40
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-sentinel_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-sentinel_minio_secret}
+      SEAWEEDFS_ACCESS_KEY: ${MINIO_ACCESS_KEY:-sentinel_minio}
+      SEAWEEDFS_SECRET_KEY: ${MINIO_SECRET_KEY:-sentinel_minio_secret}
     volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
+      - seaweedfs_data:/data
+    entrypoint:
+      - sh
+      - -c
+      - |
+        cat > /tmp/s3-config.json <<EOF
+        {
+          "identities": [
+            {
+              "name": "sentinel",
+              "credentials": [
+                {
+                  "accessKey": "$$SEAWEEDFS_ACCESS_KEY",
+                  "secretKey": "$$SEAWEEDFS_SECRET_KEY"
+                }
+              ],
+              "actions": ["Admin", "Read", "Write"]
+            }
+          ]
+        }
+        EOF
+        exec weed server -dir=/data -s3 -s3.port=9000 -s3.config=/tmp/s3-config.json
     ports:
       - "9000:9000"
-      - "9001:9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9333/cluster/status"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -62,7 +81,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.20'
+          cpus: "0.20"
           memory: 256M
 
   backend:
@@ -76,11 +95,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          cpus: '0.60'
+          cpus: "0.60"
           memory: 400M
 
   worker:
@@ -97,7 +118,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.30'
+          cpus: "0.30"
           memory: 350M
 
   frontend:
@@ -108,7 +129,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 128M
 
   caddy:
@@ -122,17 +143,19 @@ services:
       - caddy_data:/data
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      MEDIA_SITE_ADDRESS: ${MEDIA_SITE_ADDRESS:-media.localhost}
     depends_on:
       - frontend
+      - seaweedfs
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          cpus: '0.10'
+          cpus: "0.10"
           memory: 128M
 
 volumes:
   postgres_data:
   redis_data:
-  minio_data:
+  seaweedfs_data:
   caddy_data:

@@ -6,13 +6,32 @@ import { NewReportTab } from "@/components/reports/NewReportTab";
 import { ReportList } from "@/components/reports/ReportList";
 import { notifySafe } from "@/components/ui/toast";
 import { toDatetimeLocalValue } from "@/lib/utils";
-import type { DraftReport, DraftReportInput } from "@/types/reports";
+import type {
+    DraftReport,
+    DraftReportInput,
+    PhotoAttachment,
+} from "@/types/reports";
 import { reportsApi } from "@/services/reportsApi";
 import type {
     ReportListItem,
     ReportCreate,
     ReportUpdate,
 } from "@/services/reportsApi";
+import { mediaApi } from "@/services/mediaApi";
+
+const PLACEHOLDER_PHOTO_TYPE = "image/placeholder";
+
+async function resolvePhotoUrls(photos: PhotoAttachment[]): Promise<string[]> {
+    const urls: string[] = [];
+    for (const photo of photos) {
+        if (photo.file.type === PLACEHOLDER_PHOTO_TYPE) {
+            urls.push(photo.previewUrl);
+            continue;
+        }
+        urls.push(await mediaApi.uploadPhoto(photo.file));
+    }
+    return urls;
+}
 
 // Helper functions
 function mapToDraft(item: ReportListItem): DraftReport {
@@ -29,7 +48,7 @@ function mapToDraft(item: ReportListItem): DraftReport {
         lat: item.location?.lat ?? null,
         lon: item.location?.lon ?? null,
         photos: (item.images || []).map((url) => ({
-            file: new File([], "", { type: "image/placeholder" }),
+            file: new File([], "", { type: PLACEHOLDER_PHOTO_TYPE }),
             previewUrl: url,
         })),
         createdAt: item.created_at,
@@ -51,11 +70,6 @@ function formatToUTC(dateString: string): string {
     return parsed.toISOString();
 }
 // Helper functions end
-
-// todo
-// implement the media upload
-// Note: reason media upload not done is because no
-//       mino upload is present and thus cannot be done yet
 
 // todo
 // this array should live in a Dexie table so drafts carry on reload
@@ -100,21 +114,21 @@ export default function ReportsPage() {
             return;
         }
 
-        // Stubbed Media upload for now
-        const payload: ReportCreate = {
-            report_type: input.reportType,
-            location: { lat: input.lat, lon: input.lon },
-            occurred_at: formatToUTC(input.occurredAt),
-            description: input.description,
-            incident_type: input.incidentType || undefined,
-            severity: input.severity || undefined,
-            species: input.species || undefined,
-            count: input.count ?? undefined,
-            images: [],
-            sync_status: "pending",
-        };
-
         try {
+            const images = await resolvePhotoUrls(input.photos);
+            const payload: ReportCreate = {
+                report_type: input.reportType,
+                location: { lat: input.lat, lon: input.lon },
+                occurred_at: formatToUTC(input.occurredAt),
+                description: input.description,
+                incident_type: input.incidentType || undefined,
+                severity: input.severity || undefined,
+                species: input.species || undefined,
+                count: input.count ?? undefined,
+                images,
+                sync_status: "pending",
+            };
+
             const res = await reportsApi.submitReport(payload);
 
             const newReport: DraftReport = {
@@ -140,22 +154,22 @@ export default function ReportsPage() {
     };
 
     const handleSave = async (localId: string, input: DraftReportInput) => {
-        // Stubbed media upload for now
-        const payload: ReportUpdate = {
-            description: input.description,
-            location:
-                input.lat !== null && input.lon !== null
-                    ? { lat: input.lat, lon: input.lon }
-                    : undefined,
-            occurred_at: formatToUTC(input.occurredAt),
-            incident_type: input.incidentType || undefined,
-            severity: input.severity || undefined,
-            species: input.species || undefined,
-            count: input.count ?? undefined,
-            images: [],
-        };
-
         try {
+            const images = await resolvePhotoUrls(input.photos);
+            const payload: ReportUpdate = {
+                description: input.description,
+                location:
+                    input.lat !== null && input.lon !== null
+                        ? { lat: input.lat, lon: input.lon }
+                        : undefined,
+                occurred_at: formatToUTC(input.occurredAt),
+                incident_type: input.incidentType || undefined,
+                severity: input.severity || undefined,
+                species: input.species || undefined,
+                count: input.count ?? undefined,
+                images,
+            };
+
             await reportsApi.updateReport(localId, payload);
 
             setReports((prev) =>
