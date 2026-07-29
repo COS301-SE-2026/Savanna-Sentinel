@@ -94,5 +94,6 @@ jobs:
           target: prod
           push: ${{ inputs.push_image == true }}
           load: ${{ inputs.push_image != true }}
+          tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
