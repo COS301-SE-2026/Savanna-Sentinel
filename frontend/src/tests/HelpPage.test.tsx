@@ -1,39 +1,50 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import HelpPage from "@/pages/HelpPage";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 describe("Help Page tests", () => {
     it("renders the help page and tab content", async () => {
         const user = userEvent.setup();
-
-        const changeTabCheck = async (tabName: string, check: string) => {
-            await user.click(screen.getByRole("tab", { name: tabName }));
-            expect(screen.getByText(check)).toBeInTheDocument();
-        }
-
-        render(<HelpPage />);
-        expect(screen.getByText("Frequently Asked Questions")).toBeInTheDocument();
-        changeTabCheck("Reports", "Field Reports");
-        changeTabCheck("Patrol Planner", "Route Parameters");
-        changeTabCheck("User Profile", "Change Password");
-
+        render(
+            <MemoryRouter>
+                <HelpPage />
+            </MemoryRouter>,
+        );
+        expect(
+            screen.getByText("Frequently Asked Questions"),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole("tab", { name: "Reports" }));
+        expect(screen.getByText("Field Reports")).toBeInTheDocument();
+        await user.click(screen.getByRole("tab", { name: "Patrol Planner" }));
+        expect(screen.getByText("Route Parameters")).toBeInTheDocument();
+        await user.click(screen.getByRole("tab", { name: "User Profile" }));
+        expect(screen.getByText("Change Password")).toBeInTheDocument();
         await user.click(screen.getByRole("tab", { name: "User Manual" }));
-        expect(screen.getByRole("button", { name: "Click to Download the User Manual"}));
+        expect(
+            screen.getByRole("link", {
+                name: "Click to Download the User Manual",
+            }),
+        );
     });
 
-    it("User manual download button downloads file", async () => {
+    it("user manual download button has correct attributes", async () => {
         const user = userEvent.setup();
-        const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-        render(<HelpPage />);
+        render(
+            <MemoryRouter>
+                <HelpPage />
+            </MemoryRouter>,
+        );
         await user.click(screen.getByRole("tab", { name: "User Manual" }));
-        await user.click(screen.getByRole("button", { name: "Click to Download the User Manual"}));
-        expect(clickSpy).toHaveBeenCalledOnce();
-
-        // TODO ONCE FILE ACTUALLY DONE
-        // const anchorInstance = clickSpy.mock.instances[0] as HTMLAnchorElement;
-        // expect(anchorInstance.getAttribute("download")).toBe("User_Manual.pdf"); // update to match your filename
-        // expect(anchorInstance.getAttribute("href")).toContain("user-manual.pdf"); // update to match your file path or URL
-        // clickSpy.mockRestore();
+        const downloadButton = screen.getByRole("link", {
+            name: "Click to Download the User Manual",
+        });
+        expect(downloadButton).toBeInTheDocument();
+        expect(downloadButton).toHaveAttribute(
+            "href",
+            "https://github.com/COS301-SE-2026/Savanna-Sentinel/blob/main/docs/demo2/PDF/User%20Manual.pdf?raw=true",
+        );
+        expect(downloadButton).toHaveAttribute("download");
     });
 });
