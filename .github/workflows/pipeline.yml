@@ -12,10 +12,14 @@ permissions:
 jobs:
   backend-ci:
     uses: ./.github/workflows/backend-ci.yml
+    with:
+      push_image: true
     secrets: inherit
 
   frontend-ci:
     uses: ./.github/workflows/frontend-ci.yml
+    with:
+      push_image: true
     secrets: inherit
 
   deploy:
