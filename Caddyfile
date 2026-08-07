@@ -4,7 +4,7 @@
         format console
     }
 	header {
-		Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: https:; font-src 'self'; object-src 'none'; frame-ancestors 'none';"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://{$MEDIA_SITE_ADDRESS:media.localhost}; connect-src 'self' wss: https:; font-src 'self'; object-src 'none'; frame-ancestors 'none';"
 		Strict-Transport-Security "max-age=300; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
