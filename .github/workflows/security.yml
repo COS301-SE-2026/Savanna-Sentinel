@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  audit:
+  audit-frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,3 +30,20 @@ jobs:
       - name: Audit Frontend packages
         working-directory: ./frontend
         run: npm audit --audit-level high
+  
+  audit-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install pip-Audit
+        run: pip install pip-audit
+
+      - name: Audit Backend packages
+        working-directory: ./backend
+        run: pip-audit -r requirements.txt
+
