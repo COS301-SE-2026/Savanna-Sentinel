@@ -1,0 +1,32 @@
+name: Security CI pipeline
+
+on:
+  push:
+    branches: ["dev"]
+    paths:
+      - "frontend/**"
+      - "backend/**"
+  pull_request:
+    branches: ["main", "dev"]
+    paths:
+      - "frontend/**"
+      - "backend/**"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+        
+      - name: Audit Frontend packages
+        working-directory: ./frontend
+        run: npm audit --audit-level high
