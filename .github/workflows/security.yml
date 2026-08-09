@@ -41,9 +41,12 @@ jobs:
           python-version: "3.11"
       
       - name: Install pip-Audit
-        run: pip install pip-audit
+        run: pip install pip-audit bandit
 
       - name: Audit Backend packages
         working-directory: ./backend
         run: pip-audit -r requirements.txt
 
+      - name: Static Code Analysis for vulnerabilities
+        working-directory: ./backend
+        run: bandit -r . -x ./tests,./vent -ll
