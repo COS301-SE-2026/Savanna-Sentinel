@@ -33,7 +33,7 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Tip-offs",
         path: "/tipoffs",
         icon: Megaphone,
-        roles: ["community_liaison", "admin"],
+        roles: ["community_liaison", "analyst", "admin"],
     },
     {
         label: "Ingestion",
