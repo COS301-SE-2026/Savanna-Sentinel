@@ -88,7 +88,7 @@ export default function AuditLog() {
                         {logs.map((log) => (
                             <TableRow className={`${rowClass}`}>
                                 <TableCell className={`${cellClass}`}>
-                                    {log.actor_id}
+                                    {log.actor_username ?? log.actor_id}
                                 </TableCell>
                                 <TableCell className={`${cellClass}`}>
                                     {log.action}
@@ -97,7 +97,7 @@ export default function AuditLog() {
                                     {log.target_type}
                                 </TableCell>
                                 <TableCell className={`${cellClass}`}>
-                                    {log.target_id}
+                                    {log.target_username ?? log.target_id}
                                 </TableCell>
                                 <TableCell className={`${cellClass}`}>
                                     {log.details === null
