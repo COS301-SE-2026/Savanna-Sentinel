@@ -168,6 +168,9 @@ class UserRepository:
         if req.role is not None:
             stmt = stmt.where(User.role == req.role.value)
 
+        if req.search is not None:
+            stmt = stmt.where(User.username.ilike(f"%{req.search}%"))
+
         result = await self.db.execute(stmt)
         return result.scalar()
 
