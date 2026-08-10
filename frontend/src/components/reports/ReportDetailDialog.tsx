@@ -132,7 +132,8 @@ export function ReportDetailDialog({
                                             : "Not recorded"}
                                     </DetailField>
                                     <DetailField label="Submitted By">
-                                        {report.submittedBy}
+                                        {report.submittedByUsername ??
+                                            report.submittedBy}
                                     </DetailField>
                                     <DetailField label="Sync Status">
                                         {report.syncStatus === "synced" ? (
