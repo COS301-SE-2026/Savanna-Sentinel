@@ -37,19 +37,25 @@ def _admin() -> SimpleNamespace:
     )
 
 
-def _make_service(report):
+def _fake_user_repo(username: str | None = "ranger1"):
+    repo = AsyncMock()
+    repo.get_username_by_id.return_value = username
+    return repo
+
+
+def _make_service(report, user_repo=None):
     repo = AsyncMock()
     repo.get_by_id.return_value = report
-    return ReportService(repo)
+    return ReportService(repo, user_repo or _fake_user_repo())
 
 
-def _make_list_service(results, total):
+def _make_list_service(results, total, user_repo=None):
     repo = AsyncMock()
     repo.get_list.return_value = (results, total)
-    return ReportService(repo)
+    return ReportService(repo, user_repo or _fake_user_repo())
 
 
-def _make_update_service(report, update_result=None):
+def _make_update_service(report, update_result=None, user_repo=None):
     repo = AsyncMock()
     repo.get_by_id.return_value = report
     repo.update.return_value = update_result or {
@@ -59,14 +65,14 @@ def _make_update_service(report, update_result=None):
         "submitted_by": _REPORT["submitted_by"],
         "created_at": _NOW,
     }
-    return ReportService(repo)
+    return ReportService(repo, user_repo or _fake_user_repo())
 
 
-def _make_delete_service(report, soft_delete_result=True):
+def _make_delete_service(report, soft_delete_result=True, user_repo=None):
     repo = AsyncMock()
     repo.get_by_id.return_value = report
     repo.soft_delete.return_value = soft_delete_result
-    return ReportService(repo)
+    return ReportService(repo, user_repo or _fake_user_repo())
 
 
 def _make_media_service():
@@ -77,7 +83,7 @@ def _make_media_service():
     return media_service
 
 
-def _make_create_service(result=None):
+def _make_create_service(result=None, user_repo=None):
     repo = AsyncMock()
     repo.create.return_value = result or {
         "report_id": "aaaaaaaa-0000-0000-0000-000000000001",
@@ -86,7 +92,7 @@ def _make_create_service(result=None):
         "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
         "created_at": _NOW,
     }
-    return ReportService(repo)
+    return ReportService(repo, user_repo or _fake_user_repo())
 
 
 def _incident_body(**overrides) -> ReportCreate:
@@ -257,7 +263,7 @@ async def test_get_report_converts_stored_images_to_view_urls():
     repo = AsyncMock()
     repo.get_by_id.return_value = report
     media_service = _make_media_service()
-    service = ReportService(repo, media_service=media_service)
+    service = ReportService(repo, _fake_user_repo(), media_service=media_service)
 
     result = await service.get_report(_REPORT["id"], _ranger())
 
@@ -305,7 +311,7 @@ async def test_get_reports_converts_stored_images_to_view_urls():
     repo = AsyncMock()
     repo.get_list.return_value = (items, 2)
     media_service = _make_media_service()
-    service = ReportService(repo, media_service=media_service)
+    service = ReportService(repo, _fake_user_repo(), media_service=media_service)
 
     results, _ = await service.get_reports(_ranger())
 
