@@ -195,6 +195,8 @@ export const RoleSwap = () => {
         totalPages,
     } = useManagedUsers(usersApi.getActiveUsers, sortAccessors);
 
+    const isInitialLoading = isLoading && users.length === 0;
+
     const fetchUsers = async () => {
         try {
             const data = await usersApi.getActiveUsers();
@@ -203,16 +205,6 @@ export const RoleSwap = () => {
             // silent on refresh
         }
     };
-
-    if (isLoading || pageError) {
-        return (
-            <UserTableStatus
-                isLoading={isLoading}
-                pageError={pageError}
-                loadingText="Loading users..."
-            />
-        );
-    }
 
     return (
         <div className="space-y-4">
@@ -228,7 +220,13 @@ export const RoleSwap = () => {
                 selectedRoles={roleFilter}
                 onRolesChange={setRoleFilter}
             />
-
+            {isInitialLoading || pageError ? (
+                <UserTableStatus
+                    isLoading={false}
+                    pageError={pageError}
+                    loadingText="Loading users..."
+                />
+            ) : (
             <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
                 <Table>
                     <TableHeader className="bg-brand-primary">
@@ -267,6 +265,7 @@ export const RoleSwap = () => {
                     </TableBody>
                 </Table>
             </div>
+            )}
             <Pagination
                 currentPage={page}
                 totalPages={totalPages}

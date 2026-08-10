@@ -153,15 +153,7 @@ export const DeleteAccounts = () => {
         transform: excludeAdmins,
     });
 
-    if (isLoading || pageError) {
-        return (
-            <UserTableStatus
-                isLoading={isLoading}
-                pageError={pageError}
-                loadingText="Loading users..."
-            />
-        );
-    }
+    const isInitialLoading = isLoading && users.length === 0;
 
     return (
         <div className="space-y-4">
@@ -177,7 +169,13 @@ export const DeleteAccounts = () => {
                 selectedRoles={roleFilter}
                 onRolesChange={setRoleFilter}
             />
-
+            {isInitialLoading || pageError ? (
+                <UserTableStatus
+                    isLoading={false}
+                    pageError={pageError}
+                    loadingText="Loading users..."
+                />
+            ) : (
             <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
                 <Table>
                     <TableHeader className="bg-brand-primary">
@@ -215,6 +213,7 @@ export const DeleteAccounts = () => {
                     </TableBody>
                 </Table>
             </div>
+            )}
             <Pagination
                 currentPage={page}
                 totalPages={totalPages}
