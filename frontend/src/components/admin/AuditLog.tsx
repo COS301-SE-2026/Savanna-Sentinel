@@ -68,12 +68,14 @@ export default function AuditLog() {
                     <TableHeader className="bg-brand-primary">
                         <TableRow className="hover:bg-transparent">
                             <TableHead className={theadClass}>
-                                Actor ID
+                                Actor
                             </TableHead>
                             <TableHead className={theadClass}>Action</TableHead>
-                            <TableHead className={theadClass}>Target</TableHead>
                             <TableHead className={theadClass}>
-                                Target ID
+                                Target Type
+                            </TableHead>
+                            <TableHead className={theadClass}>
+                                Target
                             </TableHead>
                             <TableHead className={theadClass}>
                                 Details
