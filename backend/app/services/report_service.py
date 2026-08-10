@@ -182,8 +182,10 @@ class ReportService:
     async def get_reports(
         self,
         current_user: User,
-        report_type: Optional[str] = None,
-        severity: Optional[str] = None,
+        search: Optional[str] = None,
+        report_types: Optional[list[str]] = None,
+        severities: Optional[list[str]] = None,
+        species: Optional[list[str]] = None,
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
         sync_status: Optional[str] = None,
@@ -193,8 +195,10 @@ class ReportService:
         owner_id = current_user.id if current_user.role == "ranger" else None
         results, total = await self.repo.get_list(
             owner_id=owner_id,
-            report_type=report_type,
-            severity=severity,
+            search=search,
+            report_types=report_types,
+            severities=severities,
+            species=species,
             from_dt=from_dt,
             to_dt=to_dt,
             sync_status=sync_status,

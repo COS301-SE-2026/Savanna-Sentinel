@@ -51,12 +51,17 @@ async def submit_report(
     summary="List field reports (SC-20)",
 )
 async def list_reports(
+    search: Annotated[Optional[str], Query()] = None,
     report_type: Annotated[
-        Optional[Literal["incident", "sighting"]],
+        Optional[list[Literal["incident", "sighting"]]],
         Query(),
     ] = None,
     severity: Annotated[
-        Optional[Literal["low", "medium", "high"]],
+        Optional[list[Literal["low", "medium", "high"]]],
+        Query(),
+    ] = None,
+    species: Annotated[
+        Optional[list[str]],
         Query(),
     ] = None,
     from_dt: Annotated[Optional[datetime], Query(alias="from")] = None,
@@ -79,8 +84,10 @@ async def list_reports(
     service = ReportService(ReportRepository(db))
     results, total = await service.get_reports(
         current_user=current_user,
+        search=search,
         report_type=report_type,
-        severity=severity,
+        severities=severity,
+        species=species,
         from_dt=from_dt,
         to_dt=to,
         sync_status=sync_status,

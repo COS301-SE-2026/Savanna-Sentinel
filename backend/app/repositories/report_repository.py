@@ -22,8 +22,10 @@ class ReportRepository:
     async def get_list(
         self,
         owner_id: Optional[str],
-        report_type: Optional[str] = None,
-        severity: Optional[str] = None,
+        search: Optional[str] = None,
+        report_types: Optional[list[str]] = None,
+        severities: Optional[list[str]] = None,
+        species: Optional[list[str]] = None,
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
         sync_status: Optional[str] = None,
@@ -36,17 +38,27 @@ class ReportRepository:
         conditions = ["fr.deleted_at IS NULL"]
         params: dict = {}
 
+        if search and search.strip():
+            conditions.append(
+                "(fr.description ILIKE :search OR s.species ILIKE :search)"
+            )
+            params["search"] = f"%{search.strip}%"
+
         if owner_id is not None:
             conditions.append("fr.submitted_by::text = :owner_id")
             params["owner_id"] = owner_id
 
-        if report_type:
-            conditions.append("fr.report_type::text = :report_type")
-            params["report_type"] = report_type
+        if report_types:
+            conditions.append("fr.report_type::text = ANY(:report_type)")
+            params["report_type"] = report_types
 
-        if severity:
-            conditions.append("i.severity::text = :severity")
-            params["severity"] = severity
+        if severities:
+            conditions.append("i.severity::text = ANY(:severities)")
+            params["severity"] = severities
+
+        if species:
+            conditions.append("s.species = ANY(:species)")
+            params["species"] = species
 
         if from_dt:
             conditions.append("fr.occurred_at >= :from_dt")
