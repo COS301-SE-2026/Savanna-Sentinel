@@ -9,6 +9,7 @@ import AppLayout from "@/components/layout/AppLayout";
 
 import ReportsPage from "@/pages/ReportsPage";
 import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
+import TipoffPage from "@/pages/TipoffPage";
 import IngestionPage from "@/pages/IngestionPage";
 import AdminPage from "@/pages/AdminPage";
 import ProfilePage from "@/pages/ProfilePage";
@@ -31,6 +32,7 @@ const App = () => {
                         <Route path="/admin" element={<AdminPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
                         <Route path="/patrol" element={<PatrolPlannerPage />} />
+                        <Route path="/tipoffs" element={<TipoffPage />} />
                         <Route path="/ingestion" element={<IngestionPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/help" element={<HelpPage />} />
