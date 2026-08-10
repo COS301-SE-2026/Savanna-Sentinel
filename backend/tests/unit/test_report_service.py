@@ -434,6 +434,21 @@ async def test_admin_updates_any_report():
 
 
 @pytest.mark.asyncio
+async def test_update_report_resolves_submitted_by_username():
+    user_repo = _fake_user_repo("field_ranger_3")
+    service = _make_update_service(dict(_REPORT), user_repo=user_repo)
+
+    result = await service.update_report(
+        _REPORT["id"],
+        _admin(),
+        ReportUpdate(description="Admin edit"),
+    )
+
+    assert result["submitted_by_username"] == "field_ranger_3"
+    user_repo.get_username_by_id.assert_awaited_with(_REPORT["submitted_by"])
+
+
+@pytest.mark.asyncio
 async def test_update_missing_report_returns_none():
     service = _make_update_service(None)
     result = await service.update_report(

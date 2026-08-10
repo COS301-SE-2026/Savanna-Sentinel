@@ -99,11 +99,15 @@ class ReportService:
             provided,
         )
 
-        return await self.repo.update(
+        result = await self.repo.update(
             report_id=report_id,
             report_type=existing["report_type"],
             fields=fields,
         )
+        result["submitted_by_username"] = (
+            await self.user_repo.get_username_by_id(result["submitted_by"])
+        )
+        return result
 
     async def delete_report(
         self,
