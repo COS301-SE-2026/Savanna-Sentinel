@@ -57,7 +57,7 @@ export const usersApi = {
                     page,
                     page_size: pageSize,
                     search: search || undefined,
-                    roles: roles.length ? roles.join(",") : undefined,
+                    role: roles.length ? roles.join(",") : undefined,
                 },
             })
             .then((r) => r.data),
@@ -82,7 +82,7 @@ export const usersApi = {
                     page,
                     page_size: pageSize,
                     search: search || undefined,
-                    roles: roles.length ? roles.join(",") : undefined,
+                    role: roles.length ? roles.join(",") : undefined,
                 },
             })
             .then((r) => r.data),

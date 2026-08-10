@@ -3,12 +3,14 @@ import { useSort } from "@/hooks/useSort";
 import {
     useRoleOptions,
 } from "@/hooks/useUserSearchFilter";
+import { useDebounce } from "./useDebounce";
 import type { PaginatedUsersResponse, UserResponse } from "@/services/usersApi";
 
 interface UseManagedUsersOptions {
     transform?: (results: UserResponse[]) => UserResponse[];
     errorMessage?: string;
     onError?: (error: unknown) => void;
+    debounceMs?: number
 }
 
 export function useManagedUsers<K extends string>(
@@ -48,12 +50,14 @@ export function useManagedUsers<K extends string>(
         setPage(1);
     }, []);
 
+    const debouncedSearchQuery = useDebounce(searchQuery, options?.debounceMs ?? 300);
+
     const refetch = useCallback(() => {
         return Promise.resolve()
             .then(() => {
                 setIsLoading(true);
                 setPageError(null);
-                return fetchUsersRef.current(page, searchQuery, selectedRoles);
+                return fetchUsersRef.current(page, debouncedSearchQuery, selectedRoles);
             })
             .then((data) => {
                 const results = optionsRef.current?.transform
@@ -76,7 +80,7 @@ export function useManagedUsers<K extends string>(
                 );
             })
             .finally(() => setIsLoading(false));
-    }, [page, searchQuery, selectedRoles]);
+    }, [page, debouncedSearchQuery, selectedRoles]);
 
     useEffect(() => {
         refetch();
