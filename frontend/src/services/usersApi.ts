@@ -44,11 +44,20 @@ export const usersApi = {
             .patch("/users/me", { current_password, new_password })
             .then(() => undefined),
 
-    getPendingUsers: (): Promise<PaginatedUsersResponse> =>
+    getPendingUsers: (
+        page: number = 1,
+        search: string = "",
+        roles: string[] = [],
+        pageSize: number = 20,
+    ): Promise<PaginatedUsersResponse> =>
         api
             .get<PaginatedUsersResponse>("/users", {
                 params: {
                     is_active: false,
+                    page,
+                    page_size: pageSize,
+                    search: search || undefined,
+                    roles: roles.length ? roles.join(",") : undefined,
                 },
             })
             .then((r) => r.data),
