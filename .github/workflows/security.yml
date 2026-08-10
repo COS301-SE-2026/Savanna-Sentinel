@@ -41,7 +41,7 @@ jobs:
           python-version: "3.11"
       
       - name: Install pip-Audit
-        run: pip install pip-audit bandit
+        run: pip install --only-binary :all: pip-audit==2.10.1 bandit==1.9.4
 
       - name: Audit Backend packages
         working-directory: ./backend
