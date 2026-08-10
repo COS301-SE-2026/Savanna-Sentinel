@@ -87,8 +87,10 @@ export interface ReportUpdate {
 }
 
 export interface ListReportsQueryParams {
-    report_type?: ReportType;
-    severity?: SeverityLevel;
+    search?: string,
+    report_type?: ReportType | ReportType[];
+    severity?: SeverityLevel | SeverityLevel[];
+    species?: string | string[];
     from?: string;
     to?: string;
     sync_status?: SyncStatus;
