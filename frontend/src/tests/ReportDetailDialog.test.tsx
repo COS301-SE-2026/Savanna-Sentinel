@@ -43,6 +43,20 @@ describe("ReportDetailDialog", () => {
         ).toBeInTheDocument();
     });
 
+    it("shows the resolved submitter username instead of the raw ID when present", () => {
+        const report = makeReport({
+            submittedBy: "user-id-123",
+            submittedByUsername: "ranger_jane",
+        });
+        render(<ReportDetailDialog report={report} onOpenChange={vi.fn()} />);
+
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText("ranger_jane")).toBeInTheDocument();
+        expect(
+            within(dialog).queryByText("user-id-123"),
+        ).not.toBeInTheDocument();
+    });
+
     it("shows a no-photos message when the report has no attachments", () => {
         const report = makeReport({});
         render(<ReportDetailDialog report={report} onOpenChange={vi.fn()} />);

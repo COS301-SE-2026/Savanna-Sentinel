@@ -673,3 +673,31 @@ async def test_switch_status_rejects_soft_deleted_user(db_session):
     result = await repo.switch_status(is_active=True, user_id=user_id)
 
     assert result is None
+
+
+async def test_get_username_by_id_returns_username(db_session):
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id, username="ranger7", role="ranger", is_active=True,
+        email="r7@test.com", first_name="R", last_name="Seven",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    repo = UserRepository(db_session)
+    result = await repo.get_username_by_id(user_id)
+
+    assert result == "ranger7"
+
+
+async def test_get_username_by_id_returns_none_for_missing_user(db_session):
+    repo = UserRepository(db_session)
+    result = await repo.get_username_by_id(str(uuid.uuid4()))
+    assert result is None
+
+
+async def test_get_username_by_id_returns_none_for_none_input(db_session):
+    repo = UserRepository(db_session)
+    result = await repo.get_username_by_id(None)
+    assert result is None

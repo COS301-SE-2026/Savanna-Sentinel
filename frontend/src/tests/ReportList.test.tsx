@@ -79,6 +79,39 @@ describe("ReportList", () => {
         expect(screen.getByText("Pending Sync")).toBeInTheDocument();
     });
 
+    it("shows the resolved submitter username instead of the raw ID when present", () => {
+        const report = makeReport({
+            submittedBy: "user-id-123",
+            submittedByUsername: "ranger_jane",
+        });
+        render(
+            <ReportList
+                reports={[report]}
+                canSubmit
+                onGoToNewReport={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText("ranger_jane")).toBeInTheDocument();
+        expect(screen.queryByText("user-id-123")).not.toBeInTheDocument();
+    });
+
+    it("falls back to the raw ID when no username was resolved", () => {
+        const report = makeReport({
+            submittedBy: "user-id-456",
+            submittedByUsername: null,
+        });
+        render(
+            <ReportList
+                reports={[report]}
+                canSubmit
+                onGoToNewReport={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText("user-id-456")).toBeInTheDocument();
+    });
+
     it("narrows results with the search bar", async () => {
         render(
             <ReportList

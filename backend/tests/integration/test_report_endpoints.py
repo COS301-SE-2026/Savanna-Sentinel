@@ -385,6 +385,18 @@ async def test_submit_with_severity_and_count():
 
 
 @pytest.mark.asyncio
+async def test_submitted_report_includes_submitted_by_username():
+    uid = await _create_user("test_profile_user")
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(),
+            headers=_auth_header(uid),
+        )
+    assert r.json()["submitted_by_username"] == "test_profile_user"
+
+
+@pytest.mark.asyncio
 async def test_submitted_report_appears_in_list():
     uid = await _create_user("test_ranger_sc11h")
     async with _client() as c:
@@ -418,6 +430,19 @@ async def test_ranger_updates_own_report_returns_200():
     assert body["report_id"] == rid
     assert body["status"] == "updated"
     assert body["submitted_by"] == uid
+
+
+@pytest.mark.asyncio
+async def test_update_response_includes_submitted_by_username():
+    uid = await _create_user("test_ranger_sc12username")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"description": "Updated after follow-up"},
+            headers=_auth_header(uid),
+        )
+    assert r.json()["submitted_by_username"] == "test_ranger_sc12username"
 
 
 @pytest.mark.asyncio
