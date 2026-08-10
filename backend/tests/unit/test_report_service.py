@@ -26,8 +26,9 @@ _REPORT = {
 
 def _ranger(
     user_id: str = "bbbbbbbb-0000-0000-0000-000000000001",
+    username: str = "ranger1",
 ) -> SimpleNamespace:
-    return SimpleNamespace(id=user_id, role="ranger")
+    return SimpleNamespace(id=user_id, role="ranger", username=username)
 
 
 def _admin() -> SimpleNamespace:

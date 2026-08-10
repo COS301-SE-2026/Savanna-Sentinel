@@ -197,11 +197,14 @@ async def test_filter_by_actor_id(seeded_audit_logs):
 
 @pytest.mark.asyncio
 async def test_audit_log_includes_actor_username(seeded_audit_logs):
+    actor_id = seeded_audit_logs["actor_id"]
+
     async with _client() as c:
         response = await c.get(
-            "/v1/audit-logs",
+            f"/v1/audit-logs?actor_id={actor_id}",
             headers={"Authorization": f"Bearer {seeded_audit_logs['token']}"},
         )
 
     body = response.json()
+    assert len(body["results"]) == 3
     assert all(r["actor_username"] == "test_audit_admin" for r in body["results"])
