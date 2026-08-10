@@ -5,33 +5,15 @@ import { useAuthStore } from "@/store/authStore";
 import { NewReportTab } from "@/components/reports/NewReportTab";
 import { ReportList } from "@/components/reports/ReportList";
 import { notifySafe } from "@/components/ui/toast";
-import { toDatetimeLocalValue } from "@/lib/utils";
-import type {
-    DraftReport,
-    DraftReportInput,
-    PhotoAttachment,
-} from "@/types/reports";
+import { toDatetimeLocalValue, formatToUTC } from "@/lib/utils";
+import { PLACEHOLDER_PHOTO_TYPE, resolvePhotoUrls } from "@/lib/media";
+import type { DraftReport, DraftReportInput } from "@/types/reports";
 import { reportsApi } from "@/services/reportsApi";
 import type {
     ReportListItem,
     ReportCreate,
     ReportUpdate,
 } from "@/services/reportsApi";
-import { mediaApi } from "@/services/mediaApi";
-
-const PLACEHOLDER_PHOTO_TYPE = "image/placeholder";
-
-async function resolvePhotoUrls(photos: PhotoAttachment[]): Promise<string[]> {
-    const urls: string[] = [];
-    for (const photo of photos) {
-        if (photo.file.type === PLACEHOLDER_PHOTO_TYPE) {
-            urls.push(photo.previewUrl);
-            continue;
-        }
-        urls.push(await mediaApi.uploadPhoto(photo.file));
-    }
-    return urls;
-}
 
 // Helper functions
 function mapToDraft(item: ReportListItem): DraftReport {
@@ -54,20 +36,6 @@ function mapToDraft(item: ReportListItem): DraftReport {
         createdAt: item.created_at,
         syncStatus: item.sync_status as DraftReport["syncStatus"],
     };
-}
-
-function formatToUTC(dateString: string): string {
-    const parsed = new Date(dateString);
-    if (isNaN(parsed.getTime())) {
-        return new Date().toISOString();
-    }
-
-    const now = new Date();
-    if (parsed > now) {
-        return now.toISOString();
-    }
-
-    return parsed.toISOString();
 }
 // Helper functions end
 
