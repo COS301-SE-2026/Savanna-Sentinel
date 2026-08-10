@@ -29,6 +29,7 @@ import {
     RoleBadgeCell,
 } from "@/components/admin/UserIdentityCells";
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
+import { Pagination } from "@/components/ui/pagination";
 
 interface UserRowProps {
     user: UserResponse;
@@ -67,6 +68,9 @@ const AuthPage = () => {
         direction,
         requestSort,
         refetch: fetchPendingUsers,
+        page,
+        setPage,
+        totalPages,
     } = useManagedUsers(usersApi.getPendingUsers, sortAccessors, {
         errorMessage: "Failed to load pending registrations.",
         onError: (error) => console.error("Failed to fetch users:", error),
@@ -135,6 +139,11 @@ const AuthPage = () => {
                     </TableBody>
                 </Table>
             </div>
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={(page) => setPage(page)}
+            />
         </div>
     );
 };

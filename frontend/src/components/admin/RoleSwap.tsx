@@ -34,6 +34,7 @@ import {
     STANDARD_USER_COLUMNS as USER_COLUMNS,
 } from "@/components/admin/standardUserColumns";
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
+import { Pagination } from "../ui/pagination";
 
 const ASSIGNABLE_ROLES = [
     { value: "ranger", label: "Ranger" },
@@ -189,6 +190,9 @@ export const RoleSwap = () => {
         sortKey,
         direction,
         requestSort,
+        page,
+        setPage,
+        totalPages,
     } = useManagedUsers(usersApi.getActiveUsers, sortAccessors);
 
     const fetchUsers = async () => {
@@ -263,6 +267,11 @@ export const RoleSwap = () => {
                     </TableBody>
                 </Table>
             </div>
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={(page) => setPage(page)}
+            />
         </div>
     );
 };
