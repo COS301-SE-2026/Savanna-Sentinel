@@ -78,23 +78,31 @@ class UserRepository:
             payload = decode_token(token)
         except JWTError:
             return
-        stmt = update(
+        stmt = (
+            update(
                 RefreshToken,
-            ).where(
+            )
+            .where(
                 RefreshToken.jti == uuid.UUID(payload["jti"]),
-            ).values(
+            )
+            .values(
                 revoked_at=datetime.now(timezone.utc),
             )
+        )
         await self.db.execute(stmt)
         await self.db.commit()
 
     async def revoke_all_refresh_tokens(self, user_id: str) -> None:
         """Revoke every refresh token for a given user."""
-        stmt = update(RefreshToken).where(
-            RefreshToken.user_id == uuid.UUID(str(user_id)),
-            ).values(
+        stmt = (
+            update(RefreshToken)
+            .where(
+                RefreshToken.user_id == uuid.UUID(str(user_id)),
+            )
+            .values(
                 revoked_at=datetime.now(timezone.utc),
             )
+        )
         await self.db.execute(stmt)
         await self.db.commit()
 
@@ -124,9 +132,10 @@ class UserRepository:
         await self.db.refresh(user)
         return user
 
-    async def get_users(self, req: UsersRequest ) -> list[UsersResponse]:
+    async def get_users(self, req: UsersRequest) -> list[UsersResponse]:
         stmt = select(User).where(
-            User.role != "admin", User.deleted_at.is_(None),
+            User.role != "admin",
+            User.deleted_at.is_(None),
         )
 
         if req.is_active is not None:
@@ -134,6 +143,9 @@ class UserRepository:
 
         if req.role is not None:
             stmt = stmt.where(User.role == req.role.value)
+
+        if req.search is not None:
+            stmt = stmt.where(User.username.ilike(f"%{req.search}%"))
 
         offset = (req.page - 1) * req.page_size
 
@@ -160,10 +172,10 @@ class UserRepository:
         return result.scalar()
 
     async def switch_status(
-            self,
-            is_active: bool,
-            user_id: str,
-            ) -> UsersResponse:
+        self,
+        is_active: bool,
+        user_id: str,
+    ) -> UsersResponse:
         stmt = select(User).where(User.id == user_id)
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
