@@ -9,9 +9,11 @@ class AuditLogResponse(BaseModel):
 
     id: str
     actor_id: str | None = None
+    actor_username: str | None = None
     action: str
     target_type: str | None = None
     target_id: str | None = None
+    target_username: str | None = None
     details: dict | None = None
     created_at: datetime
 
