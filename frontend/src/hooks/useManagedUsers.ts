@@ -13,7 +13,7 @@ interface UseManagedUsersOptions {
 }
 
 export function useManagedUsers<K extends string>(
-    fetchUsers: () => Promise<PaginatedUsersResponse>,
+    fetchUsers: (page: number) => Promise<PaginatedUsersResponse>,
     sortAccessors: Record<K, (user: UserResponse) => string | number>,
     options?: UseManagedUsersOptions,
 ) {
@@ -22,6 +22,10 @@ export function useManagedUsers<K extends string>(
     const [pageError, setPageError] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [roleFilter, setRoleFilter] = useState<string[]>([]);
+
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
 
     const fetchUsersRef = useRef(fetchUsers);
     const optionsRef = useRef(options);
@@ -36,13 +40,21 @@ export function useManagedUsers<K extends string>(
             .then(() => {
                 setIsLoading(true);
                 setPageError(null);
-                return fetchUsersRef.current();
+                return fetchUsersRef.current(page);
             })
             .then((data) => {
                 const results = optionsRef.current?.transform
                     ? optionsRef.current.transform(data.results)
                     : data.results;
                 setUsers(results);
+                setTotal(data.total);
+
+                const calculatedTotalPages = Math.ceil(data.total / data.page_size);
+                setTotalPages(calculatedTotalPages);
+
+                if (page > calculatedTotalPages) {
+                    setPage(calculatedTotalPages);
+                }
             })
             .catch((error) => {
                 optionsRef.current?.onError?.(error);
@@ -51,11 +63,11 @@ export function useManagedUsers<K extends string>(
                 );
             })
             .finally(() => setIsLoading(false));
-    }, []);
+    }, [page]);
 
     useEffect(() => {
         refetch();
-    }, [refetch]);
+    }, [page, refetch]);
 
     const roleOptions = useRoleOptions(users);
     const filteredUsers = useUserSearchFilter(users, search, roleFilter);
@@ -82,5 +94,9 @@ export function useManagedUsers<K extends string>(
         direction,
         requestSort,
         refetch,
+        page,
+        setPage,
+        total,
+        totalPages,
     };
 }

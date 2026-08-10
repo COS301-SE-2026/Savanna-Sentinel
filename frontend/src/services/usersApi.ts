@@ -60,12 +60,13 @@ export const usersApi = {
             })
             .then((r) => r.data),
 
-    getActiveUsers: (): Promise<PaginatedUsersResponse> =>
+    getActiveUsers: (page: number = 1, pageSize: number = 20): Promise<PaginatedUsersResponse> =>
         api
             .get<PaginatedUsersResponse>("/users", {
                 params: {
                     is_active: true,
-                    page_size: 50,
+                    page,
+                    page_size: pageSize,
                 },
             })
             .then((r) => r.data),

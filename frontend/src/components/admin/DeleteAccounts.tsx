@@ -33,6 +33,7 @@ import {
     STANDARD_USER_COLUMNS as USER_COLUMNS,
 } from "@/components/admin/standardUserColumns";
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
+import { Pagination } from "../ui/pagination";
 
 interface UserRowProps {
     user: UserResponse;
@@ -145,6 +146,9 @@ export const DeleteAccounts = () => {
         requestSort,
         users,
         refetch,
+        page,
+        setPage,
+        totalPages,
     } = useManagedUsers(usersApi.getActiveUsers, sortAccessors, {
         transform: excludeAdmins,
     });
@@ -211,6 +215,11 @@ export const DeleteAccounts = () => {
                     </TableBody>
                 </Table>
             </div>
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={(page) => setPage(page)}
+            />
         </div>
     );
 };
