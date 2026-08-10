@@ -260,7 +260,8 @@ export function ReportList({
                                             })}
                                         </TableCell>
                                         <TableCell className={cellClass}>
-                                            {report.submittedBy}
+                                            {report.submittedByUsername ??
+                                                report.submittedBy}
                                         </TableCell>
                                         <TableCell className={cellClass}>
                                             {report.syncStatus === "synced" ? (
