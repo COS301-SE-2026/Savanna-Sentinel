@@ -70,7 +70,9 @@ async def test_get_logs_resolves_actor_username(fake_audit_log):
     mock_user_repo.get_username_by_id.assert_any_await("admin-1")
 
 
-async def test_get_logs_resolves_target_username_only_for_user_targets(fake_audit_log):
+async def test_get_logs_resolves_target_username_only_for_user_targets(
+    fake_audit_log,
+):
     mock_repo = AsyncMock()
     mock_repo.list_logs.return_value = [fake_audit_log]  # target_type="user"
     mock_repo.count_logs.return_value = 1

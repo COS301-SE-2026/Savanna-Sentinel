@@ -11,7 +11,9 @@ if TYPE_CHECKING:
 
 
 class AuditService:
-    def __init__(self, repo: AuditRepository, user_repo: UserRepository | None = None):
+    def __init__(
+        self, repo: AuditRepository, user_repo: UserRepository | None = None,
+    ):
         self.repo = repo
         self.user_repo = user_repo
 
@@ -41,15 +43,18 @@ class AuditService:
             )
             target_username = None
             if self.user_repo and r.target_type == "user":
-                target_username = await self.user_repo.get_username_by_id(r.target_id)
+                target_username = await self.user_repo.get_username_by_id(
+                    r.target_id,
+                )
 
             responses.append(AuditLogResponse(
                 id=r.id, actor_id=r.actor_id, actor_username=actor_username,
-                action=r.action, target_type=r.target_type, target_id=r.target_id,
-                target_username=target_username, details=r.details,
-                created_at=r.created_at,
+                action=r.action, target_type=r.target_type,
+                target_id=r.target_id, target_username=target_username,
+                details=r.details, created_at=r.created_at,
             ))
 
         return AuditLogListResponse(
-            total=total, page=req.page, page_size=req.page_size, results=responses,
+            total=total, page=req.page, page_size=req.page_size,
+            results=responses,
         )

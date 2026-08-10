@@ -223,7 +223,9 @@ async def test_create_report_uses_current_user_username_directly():
     user_repo = _fake_user_repo()
     service = _make_create_service(user_repo=user_repo)
     current_user = SimpleNamespace(
-        id="bbbbbbbb-0000-0000-0000-000000000001", role="ranger", username="reporter1",
+        id="bbbbbbbb-0000-0000-0000-000000000001",
+        role="ranger",
+        username="reporter1",
     )
 
     result = await service.create_report(current_user, _incident_body())
@@ -278,7 +280,9 @@ async def test_get_report_converts_stored_images_to_view_urls():
     repo = AsyncMock()
     repo.get_by_id.return_value = report
     media_service = _make_media_service()
-    service = ReportService(repo, _fake_user_repo(), media_service=media_service)
+    service = ReportService(
+        repo, _fake_user_repo(), media_service=media_service,
+    )
 
     result = await service.get_report(_REPORT["id"], _ranger())
 
@@ -350,7 +354,9 @@ async def test_get_reports_converts_stored_images_to_view_urls():
     repo = AsyncMock()
     repo.get_list.return_value = (items, 2)
     media_service = _make_media_service()
-    service = ReportService(repo, _fake_user_repo(), media_service=media_service)
+    service = ReportService(
+        repo, _fake_user_repo(), media_service=media_service,
+    )
 
     results, _ = await service.get_reports(_ranger())
 

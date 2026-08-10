@@ -207,4 +207,6 @@ async def test_audit_log_includes_actor_username(seeded_audit_logs):
 
     body = response.json()
     assert len(body["results"]) == 3
-    assert all(r["actor_username"] == "test_audit_admin" for r in body["results"])
+    assert all(
+        r["actor_username"] == "test_audit_admin" for r in body["results"]
+    )

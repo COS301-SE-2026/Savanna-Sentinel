@@ -63,17 +63,19 @@ describe("AuditLog Component Testing", () => {
             total: 1,
             page: 1,
             page_size: 20,
-            results: [{
-                id: "log-1",
-                actor_id: "actor-1",
-                actor_username: "jane_admin",
-                action: "ACTION_1",
-                target_type: "user",
-                target_id: "target-1",
-                target_username: "john_ranger",
-                details: null,
-                created_at: "2026-07-27T10:00:00Z",
-            }],
+            results: [
+                {
+                    id: "log-1",
+                    actor_id: "actor-1",
+                    actor_username: "jane_admin",
+                    action: "ACTION_1",
+                    target_type: "user",
+                    target_id: "target-1",
+                    target_username: "john_ranger",
+                    details: null,
+                    created_at: "2026-07-27T10:00:00Z",
+                },
+            ],
         });
         render(<AuditLog />);
 

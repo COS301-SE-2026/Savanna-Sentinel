@@ -208,8 +208,8 @@ class ReportService:
         )
         for item in results:
             item["images"] = self._view_urls(item.get("images"))
-            item["submitted_by_username"] = await self.user_repo.get_username_by_id(
-                item["submitted_by"],
+            item["submitted_by_username"] = (
+                await self.user_repo.get_username_by_id(item["submitted_by"])
             )
         return results, total
 
@@ -230,8 +230,8 @@ class ReportService:
                 detail="Access denied",
             )
         report["images"] = self._view_urls(report.get("images"))
-        report["submitted_by_username"] = await self.user_repo.get_username_by_id(
-            report["submitted_by"],
+        report["submitted_by_username"] = (
+            await self.user_repo.get_username_by_id(report["submitted_by"])
         )
         return report
 
