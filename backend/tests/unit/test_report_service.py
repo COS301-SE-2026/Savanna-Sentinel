@@ -217,6 +217,20 @@ async def test_create_naive_datetime_is_treated_as_utc():
     svc.repo.create.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_create_report_uses_current_user_username_directly():
+    user_repo = _fake_user_repo()
+    service = _make_create_service(user_repo=user_repo)
+    current_user = SimpleNamespace(
+        id="bbbbbbbb-0000-0000-0000-000000000001", role="ranger", username="reporter1",
+    )
+
+    result = await service.create_report(current_user, _incident_body())
+
+    assert result["submitted_by_username"] == "reporter1"
+    user_repo.get_username_by_id.assert_not_awaited()
+
+
 # get_report_by_id
 
 
@@ -273,6 +287,16 @@ async def test_get_report_converts_stored_images_to_view_urls():
     assert result["images"] == ["http://minio/bucket/reports/a.jpg?signed=1"]
 
 
+@pytest.mark.asyncio
+async def test_get_report_resolves_submitted_by_username():
+    user_repo = _fake_user_repo("field_ranger_3")
+    service = _make_service(dict(_REPORT), user_repo=user_repo)
+
+    result = await service.get_report(_REPORT["id"], _admin())
+
+    assert result["submitted_by_username"] == "field_ranger_3"
+
+
 # get_reports
 
 
@@ -295,7 +319,13 @@ async def test_get_reports_admin_passes_none_owner_to_repo():
 
 @pytest.mark.asyncio
 async def test_get_reports_returns_results_and_total():
-    items = [{"report_id": "x", "report_type": "incident"}]
+    items = [
+        {
+            "report_id": "x",
+            "report_type": "incident",
+            "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
+        },
+    ]
     service = _make_list_service(items, 1)
     results, total = await service.get_reports(_ranger())
     assert total == 1
@@ -305,8 +335,16 @@ async def test_get_reports_returns_results_and_total():
 @pytest.mark.asyncio
 async def test_get_reports_converts_stored_images_to_view_urls():
     items = [
-        {"report_id": "x", "images": ["http://minio/bucket/reports/a.jpg"]},
-        {"report_id": "y", "images": []},
+        {
+            "report_id": "x",
+            "images": ["http://minio/bucket/reports/a.jpg"],
+            "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
+        },
+        {
+            "report_id": "y",
+            "images": [],
+            "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
+        },
     ]
     repo = AsyncMock()
     repo.get_list.return_value = (items, 2)
@@ -336,6 +374,17 @@ async def test_get_reports_passes_filters_to_repo():
     assert call_kwargs["severity"] == "high"
     assert call_kwargs["page"] == 2
     assert call_kwargs["page_size"] == 10
+
+
+@pytest.mark.asyncio
+async def test_get_reports_resolves_submitted_by_username():
+    user_repo = _fake_user_repo("field_ranger_3")
+    service = _make_list_service([dict(_REPORT)], 1, user_repo=user_repo)
+
+    results, _ = await service.get_reports(_admin())
+
+    assert results[0]["submitted_by_username"] == "field_ranger_3"
+    user_repo.get_username_by_id.assert_awaited_with(_REPORT["submitted_by"])
 
 
 # update_report
