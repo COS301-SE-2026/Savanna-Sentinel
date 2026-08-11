@@ -312,23 +312,25 @@ export default function HelpPage() {
     return (
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
             <Tabs defaultValue="faq">
-                <TabsList className="bg-(--color-color-surface-raised)">
-                    <TabsTrigger className="text-sm" value="faq">
-                        FAQ
-                    </TabsTrigger>
-                    <TabsTrigger className="text-sm" value="reports">
-                        Reports
-                    </TabsTrigger>
-                    <TabsTrigger className="text-sm" value="patrol">
-                        Patrol Planner
-                    </TabsTrigger>
-                    <TabsTrigger className="text-sm" value="profile">
-                        User Profile
-                    </TabsTrigger>
-                    <TabsTrigger className="text-sm" value="download">
-                        User Manual
-                    </TabsTrigger>
-                </TabsList>
+                <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+                    <TabsList className="bg-(--color-color-surface-raised)">
+                        <TabsTrigger className="text-sm" value="faq">
+                            FAQ
+                        </TabsTrigger>
+                        <TabsTrigger className="text-sm" value="reports">
+                            Reports
+                        </TabsTrigger>
+                        <TabsTrigger className="text-sm" value="patrol">
+                            Patrol Planner
+                        </TabsTrigger>
+                        <TabsTrigger className="text-sm" value="profile">
+                            User Profile
+                        </TabsTrigger>
+                        <TabsTrigger className="text-sm" value="download">
+                            User Manual
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
                 <TabsContent value="faq">
                     <Faq />
