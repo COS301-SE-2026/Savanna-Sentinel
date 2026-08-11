@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { usersApi, type UserResponse } from "@/services/usersApi";
 import { cn, formatRole } from "@/lib/utils";
+import { notifyCritical } from "@/components/ui/toast";
 import { useState } from "react";
 import { useManagedUsers } from "@/hooks/useManagedUsers";
 import { UserSearchFilterBar } from "@/components/admin/UserSearchFilterBar";
@@ -141,7 +142,6 @@ const AuthPage = () => {
 
 const UserRow = ({ user, refreshList }: UserRowProps) => {
     const [isProcessing, setIsProcessing] = useState(false);
-    const [rowError, setRowError] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<
         "accept" | "reject" | null
     >(null);
@@ -158,7 +158,6 @@ const UserRow = ({ user, refreshList }: UserRowProps) => {
     const handleAccept = async () => {
         setPendingAction(null);
         setIsProcessing(true);
-        setRowError(null);
 
         try {
             await usersApi.setUserStatus(user.id, true);
@@ -169,9 +168,9 @@ const UserRow = ({ user, refreshList }: UserRowProps) => {
 
             const err = error as { response?: { status?: number } };
             if (err.response?.status === 401) {
-                setRowError("Permission denied. Cannot modify admins");
+                notifyCritical("Permission denied. Cannot modify admins");
             } else {
-                setRowError("Failed to accept user.");
+                notifyCritical("Failed to accept user.");
             }
             setIsProcessing(false);
         }
@@ -180,14 +179,13 @@ const UserRow = ({ user, refreshList }: UserRowProps) => {
     const handleReject = async () => {
         setPendingAction(null);
         setIsProcessing(true);
-        setRowError(null);
 
         try {
             await usersApi.deleteUser(user.id);
             refreshList();
         } catch (error) {
             console.error("Failed to reject user:", error);
-            setRowError("Failed to reject user.");
+            notifyCritical("Failed to reject user.");
             setIsProcessing(false);
         }
     };
@@ -270,17 +268,6 @@ const UserRow = ({ user, refreshList }: UserRowProps) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-            {rowError && (
-                <TableRow className={rowClass}>
-                    <TableCell
-                        colSpan={5}
-                        className="px-4 py-2 text-sm text-status-critical-text bg-status-critical/5 italic"
-                    >
-                        {rowError}
-                    </TableCell>
-                </TableRow>
-            )}
         </>
     );
 };
