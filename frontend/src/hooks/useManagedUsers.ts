@@ -66,7 +66,7 @@ export function useManagedUsers<K extends string>(
                 setUsers(results);
                 setTotal(data.total);
 
-                const calculatedTotalPages = Math.ceil(data.total / data.page_size) || 0;
+                const calculatedTotalPages = Math.ceil(data.total / data.page_size) || 1;
                 setTotalPages(calculatedTotalPages);
 
                 if (page > calculatedTotalPages) {
