@@ -3,7 +3,7 @@ import * as React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TipoffForm } from "@/components/tipoffs/TipoffForm";
 import { ReportList } from "@/components/reports/ReportList";
-import { notifySafe } from "@/components/ui/toast";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { useAuthStore } from "@/store/authStore";
 import { formatToUTC, toDatetimeLocalValue } from "@/lib/utils";
 import { PLACEHOLDER_PHOTO_TYPE, resolvePhotoUrls } from "@/lib/media";
@@ -53,7 +53,7 @@ export default function TipoffPage() {
                 const res = await tipoffsApi.listTipoffs();
                 setTipoffs(res.results.map(mapToDraft));
             } catch (err) {
-                notifySafe("Error", "Failed to fetch tip-offs");
+                notifyCritical("Error", "Failed to fetch tip-offs");
                 console.error(err);
             } finally {
                 setIsLoading(false);
@@ -64,7 +64,7 @@ export default function TipoffPage() {
 
     const handleSubmit = async (input: DraftReportInput) => {
         if (input.lat === null || input.lon === null) {
-            notifySafe("Error", "Select a location on the map");
+            notifyCritical("Error", "Select a location on the map");
             return;
         }
 
@@ -100,7 +100,7 @@ export default function TipoffPage() {
             setFormKey((key) => key + 1);
             window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (err) {
-            notifySafe(
+            notifyCritical(
                 "Submission failed",
                 "Could not send tip-off to the server",
             );

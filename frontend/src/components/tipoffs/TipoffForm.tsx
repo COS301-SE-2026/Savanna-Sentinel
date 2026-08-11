@@ -8,6 +8,7 @@ import { DateTimeInput } from "@/components/ui/datetime-input";
 import { Button } from "@/components/ui/button";
 import { PhotoPicker } from "@/components/reports/PhotoPicker";
 import { LocationPickerMap } from "@/components/map/LocationPickerMap";
+import { notifyCritical } from "@/components/ui/toast";
 import {
     validateReportInput,
     isReportValid,
@@ -55,9 +56,6 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
     const [occurredAt, setOccurredAt] = React.useState(base.occurredAt);
     const [location, setLocation] = React.useState<LatLon | null>(null);
     const [photos, setPhotos] = React.useState<PhotoAttachment[]>([]);
-    const [locationError, setLocationError] = React.useState<string | null>(
-        null,
-    );
     const [errors, setErrors] = React.useState<ReportValidationErrors>({});
 
     const resolvedIncidentType =
@@ -82,9 +80,8 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
     });
 
     const useCurrentLocation = () => {
-        setLocationError(null);
         if (!navigator.geolocation) {
-            setLocationError(
+            notifyCritical(
                 "Couldn't get your location, drop a pin on the map instead.",
             );
             return;
@@ -97,7 +94,7 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
                 });
             },
             () => {
-                setLocationError(
+                notifyCritical(
                     "Couldn't get your location, drop a pin on the map instead.",
                 );
             },
@@ -305,11 +302,6 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
                 >
                     Use current location
                 </Button>
-                {locationError && (
-                    <span className="text-xs text-status-critical">
-                        {locationError}
-                    </span>
-                )}
                 <LocationPickerMap
                     value={location}
                     onChange={setLocation}

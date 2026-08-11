@@ -4,12 +4,13 @@ import userEvent from "@testing-library/user-event";
 
 import TipoffPage from "@/pages/TipoffPage";
 import { useAuthStore } from "@/store/authStore";
-import { notifySafe } from "@/components/ui/toast";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { tipoffsApi } from "@/services/tipoffsApi";
 import { mediaApi } from "@/services/mediaApi";
 
 vi.mock("@/components/ui/toast", () => ({
     notifySafe: vi.fn(),
+    notifyCritical: vi.fn(),
 }));
 
 vi.mock("@/services/tipoffsApi", () => ({
@@ -38,6 +39,7 @@ describe("TipoffPage", () => {
         URL.createObjectURL = vi.fn(() => "blob:mock-url");
         URL.revokeObjectURL = vi.fn();
         vi.mocked(notifySafe).mockClear();
+        vi.mocked(notifyCritical).mockClear();
         vi.mocked(tipoffsApi.listTipoffs).mockResolvedValue({
             results: [],
             total: 0,
@@ -151,7 +153,7 @@ describe("TipoffPage", () => {
         setUser("admin");
         render(<TipoffPage />);
         await waitFor(() => {
-            expect(notifySafe).toHaveBeenCalledWith(
+            expect(notifyCritical).toHaveBeenCalledWith(
                 "Error",
                 "Failed to fetch tip-offs",
             );
