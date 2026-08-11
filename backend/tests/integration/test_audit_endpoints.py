@@ -210,3 +210,36 @@ async def test_audit_log_includes_actor_username(seeded_audit_logs):
     assert all(
         r["actor_username"] == "test_audit_admin" for r in body["results"]
     )
+
+
+@pytest.mark.asyncio
+async def test_export_requires_authentication():
+    async with _client() as c:
+        r = await c.get("/v1/audit-logs/export")
+    assert r.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_export_rejects_non_admin(ranger_token):
+    async with _client() as c:
+        r = await c.get(
+            "/v1/audit-logs/export",
+            headers={"Authorization": f"Bearer {ranger_token}"},
+        )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_export_returns_csv_with_seeded_rows(seeded_audit_logs):
+    async with _client() as c:
+        r = await c.get(
+            "/v1/audit-logs/export",
+            headers={"Authorization": f"Bearer {seeded_audit_logs['token']}"},
+        )
+
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/csv")
+    assert "attachment" in r.headers["content-disposition"]
+    assert "user.deleted" in r.text
+    assert "user.role_changed" in r.text
+    assert "user.account_accepted" in r.text
