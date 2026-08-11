@@ -12,6 +12,14 @@ import {
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
 import { Pagination } from "../ui/pagination";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import { notifyCritical } from "@/components/ui/toast";
 
 // TODO
@@ -22,6 +30,7 @@ export default function AuditLog() {
     const [currPage, setCurrPage] = React.useState(1);
     const [totalPages, setTotalPages] = React.useState(1);
     const [isExporting, setIsExporting] = React.useState(false);
+    const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
     const pageSize = 20;
 
     useEffect(() => {
@@ -61,6 +70,7 @@ export default function AuditLog() {
     };
 
     const handleExport = async () => {
+        setIsConfirmOpen(false);
         setIsExporting(true);
         try {
             const blob = await auditApi.exportCsv();
@@ -89,11 +99,41 @@ export default function AuditLog() {
                 <Button
                     variant="outline"
                     disabled={isExporting}
-                    onClick={handleExport}
+                    onClick={() => setIsConfirmOpen(true)}
                 >
                     {isExporting ? "Exporting..." : "Export CSV"}
                 </Button>
             </div>
+
+            <Dialog
+                open={isConfirmOpen}
+                onOpenChange={(open) => !isExporting && setIsConfirmOpen(open)}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm export</DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>
+                        Export the audit log to a CSV file?
+                    </DialogDescription>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsConfirmOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={handleExport}
+                        >
+                            Confirm
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
                 <Table>

@@ -136,11 +136,32 @@ describe("AuditLog Component Testing", () => {
         await screen.findByText("ACTION_1");
 
         await user.click(screen.getByRole("button", { name: /export csv/i }));
+        await user.click(screen.getByRole("button", { name: /confirm/i }));
 
         expect(auditApi.exportCsv).toHaveBeenCalled();
         expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
         expect(clickSpy).toHaveBeenCalled();
         expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+    });
+
+    it("does not export when the confirm dialog is cancelled", async () => {
+        mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 1, 20));
+
+        const user = userEvent.setup();
+        render(<AuditLog />);
+        await screen.findByText("ACTION_1");
+
+        await user.click(screen.getByRole("button", { name: /export csv/i }));
+        expect(await screen.findByText(/confirm export/i)).toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+        expect(auditApi.exportCsv).not.toHaveBeenCalled();
+        await waitFor(() => {
+            expect(
+                screen.queryByText(/confirm export/i),
+            ).not.toBeInTheDocument();
+        });
     });
 
     it("shows an error toast when export fails", async () => {
@@ -154,6 +175,7 @@ describe("AuditLog Component Testing", () => {
         await screen.findByText("ACTION_1");
 
         await user.click(screen.getByRole("button", { name: /export csv/i }));
+        await user.click(screen.getByRole("button", { name: /confirm/i }));
 
         await waitFor(() => {
             expect(notifyCritical).toHaveBeenCalledWith(
