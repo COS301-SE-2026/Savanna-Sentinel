@@ -55,6 +55,12 @@ function openSpeciesList() {
     return userEvent.click(screen.getByRole("button", { name: /^species/i }));
 }
 
+function openUsernameList() {
+    return userEvent.click(
+        screen.getByRole("button", { name: /^submitted by/i }),
+    );
+}
+
 describe("ReportSearchFilterBar", () => {
     beforeEach(() => {
         window.innerWidth = 1024;
@@ -189,5 +195,34 @@ describe("ReportSearchFilterBar", () => {
         expect(
             within(screen.getByRole("listbox")).getAllByRole("checkbox"),
         ).toHaveLength(1);
+    });
+
+    it("opens the submitted-by dropdown and applies a username filter as a chip", async () => {
+        render(<Harness />);
+        await openFilters();
+        await openUsernameList();
+        await userEvent.click(
+            within(screen.getByRole("listbox")).getByLabelText("ranger1"),
+        );
+        await userEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+        expect(screen.getByText("Submitted By: ranger1")).toBeInTheDocument();
+    });
+
+    it("removes an active submitted-by filter chip", async () => {
+        render(<Harness />);
+        await openFilters();
+        await openUsernameList();
+        await userEvent.click(
+            within(screen.getByRole("listbox")).getByLabelText("ranger1"),
+        );
+        await userEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+        await userEvent.click(
+            screen.getByRole("button", {
+                name: "Remove submitted by filter: ranger1",
+            }),
+        );
+        expect(
+            screen.queryByText("Submitted By: ranger1"),
+        ).not.toBeInTheDocument();
     });
 });
