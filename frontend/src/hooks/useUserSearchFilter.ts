@@ -11,10 +11,11 @@ interface UserLike {
     role: string;
 }
 
+const ROLES = ["admin", "analyst", "ranger", "community liaison"]
+
 export function useRoleOptions<T extends UserLike>(users: T[]) {
     return useMemo(() => {
-        const uniqueRoles = Array.from(new Set(users.map((u) => u.role)));
-        return uniqueRoles.map((role) => ({
+        return ROLES.map((role) => ({
             value: role,
             label: formatRole(role),
         }));

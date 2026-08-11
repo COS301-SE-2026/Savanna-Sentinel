@@ -98,6 +98,10 @@ export interface ListReportsQueryParams {
     page_size?: number;
 }
 
+export interface SpeciesResponse {
+    species: string[]
+}
+
 export const reportsApi = {
     submitReport: async (
         payload: ReportCreate,
@@ -125,4 +129,7 @@ export const reportsApi = {
 
     getReport: async (reportId: string): Promise<ReportResponse> =>
         api.get<ReportResponse>(`/reports/${reportId}`).then((r) => r.data),
+
+    getSpecies: async() : Promise<SpeciesResponse> => 
+        api.get<SpeciesResponse>(`reports/species`).then((r) => r.data),
 };

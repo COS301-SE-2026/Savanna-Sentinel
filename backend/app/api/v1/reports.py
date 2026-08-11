@@ -160,6 +160,27 @@ async def delete_report(
 
 
 @router.get(
+    "/reports/species",
+    response_model=SpeciesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a list of species in the system to filter by",
+)
+async def get_species(
+    is_authenticated: Annotated[
+        User,
+        Depends(require_roles(["admin", "analyst", "ranger"])),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    repo = ReportRepository(db)
+    service = ReportService(repo)
+
+    species = await service.get_species()
+
+    return SpeciesResponse(species=species)
+
+
+@router.get(
     "/reports/{report_id}",
     response_model=ReportResponse,
     status_code=status.HTTP_200_OK,
@@ -186,24 +207,3 @@ async def get_report(
         )
 
     return ReportResponse(**report)
-
-
-@router.get(
-    "/reports/species",
-    response_model=SpeciesResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Get a list of species in the system to filter by",
-)
-async def get_species(
-    is_authenticated: Annotated[
-        User,
-        Depends(require_roles(["admin", "analyst", "ranger"])),
-    ],
-    db: Annotated[AsyncSession, Depends(get_db)] = None,
-):
-    repo = ReportRepository(db)
-    service = ReportService(repo)
-
-    species = await service.get_species()
-
-    return SpeciesResponse(species=species)

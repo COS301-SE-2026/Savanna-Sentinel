@@ -75,8 +75,7 @@ export function ReportList({
     setSpeciesFilter,
     isLoading
 }: ReportListProps) {
-    
-
+    const [speciesOptions, setSpeciesOptions] = React.useState<string[]>([]);
     const [page, setPage] = React.useState(1);
     const [selectedReport, setSelectedReport] =
         React.useState<DraftReport | null>(null);
@@ -113,10 +112,12 @@ export function ReportList({
         []
     );
 
-    const speciesOptions = React.useMemo(
-        () => getSpeciesOptions(reports),
-        [reports],
-    );
+    React.useEffect(() => {
+        getSpeciesOptions()
+            .then((species) => {
+                setSpeciesOptions(species)
+            })
+    }, [])
 
     const filtered = useReportSearchFilter(
         reports,

@@ -1,12 +1,10 @@
 import { useMemo } from "react";
+import { reportsApi } from "@/services/reportsApi";
 
 import type { DraftReport, ReportType, Severity } from "@/types/reports";
 
-export function getSpeciesOptions(reports: DraftReport[]): string[] {
-    const species = new Set(
-        reports.map((r) => r.species).filter((s) => s !== ""),
-    );
-    return Array.from(species).sort((a, b) => a.localeCompare(b));
+export async function getSpeciesOptions(): Promise<string[]> {
+    return (await reportsApi.getSpecies()).species;
 }
 
 export function useReportSearchFilter(
