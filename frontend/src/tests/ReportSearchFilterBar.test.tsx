@@ -7,13 +7,16 @@ import type { ReportType, Severity } from "@/types/reports";
 
 function Harness({
     speciesOptions = ["Elephant", "Rhino"],
+    usernameOptions = ["ranger1", "ranger2"],
 }: {
     speciesOptions?: string[];
+    usernameOptions?: string[];
 }) {
     const [search, setSearch] = React.useState("");
     const [typeFilter, setTypeFilter] = React.useState<ReportType[]>([]);
     const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
     const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
+    const [usernameFilter, setUsernameFilter] = React.useState<string[]>([]);
     return (
         <ReportSearchFilterBar
             search={search}
@@ -25,6 +28,9 @@ function Harness({
             speciesFilter={speciesFilter}
             onSpeciesFilterChange={setSpeciesFilter}
             speciesOptions={speciesOptions}
+            usernameFilter={usernameFilter}
+            onUsernameFilterChange={setUsernameFilter}
+            usernameOptions={usernameOptions}
         />
     );
 }

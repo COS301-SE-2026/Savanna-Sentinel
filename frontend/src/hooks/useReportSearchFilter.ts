@@ -24,7 +24,7 @@ export function useReportSearchFilter(
     typeFilter: ReportType[],
     severityFilter: Severity[],
     speciesFilter: string[],
-    usernameFilter: string[],
+    usernameFilter: string[] = [],
 ): DraftReport[] {
     return useMemo(() => {
         const query = search.trim().toLowerCase();
