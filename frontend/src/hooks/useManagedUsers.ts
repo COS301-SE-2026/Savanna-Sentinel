@@ -95,7 +95,7 @@ export function useManagedUsers<K extends string>(
         refetch();
     }, [page, refetch]);
 
-    const roleOptions = useRoleOptions(users);
+    const roleOptions = useRoleOptions();
 
     const {
         sorted: sortedUsers,

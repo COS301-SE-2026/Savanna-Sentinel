@@ -13,13 +13,13 @@ interface UserLike {
 
 const ROLES = ["admin", "analyst", "ranger", "community liaison"];
 
-export function useRoleOptions<T extends UserLike>(users: T[]) {
+export function useRoleOptions() {
     return useMemo(() => {
         return ROLES.map((role) => ({
             value: role,
             label: formatRole(role),
         }));
-    }, [users]);
+    }, []);
 }
 
 export function useUserSearchFilter<T extends UserLike>(

@@ -91,20 +91,20 @@ export function ReportList({
     const handleTypeFilterChange = React.useCallback((types: ReportType[]) => {
         setTypeFilter(types);
         setPage(1);
-    }, []);
+    }, [setTypeFilter, setPage]);
 
     const handleSeverityFilterChange = React.useCallback(
         (severities: Severity[]) => {
             setSeverityFilter(severities);
             setPage(1);
         },
-        [],
+        [setSeverityFilter, setPage],
     );
 
     const handleSpeciesFilterChange = React.useCallback((species: string[]) => {
         setSpeciesFilter(species);
         setPage(1);
-    }, []);
+    }, [setSpeciesFilter, setPage]);
 
     React.useEffect(() => {
         getSpeciesOptions().then((species) => {
