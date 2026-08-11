@@ -2,7 +2,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import insert, text
+from sqlalchemy import (
+    Column,
+    DateTime,
+    MetaData,
+    String,
+    Table,
+    Text,
+    func,
+    insert,
+    or_,
+    select,
+    text,
+)
 
 from app.models.tipoff import TipOff
 
@@ -114,3 +126,120 @@ class TipoffRepository:
             "submitted_by": user_id,
             "created_at": created_at,
         }
+
+    async def get_list(
+        self,
+        owner_id: Optional[str],
+        report_type: Optional[str] = None,
+        from_dt: Optional[datetime] = None,
+        to_dt: Optional[datetime] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[dict], int]:
+        md = MetaData()
+        t = Table(
+            "tipoffs",
+            md,
+            Column("id", String),
+            Column("report_type", String),
+            Column("location", Text),
+            Column("occurred_at", DateTime(timezone=True)),
+            Column("description", Text),
+            Column("submitted_by", String),
+            Column("created_at", DateTime(timezone=True)),
+            Column("deleted_at", DateTime(timezone=True)),
+        )
+        i = Table(
+            "incidents",
+            md,
+            Column("id", String),
+            Column("tipoff_id", String),
+            Column("incident_type", Text),
+            Column("severity", String),
+        )
+        s = Table(
+            "sightings",
+            md,
+            Column("id", String),
+            Column("tipoff_id", String),
+            Column("species", Text),
+            Column("count", String),
+        )
+        p = Table(
+            "photos",
+            md,
+            Column("geospatial_event_id", String),
+            Column("image_url", Text),
+        )
+
+        conds = [t.c.deleted_at.is_(None)]
+        if owner_id is not None:
+            conds.append(t.c.submitted_by == owner_id)
+        if report_type is not None:
+            conds.append(t.c.report_type == report_type)
+        if from_dt:
+            conds.append(t.c.occurred_at >= from_dt)
+        if to_dt:
+            conds.append(t.c.occurred_at <= to_dt)
+
+        count_stmt = (
+            select(func.count(func.distinct(t.c.id)))
+            .select_from(
+                t.outerjoin(i, i.c.tipoff_id == t.c.id)
+                .outerjoin(s, s.c.tipoff_id == t.c.id),
+            )
+            .where(*conds)
+        )
+
+        total = (await self.db.execute(count_stmt)).scalar or 0
+
+        images_subq = (
+            select(
+                func.coalesce(
+                    func.array_agg(p.c.image_url), text("ARRAY[]::text[]"),
+                ),
+            )
+            .where(
+                or_(
+                    p.c.geospatial_event_id == i.c.id,
+                    p.c.geospatial_event_id == s.c.id,
+                ),
+            )
+            .scalar_subquery()
+        )
+
+        data_stmt = (
+            select(
+                t.c.id.label("tipoff_id"),
+                t.c.report_type.label("report_type"),
+                func.ST_Y(t.c.location).label("lat"),
+                func.ST_X(t.c.location).label("lon"),
+                t.c.occurred_at,
+                t.c.description,
+                i.c.incident_type.label("incident_type"),
+                i.c.severity.label("severity"),
+                s.c.species.label("species"),
+                s.c.count.label("count"),
+                text("'synced'").label("sync_status"),
+                t.c.submitted_by.label("submitted_by"),
+                t.c.created_at,
+                images_subq.label("images"),
+            )
+            .select_from(t.outerjoin(i, i.c.tipoff_id == t.c.id)
+            .outerjoin(s, s.c.tipoff_id == t.c.id))
+            .where(*conds)
+            .order_by(t.c.created_at.desc())
+            .limit(page_size)
+            .offset((page - 1) * page_size)
+        )
+
+        rows = (await self.db.execute(data_stmt)).mappings().all()
+
+        results = []
+        for row in rows:
+            d = dict(row)
+            d["location"] = {"lat": d.pop("lat"), "lon": d.pop("lon")}
+            d["images"] = list(d.get("images") or [])
+            results.append(d)
+
+        return results, total
