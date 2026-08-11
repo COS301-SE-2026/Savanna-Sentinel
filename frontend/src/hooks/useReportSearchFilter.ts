@@ -9,6 +9,15 @@ export function getSpeciesOptions(reports: DraftReport[]): string[] {
     return Array.from(species).sort((a, b) => a.localeCompare(b));
 }
 
+export function getUsernameOptions(reports: DraftReport[]): string[] {
+    const usernames = new Set(
+        reports
+            .map((r) => r.submittedByUsername)
+            .filter((u): u is string => !!u),
+    );
+    return Array.from(usernames).sort((a, b) => a.localeCompare(b));
+}
+
 export function useReportSearchFilter(
     reports: DraftReport[],
     search: string,
