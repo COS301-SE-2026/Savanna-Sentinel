@@ -3,6 +3,7 @@ import { renderHook } from "@testing-library/react";
 import {
     useReportSearchFilter,
     getSpeciesOptions,
+    getUsernameOptions,
 } from "@/hooks/useReportSearchFilter";
 import type { DraftReport } from "@/types/reports";
 
@@ -194,6 +195,68 @@ describe("useReportSearchFilter", () => {
         );
         expect(result.current).toHaveLength(2);
     });
+
+    it("filters by search text against submittedByUsername", () => {
+        const reports2 = [
+            makeReport({
+                description: "Snare found",
+                submittedByUsername: "jane_ranger",
+            }),
+            makeReport({
+                description: "Herd sighted",
+                submittedByUsername: "john_ranger",
+            }),
+        ];
+        const { result } = renderHook(() =>
+            useReportSearchFilter(reports2, "jane_ranger", [], [], []),
+        );
+        expect(result.current).toHaveLength(1);
+        expect(result.current[0].description).toBe("Snare found");
+    });
+
+    it("filters by the submitted-by username filter, excluding reports with no resolved username", () => {
+        const reports2 = [
+            makeReport({
+                description: "A",
+                submittedByUsername: "jane_ranger",
+            }),
+            makeReport({
+                description: "B",
+                submittedByUsername: "john_ranger",
+            }),
+            makeReport({ description: "C", submittedByUsername: null }),
+        ];
+        const { result } = renderHook(() =>
+            useReportSearchFilter(reports2, "", [], [], [], ["jane_ranger"]),
+        );
+        expect(result.current).toHaveLength(1);
+        expect(result.current[0].description).toBe("A");
+    });
+
+    it("matches any of multiple selected usernames", () => {
+        const reports2 = [
+            makeReport({
+                description: "A",
+                submittedByUsername: "jane_ranger",
+            }),
+            makeReport({
+                description: "B",
+                submittedByUsername: "john_ranger",
+            }),
+            makeReport({ description: "C", submittedByUsername: "sam_ranger" }),
+        ];
+        const { result } = renderHook(() =>
+            useReportSearchFilter(
+                reports2,
+                "",
+                [],
+                [],
+                [],
+                ["jane_ranger", "sam_ranger"],
+            ),
+        );
+        expect(result.current).toHaveLength(2);
+    });
 });
 
 describe("getSpeciesOptions", () => {
@@ -218,5 +281,25 @@ describe("getSpeciesOptions", () => {
             makeReport({ reportType: "sighting", species: "buffalo" }),
         ];
         expect(getSpeciesOptions(reports)).toEqual(["buffalo", "Elephant"]);
+    });
+});
+
+describe("getUsernameOptions", () => {
+    it("returns the distinct, non-null username values sorted alphabetically", () => {
+        const reports2 = [
+            makeReport({ submittedByUsername: "jane_ranger" }),
+            makeReport({ submittedByUsername: null }),
+            makeReport({ submittedByUsername: "amy_ranger" }),
+            makeReport({ submittedByUsername: "jane_ranger" }),
+        ];
+        expect(getUsernameOptions(reports2)).toEqual([
+            "amy_ranger",
+            "jane_ranger",
+        ]);
+    });
+
+    it("returns an empty array when no report has a resolved username", () => {
+        const reports2 = [makeReport({ submittedByUsername: null })];
+        expect(getUsernameOptions(reports2)).toEqual([]);
     });
 });

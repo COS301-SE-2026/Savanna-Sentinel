@@ -9,12 +9,22 @@ export function getSpeciesOptions(reports: DraftReport[]): string[] {
     return Array.from(species).sort((a, b) => a.localeCompare(b));
 }
 
+export function getUsernameOptions(reports: DraftReport[]): string[] {
+    const usernames = new Set(
+        reports
+            .map((r) => r.submittedByUsername)
+            .filter((u): u is string => !!u),
+    );
+    return Array.from(usernames).sort((a, b) => a.localeCompare(b));
+}
+
 export function useReportSearchFilter(
     reports: DraftReport[],
     search: string,
     typeFilter: ReportType[],
     severityFilter: Severity[],
     speciesFilter: string[],
+    usernameFilter: string[] = [],
 ): DraftReport[] {
     return useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -29,6 +39,11 @@ export function useReportSearchFilter(
             const isSpeciesMatch =
                 speciesFilter.length === 0 ||
                 speciesFilter.includes(report.species);
+            const isUsernameMatch =
+                usernameFilter.length === 0 ||
+                (report.submittedByUsername !== null &&
+                    report.submittedByUsername !== undefined &&
+                    usernameFilter.includes(report.submittedByUsername));
             const isSearchMatch =
                 query === "" ||
                 [
@@ -42,6 +57,7 @@ export function useReportSearchFilter(
                     report.lat !== null ? String(report.lat) : "",
                     report.lon !== null ? String(report.lon) : "",
                     report.submittedBy,
+                    report.submittedByUsername ?? "",
                 ]
                     .join(" ")
                     .toLowerCase()
@@ -50,8 +66,16 @@ export function useReportSearchFilter(
                 isTypeMatch &&
                 isSeverityMatch &&
                 isSpeciesMatch &&
+                isUsernameMatch &&
                 isSearchMatch
             );
         });
-    }, [reports, search, typeFilter, severityFilter, speciesFilter]);
+    }, [
+        reports,
+        search,
+        typeFilter,
+        severityFilter,
+        speciesFilter,
+        usernameFilter,
+    ]);
 }
