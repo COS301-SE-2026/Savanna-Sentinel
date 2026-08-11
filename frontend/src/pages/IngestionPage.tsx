@@ -116,7 +116,6 @@ const parseServerError = (error: unknown): ServerErrorDetail | null => {
 
 const IngestionPage = () => {
     const [parsedRows, setParsedRows] = useState<string[][]>([]);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [page, setPage] = useState<number>(1);
     const [isComplete, setIsComplete] = useState<boolean>(false);
     const [serverErrors, setServerErrors] = useState<ServerErrorsMap | null>(
@@ -150,7 +149,6 @@ const IngestionPage = () => {
 
     const handleReset = () => {
         setParsedRows([]);
-        setErrorMessage(null);
         setIsComplete(false);
         setServerErrors(null);
         setPage(1);
@@ -205,7 +203,6 @@ const IngestionPage = () => {
         try {
             await ingestionApi.uploadFile(records, 1);
 
-            setErrorMessage(null);
             setServerErrors(null);
             setIsComplete(true);
             setParsedRows([]);
@@ -226,7 +223,7 @@ const IngestionPage = () => {
                 }
             }
 
-            setErrorMessage(resolvedMessage);
+            notifyCritical(resolvedMessage);
         }
     };
 
@@ -256,7 +253,6 @@ const IngestionPage = () => {
             {parsedRows.length === 0 && !isComplete && (
                 <UploadWizard onFileAccepted={handleFileAccepted} />
             )}
-            {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
             {isComplete && (
                 <EmptyState
                     className="mb-4"
