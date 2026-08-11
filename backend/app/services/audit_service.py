@@ -44,7 +44,8 @@ class AuditService:
                 r.target_id,
             )
         return {
-            "id": r.id, "actor_id": r.actor_id, "actor_username": actor_username,
+            "id": r.id, "actor_id": r.actor_id,
+            "actor_username": actor_username,
             "action": r.action, "target_type": r.target_type,
             "target_id": r.target_id, "target_username": target_username,
             "details": r.details, "created_at": r.created_at,
@@ -78,8 +79,10 @@ class AuditService:
         for r in rows:
             resolved = await self._resolve_row(r)
             writer.writerow([
-                resolved["id"], resolved["actor_id"], resolved["actor_username"],
-                resolved["action"], resolved["target_type"], resolved["target_id"],
+                resolved["id"], resolved["actor_id"],
+                resolved["actor_username"],
+                resolved["action"], resolved["target_type"],
+                resolved["target_id"],
                 resolved["target_username"],
                 json.dumps(resolved["details"]) if resolved["details"] else "",
                 resolved["created_at"].isoformat(),

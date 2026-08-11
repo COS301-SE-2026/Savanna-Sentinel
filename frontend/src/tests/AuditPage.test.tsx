@@ -3,13 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { auditApi, type AuditLogResponse } from "@/services/auditApi";
 import AuditLog from "@/components/admin/AuditLog";
-import { Toaster } from "@/components/ui/sonner";
+import { notifyCritical } from "@/components/ui/toast";
 
 vi.mock("@/services/auditApi", () => ({
     auditApi: {
         getLogs: vi.fn(),
         exportCsv: vi.fn(),
     },
+}));
+
+vi.mock("@/components/ui/toast", () => ({
+    notifyCritical: vi.fn(),
 }));
 
 const createMockResponse = (
@@ -146,16 +150,16 @@ describe("AuditLog Component Testing", () => {
         );
 
         const user = userEvent.setup();
-        render(
-            <>
-                <Toaster />
-                <AuditLog />
-            </>,
-        );
+        render(<AuditLog />);
         await screen.findByText("ACTION_1");
 
         await user.click(screen.getByRole("button", { name: /export csv/i }));
 
-        expect(await screen.findByText(/export failed/i)).toBeInTheDocument();
+        await waitFor(() => {
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Export failed",
+                "Could not download the audit log.",
+            );
+        });
     });
 });

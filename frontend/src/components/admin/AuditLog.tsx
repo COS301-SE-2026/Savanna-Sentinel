@@ -71,7 +71,10 @@ export default function AuditLog() {
             link.click();
             URL.revokeObjectURL(url);
         } catch {
-            notifyCritical("Export failed", "Could not download the audit log.");
+            notifyCritical(
+                "Export failed",
+                "Could not download the audit log.",
+            );
         } finally {
             setIsExporting(false);
         }

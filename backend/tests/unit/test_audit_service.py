@@ -111,7 +111,9 @@ async def test_get_logs_without_user_repo_leaves_usernames_none(fake_audit_log):
     assert response.results[0].target_username is None
 
 
-async def test_export_csv_includes_header_and_resolved_usernames(fake_audit_log):
+async def test_export_csv_includes_header_and_resolved_usernames(
+    fake_audit_log,
+):
     mock_repo = AsyncMock()
     mock_repo.list_all_logs.return_value = [fake_audit_log]
     mock_user_repo = AsyncMock()
@@ -121,7 +123,10 @@ async def test_export_csv_includes_header_and_resolved_usernames(fake_audit_log)
     csv_text = await service.export_csv(_filter_req(page=1, page_size=20))
 
     lines = csv_text.strip().splitlines()
-    assert lines[0] == "id,actor_id,actor_username,action,target_type,target_id,target_username,details,created_at"
+    assert lines[0] == (
+        "id,actor_id,actor_username,action,target_type,"
+        "target_id,target_username,details,created_at"
+    )
     assert "jane_admin" in lines[1]
     assert fake_audit_log.action in lines[1]
 
