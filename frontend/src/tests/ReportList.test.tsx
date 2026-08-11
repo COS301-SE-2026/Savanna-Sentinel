@@ -329,7 +329,9 @@ describe("ReportList", () => {
         );
         const submittedByTrigger = screen
             .getAllByRole("button", { name: /^submitted by/i })
-            .find((button) => button.getAttribute("aria-haspopup") === "listbox");
+            .find(
+                (button) => button.getAttribute("aria-haspopup") === "listbox",
+            );
         if (!submittedByTrigger) {
             throw new Error("Submitted-by filter trigger not found");
         }

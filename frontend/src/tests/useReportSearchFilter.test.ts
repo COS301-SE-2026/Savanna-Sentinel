@@ -216,8 +216,14 @@ describe("useReportSearchFilter", () => {
 
     it("filters by the submitted-by username filter, excluding reports with no resolved username", () => {
         const reports2 = [
-            makeReport({ description: "A", submittedByUsername: "jane_ranger" }),
-            makeReport({ description: "B", submittedByUsername: "john_ranger" }),
+            makeReport({
+                description: "A",
+                submittedByUsername: "jane_ranger",
+            }),
+            makeReport({
+                description: "B",
+                submittedByUsername: "john_ranger",
+            }),
             makeReport({ description: "C", submittedByUsername: null }),
         ];
         const { result } = renderHook(() =>
@@ -229,8 +235,14 @@ describe("useReportSearchFilter", () => {
 
     it("matches any of multiple selected usernames", () => {
         const reports2 = [
-            makeReport({ description: "A", submittedByUsername: "jane_ranger" }),
-            makeReport({ description: "B", submittedByUsername: "john_ranger" }),
+            makeReport({
+                description: "A",
+                submittedByUsername: "jane_ranger",
+            }),
+            makeReport({
+                description: "B",
+                submittedByUsername: "john_ranger",
+            }),
             makeReport({ description: "C", submittedByUsername: "sam_ranger" }),
         ];
         const { result } = renderHook(() =>
