@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import csv
+import io
+import json
 from typing import TYPE_CHECKING, Optional
 
 from app.schemas.audit import AuditLogListResponse, AuditLogResponse
@@ -61,3 +64,24 @@ class AuditService:
             total=total, page=req.page, page_size=req.page_size,
             results=responses,
         )
+
+    async def export_csv(self, req: AuditLogFilterRequest) -> str:
+        rows = await self.repo.list_all_logs(req)
+
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow([
+            "id", "actor_id", "actor_username", "action",
+            "target_type", "target_id", "target_username",
+            "details", "created_at",
+        ])
+        for r in rows:
+            resolved = await self._resolve_row(r)
+            writer.writerow([
+                resolved["id"], resolved["actor_id"], resolved["actor_username"],
+                resolved["action"], resolved["target_type"], resolved["target_id"],
+                resolved["target_username"],
+                json.dumps(resolved["details"]) if resolved["details"] else "",
+                resolved["created_at"].isoformat(),
+            ])
+        return buffer.getvalue()
