@@ -53,6 +53,21 @@ describe("AccountMenu", () => {
         ).toHaveTextContent("J");
     });
 
+    it("opens the popup when the account button is clicked", async () => {
+        setUser("janedoe");
+        renderAccountMenu();
+
+        expect(
+            screen.queryByRole("link", { name: /profile & settings/i }),
+        ).not.toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("button", { name: "Account" }));
+
+        expect(
+            await screen.findByRole("link", { name: /profile & settings/i }),
+        ).toBeInTheDocument();
+    });
+
     it("shows the username and role once opened", async () => {
         setUser("janedoe", "community_liaison");
         renderAccountMenu();
