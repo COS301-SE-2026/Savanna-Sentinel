@@ -467,3 +467,14 @@ class ReportRepository:
             )
         ).fetchall()
         return [row[0] for row in rows]
+
+    async def get_species(self) -> list[str]:
+        sql = text("""
+            SELECT DISTINCT species
+            FROM sightings
+            WHERE species IS NOT NULL AND TRIM(species) != ''
+            ORDER BY species ASC
+        """)
+
+        result = await self.db.execute(sql)
+        return list(result.scalars().all())

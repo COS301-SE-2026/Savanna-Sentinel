@@ -4,7 +4,7 @@ from typing import Annotated, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, get_db
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.user import User
 from app.repositories.report_repository import ReportRepository
 from app.schemas.report import (
@@ -13,6 +13,7 @@ from app.schemas.report import (
     ReportResponse,
     ReportSubmitResponse,
     ReportUpdate,
+    SpeciesResponse,
 )
 from app.services.report_service import ReportService
 
@@ -185,3 +186,24 @@ async def get_report(
         )
 
     return ReportResponse(**report)
+
+
+@router.get(
+    "/reports/species",
+    response_model=SpeciesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a list of species in the system to filter by",
+)
+async def get_species(
+    is_authenticated: Annotated[
+        User,
+        Depends(require_roles(["admin", "analyst", "ranger"])),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    repo = ReportRepository(db)
+    service = ReportService(repo)
+
+    species = await service.get_species()
+
+    return SpeciesResponse(species=species)

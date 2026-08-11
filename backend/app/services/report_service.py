@@ -232,3 +232,9 @@ class ReportService:
         return [
             self.media_service.generate_view_url(url) for url in (images or [])
         ]
+
+    async def get_species(
+            self,
+    ) -> list[str]:
+        species = await self.repo.get_species()
+        return species
