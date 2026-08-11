@@ -194,6 +194,56 @@ describe("useReportSearchFilter", () => {
         );
         expect(result.current).toHaveLength(2);
     });
+
+    it("filters by search text against submittedByUsername", () => {
+        const reports2 = [
+            makeReport({
+                description: "Snare found",
+                submittedByUsername: "jane_ranger",
+            }),
+            makeReport({
+                description: "Herd sighted",
+                submittedByUsername: "john_ranger",
+            }),
+        ];
+        const { result } = renderHook(() =>
+            useReportSearchFilter(reports2, "jane_ranger", [], [], []),
+        );
+        expect(result.current).toHaveLength(1);
+        expect(result.current[0].description).toBe("Snare found");
+    });
+
+    it("filters by the submitted-by username filter, excluding reports with no resolved username", () => {
+        const reports2 = [
+            makeReport({ description: "A", submittedByUsername: "jane_ranger" }),
+            makeReport({ description: "B", submittedByUsername: "john_ranger" }),
+            makeReport({ description: "C", submittedByUsername: null }),
+        ];
+        const { result } = renderHook(() =>
+            useReportSearchFilter(reports2, "", [], [], [], ["jane_ranger"]),
+        );
+        expect(result.current).toHaveLength(1);
+        expect(result.current[0].description).toBe("A");
+    });
+
+    it("matches any of multiple selected usernames", () => {
+        const reports2 = [
+            makeReport({ description: "A", submittedByUsername: "jane_ranger" }),
+            makeReport({ description: "B", submittedByUsername: "john_ranger" }),
+            makeReport({ description: "C", submittedByUsername: "sam_ranger" }),
+        ];
+        const { result } = renderHook(() =>
+            useReportSearchFilter(
+                reports2,
+                "",
+                [],
+                [],
+                [],
+                ["jane_ranger", "sam_ranger"],
+            ),
+        );
+        expect(result.current).toHaveLength(2);
+    });
 });
 
 describe("getSpeciesOptions", () => {
