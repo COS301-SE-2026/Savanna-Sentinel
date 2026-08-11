@@ -15,6 +15,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { PhotoPicker } from "@/components/reports/PhotoPicker";
+import { notifyCritical } from "@/components/ui/toast";
 import {
     validateReportInput,
     isReportValid,
@@ -94,9 +95,6 @@ export function FieldReportForm({
         base.lon === null ? "" : String(base.lon),
     );
     const [photos, setPhotos] = React.useState<PhotoAttachment[]>(base.photos);
-    const [locationError, setLocationError] = React.useState<string | null>(
-        null,
-    );
     const [errors, setErrors] = React.useState<ReportValidationErrors>({});
     const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
 
@@ -122,9 +120,8 @@ export function FieldReportForm({
     });
 
     const useCurrentLocation = () => {
-        setLocationError(null);
         if (!navigator.geolocation) {
-            setLocationError(
+            notifyCritical(
                 "Couldn't get your location, enter it manually below.",
             );
             return;
@@ -135,7 +132,7 @@ export function FieldReportForm({
                 setLon(String(position.coords.longitude));
             },
             () => {
-                setLocationError(
+                notifyCritical(
                     "Couldn't get your location, enter it manually below.",
                 );
             },
@@ -343,11 +340,6 @@ export function FieldReportForm({
                 >
                     Use current location
                 </Button>
-                {locationError && (
-                    <span className="text-xs text-status-critical">
-                        {locationError}
-                    </span>
-                )}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="flex flex-col gap-1">
                         <label

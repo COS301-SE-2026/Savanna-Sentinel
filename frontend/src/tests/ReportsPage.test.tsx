@@ -3,12 +3,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ReportsPage from "@/pages/ReportsPage";
 import { useAuthStore } from "@/store/authStore";
-import { notifySafe } from "@/components/ui/toast";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { reportsApi } from "@/services/reportsApi";
 import { mediaApi } from "@/services/mediaApi";
 
 vi.mock("@/components/ui/toast", () => ({
     notifySafe: vi.fn(),
+    notifyCritical: vi.fn(),
 }));
 
 vi.mock("@/services/reportsApi", () => ({
@@ -55,6 +56,7 @@ describe("ReportsPage", () => {
         URL.createObjectURL = vi.fn(() => "blob:mock-url");
         URL.revokeObjectURL = vi.fn();
         vi.mocked(notifySafe).mockClear();
+        vi.mocked(notifyCritical).mockClear();
         vi.mocked(reportsApi.listReports).mockResolvedValue({
             results: [],
             total: 0,
@@ -127,7 +129,7 @@ describe("ReportsPage", () => {
         setUser("ranger");
         render(<ReportsPage />);
         await waitFor(() => {
-            expect(notifySafe).toHaveBeenCalledWith(
+            expect(notifyCritical).toHaveBeenCalledWith(
                 "Error",
                 "Failed to fetch reports",
             );
@@ -188,7 +190,7 @@ describe("ReportsPage", () => {
         setUser("ranger");
         render(<ReportsPage />);
         await submitMinimalIncidentReport("Snare found near the river");
-        expect(notifySafe).toHaveBeenCalledWith(
+        expect(notifyCritical).toHaveBeenCalledWith(
             "Submission failed",
             "Could not send report to the server",
         );
