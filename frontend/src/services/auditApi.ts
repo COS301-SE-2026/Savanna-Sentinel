@@ -32,4 +32,9 @@ export const auditApi = {
         api
             .get<AuditLogResponse>("/audit-logs", { params: payload })
             .then((r) => r.data),
+
+    exportCsv: async (): Promise<Blob> =>
+        api
+            .get("/audit-logs/export", { responseType: "blob" })
+            .then((r) => r.data),
 };
