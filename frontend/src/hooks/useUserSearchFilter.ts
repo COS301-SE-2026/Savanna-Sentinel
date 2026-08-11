@@ -11,7 +11,7 @@ interface UserLike {
     role: string;
 }
 
-const ROLES = ["admin", "analyst", "ranger", "community liaison"]
+const ROLES = ["admin", "analyst", "ranger", "community liaison"];
 
 export function useRoleOptions<T extends UserLike>(users: T[]) {
     return useMemo(() => {

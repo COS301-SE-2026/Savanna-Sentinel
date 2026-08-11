@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSort } from "@/hooks/useSort";
-import {
-    useRoleOptions,
-} from "@/hooks/useUserSearchFilter";
+import { useRoleOptions } from "@/hooks/useUserSearchFilter";
 import { useDebounce } from "./useDebounce";
 import type { PaginatedUsersResponse, UserResponse } from "@/services/usersApi";
 
@@ -10,14 +8,14 @@ interface UseManagedUsersOptions {
     transform?: (results: UserResponse[]) => UserResponse[];
     errorMessage?: string;
     onError?: (error: unknown) => void;
-    debounceMs?: number
+    debounceMs?: number;
 }
 
 export function useManagedUsers<K extends string>(
     fetchUsers: (
         page: number,
         search: string,
-        roleFilter: string[]
+        roleFilter: string[],
     ) => Promise<PaginatedUsersResponse>,
     sortAccessors: Record<K, (user: UserResponse) => string | number>,
     options?: UseManagedUsersOptions,
@@ -45,19 +43,29 @@ export function useManagedUsers<K extends string>(
         setPage(1);
     }, []);
 
-    const setRoleFilter = useCallback((newRoles: React.SetStateAction<string[]>) => {
-        setSelectedRoles(newRoles);
-        setPage(1);
-    }, []);
+    const setRoleFilter = useCallback(
+        (newRoles: React.SetStateAction<string[]>) => {
+            setSelectedRoles(newRoles);
+            setPage(1);
+        },
+        [],
+    );
 
-    const debouncedSearchQuery = useDebounce(searchQuery, options?.debounceMs ?? 300);
+    const debouncedSearchQuery = useDebounce(
+        searchQuery,
+        options?.debounceMs ?? 300,
+    );
 
     const refetch = useCallback(() => {
         return Promise.resolve()
             .then(() => {
                 setIsLoading(true);
                 setPageError(null);
-                return fetchUsersRef.current(page, debouncedSearchQuery, selectedRoles);
+                return fetchUsersRef.current(
+                    page,
+                    debouncedSearchQuery,
+                    selectedRoles,
+                );
             })
             .then((data) => {
                 const results = optionsRef.current?.transform
@@ -66,7 +74,8 @@ export function useManagedUsers<K extends string>(
                 setUsers(results);
                 setTotal(data.total);
 
-                const calculatedTotalPages = Math.ceil(data.total / data.page_size) || 1;
+                const calculatedTotalPages =
+                    Math.ceil(data.total / data.page_size) || 1;
                 setTotalPages(calculatedTotalPages);
 
                 if (page > calculatedTotalPages) {
@@ -85,7 +94,6 @@ export function useManagedUsers<K extends string>(
     useEffect(() => {
         refetch();
     }, [page, refetch]);
-    
 
     const roleOptions = useRoleOptions(users);
 
@@ -101,9 +109,9 @@ export function useManagedUsers<K extends string>(
         setUsers,
         isLoading,
         pageError,
-        search : searchQuery,
+        search: searchQuery,
         setSearch,
-        roleFilter : selectedRoles,
+        roleFilter: selectedRoles,
         setRoleFilter,
         roleOptions,
         sortedUsers,

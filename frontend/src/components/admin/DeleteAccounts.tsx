@@ -176,43 +176,43 @@ export const DeleteAccounts = () => {
                     loadingText="Loading users..."
                 />
             ) : (
-            <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
-                <Table>
-                    <TableHeader className="bg-brand-primary">
-                        <TableRow className="hover:bg-transparent">
-                            <SortableColumns
-                                columns={USER_COLUMNS}
-                                sortKey={sortKey}
-                                direction={direction}
-                                requestSort={requestSort}
-                            />
-                            <TableHead className={theadClass}>
-                                Actions
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedUsers.length === 0 ? (
-                            <EmptyTableRow
-                                colSpan={5}
-                                message={
-                                    users.length === 0
-                                        ? "No active users found."
-                                        : "No users match your search or filters."
-                                }
-                            />
-                        ) : (
-                            sortedUsers.map((user) => (
-                                <UserRow
-                                    key={user.id}
-                                    user={user}
-                                    onDeleted={refetch}
+                <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
+                    <Table>
+                        <TableHeader className="bg-brand-primary">
+                            <TableRow className="hover:bg-transparent">
+                                <SortableColumns
+                                    columns={USER_COLUMNS}
+                                    sortKey={sortKey}
+                                    direction={direction}
+                                    requestSort={requestSort}
                                 />
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                                <TableHead className={theadClass}>
+                                    Actions
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedUsers.length === 0 ? (
+                                <EmptyTableRow
+                                    colSpan={5}
+                                    message={
+                                        users.length === 0
+                                            ? "No active users found."
+                                            : "No users match your search or filters."
+                                    }
+                                />
+                            ) : (
+                                sortedUsers.map((user) => (
+                                    <UserRow
+                                        key={user.id}
+                                        user={user}
+                                        onDeleted={refetch}
+                                    />
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             )}
             <Pagination
                 currentPage={page}

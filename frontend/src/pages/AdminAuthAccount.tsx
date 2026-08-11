@@ -99,44 +99,47 @@ const AuthPage = () => {
                     loadingText="Loading users..."
                 />
             ) : (
-            <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
-                <Table>
-                    <TableHeader className="bg-brand-primary">
-                        <TableRow className="hover:bg-transparent">
-                            <SortableColumns
-                                columns={PENDING_USER_COLUMNS}
-                                sortKey={sortKey}
-                                direction={direction}
-                                requestSort={requestSort}
-                            />
-                            <TableHead
-                                className={cn(theadClass, "text-center")}
-                            >
-                                Actions
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedUsers.length === 0 ? (
-                            <TableRow className={rowClass}>
-                                <TableCell colSpan={5} className={cellClass}>
-                                    {users.length === 0
-                                        ? "No Pending Registrations found"
-                                        : "No registrations match your search or filters."}
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            sortedUsers.map((user) => (
-                                <UserRow
-                                    key={user.id}
-                                    user={user}
-                                    refreshList={fetchPendingUsers}
+                <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
+                    <Table>
+                        <TableHeader className="bg-brand-primary">
+                            <TableRow className="hover:bg-transparent">
+                                <SortableColumns
+                                    columns={PENDING_USER_COLUMNS}
+                                    sortKey={sortKey}
+                                    direction={direction}
+                                    requestSort={requestSort}
                                 />
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                                <TableHead
+                                    className={cn(theadClass, "text-center")}
+                                >
+                                    Actions
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedUsers.length === 0 ? (
+                                <TableRow className={rowClass}>
+                                    <TableCell
+                                        colSpan={5}
+                                        className={cellClass}
+                                    >
+                                        {users.length === 0
+                                            ? "No Pending Registrations found"
+                                            : "No registrations match your search or filters."}
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                sortedUsers.map((user) => (
+                                    <UserRow
+                                        key={user.id}
+                                        user={user}
+                                        refreshList={fetchPendingUsers}
+                                    />
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             )}
             <Pagination
                 currentPage={page}

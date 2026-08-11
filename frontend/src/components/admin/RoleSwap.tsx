@@ -227,44 +227,44 @@ export const RoleSwap = () => {
                     loadingText="Loading users..."
                 />
             ) : (
-            <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
-                <Table>
-                    <TableHeader className="bg-brand-primary">
-                        <TableRow className="hover:bg-transparent">
-                            <SortableColumns
-                                columns={USER_COLUMNS}
-                                sortKey={sortKey}
-                                direction={direction}
-                                requestSort={requestSort}
-                            />
-                            <TableHead className={theadClass}>
-                                Assign Role
-                            </TableHead>
-                            <TableHead className={theadClass} />
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedUsers.length === 0 ? (
-                            <EmptyTableRow
-                                colSpan={6}
-                                message={
-                                    users.length === 0
-                                        ? "No active users found."
-                                        : "No users match your search or filters."
-                                }
-                            />
-                        ) : (
-                            sortedUsers.map((user) => (
-                                <UserRow
-                                    key={user.id}
-                                    user={user}
-                                    onRoleChanged={fetchUsers}
+                <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
+                    <Table>
+                        <TableHeader className="bg-brand-primary">
+                            <TableRow className="hover:bg-transparent">
+                                <SortableColumns
+                                    columns={USER_COLUMNS}
+                                    sortKey={sortKey}
+                                    direction={direction}
+                                    requestSort={requestSort}
                                 />
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                                <TableHead className={theadClass}>
+                                    Assign Role
+                                </TableHead>
+                                <TableHead className={theadClass} />
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedUsers.length === 0 ? (
+                                <EmptyTableRow
+                                    colSpan={6}
+                                    message={
+                                        users.length === 0
+                                            ? "No active users found."
+                                            : "No users match your search or filters."
+                                    }
+                                />
+                            ) : (
+                                sortedUsers.map((user) => (
+                                    <UserRow
+                                        key={user.id}
+                                        user={user}
+                                        onRoleChanged={fetchUsers}
+                                    />
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             )}
             <Pagination
                 currentPage={page}

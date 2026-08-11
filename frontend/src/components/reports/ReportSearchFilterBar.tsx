@@ -1,4 +1,7 @@
-import { MultiSelectFilterBar, type MultiSelectFilterGroup } from "@/components/ui/multi-select-filter-bar";
+import {
+    MultiSelectFilterBar,
+    type MultiSelectFilterGroup,
+} from "@/components/ui/multi-select-filter-bar";
 import type { ReportType, Severity } from "@/types/reports";
 import React from "react";
 
@@ -36,46 +39,46 @@ function ReportSearchFilterBarBase({
     onSpeciesFilterChange,
     speciesOptions,
 }: ReportSearchFilterBarProps) {
-    const filterGroups : MultiSelectFilterGroup[] = React.useMemo(
+    const filterGroups: MultiSelectFilterGroup[] = React.useMemo(
         () => [
-                {
-                    key: "type",
-                    label: "Report Type",
-                    chipLabel: "Type",
-                    options: TYPE_OPTIONS,
-                    selected: typeFilter,
-                    onChange: (values) =>
-                        onTypeFilterChange(values as ReportType[]),
-                },
-                {
-                    key: "severity",
-                    label: "Severity",
-                    options: SEVERITY_OPTIONS,
-                    selected: severityFilter,
-                    onChange: (values) =>
-                        onSeverityFilterChange(values as Severity[]),
-                },
-                {
-                    key: "species",
-                    label: "Species",
-                    options: speciesOptions.map((species) => ({
-                        value: species,
-                        label: species,
-                    })),
-                    selected: speciesFilter,
-                    onChange: onSpeciesFilterChange,
-                },
-            ],
-            [
-                typeFilter,
-                onTypeFilterChange,
-                severityFilter,
-                onSeverityFilterChange,
-                speciesOptions,
-                speciesFilter,
-                onSpeciesFilterChange,
-            ]
-    )
+            {
+                key: "type",
+                label: "Report Type",
+                chipLabel: "Type",
+                options: TYPE_OPTIONS,
+                selected: typeFilter,
+                onChange: (values) =>
+                    onTypeFilterChange(values as ReportType[]),
+            },
+            {
+                key: "severity",
+                label: "Severity",
+                options: SEVERITY_OPTIONS,
+                selected: severityFilter,
+                onChange: (values) =>
+                    onSeverityFilterChange(values as Severity[]),
+            },
+            {
+                key: "species",
+                label: "Species",
+                options: speciesOptions.map((species) => ({
+                    value: species,
+                    label: species,
+                })),
+                selected: speciesFilter,
+                onChange: onSpeciesFilterChange,
+            },
+        ],
+        [
+            typeFilter,
+            onTypeFilterChange,
+            severityFilter,
+            onSeverityFilterChange,
+            speciesOptions,
+            speciesFilter,
+            onSpeciesFilterChange,
+        ],
+    );
     return (
         <MultiSelectFilterBar
             search={search}

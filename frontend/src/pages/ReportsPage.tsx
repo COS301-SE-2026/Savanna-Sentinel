@@ -95,12 +95,12 @@ export default function ReportsPage() {
     useEffect(() => {
         async function fetchReports() {
             setIsLoading(true);
-            const temp : ListReportsQueryParams = {
+            const temp: ListReportsQueryParams = {
                 search: debouncedSearch || undefined,
                 report_type: typeFilter || null,
                 severity: severityFilter || null,
                 species: speciesFilter || null,
-            }
+            };
             try {
                 const res = await reportsApi.listReports(temp);
                 setReports(res.results.map(mapToDraft));
@@ -113,7 +113,13 @@ export default function ReportsPage() {
             }
         }
         fetchReports();
-    }, [debouncedSearch, isInitialLoad, typeFilter, severityFilter, speciesFilter]);
+    }, [
+        debouncedSearch,
+        isInitialLoad,
+        typeFilter,
+        severityFilter,
+        speciesFilter,
+    ]);
 
     const myDrafts = useMemo(
         () =>
@@ -244,7 +250,11 @@ export default function ReportsPage() {
                         //replace with a better loading state, like the skeleton loading
                         <p>Loading reports...</p>
                     ) : (
-                        <div className={isLoading ? "opacity-60 transition-opacity" : ""}>
+                        <div
+                            className={
+                                isLoading ? "opacity-60 transition-opacity" : ""
+                            }
+                        >
                             <ReportList
                                 reports={reports}
                                 canSubmit={canSubmit}
@@ -252,7 +262,7 @@ export default function ReportsPage() {
                                 search={search}
                                 setSearch={(value) => {
                                     setIsLoading(true);
-                                    setSearch(value)
+                                    setSearch(value);
                                 }}
                                 typeFilter={typeFilter}
                                 setTypeFilter={(value) => {
@@ -262,7 +272,7 @@ export default function ReportsPage() {
                                 severityFilter={severityFilter}
                                 setSeverityFilter={(value) => {
                                     setIsLoading(true);
-                                    setSeverityFilter(value)
+                                    setSeverityFilter(value);
                                 }}
                                 speciesFilter={speciesFilter}
                                 setSpeciesFilter={(value) => {

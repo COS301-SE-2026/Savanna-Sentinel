@@ -110,11 +110,13 @@ export default function AuditLog() {
                                     className={`${cellClass} text-nowrap`}
                                 >
                                     {log.created_at
-                                        ? new Date(log.created_at).toLocaleString(undefined, {
-                                            dateStyle: "medium",
-                                            timeStyle: "short",
-                                        })
-                                    : "—"}
+                                        ? new Date(
+                                              log.created_at,
+                                          ).toLocaleString(undefined, {
+                                              dateStyle: "medium",
+                                              timeStyle: "short",
+                                          })
+                                        : "—"}
                                 </TableCell>
                             </TableRow>
                         ))}

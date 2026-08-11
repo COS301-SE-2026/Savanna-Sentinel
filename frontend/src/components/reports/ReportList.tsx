@@ -58,7 +58,7 @@ interface ReportListProps {
     setSeverityFilter: React.Dispatch<React.SetStateAction<Severity[]>>;
     speciesFilter: string[];
     setSpeciesFilter: React.Dispatch<React.SetStateAction<string[]>>;
-    isLoading: boolean
+    isLoading: boolean;
 }
 
 export function ReportList({
@@ -73,51 +73,44 @@ export function ReportList({
     setSeverityFilter,
     speciesFilter,
     setSpeciesFilter,
-    isLoading
+    isLoading,
 }: ReportListProps) {
     const [speciesOptions, setSpeciesOptions] = React.useState<string[]>([]);
     const [page, setPage] = React.useState(1);
     const [selectedReport, setSelectedReport] =
         React.useState<DraftReport | null>(null);
 
-        const handleSearchChange = React.useCallback(
+    const handleSearchChange = React.useCallback(
         (value: string) => {
             setSearch(value);
             setPage(1);
         },
-        [setSearch]
-    )
-
-    const handleTypeFilterChange = React.useCallback(
-        (types: ReportType[]) => {
-            setTypeFilter(types);
-            setPage(1);
-        },
-        []
+        [setSearch],
     );
+
+    const handleTypeFilterChange = React.useCallback((types: ReportType[]) => {
+        setTypeFilter(types);
+        setPage(1);
+    }, []);
 
     const handleSeverityFilterChange = React.useCallback(
         (severities: Severity[]) => {
             setSeverityFilter(severities);
             setPage(1);
         },
-        []
+        [],
     );
 
-    const handleSpeciesFilterChange = React.useCallback(
-        (species: string[]) => {
-            setSpeciesFilter(species);
-            setPage(1);
-        },
-        []
-    );
+    const handleSpeciesFilterChange = React.useCallback((species: string[]) => {
+        setSpeciesFilter(species);
+        setPage(1);
+    }, []);
 
     React.useEffect(() => {
-        getSpeciesOptions()
-            .then((species) => {
-                setSpeciesOptions(species)
-            })
-    }, [])
+        getSpeciesOptions().then((species) => {
+            setSpeciesOptions(species);
+        });
+    }, []);
 
     const filtered = useReportSearchFilter(
         reports,
@@ -145,7 +138,7 @@ export function ReportList({
         severityFilter.length > 0 ||
         speciesFilter.length > 0;
 
-    if (reports.length === 0 && !hasActiveFilters && !isLoading ) {
+    if (reports.length === 0 && !hasActiveFilters && !isLoading) {
         return (
             <EmptyState
                 icon={Inbox}

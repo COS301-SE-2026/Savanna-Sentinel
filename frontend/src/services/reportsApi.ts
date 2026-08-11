@@ -87,7 +87,7 @@ export interface ReportUpdate {
 }
 
 export interface ListReportsQueryParams {
-    search?: string,
+    search?: string;
     report_type?: ReportType | ReportType[];
     severity?: SeverityLevel | SeverityLevel[];
     species?: string | string[];
@@ -99,7 +99,7 @@ export interface ListReportsQueryParams {
 }
 
 export interface SpeciesResponse {
-    species: string[]
+    species: string[];
 }
 
 export const reportsApi = {
@@ -130,6 +130,6 @@ export const reportsApi = {
     getReport: async (reportId: string): Promise<ReportResponse> =>
         api.get<ReportResponse>(`/reports/${reportId}`).then((r) => r.data),
 
-    getSpecies: async() : Promise<SpeciesResponse> => 
+    getSpecies: async (): Promise<SpeciesResponse> =>
         api.get<SpeciesResponse>(`reports/species`).then((r) => r.data),
 };
