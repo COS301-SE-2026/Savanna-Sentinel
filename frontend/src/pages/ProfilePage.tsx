@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordVisibilityToggle } from "@/components/auth/PasswordVisibilityToggle";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import {
     Dialog,
     DialogContent,
@@ -35,9 +36,6 @@ export const ProfilePage: React.FC = () => {
         "save-profile" | "change-password" | null
     >(null);
     const [isConfirming, setIsConfirming] = useState(false);
-
-    const [message, setMessage] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
 
     const logout = useAuthStore((s) => s.logout);
     const profileFirstName = profile?.first_name ?? "";
@@ -82,7 +80,7 @@ export const ProfilePage: React.FC = () => {
             })
             .catch(() => {
                 if (!isMounted) return;
-                setError("Failed to load profile");
+                notifyCritical("Failed to load profile");
             })
             .finally(() => isMounted && setLoadingProfile(false));
 
@@ -116,8 +114,6 @@ export const ProfilePage: React.FC = () => {
 
     const applyProfileChanges = async () => {
         setSavingProfile(true);
-        setMessage(null);
-        setError(null);
 
         try {
             const payload: { first_name?: string; last_name?: string } = {};
@@ -128,9 +124,9 @@ export const ProfilePage: React.FC = () => {
 
             const updated = await usersApi.updateProfile(payload);
             setProfile(updated);
-            setMessage("Profile updated");
+            notifySafe("Profile updated");
         } catch (err: unknown) {
-            setError(getErrorMessage(err, "Failed to update profile"));
+            notifyCritical(getErrorMessage(err, "Failed to update profile"));
         } finally {
             setSavingProfile(false);
         }
@@ -138,47 +134,47 @@ export const ProfilePage: React.FC = () => {
 
     const applyPasswordChanges = async () => {
         setChangingPassword(true);
-        setMessage(null);
-        setError(null);
 
         const isCurrentPasswordShort = currentPassword.length < 8;
         const isNewPasswordShort = newPassword.length < 8;
 
         if (isCurrentPasswordShort || isNewPasswordShort) {
             if (isCurrentPasswordShort && isNewPasswordShort) {
-                setError(
+                notifyCritical(
                     "Current and new password must be at least 8 characters",
                 );
             } else if (isCurrentPasswordShort) {
-                setError("Current password cannot be less than 8 characters");
+                notifyCritical(
+                    "Current password cannot be less than 8 characters",
+                );
             } else {
-                setError("New password cannot be less than 8 characters");
+                notifyCritical("New password cannot be less than 8 characters");
             }
             setChangingPassword(false);
             return;
         }
 
         if (currentPassword === newPassword) {
-            setError("Current and New password cannot be the same");
+            notifyCritical("Current and New password cannot be the same");
             setChangingPassword(false);
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            setError("New password and confirm password must match");
+            notifyCritical("New password and confirm password must match");
             setChangingPassword(false);
             return;
         }
 
         try {
             await usersApi.changePassword(currentPassword, newPassword);
-            setMessage("Password changed — you will be signed out...");
+            notifySafe("Password changed", "You will be signed out...");
             setTimeout(() => logout(), 1500);
             setCurrentPassword("");
             setNewPassword("");
             setConfirmPassword("");
         } catch (err: unknown) {
-            setError(getErrorMessage(err, "Failed to change password"));
+            notifyCritical(getErrorMessage(err, "Failed to change password"));
         } finally {
             setChangingPassword(false);
         }
@@ -202,8 +198,6 @@ export const ProfilePage: React.FC = () => {
     const onSaveProfile = async (e?: React.FormEvent) => {
         e?.preventDefault();
         if (isSaveDisabled) return;
-        setMessage(null);
-        setError(null);
         setPendingAction("save-profile");
     };
 
@@ -212,8 +206,6 @@ export const ProfilePage: React.FC = () => {
         if (isChangePasswordDisabled) {
             return;
         }
-        setMessage(null);
-        setError(null);
         setPendingAction("change-password");
     };
 
@@ -306,8 +298,6 @@ export const ProfilePage: React.FC = () => {
                                     onClick={() => {
                                         setFirstName(profileFirstName);
                                         setLastName(profileLastName);
-                                        setMessage(null);
-                                        setError(null);
                                     }}
                                 >
                                     Reset
@@ -360,10 +350,9 @@ export const ProfilePage: React.FC = () => {
                                     type={showNewPassword ? "text" : "password"}
                                     className="pr-12"
                                     value={newPassword}
-                                    onChange={(e) => {
-                                        setNewPassword(e.target.value);
-                                        setError(null);
-                                    }}
+                                    onChange={(e) =>
+                                        setNewPassword(e.target.value)
+                                    }
                                 />
                                 <PasswordVisibilityToggle
                                     isVisible={showNewPassword}
@@ -391,10 +380,9 @@ export const ProfilePage: React.FC = () => {
                                     }
                                     className="pr-12"
                                     value={confirmPassword}
-                                    onChange={(e) => {
-                                        setConfirmPassword(e.target.value);
-                                        setError(null);
-                                    }}
+                                    onChange={(e) =>
+                                        setConfirmPassword(e.target.value)
+                                    }
                                 />
                                 <PasswordVisibilityToggle
                                     isVisible={showConfirmPassword}
@@ -417,21 +405,6 @@ export const ProfilePage: React.FC = () => {
                     </form>
                 </section>
             </div>
-
-            {message && (
-                <output className="mt-6 block rounded-md border border-color-border bg-status-safe/10 p-3 text-sm text-status-safe-text">
-                    {message}
-                </output>
-            )}
-
-            {error && (
-                <div
-                    className="mt-6 rounded-md border border-color-border bg-status-critical/5 p-3 text-sm text-status-critical-text"
-                    role="alert"
-                >
-                    {error}
-                </div>
-            )}
         </div>
     );
 };
