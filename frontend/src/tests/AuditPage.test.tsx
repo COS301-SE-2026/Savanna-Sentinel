@@ -3,10 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { auditApi, type AuditLogResponse } from "@/services/auditApi";
 import AuditLog from "@/components/admin/AuditLog";
+import { Toaster } from "@/components/ui/sonner";
 
 vi.mock("@/services/auditApi", () => ({
     auditApi: {
         getLogs: vi.fn(),
+        exportCsv: vi.fn(),
     },
 }));
 
@@ -108,5 +110,52 @@ describe("AuditLog Component Testing", () => {
             });
         });
         expect(await screen.findByText("ACTION_21")).toBeInTheDocument();
+    });
+
+    it("downloads a CSV file when Export CSV is clicked", async () => {
+        mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 1, 20));
+        const mockedExport = vi.mocked(auditApi.exportCsv);
+        mockedExport.mockResolvedValueOnce(
+            new Blob(["id,action"], { type: "text/csv" }),
+        );
+
+        const createObjectURL = vi.fn().mockReturnValue("blob:mock-url");
+        const revokeObjectURL = vi.fn();
+        URL.createObjectURL = createObjectURL;
+        URL.revokeObjectURL = revokeObjectURL;
+        const clickSpy = vi
+            .spyOn(HTMLAnchorElement.prototype, "click")
+            .mockImplementation(() => {});
+
+        const user = userEvent.setup();
+        render(<AuditLog />);
+        await screen.findByText("ACTION_1");
+
+        await user.click(screen.getByRole("button", { name: /export csv/i }));
+
+        expect(auditApi.exportCsv).toHaveBeenCalled();
+        expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+        expect(clickSpy).toHaveBeenCalled();
+        expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+    });
+
+    it("shows an error toast when export fails", async () => {
+        mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 1, 20));
+        vi.mocked(auditApi.exportCsv).mockRejectedValueOnce(
+            new Error("network"),
+        );
+
+        const user = userEvent.setup();
+        render(
+            <>
+                <Toaster />
+                <AuditLog />
+            </>,
+        );
+        await screen.findByText("ACTION_1");
+
+        await user.click(screen.getByRole("button", { name: /export csv/i }));
+
+        expect(await screen.findByText(/export failed/i)).toBeInTheDocument();
     });
 });
