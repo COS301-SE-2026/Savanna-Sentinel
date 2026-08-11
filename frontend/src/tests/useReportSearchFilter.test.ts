@@ -3,6 +3,7 @@ import { renderHook } from "@testing-library/react";
 import {
     useReportSearchFilter,
     getSpeciesOptions,
+    getUsernameOptions,
 } from "@/hooks/useReportSearchFilter";
 import type { DraftReport } from "@/types/reports";
 
@@ -268,5 +269,25 @@ describe("getSpeciesOptions", () => {
             makeReport({ reportType: "sighting", species: "buffalo" }),
         ];
         expect(getSpeciesOptions(reports)).toEqual(["buffalo", "Elephant"]);
+    });
+});
+
+describe("getUsernameOptions", () => {
+    it("returns the distinct, non-null username values sorted alphabetically", () => {
+        const reports2 = [
+            makeReport({ submittedByUsername: "jane_ranger" }),
+            makeReport({ submittedByUsername: null }),
+            makeReport({ submittedByUsername: "amy_ranger" }),
+            makeReport({ submittedByUsername: "jane_ranger" }),
+        ];
+        expect(getUsernameOptions(reports2)).toEqual([
+            "amy_ranger",
+            "jane_ranger",
+        ]);
+    });
+
+    it("returns an empty array when no report has a resolved username", () => {
+        const reports2 = [makeReport({ submittedByUsername: null })];
+        expect(getUsernameOptions(reports2)).toEqual([]);
     });
 });
