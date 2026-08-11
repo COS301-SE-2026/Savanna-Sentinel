@@ -24,6 +24,7 @@ import {
 import {
     useReportSearchFilter,
     getSpeciesOptions,
+    getUsernameOptions,
 } from "@/hooks/useReportSearchFilter";
 import { useSort } from "@/hooks/useSort";
 import {
@@ -61,6 +62,7 @@ export function ReportList({
     const [typeFilter, setTypeFilter] = React.useState<ReportType[]>([]);
     const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
     const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
+    const [usernameFilter, setUsernameFilter] = React.useState<string[]>([]);
     const [page, setPage] = React.useState(1);
     const [selectedReport, setSelectedReport] =
         React.useState<DraftReport | null>(null);
@@ -70,12 +72,18 @@ export function ReportList({
         [reports],
     );
 
+    const usernameOptions = React.useMemo(
+        () => getUsernameOptions(reports),
+        [reports],
+    );
+
     const filtered = useReportSearchFilter(
         reports,
         search,
         typeFilter,
         severityFilter,
         speciesFilter,
+        usernameFilter,
     );
 
     const { sorted, sortKey, direction, requestSort } = useSort<
@@ -135,6 +143,12 @@ export function ReportList({
                     setPage(1);
                 }}
                 speciesOptions={speciesOptions}
+                usernameFilter={usernameFilter}
+                onUsernameFilterChange={(usernames) => {
+                    setUsernameFilter(usernames);
+                    setPage(1);
+                }}
+                usernameOptions={usernameOptions}
             />
 
             {sorted.length === 0 ? (
