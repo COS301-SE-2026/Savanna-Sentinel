@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_roles
@@ -24,3 +24,19 @@ async def list_audit_logs(
     ):
     service = AuditService(AuditRepository(db), UserRepository(db))
     return await service.get_logs(req)
+
+@router.get("/audit-logs/export")
+async def export_audit_logs(
+        req: Annotated[AuditLogFilterRequest, Depends()],
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_admin: Annotated[User, Depends(require_roles(["admin"]))],
+    ):
+    service = AuditService(AuditRepository(db), UserRepository(db))
+    csv_content = await service.export_csv(req)
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=audit_log_export.csv",
+        },
+    )
