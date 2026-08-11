@@ -16,8 +16,10 @@ import type {
     ReportListItem,
     ReportCreate,
     ReportUpdate,
+    ListReportsQueryParams,
 } from "@/services/reportsApi";
 import { mediaApi } from "@/services/mediaApi";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const PLACEHOLDER_PHOTO_TYPE = "image/placeholder";
 
@@ -80,22 +82,30 @@ export default function ReportsPage() {
     const canSubmit = user?.role === "ranger" || user?.role === "admin";
     const [activeTab, setActiveTab] = React.useState(canSubmit ? "new" : "all");
     const [isLoading, setIsLoading] = useState(false);
+    const [search, setSearch] = React.useState("");
+    const [isInitialLoad, setInitialLoad] = React.useState(true)
+
+    const debouncedSearch = useDebounce(search, 300);
 
     useEffect(() => {
         async function fetchReports() {
             setIsLoading(true);
+            const temp : ListReportsQueryParams = {
+                search: debouncedSearch || undefined
+            }
             try {
-                const res = await reportsApi.listReports();
+                const res = await reportsApi.listReports(temp);
                 setReports(res.results.map(mapToDraft));
             } catch (err) {
                 notifySafe("Error", "Failed to fetch reports");
                 console.error(err);
             } finally {
                 setIsLoading(false);
+                setInitialLoad(false);
             }
         }
         fetchReports();
-    }, []);
+    }, [debouncedSearch, isInitialLoad]);
 
     const myDrafts = useMemo(
         () =>
@@ -222,15 +232,23 @@ export default function ReportsPage() {
                 )}
 
                 <TabsContent value="all" className="mt-6">
-                    {isLoading ? (
+                    {isInitialLoad ? (
                         //replace with a better loading state, like the skeleton loading
                         <p>Loading reports...</p>
                     ) : (
-                        <ReportList
-                            reports={reports}
-                            canSubmit={canSubmit}
-                            onGoToNewReport={() => setActiveTab("new")}
-                        />
+                        <div className={isLoading ? "opacity-60 transition-opacity" : ""}>
+                            <ReportList
+                                reports={reports}
+                                canSubmit={canSubmit}
+                                onGoToNewReport={() => setActiveTab("new")}
+                                search={search}
+                                setSearch={(value) => {
+                                    setIsLoading(true);
+                                    setSearch(value)
+                                }}
+                                isLoading={isLoading}
+                            />
+                        </div>
                     )}
                 </TabsContent>
             </Tabs>

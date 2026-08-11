@@ -85,7 +85,7 @@ async def list_reports(
     results, total = await service.get_reports(
         current_user=current_user,
         search=search,
-        report_type=report_type,
+        report_types=report_type,
         severities=severity,
         species=species,
         from_dt=from_dt,

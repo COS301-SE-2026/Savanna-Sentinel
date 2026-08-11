@@ -40,9 +40,9 @@ class ReportRepository:
 
         if search and search.strip():
             conditions.append(
-                "(fr.description ILIKE :search OR s.species ILIKE :search)"
+                "(fr.description ILIKE :search OR s.species ILIKE :search)",
             )
-            params["search"] = f"%{search.strip}%"
+            params["search"] = f"%{search.strip()}%"
 
         if owner_id is not None:
             conditions.append("fr.submitted_by::text = :owner_id")

@@ -1,5 +1,6 @@
-import { MultiSelectFilterBar } from "@/components/ui/multi-select-filter-bar";
+import { MultiSelectFilterBar, type MultiSelectFilterGroup } from "@/components/ui/multi-select-filter-bar";
 import type { ReportType, Severity } from "@/types/reports";
+import React from "react";
 
 const TYPE_OPTIONS: { value: ReportType; label: string }[] = [
     { value: "incident", label: "Incident" },
@@ -24,7 +25,7 @@ interface ReportSearchFilterBarProps {
     speciesOptions: string[];
 }
 
-export function ReportSearchFilterBar({
+function ReportSearchFilterBarBase({
     search,
     onSearchChange,
     typeFilter,
@@ -35,12 +36,8 @@ export function ReportSearchFilterBar({
     onSpeciesFilterChange,
     speciesOptions,
 }: ReportSearchFilterBarProps) {
-    return (
-        <MultiSelectFilterBar
-            search={search}
-            onSearchChange={onSearchChange}
-            searchPlaceholder="Search reports..."
-            groups={[
+    const filterGroups : MultiSelectFilterGroup[] = React.useMemo(
+        () => [
                 {
                     key: "type",
                     label: "Report Type",
@@ -68,7 +65,25 @@ export function ReportSearchFilterBar({
                     selected: speciesFilter,
                     onChange: onSpeciesFilterChange,
                 },
-            ]}
+            ],
+            [
+                typeFilter,
+                onTypeFilterChange,
+                severityFilter,
+                onSeverityFilterChange,
+                speciesOptions,
+                speciesFilter,
+                onSpeciesFilterChange,
+            ]
+    )
+    return (
+        <MultiSelectFilterBar
+            search={search}
+            onSearchChange={onSearchChange}
+            searchPlaceholder="Search reports..."
+            groups={filterGroups}
         />
     );
 }
+
+export const ReportSearchFilterBar = React.memo(ReportSearchFilterBarBase);

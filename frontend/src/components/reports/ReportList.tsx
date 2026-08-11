@@ -50,20 +50,58 @@ interface ReportListProps {
     reports: DraftReport[];
     canSubmit: boolean;
     onGoToNewReport: () => void;
+    search: string;
+    setSearch: React.Dispatch<React.SetStateAction<string>>;
+    isLoading: boolean
 }
 
 export function ReportList({
     reports,
     canSubmit,
     onGoToNewReport,
+    search,
+    setSearch,
+    isLoading
 }: ReportListProps) {
-    const [search, setSearch] = React.useState("");
+    
     const [typeFilter, setTypeFilter] = React.useState<ReportType[]>([]);
     const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
     const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
     const [page, setPage] = React.useState(1);
     const [selectedReport, setSelectedReport] =
         React.useState<DraftReport | null>(null);
+
+        const handleSearchChange = React.useCallback(
+        (value: string) => {
+            setSearch(value);
+            setPage(1);
+        },
+        [setSearch]
+    )
+
+    const handleTypeFilterChange = React.useCallback(
+        (types: ReportType[]) => {
+            setTypeFilter(types);
+            setPage(1);
+        },
+        []
+    );
+
+    const handleSeverityFilterChange = React.useCallback(
+        (severities: Severity[]) => {
+            setSeverityFilter(severities);
+            setPage(1);
+        },
+        []
+    );
+
+    const handleSpeciesFilterChange = React.useCallback(
+        (species: string[]) => {
+            setSpeciesFilter(species);
+            setPage(1);
+        },
+        []
+    );
 
     const speciesOptions = React.useMemo(
         () => getSpeciesOptions(reports),
@@ -90,7 +128,13 @@ export function ReportList({
         currentPage * PAGE_SIZE,
     );
 
-    if (reports.length === 0) {
+    const hasActiveFilters =
+        search.trim() !== "" ||
+        typeFilter.length > 0 ||
+        severityFilter.length > 0 ||
+        speciesFilter.length > 0;
+
+    if (reports.length === 0 && !hasActiveFilters && !isLoading ) {
         return (
             <EmptyState
                 icon={Inbox}
@@ -115,25 +159,13 @@ export function ReportList({
         <div className="flex flex-col gap-4">
             <ReportSearchFilterBar
                 search={search}
-                onSearchChange={(value) => {
-                    setSearch(value);
-                    setPage(1);
-                }}
+                onSearchChange={handleSearchChange}
                 typeFilter={typeFilter}
-                onTypeFilterChange={(types) => {
-                    setTypeFilter(types);
-                    setPage(1);
-                }}
+                onTypeFilterChange={handleTypeFilterChange}
                 severityFilter={severityFilter}
-                onSeverityFilterChange={(severities) => {
-                    setSeverityFilter(severities);
-                    setPage(1);
-                }}
+                onSeverityFilterChange={handleSeverityFilterChange}
                 speciesFilter={speciesFilter}
-                onSpeciesFilterChange={(species) => {
-                    setSpeciesFilter(species);
-                    setPage(1);
-                }}
+                onSpeciesFilterChange={handleSpeciesFilterChange}
                 speciesOptions={speciesOptions}
             />
 
