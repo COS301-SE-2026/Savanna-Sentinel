@@ -52,6 +52,12 @@ interface ReportListProps {
     onGoToNewReport: () => void;
     search: string;
     setSearch: React.Dispatch<React.SetStateAction<string>>;
+    typeFilter: ReportType[];
+    setTypeFilter: React.Dispatch<React.SetStateAction<ReportType[]>>;
+    severityFilter: Severity[];
+    setSeverityFilter: React.Dispatch<React.SetStateAction<Severity[]>>;
+    speciesFilter: string[];
+    setSpeciesFilter: React.Dispatch<React.SetStateAction<string[]>>;
     isLoading: boolean
 }
 
@@ -61,12 +67,16 @@ export function ReportList({
     onGoToNewReport,
     search,
     setSearch,
+    typeFilter,
+    setTypeFilter,
+    severityFilter,
+    setSeverityFilter,
+    speciesFilter,
+    setSpeciesFilter,
     isLoading
 }: ReportListProps) {
     
-    const [typeFilter, setTypeFilter] = React.useState<ReportType[]>([]);
-    const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
-    const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
+
     const [page, setPage] = React.useState(1);
     const [selectedReport, setSelectedReport] =
         React.useState<DraftReport | null>(null);

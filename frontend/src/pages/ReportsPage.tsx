@@ -10,6 +10,8 @@ import type {
     DraftReport,
     DraftReportInput,
     PhotoAttachment,
+    ReportType,
+    Severity,
 } from "@/types/reports";
 import { reportsApi } from "@/services/reportsApi";
 import type {
@@ -83,7 +85,10 @@ export default function ReportsPage() {
     const [activeTab, setActiveTab] = React.useState(canSubmit ? "new" : "all");
     const [isLoading, setIsLoading] = useState(false);
     const [search, setSearch] = React.useState("");
-    const [isInitialLoad, setInitialLoad] = React.useState(true)
+    const [isInitialLoad, setInitialLoad] = React.useState(true);
+    const [typeFilter, setTypeFilter] = React.useState<ReportType[]>([]);
+    const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
+    const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
 
     const debouncedSearch = useDebounce(search, 300);
 
@@ -91,7 +96,10 @@ export default function ReportsPage() {
         async function fetchReports() {
             setIsLoading(true);
             const temp : ListReportsQueryParams = {
-                search: debouncedSearch || undefined
+                search: debouncedSearch || undefined,
+                report_type: typeFilter || null,
+                severity: severityFilter || null,
+                species: speciesFilter || null,
             }
             try {
                 const res = await reportsApi.listReports(temp);
@@ -105,7 +113,7 @@ export default function ReportsPage() {
             }
         }
         fetchReports();
-    }, [debouncedSearch, isInitialLoad]);
+    }, [debouncedSearch, isInitialLoad, typeFilter, severityFilter, speciesFilter]);
 
     const myDrafts = useMemo(
         () =>
@@ -245,6 +253,21 @@ export default function ReportsPage() {
                                 setSearch={(value) => {
                                     setIsLoading(true);
                                     setSearch(value)
+                                }}
+                                typeFilter={typeFilter}
+                                setTypeFilter={(value) => {
+                                    setIsLoading(true);
+                                    setTypeFilter(value);
+                                }}
+                                severityFilter={severityFilter}
+                                setSeverityFilter={(value) => {
+                                    setIsLoading(true);
+                                    setSeverityFilter(value)
+                                }}
+                                speciesFilter={speciesFilter}
+                                setSpeciesFilter={(value) => {
+                                    setIsLoading(true);
+                                    setSpeciesFilter(value);
                                 }}
                                 isLoading={isLoading}
                             />
