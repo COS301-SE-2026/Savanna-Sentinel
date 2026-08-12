@@ -1,3 +1,6 @@
+import { Save } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
@@ -13,6 +16,10 @@ export interface RouteComparisonViewProps {
     routes: PlannedRoute[];
     selectedIndex: number;
     onSelect: (index: number) => void;
+    onSave: (index: number) => void;
+    savingIndex: number | null;
+    savedIndices: Set<number>;
+    canSave: boolean;
 }
 
 function SkeletonCard() {
@@ -31,6 +38,10 @@ export function RouteComparisonView({
     routes,
     selectedIndex,
     onSelect,
+    onSave,
+    savingIndex,
+    savedIndices,
+    canSave,
 }: RouteComparisonViewProps) {
     if (status === "idle") {
         return (
@@ -95,6 +106,30 @@ export function RouteComparisonView({
                             <span className="flex-1 text-sm font-semibold">
                                 {ROUTE_LABELS[index]}
                             </span>
+                            <Button
+                                type="button"
+                                size="icon-xs"
+                                variant="outline"
+                                disabled={
+                                    !canSave ||
+                                    savingIndex === index ||
+                                    savedIndices.has(index)
+                                }
+                                aria-label={
+                                    savedIndices.has(index)
+                                        ? `${ROUTE_LABELS[index]} saved`
+                                        : `Save ${ROUTE_LABELS[index]}`
+                                }
+                                aria-pressed={savedIndices.has(index)}
+                                onClick={() => onSave(index)}
+                                className={
+                                    savedIndices.has(index)
+                                        ? "text-status-safe"
+                                        : undefined
+                                }
+                            >
+                                <Save className="size-3.5" />
+                            </Button>
                             <button
                                 type="button"
                                 aria-pressed={isSelected}
