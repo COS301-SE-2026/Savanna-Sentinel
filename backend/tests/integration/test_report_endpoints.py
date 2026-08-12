@@ -984,7 +984,9 @@ async def test_list_sync_status_offline_returns_empty():
     assert body["total"] == 0
     assert body["results"] == []
 
+
 # GET /v1/reports/species
+
 
 @pytest.mark.asyncio
 async def test_get_species_returns_200_and_list():
@@ -1005,6 +1007,7 @@ async def test_get_species_returns_200_and_list():
     assert "species" in body
     assert isinstance(body["species"], list)
     assert "African Elephant" in body["species"]
+
 
 # GET /v1/reports/users
 @pytest.mark.asyncio
