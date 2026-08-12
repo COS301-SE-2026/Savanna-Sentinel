@@ -42,6 +42,7 @@ function mapToDraft(item: ReportListItem): DraftReport {
     return {
         localId: item.report_id,
         submittedBy: item.submitted_by,
+        submittedByUsername: item.submitted_by_username,
         reportType: item.report_type as "incident" | "sighting",
         description: item.description,
         incidentType: item.incident_type || "",
@@ -153,6 +154,7 @@ export default function ReportsPage() {
                 ...input,
                 localId: res.report_id,
                 submittedBy: res.submitted_by,
+                submittedByUsername: res.submitted_by_username,
                 createdAt: res.created_at,
                 syncStatus: "pending",
             };

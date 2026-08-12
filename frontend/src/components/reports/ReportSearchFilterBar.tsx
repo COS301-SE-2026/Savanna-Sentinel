@@ -26,6 +26,9 @@ interface ReportSearchFilterBarProps {
     speciesFilter: string[];
     onSpeciesFilterChange: (species: string[]) => void;
     speciesOptions: string[];
+    usernameFilter: string[];
+    onUsernameFilterChange: (usernames: string[]) => void;
+    usernameOptions: string[];
 }
 
 function ReportSearchFilterBarBase({
@@ -38,6 +41,10 @@ function ReportSearchFilterBarBase({
     speciesFilter,
     onSpeciesFilterChange,
     speciesOptions,
+    usernameFilter,
+    onUsernameFilterChange,
+    usernameOptions,
+    usernameOptions,
 }: ReportSearchFilterBarProps) {
     const filterGroups: MultiSelectFilterGroup[] = React.useMemo(
         () => [
@@ -68,6 +75,17 @@ function ReportSearchFilterBarBase({
                 selected: speciesFilter,
                 onChange: onSpeciesFilterChange,
             },
+            {
+                key: "submittedBy",
+                label: "Submitted By",
+                chipLabel: "Submitted By",
+                options: usernameOptions.map((username) => ({
+                    value: username,
+                    label: username,
+                })),
+                selected: usernameFilter,
+                onChange: onUsernameFilterChange,
+            },
         ],
         [
             typeFilter,
@@ -77,6 +95,8 @@ function ReportSearchFilterBarBase({
             speciesOptions,
             speciesFilter,
             onSpeciesFilterChange,
+            usernameFilter,
+            onUsernameFilterChange,
         ],
     );
     return (

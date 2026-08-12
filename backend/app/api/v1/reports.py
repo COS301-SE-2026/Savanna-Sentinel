@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.user import User
 from app.repositories.report_repository import ReportRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.report import (
     ReportCreate,
     ReportListResponse,
@@ -40,7 +41,7 @@ async def submit_report(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db))
+    service = ReportService(ReportRepository(db), UserRepository(db))
     result = await service.create_report(current_user, body)
     return ReportSubmitResponse(**result)
 
@@ -82,7 +83,7 @@ async def list_reports(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db))
+    service = ReportService(ReportRepository(db), UserRepository(db))
     results, total = await service.get_reports(
         current_user=current_user,
         search=search,
@@ -121,7 +122,7 @@ async def update_report(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db))
+    service = ReportService(ReportRepository(db), UserRepository(db))
     result = await service.update_report(report_id, current_user, body)
 
     if result is None:
@@ -149,7 +150,7 @@ async def delete_report(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db))
+    service = ReportService(ReportRepository(db), UserRepository(db))
     deleted = await service.delete_report(report_id, current_user)
 
     if not deleted:
@@ -197,7 +198,7 @@ async def get_report(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db))
+    service = ReportService(ReportRepository(db), UserRepository(db))
     report = await service.get_report(report_id, current_user)
 
     if report is None:

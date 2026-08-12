@@ -166,6 +166,12 @@ export function ReportList({
                 speciesFilter={speciesFilter}
                 onSpeciesFilterChange={handleSpeciesFilterChange}
                 speciesOptions={speciesOptions}
+                usernameFilter={usernameFilter}
+                onUsernameFilterChange={(usernames) => {
+                    setUsernameFilter(usernames);
+                    setPage(1);
+                }}
+                usernameOptions={usernameOptions}
             />
 
             {sorted.length === 0 ? (
@@ -291,7 +297,8 @@ export function ReportList({
                                             })}
                                         </TableCell>
                                         <TableCell className={cellClass}>
-                                            {report.submittedBy}
+                                            {report.submittedByUsername ??
+                                                report.submittedBy}
                                         </TableCell>
                                         <TableCell className={cellClass}>
                                             {report.syncStatus === "synced" ? (

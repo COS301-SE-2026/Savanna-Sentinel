@@ -17,6 +17,7 @@ export interface LocationLatLon {
 export interface ReportResponse {
     id: string;
     submitted_by: string;
+    submitted_by_username?: string | null;
     route_id?: string | null;
     report_type: string;
     description: string;
@@ -41,6 +42,7 @@ export interface ReportListItem {
     route_id?: string | null;
     sync_status: string;
     submitted_by: string;
+    submitted_by_username?: string | null;
     created_at: string;
     updated_at: string;
     deleted_at?: string | null;
@@ -58,6 +60,7 @@ export interface ReportSubmitResponse {
     report_type: string;
     status: string;
     submitted_by: string;
+    submitted_by_username?: string | null;
     created_at: string;
 }
 

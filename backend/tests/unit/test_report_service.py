@@ -26,8 +26,9 @@ _REPORT = {
 
 def _ranger(
     user_id: str = "bbbbbbbb-0000-0000-0000-000000000001",
+    username: str = "ranger1",
 ) -> SimpleNamespace:
-    return SimpleNamespace(id=user_id, role="ranger")
+    return SimpleNamespace(id=user_id, role="ranger", username=username)
 
 
 def _admin() -> SimpleNamespace:
@@ -37,19 +38,25 @@ def _admin() -> SimpleNamespace:
     )
 
 
-def _make_service(report):
+def _fake_user_repo(username: str | None = "ranger1"):
+    repo = AsyncMock()
+    repo.get_username_by_id.return_value = username
+    return repo
+
+
+def _make_service(report, user_repo=None):
     repo = AsyncMock()
     repo.get_by_id.return_value = report
-    return ReportService(repo)
+    return ReportService(repo, user_repo or _fake_user_repo())
 
 
-def _make_list_service(results, total):
+def _make_list_service(results, total, user_repo=None):
     repo = AsyncMock()
     repo.get_list.return_value = (results, total)
-    return ReportService(repo)
+    return ReportService(repo, user_repo or _fake_user_repo())
 
 
-def _make_update_service(report, update_result=None):
+def _make_update_service(report, update_result=None, user_repo=None):
     repo = AsyncMock()
     repo.get_by_id.return_value = report
     repo.update.return_value = update_result or {
@@ -59,14 +66,14 @@ def _make_update_service(report, update_result=None):
         "submitted_by": _REPORT["submitted_by"],
         "created_at": _NOW,
     }
-    return ReportService(repo)
+    return ReportService(repo, user_repo or _fake_user_repo())
 
 
-def _make_delete_service(report, soft_delete_result=True):
+def _make_delete_service(report, soft_delete_result=True, user_repo=None):
     repo = AsyncMock()
     repo.get_by_id.return_value = report
     repo.soft_delete.return_value = soft_delete_result
-    return ReportService(repo)
+    return ReportService(repo, user_repo or _fake_user_repo())
 
 
 def _make_media_service():
@@ -75,7 +82,7 @@ def _make_media_service():
     return media_service
 
 
-def _make_create_service(result=None):
+def _make_create_service(result=None, user_repo=None):
     repo = AsyncMock()
     repo.create.return_value = result or {
         "report_id": "aaaaaaaa-0000-0000-0000-000000000001",
@@ -84,7 +91,7 @@ def _make_create_service(result=None):
         "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
         "created_at": _NOW,
     }
-    return ReportService(repo)
+    return ReportService(repo, user_repo or _fake_user_repo())
 
 
 def _incident_body(**overrides) -> ReportCreate:
@@ -209,6 +216,22 @@ async def test_create_naive_datetime_is_treated_as_utc():
     svc.repo.create.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_create_report_uses_current_user_username_directly():
+    user_repo = _fake_user_repo()
+    service = _make_create_service(user_repo=user_repo)
+    current_user = SimpleNamespace(
+        id="bbbbbbbb-0000-0000-0000-000000000001",
+        role="ranger",
+        username="reporter1",
+    )
+
+    result = await service.create_report(current_user, _incident_body())
+
+    assert result["submitted_by_username"] == "reporter1"
+    user_repo.get_username_by_id.assert_not_awaited()
+
+
 # get_report_by_id
 
 
@@ -255,7 +278,9 @@ async def test_get_report_converts_stored_images_to_view_urls():
     repo = AsyncMock()
     repo.get_by_id.return_value = report
     media_service = _make_media_service()
-    service = ReportService(repo, media_service=media_service)
+    service = ReportService(
+        repo, _fake_user_repo(), media_service=media_service,
+    )
 
     result = await service.get_report(_REPORT["id"], _ranger())
 
@@ -263,6 +288,16 @@ async def test_get_report_converts_stored_images_to_view_urls():
         "http://minio/bucket/reports/a.jpg",
     )
     assert result["images"] == ["http://minio/bucket/reports/a.jpg?signed=1"]
+
+
+@pytest.mark.asyncio
+async def test_get_report_resolves_submitted_by_username():
+    user_repo = _fake_user_repo("field_ranger_3")
+    service = _make_service(dict(_REPORT), user_repo=user_repo)
+
+    result = await service.get_report(_REPORT["id"], _admin())
+
+    assert result["submitted_by_username"] == "field_ranger_3"
 
 
 # get_reports
@@ -287,7 +322,13 @@ async def test_get_reports_admin_passes_none_owner_to_repo():
 
 @pytest.mark.asyncio
 async def test_get_reports_returns_results_and_total():
-    items = [{"report_id": "x", "report_type": "incident"}]
+    items = [
+        {
+            "report_id": "x",
+            "report_type": "incident",
+            "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
+        },
+    ]
     service = _make_list_service(items, 1)
     results, total = await service.get_reports(_ranger())
     assert total == 1
@@ -297,13 +338,23 @@ async def test_get_reports_returns_results_and_total():
 @pytest.mark.asyncio
 async def test_get_reports_converts_stored_images_to_view_urls():
     items = [
-        {"report_id": "x", "images": ["http://minio/bucket/reports/a.jpg"]},
-        {"report_id": "y", "images": []},
+        {
+            "report_id": "x",
+            "images": ["http://minio/bucket/reports/a.jpg"],
+            "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
+        },
+        {
+            "report_id": "y",
+            "images": [],
+            "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
+        },
     ]
     repo = AsyncMock()
     repo.get_list.return_value = (items, 2)
     media_service = _make_media_service()
-    service = ReportService(repo, media_service=media_service)
+    service = ReportService(
+        repo, _fake_user_repo(), media_service=media_service,
+    )
 
     results, _ = await service.get_reports(_ranger())
 
@@ -328,6 +379,17 @@ async def test_get_reports_passes_filters_to_repo():
     assert call_kwargs["severities"] == "high"
     assert call_kwargs["page"] == 2
     assert call_kwargs["page_size"] == 10
+
+
+@pytest.mark.asyncio
+async def test_get_reports_resolves_submitted_by_username():
+    user_repo = _fake_user_repo("field_ranger_3")
+    service = _make_list_service([dict(_REPORT)], 1, user_repo=user_repo)
+
+    results, _ = await service.get_reports(_admin())
+
+    assert results[0]["submitted_by_username"] == "field_ranger_3"
+    user_repo.get_username_by_id.assert_awaited_with(_REPORT["submitted_by"])
 
 
 # update_report
@@ -367,6 +429,21 @@ async def test_admin_updates_any_report():
         ReportUpdate(description="Admin edit"),
     )
     assert result["status"] == "updated"
+
+
+@pytest.mark.asyncio
+async def test_update_report_resolves_submitted_by_username():
+    user_repo = _fake_user_repo("field_ranger_3")
+    service = _make_update_service(dict(_REPORT), user_repo=user_repo)
+
+    result = await service.update_report(
+        _REPORT["id"],
+        _admin(),
+        ReportUpdate(description="Admin edit"),
+    )
+
+    assert result["submitted_by_username"] == "field_ranger_3"
+    user_repo.get_username_by_id.assert_awaited_with(_REPORT["submitted_by"])
 
 
 @pytest.mark.asyncio

@@ -30,9 +30,11 @@ const createMockResponse = (
             return {
                 id: `log-${idNum}`,
                 actor_id: `actor-${idNum}`,
+                actor_username: `actor_user_${idNum}`,
                 action: `ACTION_${idNum}`,
                 target_type: "user",
                 target_id: `target-${idNum}`,
+                target_username: `target_user_${idNum}`,
                 details: idNum === 1 ? { new_role: "ranger" } : null,
                 created_at: "2026-07-27T10:00:00Z",
             };
@@ -54,8 +56,34 @@ describe("AuditLog Component Testing", () => {
             page_size: 20,
         });
         expect(await screen.findByText("ACTION_1")).toBeInTheDocument();
-        expect(screen.getByText("actor-1")).toBeInTheDocument();
+        expect(screen.getByText("actor_user_1")).toBeInTheDocument();
         expect(screen.getByText("Role changed to ranger")).toBeInTheDocument();
+    });
+
+    it("shows the resolved actor username instead of the raw ID when present", async () => {
+        mockedGetLogs.mockResolvedValueOnce({
+            total: 1,
+            page: 1,
+            page_size: 20,
+            results: [
+                {
+                    id: "log-1",
+                    actor_id: "actor-1",
+                    actor_username: "jane_admin",
+                    action: "ACTION_1",
+                    target_type: "user",
+                    target_id: "target-1",
+                    target_username: "john_ranger",
+                    details: null,
+                    created_at: "2026-07-27T10:00:00Z",
+                },
+            ],
+        });
+        render(<AuditLog />);
+
+        expect(await screen.findByText("jane_admin")).toBeInTheDocument();
+        expect(screen.getByText("john_ranger")).toBeInTheDocument();
+        expect(screen.queryByText("actor-1")).not.toBeInTheDocument();
     });
 
     it("renders 'No details' fallback", async () => {

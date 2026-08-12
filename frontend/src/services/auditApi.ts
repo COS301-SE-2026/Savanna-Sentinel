@@ -11,9 +11,11 @@ export interface AuditLogRequest {
 export interface AuditLogListItem {
     id: string;
     actor_id: string | null;
+    actor_username: string | null;
     action: string;
     target_type: string | null;
     target_id: string | null;
+    target_username: string | null;
     details: Record<string, string> | null;
     created_at: string;
 }
