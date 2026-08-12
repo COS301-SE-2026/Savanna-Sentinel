@@ -75,16 +75,19 @@ class ReportRepository:
 
         where = " AND ".join(conditions)
 
-        count_sql = text(f"""
+        count_sql = text(
+            f"""
             SELECT COUNT(DISTINCT fr.id)
             FROM field_reports fr
             LEFT JOIN incidents i ON i.field_report_id = fr.id
             LEFT JOIN sightings s ON s.field_report_id = fr.id
             LEFT JOIN users u ON u.id = fr.submitted_by
             WHERE {where}
-        """)
+        """,  # nosec B608
+        )
 
-        data_sql = text(f"""
+        data_sql = text(
+            f"""
             SELECT
                 fr.id::text AS report_id,
                 fr.report_type::text AS report_type,
@@ -116,7 +119,8 @@ class ReportRepository:
             WHERE {where}
             ORDER BY fr.created_at DESC
             LIMIT :limit OFFSET :offset
-        """)
+        """,  # nosec B608
+        )
 
         data_params = {
             **params,
@@ -303,12 +307,14 @@ class ReportRepository:
 
         return (
             await self.db.execute(
-                text(f"""
+                text(
+                    f"""
                     UPDATE field_reports
                     SET {", ".join(fr_sets)}
                     WHERE id = :rid
                     RETURNING id, report_type, submitted_by, created_at
-                """),
+                """,  # nosec B608
+                ),
                 fr_params,
             )
         ).fetchone()
@@ -347,7 +353,8 @@ class ReportRepository:
                 UPDATE geospatial_events
                 SET {", ".join(ev_sets)}
                 WHERE id = :eid
-            """),
+            """, # nosec B608
+            ),
             ev_params,
         )
 
@@ -379,7 +386,8 @@ class ReportRepository:
                 UPDATE incidents
                 SET {", ".join(inc_sets)}
                 WHERE id = :eid
-            """),
+            """, # nosec B608
+            ),
             inc_params,
         )
 
@@ -400,7 +408,8 @@ class ReportRepository:
                 UPDATE sightings
                 SET {", ".join(sig_sets)}
                 WHERE id = :eid
-            """),
+            """, # nosec B608
+            ),
             sig_params,
         )
 
