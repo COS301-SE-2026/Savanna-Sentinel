@@ -243,12 +243,11 @@ async def test_ranger_gets_own_report():
 
 
 @pytest.mark.asyncio
-async def test_ranger_blocked_from_other_report():
+async def test_ranger_gets_other_rangers_report():
     service = _make_service(dict(_REPORT))
     other = _ranger("dddddddd-0000-0000-0000-000000000001")
-    with pytest.raises(HTTPException) as exc:
-        await service.get_report(_REPORT["id"], other)
-    assert exc.value.status_code == 403
+    result = await service.get_report(_REPORT["id"], other)
+    assert result["id"] == _REPORT["id"]
 
 
 @pytest.mark.asyncio
@@ -279,7 +278,9 @@ async def test_get_report_converts_stored_images_to_view_urls():
     repo.get_by_id.return_value = report
     media_service = _make_media_service()
     service = ReportService(
-        repo, _fake_user_repo(), media_service=media_service,
+        repo,
+        _fake_user_repo(),
+        media_service=media_service,
     )
 
     result = await service.get_report(_REPORT["id"], _ranger())
@@ -304,12 +305,12 @@ async def test_get_report_resolves_submitted_by_username():
 
 
 @pytest.mark.asyncio
-async def test_get_reports_ranger_passes_own_id_to_repo():
+async def test_get_reports_ranger_passes_none_owner_to_repo():
     service = _make_list_service([], 0)
     await service.get_reports(_ranger())
     service.repo.get_list.assert_called_once()
     call_kwargs = service.repo.get_list.call_args.kwargs
-    assert call_kwargs["owner_id"] == "bbbbbbbb-0000-0000-0000-000000000001"
+    assert call_kwargs["owner_id"] is None
 
 
 @pytest.mark.asyncio
@@ -353,7 +354,9 @@ async def test_get_reports_converts_stored_images_to_view_urls():
     repo.get_list.return_value = (items, 2)
     media_service = _make_media_service()
     service = ReportService(
-        repo, _fake_user_repo(), media_service=media_service,
+        repo,
+        _fake_user_repo(),
+        media_service=media_service,
     )
 
     results, _ = await service.get_reports(_ranger())
