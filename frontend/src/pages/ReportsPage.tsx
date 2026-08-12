@@ -113,13 +113,7 @@ export default function ReportsPage() {
             }
         }
         fetchReports();
-    }, [
-        debouncedSearch,
-        isInitialLoad,
-        typeFilter,
-        severityFilter,
-        speciesFilter,
-    ]);
+    }, [debouncedSearch, typeFilter, severityFilter, speciesFilter]);
 
     const myDrafts = useMemo(
         () =>

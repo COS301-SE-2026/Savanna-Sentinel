@@ -30,11 +30,11 @@ const { mockActiveUsers, resetMockActiveUsers, deleteUserHandler } =
 export { resetMockActiveUsers };
 
 export const roleSwapHandlers = [
-    http.get("**/v1/users", () => {
+    http.get("*/v1/users", () => {
         return HttpResponse.json(mockActiveUsers);
     }),
 
-    http.patch("**/v1/users/:id/role", async ({ params, request }) => {
+    http.patch("*/v1/users/:id/role", async ({ params, request }) => {
         const { id } = params;
         const body = (await request.json()) as { new_role: string };
 

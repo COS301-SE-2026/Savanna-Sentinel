@@ -21,10 +21,7 @@ import {
     reportSortAccessors,
     type ReportSortKey,
 } from "@/components/reports/reportColumns";
-import {
-    useReportSearchFilter,
-    getSpeciesOptions,
-} from "@/hooks/useReportSearchFilter";
+import { getSpeciesOptions } from "@/hooks/useReportSearchFilter";
 import { useSort } from "@/hooks/useSort";
 import {
     SEVERITY_OPTIONS,
@@ -88,10 +85,13 @@ export function ReportList({
         [setSearch],
     );
 
-    const handleTypeFilterChange = React.useCallback((types: ReportType[]) => {
-        setTypeFilter(types);
-        setPage(1);
-    }, [setTypeFilter, setPage]);
+    const handleTypeFilterChange = React.useCallback(
+        (types: ReportType[]) => {
+            setTypeFilter(types);
+            setPage(1);
+        },
+        [setTypeFilter, setPage],
+    );
 
     const handleSeverityFilterChange = React.useCallback(
         (severities: Severity[]) => {
@@ -101,10 +101,13 @@ export function ReportList({
         [setSeverityFilter, setPage],
     );
 
-    const handleSpeciesFilterChange = React.useCallback((species: string[]) => {
-        setSpeciesFilter(species);
-        setPage(1);
-    }, [setSpeciesFilter, setPage]);
+    const handleSpeciesFilterChange = React.useCallback(
+        (species: string[]) => {
+            setSpeciesFilter(species);
+            setPage(1);
+        },
+        [setSpeciesFilter, setPage],
+    );
 
     React.useEffect(() => {
         getSpeciesOptions().then((species) => {
@@ -112,18 +115,10 @@ export function ReportList({
         });
     }, []);
 
-    const filtered = useReportSearchFilter(
-        reports,
-        search,
-        typeFilter,
-        severityFilter,
-        speciesFilter,
-    );
-
     const { sorted, sortKey, direction, requestSort } = useSort<
         DraftReport,
         ReportSortKey
-    >(filtered, reportSortAccessors, { key: "createdAt", direction: "desc" });
+    >(reports, reportSortAccessors, { key: "createdAt", direction: "desc" });
 
     const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);

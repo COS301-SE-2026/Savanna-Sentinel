@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     Table,
     TableBody,
@@ -35,6 +35,7 @@ import {
 } from "@/components/admin/standardUserColumns";
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
 import { Pagination } from "../ui/pagination";
+import { notifyCritical, notifySafe } from "../ui/toast";
 
 const ASSIGNABLE_ROLES = [
     { value: "ranger", label: "Ranger" },
@@ -50,18 +51,10 @@ interface UserRowProps {
 export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
     const [selectedRole, setSelectedRole] = useState(user.role);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [isSuccessful, setSuccessful] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
     const isDirty = selectedRole !== user.role;
     const fullName = `${user.first_name} ${user.last_name}`;
-
-    useEffect(() => {
-        if (!isSuccessful) return;
-        const t = setTimeout(() => setSuccessful(false), 5000);
-        return () => clearTimeout(t);
-    }, [isSuccessful]);
 
     const handleApply = () => {
         if (!isDirty || isProcessing) return;
@@ -71,15 +64,19 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
     const handleConfirm = async () => {
         setIsConfirmOpen(false);
         setIsProcessing(true);
-        setError(null);
-        setSuccessful(false);
 
         try {
             await usersApi.changeUserRole(user.id, selectedRole);
-            setSuccessful(true);
+            notifySafe(
+                "Role updated",
+                `Updated ${fullName}'s role to ${formatRole(selectedRole)}`
+            )
             onRoleChanged();
         } catch {
-            setError("Failed to update role.");
+            notifyCritical(
+                "Update Failed",
+                `Failed to update role for ${fullName}`
+            )
             setSelectedRole(user.role);
         } finally {
             setIsProcessing(false);
@@ -154,23 +151,6 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-            {(error || isSuccessful) && (
-                <TableRow className={rowClass}>
-                    <TableCell
-                        colSpan={6}
-                        className={cn(
-                            "px-4 py-1.5 text-xs italic",
-                            error
-                                ? "text-status-critical-text bg-status-critical/5"
-                                : "text-status-safe-text bg-status-safe/10",
-                        )}
-                    >
-                        {error ??
-                            `Role updated to ${formatRole(selectedRole)}.`}
-                    </TableCell>
-                </TableRow>
-            )}
         </>
     );
 };
@@ -222,7 +202,7 @@ export const RoleSwap = () => {
             />
             {isInitialLoading || pageError ? (
                 <UserTableStatus
-                    isLoading={false}
+                    isLoading={isInitialLoading}
                     pageError={pageError}
                     loadingText="Loading users..."
                 />
@@ -256,7 +236,7 @@ export const RoleSwap = () => {
                             ) : (
                                 sortedUsers.map((user) => (
                                     <UserRow
-                                        key={user.id}
+                                        key={`${user.id}-${user.role}`}
                                         user={user}
                                         onRoleChanged={fetchUsers}
                                     />

@@ -8,6 +8,7 @@ import {
     roleSwapHandlers,
     resetMockActiveUsers,
 } from "./mocks/roleSwapHandlers";
+import { Toaster } from "sonner";
 
 const server = setupServer(...roleSwapHandlers);
 
@@ -19,7 +20,12 @@ afterEach(() => {
 afterAll(() => server.close());
 
 function renderRoleSwap() {
-    return render(<RoleSwap />);
+    return render(
+        <>
+            <Toaster />
+            <RoleSwap />
+        </>
+    );
 }
 
 describe("RoleSwap - Role Management", () => {
@@ -143,9 +149,17 @@ describe("RoleSwap - Role Management", () => {
         );
 
         expect(
-            await screen.findByText(/role updated to analyst/i),
+            await screen.findByText(/Updated John Doe's role to Analyst/i),
         ).toBeInTheDocument();
-    });
+
+        await waitFor(
+            () => {
+                expect(screen.queryByText(/Updated John Doe's role to Analyst/i),)
+                .not.toBeInTheDocument();
+            },
+            { timeout: 6000 },
+        );
+    }, 10000);
 
     it("does not change the role when the dialog is cancelled", async () => {
         const user = userEvent.setup();
@@ -232,13 +246,13 @@ describe("RoleSwap - Role Management", () => {
         );
 
         expect(
-            await screen.findByText(/role updated to analyst/i),
+            await screen.findByText(/role to Analyst/i),
         ).toBeInTheDocument();
 
         await waitFor(
             () =>
                 expect(
-                    screen.queryByText(/role updated to analyst/i),
+                    screen.queryByText(/role to Analyst/i),
                 ).not.toBeInTheDocument(),
             { timeout: 6000 },
         );

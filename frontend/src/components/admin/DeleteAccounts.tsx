@@ -171,7 +171,7 @@ export const DeleteAccounts = () => {
             />
             {isInitialLoading || pageError ? (
                 <UserTableStatus
-                    isLoading={false}
+                    isLoading={isInitialLoading}
                     pageError={pageError}
                     loadingText="Loading users..."
                 />
