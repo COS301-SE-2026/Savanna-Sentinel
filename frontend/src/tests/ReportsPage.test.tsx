@@ -17,6 +17,8 @@ vi.mock("@/services/reportsApi", () => ({
         submitReport: vi.fn(),
         updateReport: vi.fn(),
         deleteReport: vi.fn(),
+        getSpecies: vi.fn(),
+        getUsernames: vi.fn().mockResolvedValue({ usernames: ["admin1"] }),
     },
 }));
 
@@ -55,6 +57,7 @@ describe("ReportsPage", () => {
         URL.createObjectURL = vi.fn(() => "blob:mock-url");
         URL.revokeObjectURL = vi.fn();
         vi.mocked(notifySafe).mockClear();
+        vi.mocked(reportsApi.getSpecies).mockResolvedValue({ species: [] });
         vi.mocked(reportsApi.listReports).mockResolvedValue({
             results: [],
             total: 0,

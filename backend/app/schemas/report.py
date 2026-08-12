@@ -89,3 +89,10 @@ class ReportUpdate(BaseModel):
     severity: Optional[Literal["low", "medium", "high"]] = None
     species: Optional[str] = None
     count: Optional[int] = None
+
+
+class SpeciesResponse(BaseModel):
+    species: list[str]
+
+class UserResponse(BaseModel):
+    usernames: list[str]

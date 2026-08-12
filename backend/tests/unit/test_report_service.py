@@ -78,9 +78,7 @@ def _make_delete_service(report, soft_delete_result=True, user_repo=None):
 
 def _make_media_service():
     media_service = MagicMock()
-    media_service.generate_view_url.side_effect = (
-        lambda url: f"{url}?signed=1"
-    )
+    media_service.generate_view_url.side_effect = lambda url: f"{url}?signed=1"
     return media_service
 
 
@@ -371,14 +369,14 @@ async def test_get_reports_passes_filters_to_repo():
     service = _make_list_service([], 0)
     await service.get_reports(
         _admin(),
-        report_type="incident",
-        severity="high",
+        report_types="incident",
+        severities="high",
         page=2,
         page_size=10,
     )
     call_kwargs = service.repo.get_list.call_args.kwargs
-    assert call_kwargs["report_type"] == "incident"
-    assert call_kwargs["severity"] == "high"
+    assert call_kwargs["report_types"] == "incident"
+    assert call_kwargs["severities"] == "high"
     assert call_kwargs["page"] == 2
     assert call_kwargs["page_size"] == 10
 

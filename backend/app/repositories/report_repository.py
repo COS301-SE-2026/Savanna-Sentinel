@@ -22,8 +22,11 @@ class ReportRepository:
     async def get_list(
         self,
         owner_id: Optional[str],
-        report_type: Optional[str] = None,
-        severity: Optional[str] = None,
+        search: Optional[str] = None,
+        report_types: Optional[list[str]] = None,
+        severities: Optional[list[str]] = None,
+        species: Optional[list[str]] = None,
+        users: Optional[list[str]] = None,
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
         sync_status: Optional[str] = None,
@@ -36,17 +39,31 @@ class ReportRepository:
         conditions = ["fr.deleted_at IS NULL"]
         params: dict = {}
 
+        if search and search.strip():
+            conditions.append(
+                "(fr.description ILIKE :search OR s.species ILIKE :search)",
+            )
+            params["search"] = f"%{search.strip()}%"
+
         if owner_id is not None:
             conditions.append("fr.submitted_by::text = :owner_id")
             params["owner_id"] = owner_id
 
-        if report_type:
-            conditions.append("fr.report_type::text = :report_type")
-            params["report_type"] = report_type
+        if report_types:
+            conditions.append("fr.report_type::text = ANY(:report_type)")
+            params["report_type"] = report_types
 
-        if severity:
-            conditions.append("i.severity::text = :severity")
-            params["severity"] = severity
+        if severities:
+            conditions.append("i.severity::text = ANY(:severities)")
+            params["severity"] = severities
+
+        if species:
+            conditions.append("s.species = ANY(:species)")
+            params["species"] = species
+
+        if users:
+            conditions.append("u.username = ANY(:users)")
+            params["users"] = users
 
         if from_dt:
             conditions.append("fr.occurred_at >= :from_dt")
@@ -63,6 +80,7 @@ class ReportRepository:
             FROM field_reports fr
             LEFT JOIN incidents i ON i.field_report_id = fr.id
             LEFT JOIN sightings s ON s.field_report_id = fr.id
+            LEFT JOIN users u ON u.id = fr.submitted_by
             WHERE {where}
         """)
 
@@ -81,6 +99,7 @@ class ReportRepository:
                 fr.route_id::text AS route_id,
                 'synced' AS sync_status,
                 fr.submitted_by::text AS submitted_by,
+                u.username AS submitted_by_username,
                 fr.created_at,
                 fr.updated_at,
                 fr.deleted_at,
@@ -88,11 +107,12 @@ class ReportRepository:
                     SELECT COALESCE(array_agg(p.image_url), ARRAY[]::text[])
                     FROM photos p
                     WHERE p.geospatial_event_id = i.id
-                       OR p.geospatial_event_id = s.id
+                    OR p.geospatial_event_id = s.id
                 ) AS images
             FROM field_reports fr
             LEFT JOIN incidents i ON i.field_report_id = fr.id
             LEFT JOIN sightings s ON s.field_report_id = fr.id
+            LEFT JOIN users u ON u.id = fr.submitted_by
             WHERE {where}
             ORDER BY fr.created_at DESC
             LIMIT :limit OFFSET :offset
@@ -455,3 +475,28 @@ class ReportRepository:
             )
         ).fetchall()
         return [row[0] for row in rows]
+
+    async def get_species(self) -> list[str]:
+        sql = text("""
+            SELECT DISTINCT species
+            FROM sightings
+            WHERE species IS NOT NULL AND TRIM(species) != ''
+            ORDER BY species ASC
+        """)
+
+        result = await self.db.execute(sql)
+        return list(result.scalars().all())
+
+    async def get_usernames(self) -> list[str]:
+        sql = text("""
+            SELECT DISTINCT u.username
+            FROM field_reports fr
+            JOIN users u ON u.id = fr.submitted_by
+            WHERE fr.deleted_at IS NULL
+            AND u.username IS NOT NULL
+            AND TRIM(u.username) != ''
+            ORDER BY u.username ASC
+        """)
+
+        result = await self.db.execute(sql)
+        return list(result.scalars().all())

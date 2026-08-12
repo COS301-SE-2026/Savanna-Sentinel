@@ -179,7 +179,14 @@ export default function AuditLog() {
                                 <TableCell
                                     className={`${cellClass} text-nowrap`}
                                 >
-                                    {log.created_at}
+                                    {log.created_at
+                                        ? new Date(
+                                              log.created_at,
+                                          ).toLocaleString(undefined, {
+                                              dateStyle: "medium",
+                                              timeStyle: "short",
+                                          })
+                                        : "—"}
                                 </TableCell>
                             </TableRow>
                         ))}

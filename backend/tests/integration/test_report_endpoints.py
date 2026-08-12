@@ -880,6 +880,64 @@ async def test_list_filter_by_report_type():
 
 
 @pytest.mark.asyncio
+async def test_list_filter_by_search():
+    uid = await _create_user("test_ranger_search")
+    payload = _incident_payload()
+    payload["description"] = "Unique Search Term Elephant Alpha"
+    async with _client() as c:
+        await c.post("/v1/reports", json=payload, headers=_auth_header(uid))
+        r = await c.get(
+            "/v1/reports?search=Elephant Alpha",
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) >= 1
+    assert any("Elephant Alpha" in item["description"] for item in results)
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_species():
+    uid = await _create_user("test_ranger_species")
+    payload = _sighting_payload()
+    async with _client() as c:
+        await c.post(
+            "/v1/reports",
+            json=payload,
+            headers=_auth_header(uid),
+        )
+        r = await c.get(
+            "/v1/reports?species=African Elephant",
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) >= 1
+    assert all(item["species"] == "African Elephant" for item in results)
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_users():
+    username = "test_ranger_user"
+    uid = await _create_user(username)
+    admin_id = await _create_user("test_admin_user", role="admin")
+    await _create_report(uid)
+    async with _client() as c:
+        r = await c.get(
+            f"/v1/reports?users={username}",
+            headers=_auth_header(admin_id),
+        )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) >= 1
+    assert all(
+        item.get("submitted_by_username") == username
+        or item["submitted_by"] == uid
+        for item in results
+    )
+
+
+@pytest.mark.asyncio
 async def test_list_pagination():
     uid = await _create_user("test_ranger_sc20f")
     for _ in range(3):
@@ -925,3 +983,44 @@ async def test_list_sync_status_offline_returns_empty():
     body = r.json()
     assert body["total"] == 0
     assert body["results"] == []
+
+
+# GET /v1/reports/species
+
+
+@pytest.mark.asyncio
+async def test_get_species_returns_200_and_list():
+    uid = await _create_user("test_ranger_get_species")
+    payload = _sighting_payload()
+    async with _client() as c:
+        await c.post(
+            "/v1/reports",
+            json=payload,
+            headers=_auth_header(uid),
+        )
+        r = await c.get(
+            "/v1/reports/species",
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+    body = r.json()
+    assert "species" in body
+    assert isinstance(body["species"], list)
+    assert "African Elephant" in body["species"]
+
+
+# GET /v1/reports/users
+@pytest.mark.asyncio
+async def test_get_usernames_returns_200_and_list():
+    username = "test_ranger_get_users"
+    uid = await _create_user(username)
+    await _create_report(uid)
+
+    async with _client() as c:
+        r = await c.get("/v1/reports/users", headers=_auth_header(uid))
+
+    assert r.status_code == 200
+    body = r.json()
+    assert "usernames" in body
+    assert isinstance(body["usernames"], list)
+    assert username in body["usernames"]
