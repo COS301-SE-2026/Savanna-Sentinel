@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class IngestionUploadResponse(BaseModel):
     status: str
     message: str
+
 
 class CSVSchema(BaseModel):
     record_id: int
@@ -20,6 +21,8 @@ class CSVSchema(BaseModel):
     is_encrypted: bool
     status: str
 
+
 class IngestionRequest(BaseModel):
     records: List[CSVSchema]
     start_row: int
+    filename: Optional[str] = None
