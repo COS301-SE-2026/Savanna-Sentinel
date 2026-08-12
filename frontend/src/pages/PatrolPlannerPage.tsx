@@ -6,8 +6,10 @@ import { MapControls } from "@/components/map/MapControls";
 import { MapLegend } from "@/components/map/MapLegend";
 import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { PatrolRouteLayer } from "@/components/map/PatrolRouteLayer";
+import { History } from "lucide-react";
 import { PatrolPlannerForm } from "@/components/patrol/PatrolPlannerForm";
 import { RouteComparisonView } from "@/components/patrol/RouteComparisonView";
+import { LoadPreviousRoutesDialog } from "@/components/patrol/LoadPreviousRoutesDialog";
 import {
     Drawer,
     DrawerContent,
@@ -18,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { riskApi } from "@/services/riskApi";
 import { routeApi } from "@/services/routeApi";
 import type { ParkGridResponse } from "@/services/riskApi";
+import type { SavedRoute, PlannedRoute } from "@/services/routeApi";
 import { usePollRouteJob } from "@/hooks/usePollRouteJob";
 import { assignRandomRisk, parseGridCells } from "@/lib/riskGrid";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
@@ -62,6 +65,9 @@ interface SidebarContentProps {
     savingIndex: number | null;
     savedIndices: Set<number>;
     canSave: boolean;
+    isLoadDialogOpen: boolean;
+    onLoadDialogOpenChange: (open: boolean) => void;
+    onLoadRoute: (saved: SavedRoute) => void;
 }
 
 function SidebarContent({
@@ -86,9 +92,26 @@ function SidebarContent({
     savingIndex,
     savedIndices,
     canSave,
+    isLoadDialogOpen,
+    onLoadDialogOpenChange,
+    onLoadRoute,
 }: SidebarContentProps) {
     return (
         <div className="flex flex-col gap-5 p-4">
+            <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={() => onLoadDialogOpenChange(true)}
+            >
+                <History className="size-4" />
+                Load Previous
+            </Button>
+            <LoadPreviousRoutesDialog
+                open={isLoadDialogOpen}
+                onOpenChange={onLoadDialogOpenChange}
+                onLoad={onLoadRoute}
+            />
             <PatrolPlannerForm
                 startPoint={startPoint}
                 endPoint={endPoint}
@@ -153,6 +176,12 @@ export default function PatrolPlannerPage() {
         setSavedIndices(new Set());
     }
 
+    const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+    const [loadedRoute, setLoadedRoute] = useState<PlannedRoute | null>(null);
+
+    const displayRoutes = loadedRoute ? [loadedRoute] : routes;
+    const displayStatus = loadedRoute ? "completed" : jobStatus;
+
     const [grid, setGrid] = useState<ParkGridResponse | null>(null);
     const [isGridLoading, setIsGridLoading] = useState(true);
     const [riskByCell, setRiskByCell] = useState<Map<string, number>>(
@@ -197,6 +226,7 @@ export default function PatrolPlannerPage() {
 
     async function handleGenerate() {
         if (!startPoint || !endPoint) return;
+        setLoadedRoute(null);
         try {
             const job = await routeApi.generateRoute({
                 park_id: PARK_ID,
@@ -221,6 +251,24 @@ export default function PatrolPlannerPage() {
 
     function handleClearRoutes() {
         setRequestId(null);
+    }
+
+    function handleLoadRoute(saved: SavedRoute) {
+        setRequestId(null);
+        setLoadedRoute({
+            suggested_path: [],
+            path_geometry: saved.path_geometry,
+            estimated_time_min: saved.estimated_time_min,
+            estimated_fuel_l: saved.estimated_fuel_l,
+            risk_coverage: saved.risk_coverage,
+        });
+        setSelectedIndex(0);
+        setStartPoint({
+            lat: saved.start_point.coordinates[1],
+            lon: saved.start_point.coordinates[0],
+        });
+        setMaxTime(String(saved.max_time));
+        setMaxFuel(String(saved.max_fuel));
     }
 
     const canSave =
@@ -268,14 +316,17 @@ export default function PatrolPlannerPage() {
         onGenerate: handleGenerate,
         isGenerating,
         onClearRoutes: handleClearRoutes,
-        jobStatus,
-        routes,
+        jobStatus: displayStatus,
+        routes: displayRoutes,
         selectedIndex,
         onSelectRoute: setSelectedIndex,
         onSaveRoute: handleSaveRoute,
         savingIndex,
         savedIndices,
         canSave,
+        isLoadDialogOpen,
+        onLoadDialogOpenChange: setIsLoadDialogOpen,
+        onLoadRoute: handleLoadRoute,
     };
 
     return (
@@ -320,7 +371,7 @@ export default function PatrolPlannerPage() {
                     map={map}
                     startPoint={startPoint}
                     endPoint={endPoint}
-                    routes={routes}
+                    routes={displayRoutes}
                     selectedIndex={selectedIndex}
                 />
                 {isGridLoading && <LoadingPill label="Loading..." />}
