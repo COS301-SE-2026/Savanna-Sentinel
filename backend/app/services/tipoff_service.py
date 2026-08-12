@@ -84,9 +84,10 @@ class TipoffService:
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
         owner_id = (
-                current_user.id
-                if current_user.role == "community_liaison" else None
-            )
+            current_user.id
+            if current_user.role == "community_liaison"
+            else None
+        )
         results, total = await self.repo.get_list(
             owner_id=owner_id,
             report_type=report_type,
@@ -97,9 +98,7 @@ class TipoffService:
         )
         for item in results:
             item["images"] = self._view_urls(item.get("images"))
-            item["submitted_by_username"] = (
-                await self.user_repo.get_username_by_id(item["submitted_by"])
-            )
+            item.setdefault("submitted_by_username", None)
         return results, total
 
     def _view_urls(self, images: Optional[list]) -> list:

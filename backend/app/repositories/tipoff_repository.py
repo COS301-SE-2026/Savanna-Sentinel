@@ -11,7 +11,6 @@ from sqlalchemy import (
     Text,
     func,
     insert,
-    or_,
     select,
     text,
 )
@@ -171,6 +170,12 @@ class TipoffRepository:
             Column("geospatial_event_id", String),
             Column("image_url", Text),
         )
+        u = Table(
+            "users",
+            md,
+            Column("id", String),
+            Column("username", String),
+        )
 
         conds = [t.c.deleted_at.is_(None)]
         if owner_id is not None:
@@ -193,18 +198,14 @@ class TipoffRepository:
 
         total = (await self.db.execute(count_stmt)).scalar or 0
 
+        location_geom = t.c.location.cast("geometry")
         images_subq = (
             select(
                 func.coalesce(
                     func.array_agg(p.c.image_url), text("ARRAY[]::text[]"),
                 ),
             )
-            .where(
-                or_(
-                    p.c.geospatial_event_id == i.c.id,
-                    p.c.geospatial_event_id == s.c.id,
-                ),
-            )
+            .where(p.c.geospatial_event_id == func.coalesce(i.c.id, s.c.id))
             .scalar_subquery()
         )
 
@@ -212,8 +213,8 @@ class TipoffRepository:
             select(
                 t.c.id.label("tipoff_id"),
                 t.c.report_type.label("report_type"),
-                func.ST_Y(t.c.location).label("lat"),
-                func.ST_X(t.c.location).label("lon"),
+                func.ST_Y(location_geom).label("lat"),
+                func.ST_X(location_geom).label("lon"),
                 t.c.occurred_at,
                 t.c.description,
                 i.c.incident_type.label("incident_type"),
@@ -222,11 +223,15 @@ class TipoffRepository:
                 s.c.count.label("count"),
                 text("'synced'").label("sync_status"),
                 t.c.submitted_by.label("submitted_by"),
+                u.c.username.label("submitted_by_username"),
                 t.c.created_at,
                 images_subq.label("images"),
             )
-            .select_from(t.outerjoin(i, i.c.tipoff_id == t.c.id)
-            .outerjoin(s, s.c.tipoff_id == t.c.id))
+            .select_from(
+                t.outerjoin(i, i.c.tipoff_id == t.c.id)
+                .outerjoin(s, s.c.tipoff_id == t.c.id)
+                .outerjoin(u, u.c.id == t.c.submitted_by),
+            )
             .where(*conds)
             .order_by(t.c.created_at.desc())
             .limit(page_size)
