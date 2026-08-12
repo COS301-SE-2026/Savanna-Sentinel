@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -11,9 +11,22 @@ from app.services.ingestion_service import IngestionService
 def mock_repo():
     return MagicMock()
 
+
 @pytest.fixture
 def service(mock_repo):
     return IngestionService(repo=mock_repo)
+
+
+@pytest.fixture
+def mock_audit():
+    return AsyncMock()
+
+
+@pytest.fixture
+def auditing_service(mock_audit):
+    repo = AsyncMock()
+    return IngestionService(repo=repo, audit_service=mock_audit)
+
 
 @pytest.fixture
 def valid_body():
@@ -35,11 +48,12 @@ def valid_body():
         ],
     }
 
+
 @pytest.fixture
 def invalid_body():
     return {
         "start_row": 1,
-        "records" : [
+        "records": [
             {
                 "record_id": "some_string_that is not an int",
                 "ingestion_timestamp": "2026-03-15T08:30:00Z",
@@ -55,6 +69,7 @@ def invalid_body():
         ],
     }
 
+
 def test_ingestion_service_validate_success(service, valid_body):
     body = IngestionRequest(**valid_body)
 
@@ -62,6 +77,7 @@ def test_ingestion_service_validate_success(service, valid_body):
 
     assert result["status"] == "success"
     assert "rows 1 to 1" in result["message"]
+
 
 def test_ingestion_service_validate_failure(service, invalid_body):
     # Force data into the model, ignoring pydantic errors
@@ -83,3 +99,82 @@ def test_ingestion_service_validate_failure(service, invalid_body):
     failed_cols = [err["column"] for err in errors]
     assert "record_id" in failed_cols
     assert "is_encrypted" in failed_cols
+
+
+@pytest.mark.asyncio
+async def test_upload_writes_audit_entry(
+    auditing_service,
+    mock_audit,
+    valid_body,
+):
+    body = IngestionRequest(**{**valid_body, "filename": "march_data.csv"})
+
+    await auditing_service.upload(body, actor_id="actor-1")
+
+    mock_audit.log.assert_awaited_once()
+    kwargs = mock_audit.log.call_args.kwargs
+    assert kwargs["actor_id"] == "actor-1"
+    assert kwargs["action"] == "ingestion.csv_uploaded"
+    assert kwargs["target_type"] == "ingestion"
+    assert kwargs["details"] == {
+        "record_count": 1,
+        "start_row": 1,
+        "end_row": 1,
+        "filename": "march_data.csv",
+    }
+
+
+@pytest.mark.asyncio
+async def test_upload_audit_details_omit_missing_filename(
+    auditing_service,
+    mock_audit,
+    valid_body,
+):
+    await auditing_service.upload(
+        IngestionRequest(**valid_body),
+        actor_id="actor-1",
+    )
+
+    assert "filename" not in mock_audit.log.call_args.kwargs["details"]
+
+
+@pytest.mark.asyncio
+async def test_upload_skips_audit_without_actor(
+    auditing_service,
+    mock_audit,
+    valid_body,
+):
+    await auditing_service.upload(IngestionRequest(**valid_body))
+
+    mock_audit.log.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_upload_does_not_audit_invalid_batch(
+    auditing_service,
+    mock_audit,
+    invalid_body,
+):
+    body = IngestionRequest.model_construct(
+        start_row=invalid_body["start_row"],
+        records=invalid_body["records"],
+        filename=None,
+    )
+
+    with pytest.raises(HTTPException):
+        await auditing_service.upload(body, actor_id="actor-1")
+
+    mock_audit.log.assert_not_awaited()
+    auditing_service.repo.upload_file.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_upload_persists_records(auditing_service, valid_body):
+    await auditing_service.upload(
+        IngestionRequest(**valid_body),
+        actor_id="actor-1",
+    )
+
+    records = auditing_service.repo.upload_file.call_args.args[0]
+    assert len(records) == 1
+    assert records[0]["record_id"] == 1
