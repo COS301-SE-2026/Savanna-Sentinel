@@ -249,6 +249,51 @@ describe("PatrolPlannerPage", () => {
         ).toBeDisabled();
     });
 
+    it("saves a route successfully when Max Time and Max Fuel are left blank", async () => {
+        let requestBody: {
+            max_time?: number | null;
+            max_fuel?: number | null;
+        } | null = null;
+        server.use(
+            http.post(
+                "http://localhost:8000/v1/routes/save",
+                async ({ request }) => {
+                    requestBody = (await request.json()) as {
+                        max_time?: number | null;
+                        max_fuel?: number | null;
+                    };
+                    return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+                },
+            ),
+        );
+
+        renderPage();
+        await userEvent.type(
+            screen.getByLabelText(/^start point$/i),
+            "-24.3, 31.05",
+        );
+        await userEvent.type(
+            screen.getByLabelText(/^end point$/i),
+            "-24.32, 31.08",
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+
+        expect(
+            screen.getByRole("button", { name: /^save route a/i }),
+        ).toBeEnabled();
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route a/i }),
+        );
+
+        expect(await screen.findByText("Route saved")).toBeInTheDocument();
+        await waitFor(() => expect(requestBody).not.toBeNull());
+        expect(requestBody!.max_time).toBeNull();
+        expect(requestBody!.max_fuel).toBeNull();
+    });
+
     it("shows a critical toast when saving fails", async () => {
         server.use(
             http.post("http://localhost:8000/v1/routes/save", () =>

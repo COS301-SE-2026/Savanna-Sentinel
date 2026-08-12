@@ -37,8 +37,8 @@ class PatrolRoute(Base):
         UUID(as_uuid=False), ForeignKey("users.id"), nullable=False,
     )
     start_point: Mapped[str] = mapped_column(GeographyPoint, nullable=False)
-    max_time: Mapped[float] = mapped_column(Float, nullable=False)
-    max_fuel: Mapped[float] = mapped_column(Float, nullable=False)
+    max_time: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_fuel: Mapped[float | None] = mapped_column(Float, nullable=True)
     suggested_path: Mapped[str] = mapped_column(GeographyLineString, nullable=False)
     estimated_time: Mapped[float] = mapped_column(Float, nullable=False)
     estimated_fuel: Mapped[float] = mapped_column(Float, nullable=False)

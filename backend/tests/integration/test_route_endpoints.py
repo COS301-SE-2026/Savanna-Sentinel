@@ -108,6 +108,19 @@ async def test_save_route_requires_authentication(client):
 
 
 @pytest.mark.asyncio
+async def test_save_route_without_max_time_or_max_fuel(client, ranger_token):
+    r = await client.post(
+        "/v1/routes/save",
+        json=_valid_save_payload(max_time=None, max_fuel=None),
+        headers={"Authorization": f"Bearer {ranger_token}"},
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert body["max_time"] is None
+    assert body["max_fuel"] is None
+
+
+@pytest.mark.asyncio
 async def test_save_and_list_route_roundtrip(client, ranger_token):
     save_resp = await client.post(
         "/v1/routes/save",

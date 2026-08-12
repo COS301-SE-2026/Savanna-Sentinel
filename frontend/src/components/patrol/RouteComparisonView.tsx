@@ -122,6 +122,11 @@ export function RouteComparisonView({
                                 }
                                 aria-pressed={savedIndices.has(index)}
                                 onClick={() => onSave(index)}
+                                title={
+                                    !canSave
+                                        ? "Loaded routes can't be re-saved - generate a new route to save it"
+                                        : undefined
+                                }
                                 className={
                                     savedIndices.has(index)
                                         ? "text-status-safe"

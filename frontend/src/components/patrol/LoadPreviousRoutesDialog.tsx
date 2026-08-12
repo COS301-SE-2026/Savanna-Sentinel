@@ -44,43 +44,48 @@ export function LoadPreviousRoutesDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
+            <DialogContent className="max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Load Previous Route</DialogTitle>
                 </DialogHeader>
-                {isLoading && (
-                    <p className="text-sm text-color-text-secondary">
-                        Loading...
-                    </p>
-                )}
-                {error && (
-                    <p className="text-sm text-status-critical-text">
-                        {error}
-                    </p>
-                )}
-                {!isLoading && !error && routes.length === 0 && (
-                    <p className="text-sm text-color-text-secondary">
-                        No saved routes yet.
-                    </p>
-                )}
-                <ul className="flex flex-col gap-2">
-                    {routes.map((route) => (
-                        <li key={route.id}>
-                            <Button
-                                variant="outline"
-                                className="w-full justify-start"
-                                onClick={() => {
-                                    onLoad(route);
-                                    onOpenChange(false);
-                                }}
-                            >
-                                {new Date(route.created_at).toLocaleString()}{" "}
-                                — {Math.round(route.estimated_time_min)} min,{" "}
-                                {Math.round(route.estimated_fuel_l)} L
-                            </Button>
-                        </li>
-                    ))}
-                </ul>
+                <div className="flex flex-col gap-3 px-6 py-5">
+                    {isLoading && (
+                        <p className="text-sm text-color-text-secondary">
+                            Loading...
+                        </p>
+                    )}
+                    {error && (
+                        <p className="text-sm text-status-critical-text">
+                            {error}
+                        </p>
+                    )}
+                    {!isLoading && !error && routes.length === 0 && (
+                        <p className="text-sm text-color-text-secondary">
+                            No saved routes yet.
+                        </p>
+                    )}
+                    <ul className="flex flex-col gap-2">
+                        {routes.map((route) => (
+                            <li key={route.id}>
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-start"
+                                    onClick={() => {
+                                        onLoad(route);
+                                        onOpenChange(false);
+                                    }}
+                                >
+                                    {new Date(
+                                        route.created_at,
+                                    ).toLocaleString()}{" "}
+                                    {Math.round(route.estimated_time_min)}{" "}
+                                    min, {Math.round(route.estimated_fuel_l)}{" "}
+                                    L
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             </DialogContent>
         </Dialog>
     );

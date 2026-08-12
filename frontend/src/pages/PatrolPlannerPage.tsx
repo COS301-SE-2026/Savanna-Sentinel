@@ -267,14 +267,11 @@ export default function PatrolPlannerPage() {
             lat: saved.start_point.coordinates[1],
             lon: saved.start_point.coordinates[0],
         });
-        setMaxTime(String(saved.max_time));
-        setMaxFuel(String(saved.max_fuel));
+        setMaxTime(saved.max_time == null ? "" : String(saved.max_time));
+        setMaxFuel(saved.max_fuel == null ? "" : String(saved.max_fuel));
     }
 
-    const canSave =
-        requestId !== null &&
-        maxTime.trim() !== "" &&
-        maxFuel.trim() !== "";
+    const canSave = requestId !== null;
 
     const handleSaveRoute = async (index: number) => {
         if (!requestId || !startPoint) return;
@@ -286,8 +283,8 @@ export default function PatrolPlannerPage() {
                     type: "Point",
                     coordinates: [startPoint.lon, startPoint.lat],
                 },
-                max_time: Number(maxTime),
-                max_fuel: Number(maxFuel),
+                max_time: maxTime.trim() === "" ? null : Number(maxTime),
+                max_fuel: maxFuel.trim() === "" ? null : Number(maxFuel),
                 route: routes[index],
             });
             setSavedIndices((prev) => new Set(prev).add(index));

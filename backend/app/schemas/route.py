@@ -89,8 +89,8 @@ class SaveRouteRequest(BaseModel):
 
     request_id: str
     start_point: GeoPoint
-    max_time: float
-    max_fuel: float
+    max_time: float | None = None
+    max_fuel: float | None = None
     route: PlannedRoute
 
 
@@ -98,8 +98,8 @@ class SavedRouteResponse(BaseModel):
     id: str
     request_id: str
     start_point: GeoPoint
-    max_time: float
-    max_fuel: float
+    max_time: float | None
+    max_fuel: float | None
     path_geometry: GeoLineString
     estimated_time_min: float
     estimated_fuel_l: float
