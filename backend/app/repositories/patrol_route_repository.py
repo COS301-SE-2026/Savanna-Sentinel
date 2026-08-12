@@ -63,7 +63,7 @@ class PatrolRouteRepository:
         rows = (
             await self.db.execute(
                 text("""
-                    SELECT id, request_id,
+                    SELECT id::text AS id, request_id::text AS request_id,
                         ST_AsGeoJSON(start_point::geometry)::json AS start_point,
                         max_time, max_fuel,
                         ST_AsGeoJSON(suggested_path::geometry)::json AS path_geometry,
