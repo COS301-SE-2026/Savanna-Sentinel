@@ -83,3 +83,32 @@ class RouteListResponse(BaseModel):
     page: int
     page_size: int
     results: list[PlannedRoute]
+
+class SaveRouteRequest(BaseModel):
+    model_config = ConfigDict(revalidate_instances="always")
+
+    request_id: str
+    start_point: GeoPoint
+    max_time: float
+    max_fuel: float
+    route: PlannedRoute
+
+
+class SavedRouteResponse(BaseModel):
+    id: str
+    request_id: str
+    start_point: GeoPoint
+    max_time: float
+    max_fuel: float
+    path_geometry: GeoLineString
+    estimated_time_min: float
+    estimated_fuel_l: float
+    risk_coverage: float
+    created_at: str
+
+
+class SavedRouteListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    results: list[SavedRouteResponse]
