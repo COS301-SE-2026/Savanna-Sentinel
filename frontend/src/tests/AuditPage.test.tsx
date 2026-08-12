@@ -3,11 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { auditApi, type AuditLogResponse } from "@/services/auditApi";
 import AuditLog from "@/components/admin/AuditLog";
+import { notifyCritical } from "@/components/ui/toast";
 
 vi.mock("@/services/auditApi", () => ({
     auditApi: {
         getLogs: vi.fn(),
+        exportCsv: vi.fn(),
     },
+}));
+
+vi.mock("@/components/ui/toast", () => ({
+    notifyCritical: vi.fn(),
 }));
 
 const createMockResponse = (
@@ -108,5 +114,74 @@ describe("AuditLog Component Testing", () => {
             });
         });
         expect(await screen.findByText("ACTION_21")).toBeInTheDocument();
+    });
+
+    it("downloads a CSV file when Export CSV is clicked", async () => {
+        mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 1, 20));
+        const mockedExport = vi.mocked(auditApi.exportCsv);
+        mockedExport.mockResolvedValueOnce(
+            new Blob(["id,action"], { type: "text/csv" }),
+        );
+
+        const createObjectURL = vi.fn().mockReturnValue("blob:mock-url");
+        const revokeObjectURL = vi.fn();
+        URL.createObjectURL = createObjectURL;
+        URL.revokeObjectURL = revokeObjectURL;
+        const clickSpy = vi
+            .spyOn(HTMLAnchorElement.prototype, "click")
+            .mockImplementation(() => {});
+
+        const user = userEvent.setup();
+        render(<AuditLog />);
+        await screen.findByText("ACTION_1");
+
+        await user.click(screen.getByRole("button", { name: /export csv/i }));
+        await user.click(screen.getByRole("button", { name: /confirm/i }));
+
+        expect(auditApi.exportCsv).toHaveBeenCalled();
+        expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+        expect(clickSpy).toHaveBeenCalled();
+        expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+    });
+
+    it("does not export when the confirm dialog is cancelled", async () => {
+        mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 1, 20));
+
+        const user = userEvent.setup();
+        render(<AuditLog />);
+        await screen.findByText("ACTION_1");
+
+        await user.click(screen.getByRole("button", { name: /export csv/i }));
+        expect(await screen.findByText(/confirm export/i)).toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+        expect(auditApi.exportCsv).not.toHaveBeenCalled();
+        await waitFor(() => {
+            expect(
+                screen.queryByText(/confirm export/i),
+            ).not.toBeInTheDocument();
+        });
+    });
+
+    it("shows an error toast when export fails", async () => {
+        mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 1, 20));
+        vi.mocked(auditApi.exportCsv).mockRejectedValueOnce(
+            new Error("network"),
+        );
+
+        const user = userEvent.setup();
+        render(<AuditLog />);
+        await screen.findByText("ACTION_1");
+
+        await user.click(screen.getByRole("button", { name: /export csv/i }));
+        await user.click(screen.getByRole("button", { name: /confirm/i }));
+
+        await waitFor(() => {
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Export failed",
+                "Could not download the audit log.",
+            );
+        });
     });
 });

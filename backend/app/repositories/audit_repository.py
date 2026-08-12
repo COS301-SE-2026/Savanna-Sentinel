@@ -61,3 +61,9 @@ class AuditRepository:
         stmt = self._apply_filters(select(func.count(AuditLog.id)), req)
         result = await self.db.execute(stmt)
         return result.scalar_one()
+
+    async def list_all_logs(self, req: AuditLogFilterRequest) -> list[AuditLog]:
+        stmt = self._apply_filters(select(AuditLog), req)
+        stmt = stmt.order_by(AuditLog.created_at.desc())
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
