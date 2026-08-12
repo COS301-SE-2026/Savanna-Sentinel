@@ -47,6 +47,34 @@ export interface RouteListResponse {
     results: PlannedRoute[];
 }
 
+export interface SaveRouteRequest {
+    request_id: string;
+    start_point: GeoPoint;
+    max_time: number;
+    max_fuel: number;
+    route: PlannedRoute;
+}
+
+export interface SavedRoute {
+    id: string;
+    request_id: string;
+    start_point: GeoPoint;
+    max_time: number;
+    max_fuel: number;
+    path_geometry: GeoLineString;
+    estimated_time_min: number;
+    estimated_fuel_l: number;
+    risk_coverage: number;
+    created_at: string;
+}
+
+export interface SavedRouteListResponse {
+    total: number;
+    page: number;
+    page_size: number;
+    results: SavedRoute[];
+}
+
 export const routeApi = {
     generateRoute: async (payload: RouteRequest): Promise<RouteJobResponse> =>
         api.post<RouteJobResponse>("/routes", payload).then((r) => r.data),
@@ -57,4 +85,10 @@ export const routeApi = {
                 params: { request_id: requestId },
             })
             .then((r) => r.data),
+
+    saveRoute: async (payload: SaveRouteRequest): Promise<SavedRoute> =>
+        api.post<SavedRoute>("/routes/save", payload).then((r) => r.data),
+
+    listSavedRoutes: async (): Promise<SavedRouteListResponse> =>
+        api.get<SavedRouteListResponse>("/routes/saved").then((r) => r.data),
 };
