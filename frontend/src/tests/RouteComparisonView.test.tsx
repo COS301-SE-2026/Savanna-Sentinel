@@ -4,6 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import { RouteComparisonView } from "@/components/patrol/RouteComparisonView";
 import type { PlannedRoute } from "@/services/routeApi";
+import { COMPLETED_ROUTES } from "./mocks/routeHandlers";
 
 const SAVE_PROPS = {
     onSave: vi.fn(),
@@ -136,5 +137,61 @@ describe("RouteComparisonView", () => {
         );
         expect(screen.getByText("Route A")).toBeInTheDocument();
         expect(screen.queryByText("Route B")).not.toBeInTheDocument();
+    });
+
+    it("shows a Save button per card, disabled when canSave is false", () => {
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={COMPLETED_ROUTES.results}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                onSave={vi.fn()}
+                savingIndex={null}
+                savedIndices={new Set()}
+                canSave={false}
+            />,
+        );
+        screen
+            .getAllByRole("button", { name: /^save/i })
+            .forEach((btn) => expect(btn).toBeDisabled());
+    });
+
+    it("calls onSave with the card index when clicked", async () => {
+        const onSave = vi.fn();
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={COMPLETED_ROUTES.results}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                onSave={onSave}
+                savingIndex={null}
+                savedIndices={new Set()}
+                canSave
+            />,
+        );
+        await userEvent.click(
+            screen.getAllByRole("button", { name: /^save route a/i })[0],
+        );
+        expect(onSave).toHaveBeenCalledWith(0);
+    });
+
+    it("marks a saved card as saved and disables it", () => {
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={COMPLETED_ROUTES.results}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                onSave={vi.fn()}
+                savingIndex={null}
+                savedIndices={new Set([0])}
+                canSave
+            />,
+        );
+        expect(
+            screen.getByRole("button", { name: /route a saved/i }),
+        ).toBeDisabled();
     });
 });

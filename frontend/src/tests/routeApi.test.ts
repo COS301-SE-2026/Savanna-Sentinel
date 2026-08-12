@@ -7,8 +7,9 @@ import {
     ROUTE_REQUEST_ID,
     COMPLETED_ROUTES,
 } from "./mocks/routeHandlers";
+import { savedRouteHandlers, SAVED_ROUTE, SAVED_ROUTES_LIST } from "./mocks/savedRouteHandlers";
 
-const server = setupServer(...routeHandlers);
+const server = setupServer(...routeHandlers, ...savedRouteHandlers);
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
@@ -36,5 +37,21 @@ describe("routeApi", () => {
         const result = await routeApi.getRouteJob("unknown-job");
         expect(result.results).toEqual([]);
         expect(result.total).toBe(0);
+    });
+
+    it("saveRoute posts to /routes/save", async () => {
+        const result = await routeApi.saveRoute({
+            request_id: ROUTE_REQUEST_ID,
+            start_point: { type: "Point", coordinates: [31.05, -24.3] },
+            max_time: 120,
+            max_fuel: 15,
+            route: COMPLETED_ROUTES.results[0],
+        });
+        expect(result).toEqual(SAVED_ROUTE);
+    });
+
+    it("listSavedRoutes gets /routes/saved", async () => {
+        const result = await routeApi.listSavedRoutes();
+        expect(result).toEqual(SAVED_ROUTES_LIST);
     });
 });
