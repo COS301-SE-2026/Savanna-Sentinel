@@ -24,7 +24,7 @@ function renderRoleSwap() {
         <>
             <Toaster />
             <RoleSwap />
-        </>
+        </>,
     );
 }
 
@@ -154,8 +154,9 @@ describe("RoleSwap - Role Management", () => {
 
         await waitFor(
             () => {
-                expect(screen.queryByText(/Updated John Doe's role to Analyst/i),)
-                .not.toBeInTheDocument();
+                expect(
+                    screen.queryByText(/Updated John Doe's role to Analyst/i),
+                ).not.toBeInTheDocument();
             },
             { timeout: 6000 },
         );
@@ -245,9 +246,7 @@ describe("RoleSwap - Role Management", () => {
             within(dialog).getByRole("button", { name: /confirm/i }),
         );
 
-        expect(
-            await screen.findByText(/role to Analyst/i),
-        ).toBeInTheDocument();
+        expect(await screen.findByText(/role to Analyst/i)).toBeInTheDocument();
 
         await waitFor(
             () =>

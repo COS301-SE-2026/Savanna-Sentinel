@@ -15,6 +15,7 @@ from app.schemas.report import (
     ReportSubmitResponse,
     ReportUpdate,
     SpeciesResponse,
+    UserResponse,
 )
 from app.services.report_service import ReportService
 
@@ -66,6 +67,10 @@ async def list_reports(
         Optional[list[str]],
         Query(),
     ] = None,
+    users: Annotated[
+        Optional[list[str]],
+        Query(),
+    ] = None,
     from_dt: Annotated[Optional[datetime], Query(alias="from")] = None,
     to: Annotated[Optional[datetime], Query()] = None,
     sync_status: Annotated[
@@ -90,6 +95,7 @@ async def list_reports(
         report_types=report_type,
         severities=severity,
         species=species,
+        users=users,
         from_dt=from_dt,
         to_dt=to,
         sync_status=sync_status,
@@ -174,11 +180,34 @@ async def get_species(
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     repo = ReportRepository(db)
-    service = ReportService(repo)
+    user_repo = UserRepository(db)
+    service = ReportService(repo, user_repo)
 
     species = await service.get_species()
 
     return SpeciesResponse(species=species)
+
+
+@router.get(
+    "/reports/users",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a list of usernames in the system to filter by",
+)
+async def get_usernames(
+    is_authenticated: Annotated[
+        User,
+        Depends(require_roles(["admin", "analyst", "ranger"])),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    repo = ReportRepository(db)
+    user_repo = UserRepository(db)
+    service = ReportService(repo, user_repo)
+
+    usernames = await service.get_usernames()
+
+    return UserResponse(usernames=usernames)
 
 
 @router.get(

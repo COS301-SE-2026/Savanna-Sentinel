@@ -93,3 +93,6 @@ class ReportUpdate(BaseModel):
 
 class SpeciesResponse(BaseModel):
     species: list[str]
+
+class UserResponse(BaseModel):
+    usernames: list[str]

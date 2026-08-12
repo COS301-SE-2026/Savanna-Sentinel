@@ -94,6 +94,7 @@ export interface ListReportsQueryParams {
     report_type?: ReportType | ReportType[];
     severity?: SeverityLevel | SeverityLevel[];
     species?: string | string[];
+    users?: string | string[];
     from?: string;
     to?: string;
     sync_status?: SyncStatus;
@@ -103,6 +104,9 @@ export interface ListReportsQueryParams {
 
 export interface SpeciesResponse {
     species: string[];
+}
+export interface UserFilterResponse {
+    usernames: string[];
 }
 
 export const reportsApi = {
@@ -135,4 +139,6 @@ export const reportsApi = {
 
     getSpecies: async (): Promise<SpeciesResponse> =>
         api.get<SpeciesResponse>(`reports/species`).then((r) => r.data),
+    getUsernames: async (): Promise<UserFilterResponse> =>
+        api.get<UserFilterResponse>(`reports/users`).then((r) => r.data),
 };

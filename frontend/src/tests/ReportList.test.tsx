@@ -13,6 +13,9 @@ vi.mock("@/hooks/useReportSearchFilter", async (importOriginal) => {
         getSpeciesOptions: vi
             .fn()
             .mockResolvedValue(["Elephant", "Lion", "Rhino"]),
+        getUsernameOptions: vi
+            .fn()
+            .mockResolvedValue(["John Doe", "jane_ranger"]),
     };
 });
 
@@ -47,6 +50,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -70,6 +75,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -96,6 +103,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -119,6 +128,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -140,6 +151,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -164,6 +177,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -198,6 +213,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -229,6 +246,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -267,6 +286,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -287,6 +308,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -328,6 +351,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={setSpeciesFilter}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );
@@ -347,47 +372,6 @@ describe("ReportList", () => {
         expect(setSpeciesFilter).toHaveBeenCalledWith(["Elephant"]);
     });
 
-    it("narrows results with the submitted-by filter", async () => {
-        render(
-            <ReportList
-                reports={[
-                    makeReport({
-                        description: "Snare near fence",
-                        submittedByUsername: "jane_ranger",
-                    }),
-                    makeReport({
-                        description: "Herd near waterhole",
-                        submittedByUsername: "john_ranger",
-                    }),
-                ]}
-                canSubmit
-                onGoToNewReport={vi.fn()}
-            />,
-        );
-
-        await userEvent.click(
-            screen.getByRole("button", { name: "Open filters" }),
-        );
-        const submittedByTrigger = screen
-            .getAllByRole("button", { name: /^submitted by/i })
-            .find(
-                (button) => button.getAttribute("aria-haspopup") === "listbox",
-            );
-        if (!submittedByTrigger) {
-            throw new Error("Submitted-by filter trigger not found");
-        }
-        await userEvent.click(submittedByTrigger);
-        await userEvent.click(
-            within(screen.getByRole("listbox")).getByLabelText("jane_ranger"),
-        );
-        await userEvent.click(screen.getByRole("button", { name: /^apply$/i }));
-
-        expect(screen.getByText("Snare near fence")).toBeInTheDocument();
-        expect(
-            screen.queryByText("Herd near waterhole"),
-        ).not.toBeInTheDocument();
-    });
-
     it("opens the report detail dialog when a row is activated with the keyboard", async () => {
         render(
             <ReportList
@@ -402,6 +386,8 @@ describe("ReportList", () => {
                 setSeverityFilter={vi.fn()}
                 speciesFilter={[]}
                 setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
                 isLoading={false}
             />,
         );

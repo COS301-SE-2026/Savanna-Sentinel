@@ -18,6 +18,7 @@ vi.mock("@/services/reportsApi", () => ({
         updateReport: vi.fn(),
         deleteReport: vi.fn(),
         getSpecies: vi.fn(),
+        getUsernames: vi.fn().mockResolvedValue({ usernames: ["admin1"] }),
     },
 }));
 

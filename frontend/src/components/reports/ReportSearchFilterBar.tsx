@@ -44,7 +44,6 @@ function ReportSearchFilterBarBase({
     usernameFilter,
     onUsernameFilterChange,
     usernameOptions,
-    usernameOptions,
 }: ReportSearchFilterBarProps) {
     const filterGroups: MultiSelectFilterGroup[] = React.useMemo(
         () => [
@@ -97,6 +96,7 @@ function ReportSearchFilterBarBase({
             onSpeciesFilterChange,
             usernameFilter,
             onUsernameFilterChange,
+            usernameOptions,
         ],
     );
     return (

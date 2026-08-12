@@ -6,4 +6,9 @@ export const handlers = [
             species: ["Buffalo", "Elephant", "Rhino"],
         });
     }),
+    http.get("*/v1/reports/users", () => {
+        return HttpResponse.json({
+            species: ["John Doe"],
+        });
+    }),
 ];

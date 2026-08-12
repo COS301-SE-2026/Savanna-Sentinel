@@ -90,6 +90,7 @@ export default function ReportsPage() {
     const [typeFilter, setTypeFilter] = React.useState<ReportType[]>([]);
     const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
     const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
+    const [usernameFilter, setUsernameFilter] = React.useState<string[]>([]);
 
     const debouncedSearch = useDebounce(search, 300);
 
@@ -101,6 +102,7 @@ export default function ReportsPage() {
                 report_type: typeFilter || null,
                 severity: severityFilter || null,
                 species: speciesFilter || null,
+                users: usernameFilter || null,
             };
             try {
                 const res = await reportsApi.listReports(temp);
@@ -114,7 +116,13 @@ export default function ReportsPage() {
             }
         }
         fetchReports();
-    }, [debouncedSearch, typeFilter, severityFilter, speciesFilter]);
+    }, [
+        debouncedSearch,
+        typeFilter,
+        severityFilter,
+        speciesFilter,
+        usernameFilter,
+    ]);
 
     const myDrafts = useMemo(
         () =>
@@ -274,6 +282,11 @@ export default function ReportsPage() {
                                 setSpeciesFilter={(value) => {
                                     setIsLoading(true);
                                     setSpeciesFilter(value);
+                                }}
+                                usernameFilter={usernameFilter}
+                                setUsernameFilter={(value) => {
+                                    setIsLoading(true);
+                                    setUsernameFilter(value);
                                 }}
                                 isLoading={isLoading}
                             />

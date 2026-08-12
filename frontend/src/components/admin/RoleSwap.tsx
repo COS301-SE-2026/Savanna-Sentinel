@@ -69,14 +69,14 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
             await usersApi.changeUserRole(user.id, selectedRole);
             notifySafe(
                 "Role updated",
-                `Updated ${fullName}'s role to ${formatRole(selectedRole)}`
-            )
+                `Updated ${fullName}'s role to ${formatRole(selectedRole)}`,
+            );
             onRoleChanged();
         } catch {
             notifyCritical(
                 "Update Failed",
-                `Failed to update role for ${fullName}`
-            )
+                `Failed to update role for ${fullName}`,
+            );
             setSelectedRole(user.role);
         } finally {
             setIsProcessing(false);

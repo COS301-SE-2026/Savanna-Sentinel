@@ -21,7 +21,10 @@ import {
     reportSortAccessors,
     type ReportSortKey,
 } from "@/components/reports/reportColumns";
-import { getSpeciesOptions } from "@/hooks/useReportSearchFilter";
+import {
+    getSpeciesOptions,
+    getUsernameOptions,
+} from "@/hooks/useReportSearchFilter";
 import { useSort } from "@/hooks/useSort";
 import {
     SEVERITY_OPTIONS,
@@ -55,6 +58,8 @@ interface ReportListProps {
     setSeverityFilter: React.Dispatch<React.SetStateAction<Severity[]>>;
     speciesFilter: string[];
     setSpeciesFilter: React.Dispatch<React.SetStateAction<string[]>>;
+    usernameFilter: string[];
+    setUsernameFilter: React.Dispatch<React.SetStateAction<string[]>>;
     isLoading: boolean;
 }
 
@@ -70,9 +75,12 @@ export function ReportList({
     setSeverityFilter,
     speciesFilter,
     setSpeciesFilter,
+    usernameFilter,
+    setUsernameFilter,
     isLoading,
 }: ReportListProps) {
     const [speciesOptions, setSpeciesOptions] = React.useState<string[]>([]);
+    const [usernameOptions, setUsernameOptions] = React.useState<string[]>([]);
     const [page, setPage] = React.useState(1);
     const [selectedReport, setSelectedReport] =
         React.useState<DraftReport | null>(null);
@@ -113,6 +121,9 @@ export function ReportList({
         getSpeciesOptions().then((species) => {
             setSpeciesOptions(species);
         });
+        getUsernameOptions().then((user) => {
+            setUsernameOptions(user);
+        });
     }, []);
 
     const { sorted, sortKey, direction, requestSort } = useSort<
@@ -131,7 +142,8 @@ export function ReportList({
         search.trim() !== "" ||
         typeFilter.length > 0 ||
         severityFilter.length > 0 ||
-        speciesFilter.length > 0;
+        speciesFilter.length > 0 ||
+        usernameFilter.length > 0;
 
     if (reports.length === 0 && !hasActiveFilters && !isLoading) {
         return (

@@ -195,6 +195,7 @@ class ReportService:
         report_types: Optional[list[str]] = None,
         severities: Optional[list[str]] = None,
         species: Optional[list[str]] = None,
+        users: Optional[list[str]] = None,
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
         sync_status: Optional[str] = None,
@@ -208,6 +209,7 @@ class ReportService:
             report_types=report_types,
             severities=severities,
             species=species,
+            users=users,
             from_dt=from_dt,
             to_dt=to_dt,
             sync_status=sync_status,
@@ -253,3 +255,9 @@ class ReportService:
     ) -> list[str]:
         species = await self.repo.get_species()
         return species
+
+    async def get_usernames(
+                self,
+        ) -> list[str]:
+            species = await self.repo.get_usernames()
+            return species
