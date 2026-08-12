@@ -242,6 +242,9 @@ describe("PatrolPlannerPage", () => {
         await userEvent.click(
             screen.getByRole("button", { name: /^save route a/i }),
         );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
 
         expect(await screen.findByText("Route saved")).toBeInTheDocument();
         expect(
@@ -287,6 +290,9 @@ describe("PatrolPlannerPage", () => {
         await userEvent.click(
             screen.getByRole("button", { name: /^save route a/i }),
         );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
 
         expect(await screen.findByText("Route saved")).toBeInTheDocument();
         await waitFor(() => expect(requestBody).not.toBeNull());
@@ -320,6 +326,9 @@ describe("PatrolPlannerPage", () => {
         await userEvent.click(
             screen.getByRole("button", { name: /^save route a/i }),
         );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
 
         expect(
             await screen.findByText("Could not save route"),
@@ -334,7 +343,7 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min, 22 L/i,
+            name: /55 min/i,
         });
         await userEvent.click(savedRouteButton);
 
@@ -364,7 +373,7 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min, 22 L/i,
+            name: /55 min/i,
         });
         await userEvent.click(savedRouteButton);
         expect(await screen.findByText("55 min")).toBeInTheDocument();

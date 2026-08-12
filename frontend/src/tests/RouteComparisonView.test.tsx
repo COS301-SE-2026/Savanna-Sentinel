@@ -157,7 +157,7 @@ describe("RouteComparisonView", () => {
             .forEach((btn) => expect(btn).toBeDisabled());
     });
 
-    it("calls onSave with the card index when clicked", async () => {
+    it("asks for confirmation before calling onSave", async () => {
         const onSave = vi.fn();
         render(
             <RouteComparisonView
@@ -174,7 +174,46 @@ describe("RouteComparisonView", () => {
         await userEvent.click(
             screen.getAllByRole("button", { name: /^save route a/i })[0],
         );
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(
+            screen.getByRole("heading", { name: /save this route/i }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(/route a will be added to your saved routes/i),
+        ).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
         expect(onSave).toHaveBeenCalledWith(0);
+    });
+
+    it("does not call onSave when the confirmation is cancelled", async () => {
+        const onSave = vi.fn();
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={COMPLETED_ROUTES.results}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                onSave={onSave}
+                savingIndex={null}
+                savedIndices={new Set()}
+                canSave
+            />,
+        );
+        await userEvent.click(
+            screen.getAllByRole("button", { name: /^save route a/i })[0],
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^cancel$/i }),
+        );
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(
+            screen.queryByRole("heading", { name: /save this route/i }),
+        ).not.toBeInTheDocument();
     });
 
     it("marks a saved card as saved and disables it", () => {

@@ -267,8 +267,8 @@ export default function PatrolPlannerPage() {
             lat: saved.start_point.coordinates[1],
             lon: saved.start_point.coordinates[0],
         });
-        setMaxTime(saved.max_time == null ? "" : String(saved.max_time));
-        setMaxFuel(saved.max_fuel == null ? "" : String(saved.max_fuel));
+        setMaxTime(saved.max_time === null ? "" : String(saved.max_time));
+        setMaxFuel(saved.max_fuel === null ? "" : String(saved.max_fuel));
     }
 
     const canSave = requestId !== null;

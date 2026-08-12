@@ -22,9 +22,13 @@ describe("LoadPreviousRoutesDialog", () => {
             />,
         );
 
-        expect(
-            await screen.findByRole("button", { name: /55 min, 22 L/i }),
-        ).toBeInTheDocument();
+        const routeButton = await screen.findByRole("button", {
+            name: /55 min/i,
+        });
+        expect(routeButton).toBeInTheDocument();
+        expect(routeButton).toHaveAccessibleName(/22 L/i);
+        expect(routeButton).toHaveAccessibleName(/42% risk/i);
+        expect(routeButton).toHaveAccessibleName(/start: -24.30000, 31.05000/i);
     });
 
     it("shows an empty state when there are no saved routes", async () => {
@@ -64,7 +68,7 @@ describe("LoadPreviousRoutesDialog", () => {
         );
 
         const routeButton = await screen.findByRole("button", {
-            name: /55 min, 22 L/i,
+            name: /55 min/i,
         });
         await userEvent.click(routeButton);
 

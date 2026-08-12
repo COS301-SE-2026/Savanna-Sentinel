@@ -7,6 +7,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { getRiskCoverageColorClass } from "@/lib/mapTokens";
+import { cn } from "@/lib/utils";
 import { routeApi, type SavedRoute } from "@/services/routeApi";
 
 interface LoadPreviousRoutesDialogProps {
@@ -65,25 +67,61 @@ export function LoadPreviousRoutesDialog({
                         </p>
                     )}
                     <ul className="flex flex-col gap-2">
-                        {routes.map((route) => (
-                            <li key={route.id}>
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-start"
-                                    onClick={() => {
-                                        onLoad(route);
-                                        onOpenChange(false);
-                                    }}
-                                >
-                                    {new Date(
-                                        route.created_at,
-                                    ).toLocaleString()}{" "}
-                                    {Math.round(route.estimated_time_min)}{" "}
-                                    min, {Math.round(route.estimated_fuel_l)}{" "}
-                                    L
-                                </Button>
-                            </li>
-                        ))}
+                        {routes.map((route) => {
+                            const coveragePercent = Math.round(
+                                route.risk_coverage * 100,
+                            );
+                            const [lon, lat] = route.start_point.coordinates;
+                            return (
+                                <li key={route.id}>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-auto w-full flex-col items-stretch gap-2 p-3 text-left whitespace-normal"
+                                        onClick={() => {
+                                            onLoad(route);
+                                            onOpenChange(false);
+                                        }}
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-sm font-semibold text-color-text-primary">
+                                                {new Date(
+                                                    route.created_at,
+                                                ).toLocaleString()}
+                                            </span>
+                                            <span
+                                                className={cn(
+                                                    "shrink-0 text-xs font-medium",
+                                                    getRiskCoverageColorClass(
+                                                        coveragePercent,
+                                                    ),
+                                                )}
+                                            >
+                                                {coveragePercent}% risk
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-color-text-secondary">
+                                            Start: {lat.toFixed(5)},{" "}
+                                            {lon.toFixed(5)}
+                                        </div>
+                                        <div className="flex gap-3 text-xs text-color-text-secondary">
+                                            <span>
+                                                {Math.round(
+                                                    route.estimated_time_min,
+                                                )}{" "}
+                                                min
+                                            </span>
+                                            <span>
+                                                {Math.round(
+                                                    route.estimated_fuel_l,
+                                                )}{" "}
+                                                L
+                                            </span>
+                                        </div>
+                                    </Button>
+                                </li>
+                            );
+                        })}
                     </ul>
                 </div>
             </DialogContent>
