@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type maplibregl from "maplibre-gl";
 
 import { MapView } from "@/components/map/MapView";
@@ -126,19 +126,22 @@ export default function PatrolPlannerPage() {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const { status: jobStatus, routes } = usePollRouteJob(requestId);
 
+    const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
+        COLLAPSED_SNAP,
+    );
+    const drawerContentRef = useRef<HTMLDivElement>(null);
+
     const [prevRoutes, setPrevRoutes] = useState(routes);
     if (routes !== prevRoutes) {
         setPrevRoutes(routes);
         setSelectedIndex(0);
+        if (isMobile && routes.length > 0) setDrawerSnap(EXPANDED_SNAP);
     }
 
     const [grid, setGrid] = useState<ParkGridResponse | null>(null);
     const [isGridLoading, setIsGridLoading] = useState(true);
     const [riskByCell, setRiskByCell] = useState<Map<string, number>>(
         new Map(),
-    );
-    const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
-        COLLAPSED_SNAP,
     );
 
     useEffect(() => {
@@ -167,7 +170,89 @@ export default function PatrolPlannerPage() {
         if (armedField === "start") setStartPoint(point);
         else setEndPoint(point);
         setArmedField(null);
+        if (isMobile) setDrawerSnap(EXPANDED_SNAP);
     }
+
+    function handleArmField(field: "start" | "end") {
+        setArmedField(field);
+        if (isMobile) setDrawerSnap(COLLAPSED_SNAP);
+    }
+
+    function handleSelectRoute(index: number) {
+        setSelectedIndex(index);
+        if (isMobile) setDrawerSnap(COLLAPSED_SNAP);
+    }
+
+    function handleToggleDrawer() {
+        setDrawerSnap((current) =>
+            current === COLLAPSED_SNAP ? EXPANDED_SNAP : COLLAPSED_SNAP,
+        );
+    }
+
+    const drawerSnapRef = useRef(drawerSnap);
+    useEffect(() => {
+        drawerSnapRef.current = drawerSnap;
+    }, [drawerSnap]);
+
+    useEffect(() => {
+        if (!isMobile) return;
+
+        let shouldSuppressNextClick = false;
+
+        function isExpanded() {
+            const snap = drawerSnapRef.current;
+            return (
+                typeof snap === "number" &&
+                Math.abs(snap - EXPANDED_SNAP) < Number.EPSILON
+            );
+        }
+
+        function handlePointerDownCapture(event: PointerEvent) {
+            const content = drawerContentRef.current;
+            if (!content) return;
+            const target = event.target as Node;
+            const isInsideDrawer = content.contains(target);
+            const isHandle = Boolean(
+                target instanceof Element &&
+                target.closest("[data-drawer-handle]"),
+            );
+
+            if (isExpanded()) {
+                if (!isInsideDrawer) {
+                    setDrawerSnap(COLLAPSED_SNAP);
+                    shouldSuppressNextClick = true;
+                }
+                return;
+            }
+
+            if (isInsideDrawer && !isHandle) {
+                setDrawerSnap(EXPANDED_SNAP);
+                shouldSuppressNextClick = true;
+            }
+        }
+
+        function handleClickCapture(event: MouseEvent) {
+            if (!shouldSuppressNextClick) return;
+            shouldSuppressNextClick = false;
+            event.stopPropagation();
+            event.preventDefault();
+        }
+
+        document.addEventListener(
+            "pointerdown",
+            handlePointerDownCapture,
+            true,
+        );
+        document.addEventListener("click", handleClickCapture, true);
+        return () => {
+            document.removeEventListener(
+                "pointerdown",
+                handlePointerDownCapture,
+                true,
+            );
+            document.removeEventListener("click", handleClickCapture, true);
+        };
+    }, [isMobile]);
 
     function handleRandomizeRisk() {
         if (!grid) return;
@@ -209,7 +294,7 @@ export default function PatrolPlannerPage() {
         startPoint,
         endPoint,
         armedField,
-        onArmField: setArmedField,
+        onArmField: handleArmField,
         onStartPointChange: setStartPoint,
         onEndPointChange: setEndPoint,
         maxTime,
@@ -222,7 +307,7 @@ export default function PatrolPlannerPage() {
         jobStatus,
         routes,
         selectedIndex,
-        onSelectRoute: setSelectedIndex,
+        onSelectRoute: handleSelectRoute,
     };
 
     return (
@@ -292,6 +377,7 @@ export default function PatrolPlannerPage() {
                 <Drawer
                     modal={false}
                     open
+                    dismissible={false}
                     snapPoints={[COLLAPSED_SNAP, EXPANDED_SNAP]}
                     activeSnapPoint={drawerSnap}
                     setActiveSnapPoint={setDrawerSnap}
@@ -308,7 +394,11 @@ export default function PatrolPlannerPage() {
                      * swipe up from the collapsed snap drags the sheet rather
                      * than scrolling its contents.
                      */}
-                    <DrawerContent className="h-full">
+                    <DrawerContent
+                        ref={drawerContentRef}
+                        className="h-full"
+                        onHandleClick={handleToggleDrawer}
+                    >
                         <DrawerTitle className="sr-only">
                             Patrol planner
                         </DrawerTitle>
@@ -322,7 +412,7 @@ export default function PatrolPlannerPage() {
                                 typeof drawerSnap === "number" &&
                                 Math.abs(drawerSnap - EXPANDED_SNAP) <
                                     Number.EPSILON
-                                    ? "min-h-0 flex-1 overflow-y-auto"
+                                    ? "min-h-0 max-h-[calc(60vh-2.75rem)] overflow-y-auto"
                                     : "min-h-0 flex-1 overflow-hidden"
                             }
                         >
