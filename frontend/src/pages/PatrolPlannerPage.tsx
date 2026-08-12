@@ -20,7 +20,7 @@ import { routeApi } from "@/services/routeApi";
 import type { ParkGridResponse } from "@/services/riskApi";
 import { usePollRouteJob } from "@/hooks/usePollRouteJob";
 import { assignRandomRisk, parseGridCells } from "@/lib/riskGrid";
-import { notifyCritical } from "@/components/ui/toast";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { ArmedField, LatLon } from "@/types/patrol";
 
@@ -58,6 +58,10 @@ interface SidebarContentProps {
     selectedIndex: number;
     onSelectRoute: (index: number) => void;
     onClearRoutes: () => void;
+    onSaveRoute: (index: number) => void;
+    savingIndex: number | null;
+    savedIndices: Set<number>;
+    canSave: boolean;
 }
 
 function SidebarContent({
@@ -78,6 +82,10 @@ function SidebarContent({
     selectedIndex,
     onSelectRoute,
     onClearRoutes,
+    onSaveRoute,
+    savingIndex,
+    savedIndices,
+    canSave,
 }: SidebarContentProps) {
     return (
         <div className="flex flex-col gap-5 p-4">
@@ -106,6 +114,10 @@ function SidebarContent({
                     routes={routes}
                     selectedIndex={selectedIndex}
                     onSelect={onSelectRoute}
+                    onSave={onSaveRoute}
+                    savingIndex={savingIndex}
+                    savedIndices={savedIndices}
+                    canSave={canSave}
                 />
             </div>
         </div>
@@ -130,6 +142,15 @@ export default function PatrolPlannerPage() {
     if (routes !== prevRoutes) {
         setPrevRoutes(routes);
         setSelectedIndex(0);
+    }
+
+    const [savingIndex, setSavingIndex] = useState<number | null>(null);
+    const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
+
+    const [prevRoutesForSave, setPrevRoutesForSave] = useState(routes);
+    if (routes !== prevRoutesForSave) {
+        setPrevRoutesForSave(routes);
+        setSavedIndices(new Set());
     }
 
     const [grid, setGrid] = useState<ParkGridResponse | null>(null);
@@ -202,6 +223,34 @@ export default function PatrolPlannerPage() {
         setRequestId(null);
     }
 
+    const canSave =
+        requestId !== null &&
+        maxTime.trim() !== "" &&
+        maxFuel.trim() !== "";
+
+    const handleSaveRoute = async (index: number) => {
+        if (!requestId || !startPoint) return;
+        setSavingIndex(index);
+        try {
+            await routeApi.saveRoute({
+                request_id: requestId,
+                start_point: {
+                    type: "Point",
+                    coordinates: [startPoint.lon, startPoint.lat],
+                },
+                max_time: Number(maxTime),
+                max_fuel: Number(maxFuel),
+                route: routes[index],
+            });
+            setSavedIndices((prev) => new Set(prev).add(index));
+            notifySafe("Route saved");
+        } catch {
+            notifyCritical("Could not save route");
+        } finally {
+            setSavingIndex(null);
+        }
+    };
+
     const isGenerating = jobStatus === "queued" || jobStatus === "processing";
     const isPickingActive = armedField !== null;
 
@@ -223,6 +272,10 @@ export default function PatrolPlannerPage() {
         routes,
         selectedIndex,
         onSelectRoute: setSelectedIndex,
+        onSaveRoute: handleSaveRoute,
+        savingIndex,
+        savedIndices,
+        canSave,
     };
 
     return (

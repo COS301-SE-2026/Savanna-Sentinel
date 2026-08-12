@@ -5,6 +5,13 @@ import { describe, it, expect, vi } from "vitest";
 import { RouteComparisonView } from "@/components/patrol/RouteComparisonView";
 import type { PlannedRoute } from "@/services/routeApi";
 
+const SAVE_PROPS = {
+    onSave: vi.fn(),
+    savingIndex: null,
+    savedIndices: new Set<number>(),
+    canSave: true,
+};
+
 const ROUTES: PlannedRoute[] = [
     {
         suggested_path: [],
@@ -30,6 +37,7 @@ describe("RouteComparisonView", () => {
                 routes={[]}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(
@@ -44,6 +52,7 @@ describe("RouteComparisonView", () => {
                 routes={[]}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(
@@ -58,6 +67,7 @@ describe("RouteComparisonView", () => {
                 routes={ROUTES}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(screen.getByText("Route A")).toBeInTheDocument();
@@ -73,6 +83,7 @@ describe("RouteComparisonView", () => {
                 routes={ROUTES}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(
@@ -91,6 +102,7 @@ describe("RouteComparisonView", () => {
                 routes={ROUTES}
                 selectedIndex={0}
                 onSelect={onSelect}
+                {...SAVE_PROPS}
             />,
         );
         await userEvent.click(screen.getByRole("button", { name: "Select" }));
@@ -104,6 +116,7 @@ describe("RouteComparisonView", () => {
                 routes={[]}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(screen.getByRole("alert")).toHaveTextContent(
@@ -118,6 +131,7 @@ describe("RouteComparisonView", () => {
                 routes={[ROUTES[0]]}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(screen.getByText("Route A")).toBeInTheDocument();
