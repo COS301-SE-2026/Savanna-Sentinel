@@ -17,6 +17,7 @@ export interface LocationLatLon {
 export interface ReportResponse {
     id: string;
     submitted_by: string;
+    submitted_by_username?: string | null;
     route_id?: string | null;
     report_type: string;
     description: string;
@@ -41,6 +42,7 @@ export interface ReportListItem {
     route_id?: string | null;
     sync_status: string;
     submitted_by: string;
+    submitted_by_username?: string | null;
     created_at: string;
     updated_at: string;
     deleted_at?: string | null;
@@ -58,6 +60,7 @@ export interface ReportSubmitResponse {
     report_type: string;
     status: string;
     submitted_by: string;
+    submitted_by_username?: string | null;
     created_at: string;
 }
 
@@ -87,13 +90,23 @@ export interface ReportUpdate {
 }
 
 export interface ListReportsQueryParams {
-    report_type?: ReportType;
-    severity?: SeverityLevel;
+    search?: string;
+    report_type?: ReportType | ReportType[];
+    severity?: SeverityLevel | SeverityLevel[];
+    species?: string | string[];
+    users?: string | string[];
     from?: string;
     to?: string;
     sync_status?: SyncStatus;
     page?: number;
     page_size?: number;
+}
+
+export interface SpeciesResponse {
+    species: string[];
+}
+export interface UserFilterResponse {
+    usernames: string[];
 }
 
 export const reportsApi = {
@@ -123,4 +136,9 @@ export const reportsApi = {
 
     getReport: async (reportId: string): Promise<ReportResponse> =>
         api.get<ReportResponse>(`/reports/${reportId}`).then((r) => r.data),
+
+    getSpecies: async (): Promise<SpeciesResponse> =>
+        api.get<SpeciesResponse>(`reports/species`).then((r) => r.data),
+    getUsernames: async (): Promise<UserFilterResponse> =>
+        api.get<UserFilterResponse>(`reports/users`).then((r) => r.data),
 };

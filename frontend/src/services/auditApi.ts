@@ -11,9 +11,11 @@ export interface AuditLogRequest {
 export interface AuditLogListItem {
     id: string;
     actor_id: string | null;
+    actor_username: string | null;
     action: string;
     target_type: string | null;
     target_id: string | null;
+    target_username: string | null;
     details: Record<string, string> | null;
     created_at: string;
 }
@@ -29,5 +31,10 @@ export const auditApi = {
     getLogs: async (payload: AuditLogRequest): Promise<AuditLogResponse> =>
         api
             .get<AuditLogResponse>("/audit-logs", { params: payload })
+            .then((r) => r.data),
+
+    exportCsv: async (): Promise<Blob> =>
+        api
+            .get("/audit-logs/export", { responseType: "blob" })
             .then((r) => r.data),
 };

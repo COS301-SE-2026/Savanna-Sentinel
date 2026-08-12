@@ -181,6 +181,11 @@ test.describe("Admin Role Swap Management", () => {
     test("should allow an admin to change an active user's role", async ({
         page,
     }) => {
+        const searchInput = page.getByRole("searchbox", {
+            name: /search active users/i,
+        });
+        await searchInput.fill(userCleanup!.username);
+
         const userRow = page
             .locator("tr")
             .filter({ hasText: userCleanup!.username });
@@ -198,10 +203,12 @@ test.describe("Admin Role Swap Management", () => {
 
         await confirmDialog.getByRole("button", { name: /confirm/i }).click();
 
-        const statusRow = page
-            .locator("tr")
-            .filter({ hasText: "Role updated to Analyst." });
-        await expect(statusRow).toBeVisible();
+        const toast = page.getByRole("status");
+        await expect(toast).toBeVisible();
+        await expect(toast).toContainText("Role updated");
+        await expect(toast).toContainText(
+            `Updated ${userCleanup!.first_name} ${userCleanup!.last_name}'s role to Analyst`,
+        );
     });
 });
 

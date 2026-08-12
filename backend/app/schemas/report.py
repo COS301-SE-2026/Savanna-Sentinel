@@ -14,6 +14,7 @@ class ReportResponse(BaseModel):
 
     id: str
     submitted_by: str
+    submitted_by_username: str | None = None
     route_id: Optional[str] = None
     report_type: str
     description: str
@@ -43,6 +44,7 @@ class ReportListItem(BaseModel):
     route_id: Optional[str] = None
     sync_status: str
     submitted_by: str
+    submitted_by_username: str | None = None
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
@@ -74,6 +76,7 @@ class ReportSubmitResponse(BaseModel):
     report_type: str
     status: str
     submitted_by: str
+    submitted_by_username: str | None = None
     created_at: datetime
 
 
@@ -86,3 +89,10 @@ class ReportUpdate(BaseModel):
     severity: Optional[Literal["low", "medium", "high"]] = None
     species: Optional[str] = None
     count: Optional[int] = None
+
+
+class SpeciesResponse(BaseModel):
+    species: list[str]
+
+class UserResponse(BaseModel):
+    usernames: list[str]

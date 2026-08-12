@@ -4,15 +4,18 @@ from typing import Annotated, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, get_db
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.user import User
 from app.repositories.report_repository import ReportRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.report import (
     ReportCreate,
     ReportListResponse,
     ReportResponse,
     ReportSubmitResponse,
     ReportUpdate,
+    SpeciesResponse,
+    UserResponse,
 )
 from app.services.report_service import ReportService
 
@@ -39,7 +42,7 @@ async def submit_report(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db))
+    service = ReportService(ReportRepository(db), UserRepository(db))
     result = await service.create_report(current_user, body)
     return ReportSubmitResponse(**result)
 
@@ -51,12 +54,21 @@ async def submit_report(
     summary="List field reports (SC-20)",
 )
 async def list_reports(
+    search: Annotated[Optional[str], Query()] = None,
     report_type: Annotated[
-        Optional[Literal["incident", "sighting"]],
+        Optional[list[Literal["incident", "sighting"]]],
         Query(),
     ] = None,
     severity: Annotated[
-        Optional[Literal["low", "medium", "high"]],
+        Optional[list[Literal["low", "medium", "high"]]],
+        Query(),
+    ] = None,
+    species: Annotated[
+        Optional[list[str]],
+        Query(),
+    ] = None,
+    users: Annotated[
+        Optional[list[str]],
         Query(),
     ] = None,
     from_dt: Annotated[Optional[datetime], Query(alias="from")] = None,
@@ -76,11 +88,14 @@ async def list_reports(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db))
+    service = ReportService(ReportRepository(db), UserRepository(db))
     results, total = await service.get_reports(
         current_user=current_user,
-        report_type=report_type,
-        severity=severity,
+        search=search,
+        report_types=report_type,
+        severities=severity,
+        species=species,
+        users=users,
         from_dt=from_dt,
         to_dt=to,
         sync_status=sync_status,
@@ -113,7 +128,7 @@ async def update_report(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db))
+    service = ReportService(ReportRepository(db), UserRepository(db))
     result = await service.update_report(report_id, current_user, body)
 
     if result is None:
@@ -141,7 +156,7 @@ async def delete_report(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db))
+    service = ReportService(ReportRepository(db), UserRepository(db))
     deleted = await service.delete_report(report_id, current_user)
 
     if not deleted:
@@ -149,6 +164,50 @@ async def delete_report(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=_REPORT_NOT_FOUND,
         )
+
+
+@router.get(
+    "/reports/species",
+    response_model=SpeciesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a list of species in the system to filter by",
+)
+async def get_species(
+    is_authenticated: Annotated[
+        User,
+        Depends(require_roles(["admin", "analyst", "ranger"])),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    repo = ReportRepository(db)
+    user_repo = UserRepository(db)
+    service = ReportService(repo, user_repo)
+
+    species = await service.get_species()
+
+    return SpeciesResponse(species=species)
+
+
+@router.get(
+    "/reports/users",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a list of usernames in the system to filter by",
+)
+async def get_usernames(
+    is_authenticated: Annotated[
+        User,
+        Depends(require_roles(["admin", "analyst", "ranger"])),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    repo = ReportRepository(db)
+    user_repo = UserRepository(db)
+    service = ReportService(repo, user_repo)
+
+    usernames = await service.get_usernames()
+
+    return UserResponse(usernames=usernames)
 
 
 @router.get(
@@ -168,7 +227,7 @@ async def get_report(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db))
+    service = ReportService(ReportRepository(db), UserRepository(db))
     report = await service.get_report(report_id, current_user)
 
     if report is None:

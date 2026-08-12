@@ -35,6 +35,7 @@ class UsersRequest(BaseModel):
     role: Optional[RequestedRole] = None
     page: int = 1
     page_size: int = Field(default=20, le=100)
+    search: Optional[str] = None
 
 class SetUsersStatusRequest(BaseModel):
     is_active: bool

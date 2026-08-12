@@ -29,6 +29,7 @@ import {
     RoleBadgeCell,
 } from "@/components/admin/UserIdentityCells";
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
+import { Pagination } from "@/components/ui/pagination";
 
 interface UserRowProps {
     user: UserResponse;
@@ -67,20 +68,15 @@ const AuthPage = () => {
         direction,
         requestSort,
         refetch: fetchPendingUsers,
+        page,
+        setPage,
+        totalPages,
     } = useManagedUsers(usersApi.getPendingUsers, sortAccessors, {
         errorMessage: "Failed to load pending registrations.",
         onError: (error) => console.error("Failed to fetch users:", error),
     });
 
-    if (isLoading || pageError) {
-        return (
-            <UserTableStatus
-                isLoading={isLoading}
-                pageError={pageError}
-                loadingText="Loading pending users..."
-            />
-        );
-    }
+    const isInitialLoading = isLoading && users.length === 0;
 
     return (
         <div className="space-y-4">
@@ -96,45 +92,60 @@ const AuthPage = () => {
                 selectedRoles={roleFilter}
                 onRolesChange={setRoleFilter}
             />
-
-            <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
-                <Table>
-                    <TableHeader className="bg-brand-primary">
-                        <TableRow className="hover:bg-transparent">
-                            <SortableColumns
-                                columns={PENDING_USER_COLUMNS}
-                                sortKey={sortKey}
-                                direction={direction}
-                                requestSort={requestSort}
-                            />
-                            <TableHead
-                                className={cn(theadClass, "text-center")}
-                            >
-                                Actions
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedUsers.length === 0 ? (
-                            <TableRow className={rowClass}>
-                                <TableCell colSpan={5} className={cellClass}>
-                                    {users.length === 0
-                                        ? "No Pending Registrations found"
-                                        : "No registrations match your search or filters."}
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            sortedUsers.map((user) => (
-                                <UserRow
-                                    key={user.id}
-                                    user={user}
-                                    refreshList={fetchPendingUsers}
+            {isInitialLoading || pageError ? (
+                <UserTableStatus
+                    isLoading={isInitialLoading}
+                    pageError={pageError}
+                    loadingText="Loading users..."
+                />
+            ) : (
+                <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
+                    <Table>
+                        <TableHeader className="bg-brand-primary">
+                            <TableRow className="hover:bg-transparent">
+                                <SortableColumns
+                                    columns={PENDING_USER_COLUMNS}
+                                    sortKey={sortKey}
+                                    direction={direction}
+                                    requestSort={requestSort}
                                 />
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                                <TableHead
+                                    className={cn(theadClass, "text-center")}
+                                >
+                                    Actions
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedUsers.length === 0 ? (
+                                <TableRow className={rowClass}>
+                                    <TableCell
+                                        colSpan={5}
+                                        className={cellClass}
+                                    >
+                                        {users.length === 0
+                                            ? "No Pending Registrations found"
+                                            : "No registrations match your search or filters."}
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                sortedUsers.map((user) => (
+                                    <UserRow
+                                        key={user.id}
+                                        user={user}
+                                        refreshList={fetchPendingUsers}
+                                    />
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={(page) => setPage(page)}
+            />
         </div>
     );
 };
