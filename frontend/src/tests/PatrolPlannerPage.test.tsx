@@ -378,10 +378,6 @@ describe("PatrolPlannerPage", () => {
         await userEvent.click(savedRouteButton);
         expect(await screen.findByText("55 min")).toBeInTheDocument();
 
-        await userEvent.type(
-            screen.getByLabelText(/^end point$/i),
-            "-24.32, 31.08",
-        );
         await userEvent.click(
             screen.getByRole("button", { name: /generate routes/i }),
         );

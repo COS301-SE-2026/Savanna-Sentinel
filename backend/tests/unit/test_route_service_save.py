@@ -19,8 +19,10 @@ def _fake_save_request(request_id: str = "req-1") -> SaveRouteRequest:
     return SaveRouteRequest(
         request_id=request_id,
         start_point=GeoPoint(coordinates=(31.18, -24.2)),
+        end_point=GeoPoint(coordinates=(31.19, -24.21)),
         max_time=120.0,
         max_fuel=40.0,
+        risk_by_cell={"cell-1": 0.5},
         route=PlannedRoute(
             suggested_path=["a", "b"],
             path_geometry=GeoLineString(
@@ -49,7 +51,9 @@ async def test_save_route_converts_geometry_to_wkt_correctly(mock_repo_cls):
     mock_repo.create.assert_awaited_once()
     call_kwargs = mock_repo.create.await_args.kwargs
     assert call_kwargs["start_point_wkt"].startswith("POINT(")
+    assert call_kwargs["end_point_wkt"].startswith("POINT(")
     assert call_kwargs["path_wkt"].startswith("LINESTRING(")
+    assert call_kwargs["risk_heatmap"] == {"cell-1": 0.5}
 
 
 @pytest.mark.asyncio

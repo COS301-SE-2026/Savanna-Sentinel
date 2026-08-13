@@ -85,8 +85,10 @@ def _valid_save_payload(**overrides) -> dict:
     body = {
         "request_id": str(uuid.uuid4()),
         "start_point": {"type": "Point", "coordinates": [31.18, -24.2]},
+        "end_point": {"type": "Point", "coordinates": [31.19, -24.21]},
         "max_time": 120.0,
         "max_fuel": 40.0,
+        "risk_by_cell": {"cell-1": 0.5},
         "route": {
             "suggested_path": ["a", "b"],
             "path_geometry": {

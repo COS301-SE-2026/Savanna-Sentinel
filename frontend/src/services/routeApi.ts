@@ -50,8 +50,10 @@ export interface RouteListResponse {
 export interface SaveRouteRequest {
     request_id: string;
     start_point: GeoPoint;
+    end_point: GeoPoint;
     max_time: number | null;
     max_fuel: number | null;
+    risk_by_cell: Record<string, number>;
     route: PlannedRoute;
 }
 
@@ -59,8 +61,10 @@ export interface SavedRoute {
     id: string;
     request_id: string;
     start_point: GeoPoint;
+    end_point: GeoPoint;
     max_time: number | null;
     max_fuel: number | null;
+    risk_by_cell: Record<string, number>;
     path_geometry: GeoLineString;
     estimated_time_min: number;
     estimated_fuel_l: number;

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -17,8 +18,10 @@ class PatrolRouteRepository:
         user_id: str,
         request_id: str,
         start_point_wkt: str,
+        end_point_wkt: str,
         max_time: float | None,
         max_fuel: float | None,
+        risk_heatmap: dict[str, float],
         path_wkt: str,
         estimated_time: float,
         estimated_fuel: float,
@@ -28,25 +31,29 @@ class PatrolRouteRepository:
             await self.db.execute(
                 text("""
                     INSERT INTO patrol_routes
-                        (request_id, requested_by, start_point, max_time,
-                         max_fuel, suggested_path, estimated_time,
-                         estimated_fuel, risk_coverage)
+                        (request_id, requested_by, start_point, end_point,
+                         max_time, max_fuel, suggested_path, estimated_time,
+                         estimated_fuel, risk_coverage, risk_heatmap)
                     VALUES
                         (:request_id, :user_id, ST_GeogFromText(:start_wkt),
-                         :max_time, :max_fuel, ST_GeogFromText(:path_wkt),
-                         :estimated_time, :estimated_fuel, :risk_coverage)
+                         ST_GeogFromText(:end_wkt), :max_time, :max_fuel,
+                         ST_GeogFromText(:path_wkt), :estimated_time,
+                         :estimated_fuel, :risk_coverage,
+                         :risk_heatmap::jsonb)
                     RETURNING id, created_at
                 """),
                 {
                     "request_id": request_id,
                     "user_id": user_id,
                     "start_wkt": start_point_wkt,
+                    "end_wkt": end_point_wkt,
                     "max_time": max_time,
                     "max_fuel": max_fuel,
                     "path_wkt": path_wkt,
                     "estimated_time": estimated_time,
                     "estimated_fuel": estimated_fuel,
                     "risk_coverage": risk_coverage,
+                    "risk_heatmap": json.dumps(risk_heatmap),
                 },
             )
         ).fetchone()
@@ -65,7 +72,8 @@ class PatrolRouteRepository:
                 text("""
                     SELECT id::text AS id, request_id::text AS request_id,
                         ST_AsGeoJSON(start_point::geometry)::json AS start_point,
-                        max_time, max_fuel,
+                        ST_AsGeoJSON(end_point::geometry)::json AS end_point,
+                        max_time, max_fuel, risk_heatmap,
                         ST_AsGeoJSON(suggested_path::geometry)::json AS path_geometry,
                         estimated_time, estimated_fuel, risk_coverage, created_at
                     FROM patrol_routes

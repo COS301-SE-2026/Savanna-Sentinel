@@ -43,8 +43,10 @@ describe("routeApi", () => {
         const result = await routeApi.saveRoute({
             request_id: ROUTE_REQUEST_ID,
             start_point: { type: "Point", coordinates: [31.05, -24.3] },
+            end_point: { type: "Point", coordinates: [31.08, -24.32] },
             max_time: 120,
             max_fuel: 15,
+            risk_by_cell: { "cell-1": 0.5 },
             route: COMPLETED_ROUTES.results[0],
         });
         expect(result).toEqual(SAVED_ROUTE);

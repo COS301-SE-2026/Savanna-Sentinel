@@ -267,14 +267,19 @@ export default function PatrolPlannerPage() {
             lat: saved.start_point.coordinates[1],
             lon: saved.start_point.coordinates[0],
         });
+        setEndPoint({
+            lat: saved.end_point.coordinates[1],
+            lon: saved.end_point.coordinates[0],
+        });
         setMaxTime(saved.max_time === null ? "" : String(saved.max_time));
         setMaxFuel(saved.max_fuel === null ? "" : String(saved.max_fuel));
+        setRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
     }
 
     const canSave = requestId !== null;
 
     const handleSaveRoute = async (index: number) => {
-        if (!requestId || !startPoint) return;
+        if (!requestId || !startPoint || !endPoint) return;
         setSavingIndex(index);
         try {
             await routeApi.saveRoute({
@@ -283,8 +288,13 @@ export default function PatrolPlannerPage() {
                     type: "Point",
                     coordinates: [startPoint.lon, startPoint.lat],
                 },
+                end_point: {
+                    type: "Point",
+                    coordinates: [endPoint.lon, endPoint.lat],
+                },
                 max_time: maxTime.trim() === "" ? null : Number(maxTime),
                 max_fuel: maxFuel.trim() === "" ? null : Number(maxFuel),
+                risk_by_cell: Object.fromEntries(riskByCell),
                 route: routes[index],
             });
             setSavedIndices((prev) => new Set(prev).add(index));

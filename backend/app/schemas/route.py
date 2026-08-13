@@ -89,17 +89,29 @@ class SaveRouteRequest(BaseModel):
 
     request_id: str
     start_point: GeoPoint
+    end_point: GeoPoint
     max_time: float | None = None
     max_fuel: float | None = None
+    risk_by_cell: dict[str, float] = Field(default_factory=dict)
     route: PlannedRoute
+
+    @field_validator("risk_by_cell")
+    @classmethod
+    def _clamp_risk_scores(cls, value: dict[str, float]) -> dict[str, float]:
+        return {
+            cell_id: max(0.0, min(1.0, score))
+            for cell_id, score in value.items()
+        }
 
 
 class SavedRouteResponse(BaseModel):
     id: str
     request_id: str
     start_point: GeoPoint
+    end_point: GeoPoint
     max_time: float | None
     max_fuel: float | None
+    risk_by_cell: dict[str, float]
     path_geometry: GeoLineString
     estimated_time_min: float
     estimated_fuel_l: float
