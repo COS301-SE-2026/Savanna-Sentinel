@@ -101,18 +101,20 @@ describe("TipoffPage", () => {
         ).toBeInTheDocument();
     });
 
-    it("shows an access-restricted message for a ranger", () => {
+    it("shows only All Tip-offs for a ranger, with no submit controls", () => {
         setUser("ranger");
         render(<TipoffPage />);
         expect(
             screen.queryByRole("tab", { name: "New Tip-off" }),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByRole("tab", { name: "All Tip-offs" }),
-        ).not.toBeInTheDocument();
+            screen.getByRole("tab", { name: "All Tip-offs" }),
+        ).toHaveAttribute("data-state", "active");
         expect(
-            screen.getByText("Your account does not have access to tip-offs."),
-        ).toBeInTheDocument();
+            screen.queryByText(
+                "Your account does not have access to tip-offs.",
+            ),
+        ).not.toBeInTheDocument();
     });
 
     it("fetches and renders tip-offs for an admin", async () => {

@@ -80,9 +80,9 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Patrol Planner")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
+        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
         expect(screen.queryByText("Ingestion")).not.toBeInTheDocument();
         expect(screen.queryByText("Admin")).not.toBeInTheDocument();
-        expect(screen.queryByText("Tip-offs")).not.toBeInTheDocument();
     });
 
     it("shows correct nav items for analyst", async () => {

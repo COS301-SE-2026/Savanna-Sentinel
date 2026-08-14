@@ -37,7 +37,10 @@ export default function TipoffPage() {
     const user = useAuthStore((s) => s.user);
     const canSubmit =
         user?.role === "community_liaison" || user?.role === "admin";
-    const canViewAll = user?.role === "analyst" || user?.role === "admin";
+    const canViewAll =
+        user?.role === "analyst" ||
+        user?.role === "ranger" ||
+        user?.role === "admin";
 
     const [tipoffs, setTipoffs] = React.useState<DraftReport[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
