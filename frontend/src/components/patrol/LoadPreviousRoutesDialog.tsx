@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 
 import {
     Dialog,
@@ -6,7 +7,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { getRiskCoverageColorClass } from "@/lib/mapTokens";
 import { cn } from "@/lib/utils";
 import { routeApi, type SavedRoute } from "@/services/routeApi";
@@ -25,6 +26,7 @@ export function LoadPreviousRoutesDialog({
     const [routes, setRoutes] = useState<SavedRoute[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!open) return;
@@ -43,6 +45,19 @@ export function LoadPreviousRoutesDialog({
         }
         fetchSavedRoutes();
     }, [open]);
+
+    async function handleDelete(routeId: string) {
+        setDeletingId(routeId);
+        setError(null);
+        try {
+            await routeApi.deleteSavedRoute(routeId);
+            setRoutes((prev) => prev.filter((r) => r.id !== routeId));
+        } catch {
+            setError("Failed to delete saved route.");
+        } finally {
+            setDeletingId(null);
+        }
+    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -76,14 +91,28 @@ export function LoadPreviousRoutesDialog({
                                 route.end_point.coordinates;
                             return (
                                 <li key={route.id}>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="h-auto w-full flex-col items-stretch gap-2 p-3 text-left whitespace-normal"
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={() => {
                                             onLoad(route);
                                             onOpenChange(false);
                                         }}
+                                        onKeyDown={(e) => {
+                                            if (
+                                                e.key === "Enter" ||
+                                                e.key === " "
+                                            ) {
+                                                onLoad(route);
+                                                onOpenChange(false);
+                                            }
+                                        }}
+                                        className={cn(
+                                            buttonVariants({
+                                                variant: "outline",
+                                            }),
+                                            "h-auto w-full cursor-pointer flex-col items-stretch gap-2 p-3 text-left whitespace-normal",
+                                        )}
                                     >
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-sm font-semibold text-color-text-primary">
@@ -91,16 +120,36 @@ export function LoadPreviousRoutesDialog({
                                                     route.created_at,
                                                 ).toLocaleString()}
                                             </span>
-                                            <span
-                                                className={cn(
-                                                    "shrink-0 text-xs font-medium",
-                                                    getRiskCoverageColorClass(
-                                                        coveragePercent,
-                                                    ),
-                                                )}
-                                            >
-                                                {coveragePercent}% risk
-                                            </span>
+                                            <div className="flex shrink-0 items-center gap-2">
+                                                <span
+                                                    className={cn(
+                                                        "text-xs font-medium",
+                                                        getRiskCoverageColorClass(
+                                                            coveragePercent,
+                                                        ),
+                                                    )}
+                                                >
+                                                    {coveragePercent}% risk
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    aria-label="Delete saved route"
+                                                    disabled={
+                                                        deletingId ===
+                                                        route.id
+                                                    }
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDelete(
+                                                            route.id,
+                                                        );
+                                                    }}
+                                                >
+                                                    <Trash2 className="text-status-critical" />
+                                                </Button>
+                                            </div>
                                         </div>
                                         <div className="text-xs text-color-text-secondary">
                                             Start: {lat.toFixed(5)},{" "}
@@ -124,7 +173,7 @@ export function LoadPreviousRoutesDialog({
                                                 L
                                             </span>
                                         </div>
-                                    </Button>
+                                    </div>
                                 </li>
                             );
                         })}

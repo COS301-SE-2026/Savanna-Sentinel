@@ -93,3 +93,14 @@ class PatrolRouteRepository:
         ).scalar_one()
 
         return [dict(r) for r in rows], total
+
+    async def delete(self, route_id: str, user_id: str) -> bool:
+        result = await self.db.execute(
+            text("""
+                DELETE FROM patrol_routes
+                WHERE id = :route_id AND requested_by = :user_id
+            """),
+            {"route_id": route_id, "user_id": user_id},
+        )
+        await self.db.commit()
+        return result.rowcount > 0

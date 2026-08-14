@@ -200,3 +200,12 @@ async def list_saved_routes(
         page_size=page_size,
         results=results,
     )
+
+
+async def delete_saved_route(
+    db: "AsyncSession",
+    current_user: "User",
+    route_id: str,
+) -> bool:
+    repo = PatrolRouteRepository(db)
+    return await repo.delete(route_id, current_user.id)

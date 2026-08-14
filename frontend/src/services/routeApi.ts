@@ -95,4 +95,7 @@ export const routeApi = {
 
     listSavedRoutes: async (): Promise<SavedRouteListResponse> =>
         api.get<SavedRouteListResponse>("/routes/saved").then((r) => r.data),
+
+    deleteSavedRoute: async (routeId: string): Promise<void> =>
+        api.delete(`/routes/saved/${routeId}`).then(() => undefined),
 };

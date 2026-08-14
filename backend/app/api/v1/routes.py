@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db
@@ -14,11 +14,14 @@ from app.schemas.route import (
     SaveRouteRequest,
 )
 from app.services.route_service import (
+    delete_saved_route,
     generate_route_job,
     get_routes,
     list_saved_routes,
     save_route,
 )
+
+_SAVED_ROUTE_NOT_FOUND = "Saved route not found"
 
 router = APIRouter(prefix="/routes", tags=["routes"])
 
@@ -73,6 +76,23 @@ async def list_saved_routes_endpoint(
         page_size: int = 20,
     ):
     return await list_saved_routes(db, current_user, page, page_size)
+
+@router.delete(
+    "/saved/{route_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a saved patrol route",
+)
+async def delete_saved_route_endpoint(
+        route_id: str,
+        current_user: Annotated[User, Depends(get_current_user)],
+        db: Annotated[AsyncSession, Depends(get_db)],
+    ):
+    deleted = await delete_saved_route(db, current_user, route_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=_SAVED_ROUTE_NOT_FOUND,
+        )
 
 @router.get(
     "/{route_id}",
