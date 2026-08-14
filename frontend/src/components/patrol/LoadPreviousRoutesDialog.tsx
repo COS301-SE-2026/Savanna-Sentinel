@@ -72,6 +72,8 @@ export function LoadPreviousRoutesDialog({
                                 route.risk_coverage * 100,
                             );
                             const [lon, lat] = route.start_point.coordinates;
+                            const [endLon, endLat] =
+                                route.end_point.coordinates;
                             return (
                                 <li key={route.id}>
                                     <Button
@@ -103,6 +105,10 @@ export function LoadPreviousRoutesDialog({
                                         <div className="text-xs text-color-text-secondary">
                                             Start: {lat.toFixed(5)},{" "}
                                             {lon.toFixed(5)}
+                                        </div>
+                                        <div className="text-xs text-color-text-secondary">
+                                            End: {endLat.toFixed(5)},{" "}
+                                            {endLon.toFixed(5)}
                                         </div>
                                         <div className="flex gap-3 text-xs text-color-text-secondary">
                                             <span>

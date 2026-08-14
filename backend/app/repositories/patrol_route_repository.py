@@ -39,7 +39,7 @@ class PatrolRouteRepository:
                          ST_GeogFromText(:end_wkt), :max_time, :max_fuel,
                          ST_GeogFromText(:path_wkt), :estimated_time,
                          :estimated_fuel, :risk_coverage,
-                         :risk_heatmap::jsonb)
+                         (:risk_heatmap)::jsonb)
                     RETURNING id, created_at
                 """),
                 {
