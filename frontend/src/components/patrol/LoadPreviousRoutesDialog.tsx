@@ -120,36 +120,16 @@ export function LoadPreviousRoutesDialog({
                                                     route.created_at,
                                                 ).toLocaleString()}
                                             </span>
-                                            <div className="flex shrink-0 items-center gap-2">
-                                                <span
-                                                    className={cn(
-                                                        "text-xs font-medium",
-                                                        getRiskCoverageColorClass(
-                                                            coveragePercent,
-                                                        ),
-                                                    )}
-                                                >
-                                                    {coveragePercent}% risk
-                                                </span>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    aria-label="Delete saved route"
-                                                    disabled={
-                                                        deletingId ===
-                                                        route.id
-                                                    }
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDelete(
-                                                            route.id,
-                                                        );
-                                                    }}
-                                                >
-                                                    <Trash2 className="text-status-critical" />
-                                                </Button>
-                                            </div>
+                                            <span
+                                                className={cn(
+                                                    "shrink-0 text-xs font-medium",
+                                                    getRiskCoverageColorClass(
+                                                        coveragePercent,
+                                                    ),
+                                                )}
+                                            >
+                                                {coveragePercent}% risk
+                                            </span>
                                         </div>
                                         <div className="text-xs text-color-text-secondary">
                                             Start: {lat.toFixed(5)},{" "}
@@ -159,19 +139,37 @@ export function LoadPreviousRoutesDialog({
                                             End: {endLat.toFixed(5)},{" "}
                                             {endLon.toFixed(5)}
                                         </div>
-                                        <div className="flex gap-3 text-xs text-color-text-secondary">
-                                            <span>
-                                                {Math.round(
-                                                    route.estimated_time_min,
-                                                )}{" "}
-                                                min
-                                            </span>
-                                            <span>
-                                                {Math.round(
-                                                    route.estimated_fuel_l,
-                                                )}{" "}
-                                                L
-                                            </span>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="flex gap-3 text-xs text-color-text-secondary">
+                                                <span>
+                                                    {Math.round(
+                                                        route.estimated_time_min,
+                                                    )}{" "}
+                                                    min
+                                                </span>
+                                                <span>
+                                                    {Math.round(
+                                                        route.estimated_fuel_l,
+                                                    )}{" "}
+                                                    L
+                                                </span>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                size="icon-xs"
+                                                variant="outline"
+                                                className="border-status-critical hover:bg-status-critical/5"
+                                                aria-label="Delete saved route"
+                                                disabled={
+                                                    deletingId === route.id
+                                                }
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDelete(route.id);
+                                                }}
+                                            >
+                                                <Trash2 className="text-status-critical" />
+                                            </Button>
                                         </div>
                                     </div>
                                 </li>
