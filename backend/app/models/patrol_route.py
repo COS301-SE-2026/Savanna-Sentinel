@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Float, ForeignKey, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -9,6 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import UserDefinedType
 
 from app.models.user import Base
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class GeographyPoint(UserDefinedType):
@@ -40,7 +43,9 @@ class PatrolRoute(Base):
     end_point: Mapped[str] = mapped_column(GeographyPoint, nullable=False)
     max_time: Mapped[float | None] = mapped_column(Float, nullable=True)
     max_fuel: Mapped[float | None] = mapped_column(Float, nullable=True)
-    suggested_path: Mapped[str] = mapped_column(GeographyLineString, nullable=False)
+    suggested_path: Mapped[str] = mapped_column(
+        GeographyLineString, nullable=False,
+    )
     estimated_time: Mapped[float] = mapped_column(Float, nullable=False)
     estimated_fuel: Mapped[float] = mapped_column(Float, nullable=False)
     risk_coverage: Mapped[float] = mapped_column(Float, nullable=False)

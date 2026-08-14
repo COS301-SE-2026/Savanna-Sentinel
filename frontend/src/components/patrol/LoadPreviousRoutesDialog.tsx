@@ -29,12 +29,15 @@ export function LoadPreviousRoutesDialog({
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
-    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(
-        null,
-    );
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+    const [isPreviouslyOpen, setPrevOpen] = useState(open);
+
+    if (open !== isPreviouslyOpen) {
+        setPrevOpen(open);
+        setPendingDeleteId(null);
+    }
 
     useEffect(() => {
-        setPendingDeleteId(null);
         if (!open) return;
 
         async function fetchSavedRoutes() {

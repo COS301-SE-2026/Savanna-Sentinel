@@ -360,8 +360,9 @@ describe("PatrolPlannerPage", () => {
         const [, source] = addSourceSpy.mock.calls.find(
             ([id]) => id === "patrol-route-0",
         )!;
-        const data = (source as { data: { geometry: { coordinates: unknown } } })
-            .data;
+        const data = (
+            source as { data: { geometry: { coordinates: unknown } } }
+        ).data;
         expect(data.geometry.coordinates).toEqual(
             SAVED_ROUTE.path_geometry.coordinates,
         );

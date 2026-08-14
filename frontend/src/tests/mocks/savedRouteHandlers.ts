@@ -39,5 +39,7 @@ export const savedRouteHandlers = [
         HttpResponse.json(SAVED_ROUTE, { status: 201 }),
     ),
 
-    http.get(`${BASE}/routes/saved`, () => HttpResponse.json(SAVED_ROUTES_LIST)),
+    http.get(`${BASE}/routes/saved`, () =>
+        HttpResponse.json(SAVED_ROUTES_LIST),
+    ),
 ];

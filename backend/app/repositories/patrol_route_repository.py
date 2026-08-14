@@ -70,12 +70,17 @@ class PatrolRouteRepository:
         rows = (
             await self.db.execute(
                 text("""
-                    SELECT id::text AS id, request_id::text AS request_id,
-                        ST_AsGeoJSON(start_point::geometry)::json AS start_point,
-                        ST_AsGeoJSON(end_point::geometry)::json AS end_point,
+                    SELECT id::text AS id,
+                        request_id::text AS request_id,
+                        ST_AsGeoJSON(start_point::geometry)::json
+                            AS start_point,
+                        ST_AsGeoJSON(end_point::geometry)::json
+                            AS end_point,
                         max_time, max_fuel, risk_heatmap,
-                        ST_AsGeoJSON(suggested_path::geometry)::json AS path_geometry,
-                        estimated_time, estimated_fuel, risk_coverage, created_at
+                        ST_AsGeoJSON(suggested_path::geometry)::json
+                            AS path_geometry,
+                        estimated_time, estimated_fuel, risk_coverage,
+                        created_at
                     FROM patrol_routes
                     WHERE requested_by = :user_id
                     ORDER BY created_at DESC
@@ -87,7 +92,10 @@ class PatrolRouteRepository:
 
         total = (
             await self.db.execute(
-                text("SELECT COUNT(*) FROM patrol_routes WHERE requested_by = :user_id"),
+                text(
+                    "SELECT COUNT(*) FROM patrol_routes "
+                    "WHERE requested_by = :user_id",
+                ),
                 {"user_id": user_id},
             )
         ).scalar_one()
