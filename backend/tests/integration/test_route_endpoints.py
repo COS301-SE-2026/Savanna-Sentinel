@@ -170,3 +170,37 @@ async def test_get_saved_route_id_does_not_collide_with_get_route_by_id(
     assert "status" not in body
     assert "results" in body
     assert "total" in body
+
+
+@pytest.mark.asyncio
+async def test_delete_saved_route_returns_404_when_not_found(
+    client, ranger_token,
+):
+    r = await client.delete(
+        f"/v1/routes/saved/{uuid.uuid4()}",
+        headers={"Authorization": f"Bearer {ranger_token}"},
+    )
+    assert r.status_code == 404
+    assert r.json()["detail"] == "Saved route not found"
+
+
+@pytest.mark.asyncio
+async def test_delete_saved_route_removes_it(client, ranger_token):
+    save_resp = await client.post(
+        "/v1/routes/save",
+        json=_valid_save_payload(),
+        headers={"Authorization": f"Bearer {ranger_token}"},
+    )
+    route_id = save_resp.json()["id"]
+
+    delete_resp = await client.delete(
+        f"/v1/routes/saved/{route_id}",
+        headers={"Authorization": f"Bearer {ranger_token}"},
+    )
+    assert delete_resp.status_code == 204
+
+    list_resp = await client.get(
+        "/v1/routes/saved",
+        headers={"Authorization": f"Bearer {ranger_token}"},
+    )
+    assert list_resp.json()["total"] == 0

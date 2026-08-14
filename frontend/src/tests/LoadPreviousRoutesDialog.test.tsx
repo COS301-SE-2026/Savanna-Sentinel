@@ -103,4 +103,61 @@ describe("LoadPreviousRoutesDialog", () => {
             await screen.findByText(/failed to load saved routes/i),
         ).toBeInTheDocument();
     });
+
+    it("calls onLoad when Enter is pressed on a route row", async () => {
+        const onLoad = vi.fn();
+        render(
+            <LoadPreviousRoutesDialog
+                open
+                onOpenChange={vi.fn()}
+                onLoad={onLoad}
+            />,
+        );
+
+        const routeButton = await screen.findByRole("button", {
+            name: /55 min/i,
+        });
+        routeButton.focus();
+        await userEvent.keyboard("{Enter}");
+
+        expect(onLoad).toHaveBeenCalledWith(SAVED_ROUTE);
+    });
+
+    it("asks for confirmation before deleting; cancel dismisses, confirm deletes", async () => {
+        render(
+            <LoadPreviousRoutesDialog
+                open
+                onOpenChange={vi.fn()}
+                onLoad={vi.fn()}
+            />,
+        );
+
+        const deleteButton = await screen.findByRole("button", {
+            name: /delete saved route/i,
+        });
+        await userEvent.click(deleteButton);
+        expect(
+            screen.getByRole("heading", { name: /delete saved route\?/i }),
+        ).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^cancel$/i }),
+        );
+        expect(
+            screen.queryByRole("heading", { name: /delete saved route\?/i }),
+        ).not.toBeInTheDocument();
+
+        await userEvent.click(
+            await screen.findByRole("button", {
+                name: /delete saved route/i,
+            }),
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^delete$/i }),
+        );
+
+        expect(
+            await screen.findByText(/no saved routes yet/i),
+        ).toBeInTheDocument();
+    });
 });

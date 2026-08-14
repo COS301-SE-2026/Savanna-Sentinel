@@ -110,6 +110,21 @@ describe("RouteComparisonView", () => {
         expect(onSelect).toHaveBeenCalledWith(1);
     });
 
+    it("shows a message when there are no feasible routes", () => {
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={[]}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                {...SAVE_PROPS}
+            />,
+        );
+        expect(
+            screen.getByText(/no feasible routes found/i),
+        ).toBeInTheDocument();
+    });
+
     it("shows a failure message when status is failed", () => {
         render(
             <RouteComparisonView
@@ -209,6 +224,35 @@ describe("RouteComparisonView", () => {
         await userEvent.click(
             screen.getByRole("button", { name: /^cancel$/i }),
         );
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(
+            screen.queryByRole("heading", { name: /save this route/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("closes the save confirmation dialog when Escape is pressed", async () => {
+        const onSave = vi.fn();
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={COMPLETED_ROUTES.results}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                onSave={onSave}
+                savingIndex={null}
+                savedIndices={new Set()}
+                canSave
+            />,
+        );
+        await userEvent.click(
+            screen.getAllByRole("button", { name: /^save route a/i })[0],
+        );
+        expect(
+            screen.getByRole("heading", { name: /save this route/i }),
+        ).toBeInTheDocument();
+
+        await userEvent.keyboard("{Escape}");
 
         expect(onSave).not.toHaveBeenCalled();
         expect(

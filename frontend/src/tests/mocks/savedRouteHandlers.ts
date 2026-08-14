@@ -42,4 +42,8 @@ export const savedRouteHandlers = [
     http.get(`${BASE}/routes/saved`, () =>
         HttpResponse.json(SAVED_ROUTES_LIST),
     ),
+
+    http.delete(`${BASE}/routes/saved/:routeId`, () =>
+        HttpResponse.json(null, { status: 204 }),
+    ),
 ];

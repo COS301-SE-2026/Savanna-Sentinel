@@ -6,7 +6,11 @@ import pytest
 
 from app.schemas.geo import GeoLineString, GeoPoint
 from app.schemas.route import PlannedRoute, SaveRouteRequest
-from app.services.route_service import list_saved_routes, save_route
+from app.services.route_service import (
+    delete_saved_route,
+    list_saved_routes,
+    save_route,
+)
 
 _NOW = datetime.now(timezone.utc)
 
@@ -66,3 +70,18 @@ async def test_list_saved_routes_scopes_to_current_user(mock_repo_cls):
     await list_saved_routes(_mock_db, _fake_user(user_id="user-9"), 1, 20)
 
     mock_repo.list_by_user.assert_awaited_once_with("user-9", 1, 20)
+
+
+@pytest.mark.asyncio
+@patch("app.services.route_service.PatrolRouteRepository")
+async def test_delete_saved_route_delegates_to_repository(mock_repo_cls):
+    mock_repo = AsyncMock()
+    mock_repo.delete.return_value = True
+    mock_repo_cls.return_value = mock_repo
+
+    result = await delete_saved_route(
+        _mock_db, _fake_user(user_id="user-1"), "route-1",
+    )
+
+    assert result is True
+    mock_repo.delete.assert_awaited_once_with("route-1", "user-1")

@@ -386,4 +386,29 @@ describe("PatrolPlannerPage", () => {
         expect(await screen.findByText("38 min")).toBeInTheDocument();
         expect(screen.queryByText("55 min")).not.toBeInTheDocument();
     });
+
+    it("clearing routes removes a previously loaded route", async () => {
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        const savedRouteButton = await screen.findByRole("button", {
+            name: /55 min/i,
+        });
+        await userEvent.click(savedRouteButton);
+        expect(await screen.findByText("55 min")).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^clear routes$/i }),
+        );
+        const clearButtons = screen.getAllByRole("button", {
+            name: /^clear routes$/i,
+        });
+        await userEvent.click(clearButtons[clearButtons.length - 1]);
+
+        expect(screen.queryByText("55 min")).not.toBeInTheDocument();
+        expect(
+            screen.getByText(/generate routes to see alternatives/i),
+        ).toBeInTheDocument();
+    });
 });
