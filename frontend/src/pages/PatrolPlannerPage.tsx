@@ -251,6 +251,8 @@ export default function PatrolPlannerPage() {
 
     function handleClearRoutes() {
         setRequestId(null);
+        setLoadedRoute(null);
+        setSelectedIndex(0);
     }
 
     function handleLoadRoute(saved: SavedRoute) {

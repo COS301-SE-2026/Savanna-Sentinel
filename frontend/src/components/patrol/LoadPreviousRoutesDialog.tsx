@@ -4,6 +4,8 @@ import { Trash2 } from "lucide-react";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
@@ -27,8 +29,12 @@ export function LoadPreviousRoutesDialog({
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(
+        null,
+    );
 
     useEffect(() => {
+        setPendingDeleteId(null);
         if (!open) return;
 
         async function fetchSavedRoutes() {
@@ -57,6 +63,41 @@ export function LoadPreviousRoutesDialog({
         } finally {
             setDeletingId(null);
         }
+    }
+
+    if (pendingDeleteId !== null) {
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent preventBackdropClose>
+                    <DialogHeader>
+                        <DialogTitle>Delete Saved Route?</DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>
+                        This saved route will be permanently removed. This
+                        cannot be undone.
+                    </DialogDescription>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setPendingDeleteId(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => {
+                                handleDelete(pendingDeleteId);
+                                setPendingDeleteId(null);
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        );
     }
 
     return (
@@ -165,7 +206,9 @@ export function LoadPreviousRoutesDialog({
                                                 }
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleDelete(route.id);
+                                                    setPendingDeleteId(
+                                                        route.id,
+                                                    );
                                                 }}
                                             >
                                                 <Trash2 className="text-status-critical" />
