@@ -21,3 +21,7 @@ def get_park_grid(park_id: str) -> ParkGridResponse:
         for cell in cells
     ]
     return ParkGridResponse(features=features)
+
+
+def validate_boundaries():
+    return

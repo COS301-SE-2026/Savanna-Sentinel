@@ -1,11 +1,12 @@
+import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_roles
 from app.models.user import User
 from app.schemas.risk import ParkGridResponse
-from app.services.risk_service import get_park_grid
+from app.services.risk_service import get_park_grid, validate_boundaries
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 
@@ -29,3 +30,25 @@ async def get_grid(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=_PARK_NOT_FOUND,
         ) from exc
+
+
+@router.post(
+    "/upload",
+    status_code=status.HTTP_201_CREATED,
+    summary="Allows a geojson to be uploaded to be used for parks",
+)
+async def upload_geojson(
+    authenticated: Annotated[User, Depends(require_roles["admin"])],
+    file: Annotated[UploadFile, File()],
+):
+    content = await file.read()
+
+    try:
+        json_data = json.loads(content)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON file",
+        )
+
+    validation = validate_boundaries(json_data)
