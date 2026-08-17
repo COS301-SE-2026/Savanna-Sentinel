@@ -37,9 +37,9 @@ async def get_grid(
     summary="Allows a geojson to be uploaded to be used for parks",
 )
 async def upload_geojson(
-    authenticated: Annotated[User, Depends(require_roles["admin"])],
+    authenticated: Annotated[User, Depends(require_roles("admin"))],
     file: Annotated[UploadFile, File()],
 ):
     content = await file.read()
 
-    validate = validate_boundaries(content)
+    validate_boundaries(content)

@@ -30,6 +30,7 @@ email-validator==2.3.0
 fastapi==0.140.13
 filelock==3.32.2
 freezegun==1.5.5
+geopandas==1.1.4
 graphql-core==3.2.11
 greenlet==3.5.4
 h11==0.16.0
@@ -59,9 +60,10 @@ msgpack==1.2.1
 nab-index==0.0.12
 nab-python==0.0.12
 nab-resolver==0.0.12
-numpy==2.5.2
+numpy==2.4.6
 packageurl-python==0.17.6
 packaging==26.2
+pandas==3.0.5
 passlib==1.7.4
 pip-api==0.0.34
 pip-requirements-parser==32.0.1
@@ -79,6 +81,8 @@ pydantic-settings==2.14.2
 pydantic_core==2.46.4
 Pygments==2.20.0
 PyJWT==2.13.0
+pyogrio==0.13.0
+python-multipart>=0.0.9
 pyparsing==3.3.2
 pyproj==3.7.2
 pyproject_hooks==1.2.0
@@ -98,6 +102,7 @@ rsa==4.9.1
 ruff==0.15.21
 s3transfer==0.10.4
 schemathesis==4.24.3
+shapely==2.1.2
 six==1.17.0
 sortedcontainers==2.4.0
 SQLAlchemy==2.0.51

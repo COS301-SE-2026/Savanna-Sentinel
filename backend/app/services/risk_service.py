@@ -34,10 +34,10 @@ def get_park_grid(park_id: str) -> ParkGridResponse:
 def validate_boundaries(file: bytes):
     try:
         parsed = geopandas.read_file(io.BytesIO(file))
-    except Exception:
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file format: {str(Exception)}",
+            detail=f"Invalid file format: {str(exc)}",
         ) from Exception
 
     minx, miny, maxx, maxy = parsed.total_bounds
@@ -56,7 +56,7 @@ def validate_boundaries(file: bytes):
         )
 
     if parsed.crs is None:
-        parsed.set_crs(espg=4326, inplace=True)
+        parsed.set_crs(epsg=4326, inplace=True)
 
     center = parsed.geometry.union_all().centroid
 
@@ -75,11 +75,11 @@ def validate_boundaries(file: bytes):
 
     grid_minx = numpy.floor(u_minx / cell_size) * cell_size
     grid_miny = numpy.floor(u_miny / cell_size) * cell_size
-    grid_maxx = numpy.floor(u_maxx / cell_size) * cell_size
-    grid_maxy = numpy.floor(u_maxy / cell_size) * cell_size
+    grid_maxx = numpy.ceil(u_maxx / cell_size) * cell_size
+    grid_maxy = numpy.ceil(u_maxy / cell_size) * cell_size
 
-    x_coords = numpy.arrange(grid_minx, grid_maxx, cell_size)
-    y_coords = numpy.arrange(grid_miny, grid_maxy, cell_size)
+    x_coords = numpy.arange(grid_minx, grid_maxx, cell_size)
+    y_coords = numpy.arange(grid_miny, grid_maxy, cell_size)
 
     cells = [
         box(x, y, x + cell_size, y + cell_size)
@@ -87,7 +87,7 @@ def validate_boundaries(file: bytes):
         for y in y_coords
     ]
 
-    grid = geopandas.GeoDataFrame(geometry=cells, crs=utm_zone.crs)
+    grid = geopandas.GeoDataFrame(geometry=cells, crs=parsed_utm.crs)
 
     # Generate the boundary
     boundary_outline = parsed_utm.union_all()
