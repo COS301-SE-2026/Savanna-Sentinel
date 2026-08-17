@@ -1,4 +1,3 @@
-import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -43,12 +42,4 @@ async def upload_geojson(
 ):
     content = await file.read()
 
-    try:
-        json_data = json.loads(content)
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid JSON file",
-        )
-
-    validation = validate_boundaries(json_data)
+    validate = validate_boundaries(content)
