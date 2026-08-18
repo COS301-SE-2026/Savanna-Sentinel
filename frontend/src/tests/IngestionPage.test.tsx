@@ -255,6 +255,11 @@ describe("Rendering tests - File validation tests, test various files that succe
         await submitAll(user);
 
         expect(uploadSpy).toHaveBeenCalledTimes(1);
+        expect(uploadSpy).toHaveBeenCalledWith(
+            expect.any(Array),
+            1,
+            "test.csv",
+        );
         expect(notifySafe).toHaveBeenCalledWith(
             "Upload complete",
             "The entire file has been ingested.",
