@@ -1,15 +1,25 @@
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
+from app.repositories.patrol_route_repository import PatrolRouteRepository
 from app.schemas.geo import GeoLineString
 from app.schemas.route import (
     PlannedRoute,
     RouteJobResponse,
     RouteListResponse,
     RouteRequest,
+    SavedRouteListResponse,
+    SavedRouteResponse,
 )
 from app.workers.celery_app import celery_app
 from app.workers.tasks.route_tasks import run_route_planning_job
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.user import User
+    from app.schemas.route import SaveRouteRequest
 
 _CELERY_STATUS_MAP = {
     "PENDING": "queued",
@@ -112,3 +122,90 @@ def get_routes(request_id=None, park_id=None, page=1, page_size=20):
         page_size=page_size,
         results=page_results,
     )
+
+
+def _to_wkt_point(point) -> str:
+    lon, lat = point.coordinates
+    return f"POINT({lon} {lat})"
+
+
+def _to_wkt_linestring(line) -> str:
+    coords = ", ".join(f"{lon} {lat}" for lon, lat in line.coordinates)
+    return f"LINESTRING({coords})"
+
+
+async def save_route(
+    db: "AsyncSession",
+    current_user: "User",
+    req: "SaveRouteRequest",
+) -> SavedRouteResponse:
+    repo = PatrolRouteRepository(db)
+    result = await repo.create(
+        user_id=current_user.id,
+        request_id=req.request_id,
+        start_point_wkt=_to_wkt_point(req.start_point),
+        end_point_wkt=_to_wkt_point(req.end_point),
+        max_time=req.max_time,
+        max_fuel=req.max_fuel,
+        risk_heatmap=req.risk_by_cell,
+        path_wkt=_to_wkt_linestring(req.route.path_geometry),
+        estimated_time=req.route.estimated_time_min,
+        estimated_fuel=req.route.estimated_fuel_l,
+        risk_coverage=req.route.risk_coverage,
+    )
+    return SavedRouteResponse(
+        id=result["id"],
+        request_id=req.request_id,
+        start_point=req.start_point,
+        end_point=req.end_point,
+        max_time=req.max_time,
+        max_fuel=req.max_fuel,
+        risk_by_cell=req.risk_by_cell,
+        path_geometry=req.route.path_geometry,
+        estimated_time_min=req.route.estimated_time_min,
+        estimated_fuel_l=req.route.estimated_fuel_l,
+        risk_coverage=req.route.risk_coverage,
+        created_at=result["created_at"].isoformat(),
+    )
+
+
+async def list_saved_routes(
+    db: "AsyncSession",
+    current_user: "User",
+    page: int,
+    page_size: int,
+) -> SavedRouteListResponse:
+    repo = PatrolRouteRepository(db)
+    rows, total = await repo.list_by_user(current_user.id, page, page_size)
+    results = [
+        SavedRouteResponse(
+            id=r["id"],
+            request_id=r["request_id"],
+            start_point=r["start_point"],
+            end_point=r["end_point"],
+            max_time=r["max_time"],
+            max_fuel=r["max_fuel"],
+            risk_by_cell=r["risk_heatmap"],
+            path_geometry=r["path_geometry"],
+            estimated_time_min=r["estimated_time"],
+            estimated_fuel_l=r["estimated_fuel"],
+            risk_coverage=r["risk_coverage"],
+            created_at=r["created_at"].isoformat(),
+        )
+        for r in rows
+    ]
+    return SavedRouteListResponse(
+        total=total,
+        page=page,
+        page_size=page_size,
+        results=results,
+    )
+
+
+async def delete_saved_route(
+    db: "AsyncSession",
+    current_user: "User",
+    route_id: str,
+) -> bool:
+    repo = PatrolRouteRepository(db)
+    return await repo.delete(route_id, current_user.id)

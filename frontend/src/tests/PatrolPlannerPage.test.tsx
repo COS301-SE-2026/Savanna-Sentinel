@@ -17,14 +17,23 @@ vi.mock("maplibre-gl", async () => {
     return createMapLibreMock();
 });
 
+import maplibregl from "maplibre-gl";
 import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers, TEST_GRID } from "./mocks/riskHandlers";
 import { routeHandlers, ROUTE_REQUEST_ID } from "./mocks/routeHandlers";
+import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
 
-const server = setupServer(...riskHandlers, ...routeHandlers);
+const server = setupServer(
+    ...riskHandlers,
+    ...routeHandlers,
+    ...savedRouteHandlers,
+);
 beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+    server.resetHandlers();
+    vi.restoreAllMocks();
+});
 afterAll(() => server.close());
 
 function renderPage() {
@@ -211,5 +220,195 @@ describe("PatrolPlannerPage", () => {
         expect(
             await screen.findAllByRole("button", { name: "Selected" }),
         ).toHaveLength(1);
+    });
+
+    it("saves the selected route and marks its card as saved", async () => {
+        renderPage();
+        await userEvent.type(
+            screen.getByLabelText(/^start point$/i),
+            "-24.3, 31.05",
+        );
+        await userEvent.type(
+            screen.getByLabelText(/^end point$/i),
+            "-24.32, 31.08",
+        );
+        await userEvent.type(screen.getByLabelText(/max time/i), "120");
+        await userEvent.type(screen.getByLabelText(/max fuel/i), "40");
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route a/i }),
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
+
+        expect(await screen.findByText("Route saved")).toBeInTheDocument();
+        expect(
+            screen.getByRole("button", { name: /route a saved/i }),
+        ).toBeDisabled();
+    });
+
+    it("saves a route successfully when Max Time and Max Fuel are left blank", async () => {
+        let requestBody: {
+            max_time?: number | null;
+            max_fuel?: number | null;
+        } | null = null;
+        server.use(
+            http.post(
+                "http://localhost:8000/v1/routes/save",
+                async ({ request }) => {
+                    requestBody = (await request.json()) as {
+                        max_time?: number | null;
+                        max_fuel?: number | null;
+                    };
+                    return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+                },
+            ),
+        );
+
+        renderPage();
+        await userEvent.type(
+            screen.getByLabelText(/^start point$/i),
+            "-24.3, 31.05",
+        );
+        await userEvent.type(
+            screen.getByLabelText(/^end point$/i),
+            "-24.32, 31.08",
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+
+        expect(
+            screen.getByRole("button", { name: /^save route a/i }),
+        ).toBeEnabled();
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route a/i }),
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
+
+        expect(await screen.findByText("Route saved")).toBeInTheDocument();
+        await waitFor(() => expect(requestBody).not.toBeNull());
+        expect(requestBody!.max_time).toBeNull();
+        expect(requestBody!.max_fuel).toBeNull();
+    });
+
+    it("shows a critical toast when saving fails", async () => {
+        server.use(
+            http.post("http://localhost:8000/v1/routes/save", () =>
+                HttpResponse.json({ detail: "boom" }, { status: 500 }),
+            ),
+        );
+
+        renderPage();
+        await userEvent.type(
+            screen.getByLabelText(/^start point$/i),
+            "-24.3, 31.05",
+        );
+        await userEvent.type(
+            screen.getByLabelText(/^end point$/i),
+            "-24.32, 31.08",
+        );
+        await userEvent.type(screen.getByLabelText(/max time/i), "120");
+        await userEvent.type(screen.getByLabelText(/max fuel/i), "40");
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route a/i }),
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
+
+        expect(
+            await screen.findByText("Could not save route"),
+        ).toBeInTheDocument();
+    });
+
+    it("loading a previous route displays it via RouteComparisonView/PatrolRouteLayer", async () => {
+        const addSourceSpy = vi.spyOn(maplibregl.Map.prototype, "addSource");
+
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        const savedRouteButton = await screen.findByRole("button", {
+            name: /55 min/i,
+        });
+        await userEvent.click(savedRouteButton);
+
+        expect(await screen.findByText("Route A")).toBeInTheDocument();
+        expect(screen.getByText("55 min")).toBeInTheDocument();
+        expect(screen.getByText("22 L")).toBeInTheDocument();
+
+        await waitFor(() => {
+            const call = addSourceSpy.mock.calls.find(
+                ([id]) => id === "patrol-route-0",
+            );
+            expect(call).toBeDefined();
+        });
+        const [, source] = addSourceSpy.mock.calls.find(
+            ([id]) => id === "patrol-route-0",
+        )!;
+        const data = (
+            source as { data: { geometry: { coordinates: unknown } } }
+        ).data;
+        expect(data.geometry.coordinates).toEqual(
+            SAVED_ROUTE.path_geometry.coordinates,
+        );
+    });
+
+    it("generating new routes clears a previously loaded route", async () => {
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        const savedRouteButton = await screen.findByRole("button", {
+            name: /55 min/i,
+        });
+        await userEvent.click(savedRouteButton);
+        expect(await screen.findByText("55 min")).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+
+        expect(await screen.findByText("38 min")).toBeInTheDocument();
+        expect(screen.queryByText("55 min")).not.toBeInTheDocument();
+    });
+
+    it("clearing routes removes a previously loaded route", async () => {
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        const savedRouteButton = await screen.findByRole("button", {
+            name: /55 min/i,
+        });
+        await userEvent.click(savedRouteButton);
+        expect(await screen.findByText("55 min")).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^clear routes$/i }),
+        );
+        const clearButtons = screen.getAllByRole("button", {
+            name: /^clear routes$/i,
+        });
+        await userEvent.click(clearButtons[clearButtons.length - 1]);
+
+        expect(screen.queryByText("55 min")).not.toBeInTheDocument();
+        expect(
+            screen.getByText(/generate routes to see alternatives/i),
+        ).toBeInTheDocument();
     });
 });

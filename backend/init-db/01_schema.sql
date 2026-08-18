@@ -129,12 +129,14 @@ CREATE TABLE patrol_routes (
     request_id     UUID                       NOT NULL,
     requested_by   UUID                       NOT NULL REFERENCES users(id),
     start_point    GEOGRAPHY(Point, 4326)     NOT NULL,
-    max_time       FLOAT                      NOT NULL,
-    max_fuel       FLOAT                      NOT NULL,
+    end_point      GEOGRAPHY(Point, 4326)     NOT NULL,
+    max_time       FLOAT,
+    max_fuel       FLOAT,
     suggested_path GEOGRAPHY(LineString, 4326) NOT NULL,
     estimated_time FLOAT                      NOT NULL,
     estimated_fuel FLOAT                      NOT NULL,
     risk_coverage  FLOAT                      NOT NULL,
+    risk_heatmap   JSONB                      NOT NULL,
     created_at     TIMESTAMPTZ                NOT NULL DEFAULT NOW()
 );
 
