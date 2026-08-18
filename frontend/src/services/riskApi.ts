@@ -29,4 +29,15 @@ export const riskApi = {
                 params: { park_id: parkId },
             })
             .then((r) => r.data),
+
+    uploadParkZone: async (file: File) => {
+        const formData = new FormData();
+
+        formData.append("file", file)
+        api.post("/risk/upload", formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            }
+        })
+    }   
 };
