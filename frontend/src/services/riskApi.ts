@@ -22,7 +22,7 @@ export interface ParkGridResponse {
 
 export const riskApi = {
     getParkGrid: async (
-        parkId: string = "klaserie",
+        parkId: string = "reserve",
     ): Promise<ParkGridResponse> =>
         api
             .get<ParkGridResponse>("/risk/grid", {

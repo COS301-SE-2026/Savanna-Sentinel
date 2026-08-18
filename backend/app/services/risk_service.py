@@ -81,28 +81,46 @@ def validate_boundaries(file: bytes):
     x_coords = numpy.arange(grid_minx, grid_maxx, cell_size)
     y_coords = numpy.arange(grid_miny, grid_maxy, cell_size)
 
-    cells = [
-        box(x, y, x + cell_size, y + cell_size)
-        for x in x_coords
-        for y in y_coords
-    ]
+    cells = []
+    rows = []
+    cols = []
+    lefts, rights = [], []
+    tops, bottoms = [], []
 
-    grid = geopandas.GeoDataFrame(geometry=cells, crs=parsed_utm.crs)
+    for y_idx, y in enumerate(y_coords):
+        for x_idx, x in enumerate(x_coords):
+            cells.append(box(x, y, x + cell_size, y + cell_size))
+            lefts.append(float(x))
+            rights.append(float(x + cell_size))
+            bottoms.append(float(y))
+            tops.append(float(y + cell_size))
+            rows.append(float(y_idx))
+            cols.append(float(x_idx))
+
+    grid = geopandas.GeoDataFrame(
+        {
+            "geometry": cells,
+            "left": lefts,
+            "right": rights,
+            "top": tops,
+            "bottom": bottoms,
+            "row_index": rows,
+            "col_index": cols,
+        },
+        crs=parsed_utm.crs,
+    )
 
     # Generate the boundary
     boundary_outline = parsed_utm.union_all()
     full_blocks = grid[grid.intersects(boundary_outline)].copy()
 
     # Attach metadata for maplibre
-    full_blocks["cell_id"] = [f"cell-{i}" for i in range(len(full_blocks))]
-
-    # Turn UTM back to WGS
-    full_blocks_wgs = full_blocks.to_crs(epsg=4326)
+    full_blocks["id"] = [f"cell-{i}" for i in range(len(full_blocks))]
 
     # Save to file
     output_file = "reserve-grid.geojson"
-    full_blocks_wgs.to_file(output_file, driver="GeoJSON")
+    full_blocks.to_file(output_file, driver="GeoJSON")
 
     return {
-        "total_cells": len(full_blocks_wgs),
+        "total_cells": len(full_blocks),
     }
