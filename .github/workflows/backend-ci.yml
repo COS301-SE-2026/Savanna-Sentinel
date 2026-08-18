@@ -82,6 +82,7 @@ jobs:
         env:
           BASE_URL: http://localhost:8000
           DATABASE_URL: postgresql+asyncpg://sentinel:sentinel_dev_password@localhost:5432/savanna_sentinel
+          REDIS_URL: redis://localhost:6379/0
         run: pytest backend/tests/integration/ --cov=backend/app --cov-report=xml:backend/int-coverage.xml --cov-report=term
 
       - name: Tear down Docker services
