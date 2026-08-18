@@ -124,13 +124,14 @@ export function ReportList({
     );
 
     React.useEffect(() => {
+        if (!showFilterBar) return;
         getSpeciesOptions().then((species) => {
             setSpeciesOptions(species);
         });
         getUsernameOptions().then((user) => {
             setUsernameOptions(user);
         });
-    }, []);
+    }, [showFilterBar]);
 
     const { sorted, sortKey, direction, requestSort } = useSort<
         DraftReport,
