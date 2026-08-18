@@ -5,6 +5,20 @@ import { ReportList } from "@/components/reports/ReportList";
 import { blankDraftReportInput } from "@/types/reports";
 import type { DraftReport } from "@/types/reports";
 
+vi.mock("@/hooks/useReportSearchFilter", async (importOriginal) => {
+    const actual =
+        await importOriginal<typeof import("@/hooks/useReportSearchFilter")>();
+    return {
+        ...actual,
+        getSpeciesOptions: vi
+            .fn()
+            .mockResolvedValue(["Elephant", "Lion", "Rhino"]),
+        getUsernameOptions: vi
+            .fn()
+            .mockResolvedValue(["John Doe", "jane_ranger"]),
+    };
+});
+
 function makeReport(overrides: Partial<DraftReport>): DraftReport {
     return {
         ...blankDraftReportInput("incident"),
@@ -28,6 +42,17 @@ describe("ReportList", () => {
                 reports={[]}
                 canSubmit
                 onGoToNewReport={onGoToNewReport}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
         expect(screen.getByText("No reports yet")).toBeInTheDocument();
@@ -42,6 +67,17 @@ describe("ReportList", () => {
                 reports={[]}
                 canSubmit={false}
                 onGoToNewReport={vi.fn()}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
         expect(
@@ -59,6 +95,17 @@ describe("ReportList", () => {
                 reports={[]}
                 canSubmit
                 onGoToNewReport={onGoToNewReport}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
         await userEvent.click(
@@ -73,51 +120,45 @@ describe("ReportList", () => {
                 reports={[makeReport({ description: "Snare near fence" })]}
                 canSubmit
                 onGoToNewReport={vi.fn()}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
         expect(screen.getByText("Snare near fence")).toBeInTheDocument();
         expect(screen.getByText("Pending Sync")).toBeInTheDocument();
     });
 
-    it("narrows results with the search bar", async () => {
-        render(
-            <ReportList
-                reports={[
-                    makeReport({ description: "Snare near fence" }),
-                    makeReport({
-                        description: "Elephants at waterhole",
-                        reportType: "sighting",
-                        species: "Elephant",
-                        incidentType: "",
-                        severity: null,
-                    }),
-                ]}
-                canSubmit
-                onGoToNewReport={vi.fn()}
-            />,
-        );
-        await userEvent.type(
-            screen.getByPlaceholderText("Search reports..."),
-            "waterhole",
-        );
-        expect(screen.getByText("Elephants at waterhole")).toBeInTheDocument();
-        expect(screen.queryByText("Snare near fence")).not.toBeInTheDocument();
-    });
-
     it("shows a no-match message when search excludes every report", async () => {
         render(
             <ReportList
-                reports={[makeReport({ description: "Snare near fence" })]}
+                reports={[]}
                 canSubmit
                 onGoToNewReport={vi.fn()}
+                search="nothing matches this"
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
-        await userEvent.type(
-            screen.getByPlaceholderText("Search reports..."),
-            "nothing matches this",
-        );
+
         expect(
-            screen.getByText("No reports match your search or filters."),
+            await screen.findByText("No reports match your search or filters."),
         ).toBeInTheDocument();
     });
 
@@ -128,6 +169,17 @@ describe("ReportList", () => {
                 reports={[report]}
                 canSubmit
                 onGoToNewReport={vi.fn()}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
         const expected = new Date(report.occurredAt).toLocaleString(undefined, {
@@ -153,6 +205,17 @@ describe("ReportList", () => {
                 ]}
                 canSubmit
                 onGoToNewReport={vi.fn()}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
         const rows = screen.getAllByRole("row").slice(1);
@@ -175,6 +238,17 @@ describe("ReportList", () => {
                 ]}
                 canSubmit
                 onGoToNewReport={vi.fn()}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
 
@@ -204,6 +278,17 @@ describe("ReportList", () => {
                 reports={reports}
                 canSubmit
                 onGoToNewReport={vi.fn()}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
         expect(screen.getByRole("button", { name: "2" })).toBeInTheDocument();
@@ -215,6 +300,17 @@ describe("ReportList", () => {
                 reports={[makeReport({ description: "Snare near fence" })]}
                 canSubmit
                 onGoToNewReport={vi.fn()}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
 
@@ -232,17 +328,11 @@ describe("ReportList", () => {
         ).toBeInTheDocument();
     });
 
-    it("narrows results with the species filter", async () => {
+    it("calls setSpeciesFilter when species filter is applied", async () => {
+        const setSpeciesFilter = vi.fn();
         render(
             <ReportList
                 reports={[
-                    makeReport({
-                        description: "Elephants at waterhole",
-                        reportType: "sighting",
-                        species: "Elephant",
-                        incidentType: "",
-                        severity: null,
-                    }),
                     makeReport({
                         description: "Buffalo herd crossing",
                         reportType: "sighting",
@@ -253,6 +343,17 @@ describe("ReportList", () => {
                 ]}
                 canSubmit
                 onGoToNewReport={vi.fn()}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={setSpeciesFilter}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
 
@@ -262,15 +363,13 @@ describe("ReportList", () => {
         await userEvent.click(
             screen.getByRole("button", { name: /^species/i }),
         );
-        await userEvent.click(
-            within(screen.getByRole("listbox")).getByLabelText("Elephant"),
-        );
+        const elephantCheckbox = await screen.findByRole("checkbox", {
+            name: /elephant/i,
+        });
+        await userEvent.click(elephantCheckbox);
         await userEvent.click(screen.getByRole("button", { name: /^apply$/i }));
 
-        expect(screen.getByText("Elephants at waterhole")).toBeInTheDocument();
-        expect(
-            screen.queryByText("Buffalo herd crossing"),
-        ).not.toBeInTheDocument();
+        expect(setSpeciesFilter).toHaveBeenCalledWith(["Elephant"]);
     });
 
     it("opens the report detail dialog when a row is activated with the keyboard", async () => {
@@ -279,6 +378,17 @@ describe("ReportList", () => {
                 reports={[makeReport({ description: "Snare near fence" })]}
                 canSubmit
                 onGoToNewReport={vi.fn()}
+                search=""
+                setSearch={vi.fn()}
+                typeFilter={[]}
+                setTypeFilter={vi.fn()}
+                severityFilter={[]}
+                setSeverityFilter={vi.fn()}
+                speciesFilter={[]}
+                setSpeciesFilter={vi.fn()}
+                usernameFilter={[]}
+                setUsernameFilter={vi.fn()}
+                isLoading={false}
             />,
         );
 

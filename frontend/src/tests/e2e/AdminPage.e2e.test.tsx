@@ -181,6 +181,11 @@ test.describe("Admin Role Swap Management", () => {
     test("should allow an admin to change an active user's role", async ({
         page,
     }) => {
+        const searchInput = page.getByRole("searchbox", {
+            name: /search active users/i,
+        });
+        await searchInput.fill(userCleanup!.username);
+
         const userRow = page
             .locator("tr")
             .filter({ hasText: userCleanup!.username });

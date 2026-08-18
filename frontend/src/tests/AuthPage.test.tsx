@@ -42,9 +42,7 @@ describe("Authpage - Pending Registrations", () => {
     it("shows a loading indicator then renders users", async () => {
         renderAuthPage();
 
-        expect(
-            screen.getByText(/loading pending users.../i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/loading users.../i)).toBeInTheDocument();
 
         expect(await screen.findByText("ranger1")).toBeInTheDocument();
         expect(screen.getByText("analyst2")).toBeInTheDocument();

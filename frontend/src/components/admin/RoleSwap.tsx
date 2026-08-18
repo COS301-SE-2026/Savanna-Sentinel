@@ -35,6 +35,7 @@ import {
     STANDARD_USER_COLUMNS as USER_COLUMNS,
 } from "@/components/admin/standardUserColumns";
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
+import { Pagination } from "../ui/pagination";
 
 const ASSIGNABLE_ROLES = [
     { value: "ranger", label: "Ranger" },
@@ -44,7 +45,7 @@ const ASSIGNABLE_ROLES = [
 
 interface UserRowProps {
     user: UserResponse;
-    onRoleChanged: (updatedUser: UserResponse) => void;
+    onRoleChanged: () => void;
 }
 
 export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
@@ -65,15 +66,12 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
         setIsProcessing(true);
 
         try {
-            const updated = await usersApi.changeUserRole(
-                user.id,
-                selectedRole,
-            );
+            await usersApi.changeUserRole(user.id, selectedRole);
             notifySafe(
                 "Role updated",
                 `${fullName} is now ${formatRole(selectedRole)}.`,
             );
-            onRoleChanged(updated);
+            onRoleChanged();
         } catch {
             notifyCritical("Failed to update role.");
             setSelectedRole(user.role);
@@ -157,7 +155,6 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
 export const RoleSwap = () => {
     const {
         users,
-        setUsers,
         isLoading,
         pageError,
         search,
@@ -169,23 +166,13 @@ export const RoleSwap = () => {
         sortKey,
         direction,
         requestSort,
+        refetch,
+        page,
+        setPage,
+        totalPages,
     } = useManagedUsers(usersApi.getActiveUsers, sortAccessors);
 
-    const handleRoleChanged = (updatedUser: UserResponse) => {
-        setUsers((prev) =>
-            prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)),
-        );
-    };
-
-    if (isLoading || pageError) {
-        return (
-            <UserTableStatus
-                isLoading={isLoading}
-                pageError={pageError}
-                loadingText="Loading users..."
-            />
-        );
-    }
+    const isInitialLoading = isLoading && users.length === 0;
 
     return (
         <div className="space-y-4">
@@ -201,45 +188,57 @@ export const RoleSwap = () => {
                 selectedRoles={roleFilter}
                 onRolesChange={setRoleFilter}
             />
-
-            <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
-                <Table>
-                    <TableHeader className="bg-brand-primary">
-                        <TableRow className="hover:bg-transparent">
-                            <SortableColumns
-                                columns={USER_COLUMNS}
-                                sortKey={sortKey}
-                                direction={direction}
-                                requestSort={requestSort}
-                            />
-                            <TableHead className={theadClass}>
-                                Assign Role
-                            </TableHead>
-                            <TableHead className={theadClass} />
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedUsers.length === 0 ? (
-                            <EmptyTableRow
-                                colSpan={6}
-                                message={
-                                    users.length === 0
-                                        ? "No active users found."
-                                        : "No users match your search or filters."
-                                }
-                            />
-                        ) : (
-                            sortedUsers.map((user) => (
-                                <UserRow
-                                    key={user.id}
-                                    user={user}
-                                    onRoleChanged={handleRoleChanged}
+            {isInitialLoading || pageError ? (
+                <UserTableStatus
+                    isLoading={isInitialLoading}
+                    pageError={pageError}
+                    loadingText="Loading users..."
+                />
+            ) : (
+                <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
+                    <Table>
+                        <TableHeader className="bg-brand-primary">
+                            <TableRow className="hover:bg-transparent">
+                                <SortableColumns
+                                    columns={USER_COLUMNS}
+                                    sortKey={sortKey}
+                                    direction={direction}
+                                    requestSort={requestSort}
                                 />
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                                <TableHead className={theadClass}>
+                                    Assign Role
+                                </TableHead>
+                                <TableHead className={theadClass} />
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedUsers.length === 0 ? (
+                                <EmptyTableRow
+                                    colSpan={6}
+                                    message={
+                                        users.length === 0
+                                            ? "No active users found."
+                                            : "No users match your search or filters."
+                                    }
+                                />
+                            ) : (
+                                sortedUsers.map((user) => (
+                                    <UserRow
+                                        key={user.id}
+                                        user={user}
+                                        onRoleChanged={refetch}
+                                    />
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={(page) => setPage(page)}
+            />
         </div>
     );
 };

@@ -10,6 +10,7 @@ from app.services.media_service import MediaService
 if TYPE_CHECKING:
     from app.models.user import User
     from app.repositories.report_repository import ReportRepository
+    from app.repositories.user_repository import UserRepository
     from app.schemas.report import ReportCreate, ReportUpdate
 
 
@@ -17,9 +18,11 @@ class ReportService:
     def __init__(
         self,
         repo: ReportRepository,
+        user_repo: UserRepository,
         media_service: Optional[MediaService] = None,
     ):
         self.repo = repo
+        self.user_repo = user_repo
         self.media_service = media_service or MediaService()
 
     async def create_report(
@@ -56,7 +59,7 @@ class ReportService:
             )
 
         wkt = f"POINT({lon} {lat})"
-        return await self.repo.create(
+        result = await self.repo.create(
             user_id=current_user.id,
             report_type=data.report_type,
             location_wkt=wkt,
@@ -69,6 +72,8 @@ class ReportService:
             count=data.count,
             images=data.images,
         )
+        result["submitted_by_username"] = current_user.username
+        return result
 
     async def update_report(
         self,
@@ -94,11 +99,15 @@ class ReportService:
             provided,
         )
 
-        return await self.repo.update(
+        result = await self.repo.update(
             report_id=report_id,
             report_type=existing["report_type"],
             fields=fields,
         )
+        result["submitted_by_username"] = (
+            await self.user_repo.get_username_by_id(result["submitted_by"])
+        )
+        return result
 
     async def delete_report(
         self,
@@ -182,8 +191,11 @@ class ReportService:
     async def get_reports(
         self,
         current_user: User,
-        report_type: Optional[str] = None,
-        severity: Optional[str] = None,
+        search: Optional[str] = None,
+        report_types: Optional[list[str]] = None,
+        severities: Optional[list[str]] = None,
+        species: Optional[list[str]] = None,
+        users: Optional[list[str]] = None,
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
         sync_status: Optional[str] = None,
@@ -193,8 +205,11 @@ class ReportService:
         owner_id = current_user.id if current_user.role == "ranger" else None
         results, total = await self.repo.get_list(
             owner_id=owner_id,
-            report_type=report_type,
-            severity=severity,
+            search=search,
+            report_types=report_types,
+            severities=severities,
+            species=species,
+            users=users,
             from_dt=from_dt,
             to_dt=to_dt,
             sync_status=sync_status,
@@ -203,6 +218,9 @@ class ReportService:
         )
         for item in results:
             item["images"] = self._view_urls(item.get("images"))
+            item["submitted_by_username"] = (
+                await self.user_repo.get_username_by_id(item["submitted_by"])
+            )
         return results, total
 
     async def get_report(
@@ -222,9 +240,24 @@ class ReportService:
                 detail="Access denied",
             )
         report["images"] = self._view_urls(report.get("images"))
+        report["submitted_by_username"] = (
+            await self.user_repo.get_username_by_id(report["submitted_by"])
+        )
         return report
 
     def _view_urls(self, images: Optional[list]) -> list:
         return [
             self.media_service.generate_view_url(url) for url in (images or [])
         ]
+
+    async def get_species(
+            self,
+    ) -> list[str]:
+        species = await self.repo.get_species()
+        return species
+
+    async def get_usernames(
+                self,
+        ) -> list[str]:
+            species = await self.repo.get_usernames()
+            return species

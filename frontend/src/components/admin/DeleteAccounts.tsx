@@ -34,6 +34,7 @@ import {
     STANDARD_USER_COLUMNS as USER_COLUMNS,
 } from "@/components/admin/standardUserColumns";
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
+import { Pagination } from "../ui/pagination";
 
 interface UserRowProps {
     user: UserResponse;
@@ -134,19 +135,14 @@ export const DeleteAccounts = () => {
         requestSort,
         users,
         refetch,
+        page,
+        setPage,
+        totalPages,
     } = useManagedUsers(usersApi.getActiveUsers, sortAccessors, {
         transform: excludeAdmins,
     });
 
-    if (isLoading || pageError) {
-        return (
-            <UserTableStatus
-                isLoading={isLoading}
-                pageError={pageError}
-                loadingText="Loading users..."
-            />
-        );
-    }
+    const isInitialLoading = isLoading && users.length === 0;
 
     return (
         <div className="space-y-4">
@@ -162,44 +158,56 @@ export const DeleteAccounts = () => {
                 selectedRoles={roleFilter}
                 onRolesChange={setRoleFilter}
             />
-
-            <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
-                <Table>
-                    <TableHeader className="bg-brand-primary">
-                        <TableRow className="hover:bg-transparent">
-                            <SortableColumns
-                                columns={USER_COLUMNS}
-                                sortKey={sortKey}
-                                direction={direction}
-                                requestSort={requestSort}
-                            />
-                            <TableHead className={theadClass}>
-                                Actions
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedUsers.length === 0 ? (
-                            <EmptyTableRow
-                                colSpan={5}
-                                message={
-                                    users.length === 0
-                                        ? "No active users found."
-                                        : "No users match your search or filters."
-                                }
-                            />
-                        ) : (
-                            sortedUsers.map((user) => (
-                                <UserRow
-                                    key={user.id}
-                                    user={user}
-                                    onDeleted={refetch}
+            {isInitialLoading || pageError ? (
+                <UserTableStatus
+                    isLoading={isInitialLoading}
+                    pageError={pageError}
+                    loadingText="Loading users..."
+                />
+            ) : (
+                <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
+                    <Table>
+                        <TableHeader className="bg-brand-primary">
+                            <TableRow className="hover:bg-transparent">
+                                <SortableColumns
+                                    columns={USER_COLUMNS}
+                                    sortKey={sortKey}
+                                    direction={direction}
+                                    requestSort={requestSort}
                                 />
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                                <TableHead className={theadClass}>
+                                    Actions
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedUsers.length === 0 ? (
+                                <EmptyTableRow
+                                    colSpan={5}
+                                    message={
+                                        users.length === 0
+                                            ? "No active users found."
+                                            : "No users match your search or filters."
+                                    }
+                                />
+                            ) : (
+                                sortedUsers.map((user) => (
+                                    <UserRow
+                                        key={user.id}
+                                        user={user}
+                                        onDeleted={refetch}
+                                    />
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={(page) => setPage(page)}
+            />
         </div>
     );
 };

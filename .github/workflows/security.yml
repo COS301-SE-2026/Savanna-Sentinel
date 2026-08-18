@@ -1,0 +1,52 @@
+name: Security CI pipeline
+
+on:
+  push:
+    branches: ["dev"]
+    paths:
+      - "frontend/**"
+      - "backend/**"
+  pull_request:
+    branches: ["main", "dev"]
+    paths:
+      - "frontend/**"
+      - "backend/**"
+
+permissions:
+  contents: read
+
+jobs:
+  audit-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+        
+      - name: Audit Frontend packages
+        working-directory: ./frontend
+        run: npm audit --audit-level high
+  
+  audit-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install pip-Audit
+        run: pip install --only-binary pip-audit,bandit pip-audit==2.10.1 bandit==1.9.4
+
+      - name: Audit Backend packages
+        working-directory: ./backend
+        run: pip-audit -r requirements.txt
+
+      - name: Static Code Analysis for vulnerabilities
+        working-directory: ./backend
+        run: bandit -r . -x ./tests,./venv -ll

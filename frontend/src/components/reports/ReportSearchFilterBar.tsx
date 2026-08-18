@@ -1,5 +1,9 @@
-import { MultiSelectFilterBar } from "@/components/ui/multi-select-filter-bar";
+import {
+    MultiSelectFilterBar,
+    type MultiSelectFilterGroup,
+} from "@/components/ui/multi-select-filter-bar";
 import type { ReportType, Severity } from "@/types/reports";
+import React from "react";
 
 const TYPE_OPTIONS: { value: ReportType; label: string }[] = [
     { value: "incident", label: "Incident" },
@@ -22,9 +26,12 @@ interface ReportSearchFilterBarProps {
     speciesFilter: string[];
     onSpeciesFilterChange: (species: string[]) => void;
     speciesOptions: string[];
+    usernameFilter: string[];
+    onUsernameFilterChange: (usernames: string[]) => void;
+    usernameOptions: string[];
 }
 
-export function ReportSearchFilterBar({
+function ReportSearchFilterBarBase({
     search,
     onSearchChange,
     typeFilter,
@@ -34,41 +41,72 @@ export function ReportSearchFilterBar({
     speciesFilter,
     onSpeciesFilterChange,
     speciesOptions,
+    usernameFilter,
+    onUsernameFilterChange,
+    usernameOptions,
 }: ReportSearchFilterBarProps) {
+    const filterGroups: MultiSelectFilterGroup[] = React.useMemo(
+        () => [
+            {
+                key: "type",
+                label: "Report Type",
+                chipLabel: "Type",
+                options: TYPE_OPTIONS,
+                selected: typeFilter,
+                onChange: (values) =>
+                    onTypeFilterChange(values as ReportType[]),
+            },
+            {
+                key: "severity",
+                label: "Severity",
+                options: SEVERITY_OPTIONS,
+                selected: severityFilter,
+                onChange: (values) =>
+                    onSeverityFilterChange(values as Severity[]),
+            },
+            {
+                key: "species",
+                label: "Species",
+                options: speciesOptions.map((species) => ({
+                    value: species,
+                    label: species,
+                })),
+                selected: speciesFilter,
+                onChange: onSpeciesFilterChange,
+            },
+            {
+                key: "submittedBy",
+                label: "Submitted By",
+                chipLabel: "Submitted By",
+                options: usernameOptions.map((username) => ({
+                    value: username,
+                    label: username,
+                })),
+                selected: usernameFilter,
+                onChange: onUsernameFilterChange,
+            },
+        ],
+        [
+            typeFilter,
+            onTypeFilterChange,
+            severityFilter,
+            onSeverityFilterChange,
+            speciesOptions,
+            speciesFilter,
+            onSpeciesFilterChange,
+            usernameFilter,
+            onUsernameFilterChange,
+            usernameOptions,
+        ],
+    );
     return (
         <MultiSelectFilterBar
             search={search}
             onSearchChange={onSearchChange}
             searchPlaceholder="Search reports..."
-            groups={[
-                {
-                    key: "type",
-                    label: "Report Type",
-                    chipLabel: "Type",
-                    options: TYPE_OPTIONS,
-                    selected: typeFilter,
-                    onChange: (values) =>
-                        onTypeFilterChange(values as ReportType[]),
-                },
-                {
-                    key: "severity",
-                    label: "Severity",
-                    options: SEVERITY_OPTIONS,
-                    selected: severityFilter,
-                    onChange: (values) =>
-                        onSeverityFilterChange(values as Severity[]),
-                },
-                {
-                    key: "species",
-                    label: "Species",
-                    options: speciesOptions.map((species) => ({
-                        value: species,
-                        label: species,
-                    })),
-                    selected: speciesFilter,
-                    onChange: onSpeciesFilterChange,
-                },
-            ]}
+            groups={filterGroups}
         />
     );
 }
+
+export const ReportSearchFilterBar = React.memo(ReportSearchFilterBarBase);
