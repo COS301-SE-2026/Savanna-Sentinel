@@ -135,7 +135,7 @@ const ParkZoneUploadPage = () => {
                         </Button>
                         <Button
                             type="button"
-                            variant="destructive"
+                            variant="default"
                             onClick={handleConfirm}
                         >
                             Confirm
