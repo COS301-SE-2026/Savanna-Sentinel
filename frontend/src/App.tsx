@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
 
 import ReportsPage from "@/pages/ReportsPage";
+import MapPage from "@/pages/MapPage";
 import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
 import IngestionPage from "@/pages/IngestionPage";
 import AdminPage from "@/pages/AdminPage";
@@ -30,6 +31,7 @@ const App = () => {
                     <Route element={<AppLayout />}>
                         <Route path="/admin" element={<AdminPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
+                        <Route path="/map" element={<MapPage />} />
                         <Route path="/patrol" element={<PatrolPlannerPage />} />
                         <Route path="/ingestion" element={<IngestionPage />} />
                         <Route path="/profile" element={<ProfilePage />} />

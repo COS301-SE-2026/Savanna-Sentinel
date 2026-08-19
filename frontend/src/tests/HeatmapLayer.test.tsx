@@ -37,6 +37,90 @@ describe("HeatmapLayer", () => {
         expect(map.getLayer("patrol-risk-grid-fill")).toBeDefined();
     });
 
+    it("adds a cell border outline layer alongside the fill layer", async () => {
+        const map = new maplibregl.Map({
+            container: document.createElement("div"),
+        }) as unknown as FakeMap;
+        const { unmount } = render(
+            <HeatmapLayer
+                map={map as never}
+                grid={TEST_GRID}
+                riskByCell={makeRiskByCell(0.1)}
+                pickingActive={false}
+                isMobile={false}
+            />,
+        );
+        await waitFor(() =>
+            expect(map.getLayer("patrol-risk-grid-outline")).toBeDefined(),
+        );
+
+        unmount();
+        expect(map.getLayer("patrol-risk-grid-outline")).toBeUndefined();
+        expect(map.getLayer("patrol-risk-grid-fill")).toBeUndefined();
+    });
+
+    it("bakes opacityOverride into the initial source data instead of the page default", async () => {
+        const map = new maplibregl.Map({
+            container: document.createElement("div"),
+        }) as unknown as FakeMap;
+        render(
+            <HeatmapLayer
+                map={map as never}
+                grid={TEST_GRID}
+                riskByCell={makeRiskByCell(0.1)}
+                pickingActive={false}
+                isMobile={false}
+                opacityOverride={0.05}
+            />,
+        );
+        await waitFor(() =>
+            expect(map.getSource("patrol-risk-grid")).toBeDefined(),
+        );
+        const data = map.getSource("patrol-risk-grid").data as {
+            features: { properties: { fillOpacity: number } }[];
+        };
+        for (const feature of data.features) {
+            expect(feature.properties.fillOpacity).toBe(0.05);
+        }
+    });
+
+    it("refreshes source data via setData when opacityOverride changes", async () => {
+        const map = new maplibregl.Map({
+            container: document.createElement("div"),
+        }) as unknown as FakeMap;
+        const { rerender } = render(
+            <HeatmapLayer
+                map={map as never}
+                grid={TEST_GRID}
+                riskByCell={makeRiskByCell(0.1)}
+                pickingActive={false}
+                isMobile={false}
+                opacityOverride={0.05}
+            />,
+        );
+        await waitFor(() =>
+            expect(map.getSource("patrol-risk-grid")).toBeDefined(),
+        );
+
+        rerender(
+            <HeatmapLayer
+                map={map as never}
+                grid={TEST_GRID}
+                riskByCell={makeRiskByCell(0.1)}
+                pickingActive={false}
+                isMobile={false}
+                opacityOverride={1}
+            />,
+        );
+
+        await waitFor(() => {
+            const data = map.getSource("patrol-risk-grid").data as {
+                features: { properties: { fillOpacity: number } }[];
+            };
+            expect(data.features[0].properties.fillOpacity).toBe(0.15);
+        });
+    });
+
     it("updates source data via setData when riskByCell changes", async () => {
         const map = new maplibregl.Map({
             container: document.createElement("div"),

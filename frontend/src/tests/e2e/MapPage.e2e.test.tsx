@@ -37,7 +37,7 @@ const activateUserInDb = (username: string) => {
     }
 };
 
-test.describe("Patrol Planner golden path", () => {
+test.describe("Heatmap page golden path", () => {
     let userCleanup: ReturnType<typeof generateUser> | null = null;
 
     test.beforeAll(async ({ request }) => {
@@ -64,70 +64,58 @@ test.describe("Patrol Planner golden path", () => {
         await page.getByPlaceholder("Password").fill(userCleanup!.password);
         await page.getByRole("button", { name: /log in/i }).click();
         await expect(page).toHaveURL("/profile");
-        await page.goto("/patrol");
+        await page.goto("/map");
     });
 
-    test("sets both points, generates routes, and selects an alternative", async ({
+    test("shows an expanded legend and a working sidebar", async ({ page }) => {
+        await expect(
+            page.getByRole("checkbox", { name: /risk heatmap/i }),
+        ).toBeChecked();
+
+        await expect(
+            page.getByRole("button", { name: /collapse risk legend/i }),
+        ).toBeVisible();
+        await expect(page.getByText("Critical", { exact: true })).toBeVisible();
+
+        const opacitySlider = page.getByLabel(/heatmap opacity/i);
+        await expect(opacitySlider).toBeEnabled();
+
+        await page.getByRole("checkbox", { name: /risk heatmap/i }).uncheck();
+        await expect(opacitySlider).toBeDisabled();
+    });
+
+    test("moving the time-of-day slider updates the snapshot hint", async ({
         page,
     }) => {
-        await page.getByLabel(/^start point$/i).fill("-24.30, 31.05");
-        await page.getByLabel(/^end point$/i).fill("-24.28, 31.09");
+        const hint = page.getByText(/^snapshot: /i);
+        const initialText = await hint.textContent();
 
-        const generateButton = page.getByRole("button", {
-            name: /generate routes/i,
-        });
-        await expect(generateButton).toBeEnabled();
-        await generateButton.click();
+        const timeSlider = page.getByLabel(/snapshot time of day/i);
+        await timeSlider.focus();
+        await timeSlider.press("Home");
 
-        await expect(page.getByText("Route A")).toBeVisible({ timeout: 30000 });
-        await expect(
-            page.getByRole("button", { name: "Selected" }),
-        ).toBeVisible();
-
-        const selectButtons = page.getByRole("button", {
-            name: "Select",
-            exact: true,
-        });
-        if ((await selectButtons.count()) > 0) {
-            const targetRow = selectButtons.first().locator("xpath=..");
-            const targetLabel = await targetRow
-                .getByText(/^Route [ABC]$/)
-                .textContent();
-            expect(targetLabel).not.toBe("Route A");
-
-            await selectButtons.first().click();
-
-            const clickedRow = page
-                .getByText(targetLabel!, { exact: true })
-                .locator("xpath=..");
-            await expect(
-                clickedRow.getByRole("button", {
-                    name: "Selected",
-                    exact: true,
-                }),
-            ).toBeVisible();
-            await expect(
-                page.getByRole("button", { name: "Selected" }),
-            ).toHaveCount(1);
-        }
+        await expect(hint).not.toHaveText(initialText ?? "");
+        await expect(hint).toContainText("00:00");
     });
 
     test.describe("on a phone viewport", () => {
         test.use({ viewport: { width: 390, height: 844 } });
 
-        test("shows a collapsed drawer with the first field off screen", async ({
+        test("shows a collapsed legend pill and a bottom drawer", async ({
             page,
         }) => {
-            const drawer = page.locator('[data-slot="drawer-content"]');
-            await expect(drawer).toBeVisible();
-
-            const box = await drawer.boundingBox();
-            expect(box).not.toBeNull();
-            expect(box!.y).toBeLessThan(844);
-
+            await expect(
+                page.getByRole("button", { name: /expand risk legend/i }),
+            ).toBeVisible();
             await expect(
                 page.getByRole("button", { name: /zoom in/i }),
             ).toBeVisible();
+
+            const drawer = page.locator('[data-slot="drawer-content"]');
+            await expect(drawer).toBeVisible();
+            const box = await drawer.boundingBox();
+            expect(box).not.toBeNull();
+            expect(box!.y).toBeLessThan(844);
         });
 
         test("fully collapses to just the drag handle, hiding the panel content", async ({
@@ -135,9 +123,7 @@ test.describe("Patrol Planner golden path", () => {
         }) => {
             await page.waitForTimeout(600);
 
-            await expect(
-                page.getByLabel(/^start point$/i),
-            ).not.toBeInViewport();
+            await expect(page.getByText("Time Range")).not.toBeInViewport();
         });
 
         async function dragDrawerTo(
@@ -148,6 +134,7 @@ test.describe("Patrol Planner golden path", () => {
             const drawer = page.locator('[data-slot="drawer-content"]');
             const box = (await drawer.boundingBox())!;
             const startX = box.x + box.width / 2;
+
             const startY = box.y + 10;
 
             await page.mouse.move(startX, startY);
@@ -164,31 +151,34 @@ test.describe("Patrol Planner golden path", () => {
             }
         }
 
-        test("dragging to the midpoint reveals the first field and moves the legend up", async ({
+        test("dragging to the midpoint moves the legend up with it", async ({
             page,
         }) => {
             const drawer = page.locator('[data-slot="drawer-content"]');
             const legend = page.getByRole("button", {
                 name: /expand risk legend/i,
             });
+
             await page.waitForTimeout(600);
 
             const collapsedDrawerBox = (await drawer.boundingBox())!;
             const collapsedLegendBox = (await legend.boundingBox())!;
+
             await dragDrawerTo(page, 844 * 0.4);
 
             const expandedDrawerBox = (await drawer.boundingBox())!;
             const expandedLegendBox = (await legend.boundingBox())!;
 
             expect(expandedDrawerBox.y).toBeLessThan(collapsedDrawerBox.y);
+
             expect(expandedLegendBox.y).toBeLessThan(collapsedLegendBox.y);
-            await expect(page.getByLabel(/^start point$/i)).toBeInViewport();
         });
 
         test("dragging all the way down rests at the collapsed height instead of sliding off-screen", async ({
             page,
         }) => {
             const drawer = page.locator('[data-slot="drawer-content"]');
+
             await page.waitForTimeout(600);
             const collapsedBox = (await drawer.boundingBox())!;
 
@@ -208,6 +198,7 @@ test.describe("Patrol Planner golden path", () => {
             page,
         }) => {
             const drawer = page.locator('[data-slot="drawer-content"]');
+
             await page.waitForTimeout(600);
 
             await dragDrawerTo(page, 20);

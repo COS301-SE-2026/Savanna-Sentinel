@@ -10,6 +10,7 @@ import {
     SheetContent,
     SheetHeader,
     SheetTitle,
+    SheetDescription,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
@@ -47,6 +48,9 @@ const BurgerMenu = () => {
                         <SheetTitle className="text-color-text-inverse text-base font-semibold tracking-wide">
                             Savanna Sentinel
                         </SheetTitle>
+                        <SheetDescription className="sr-only">
+                            Navigation menu
+                        </SheetDescription>
                         {user && (
                             <p className="text-xs text-color-text-inverse/60 capitalize mt-0.5">
                                 {user.role.replace("_", " ")}
