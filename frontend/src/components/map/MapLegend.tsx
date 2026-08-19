@@ -11,10 +11,16 @@ const LEGEND_ROWS: { level: RiskLevel; label: string; short: string }[] = [
 
 interface MapLegendProps {
     bottomClassName?: string;
+    style?: React.CSSProperties;
+    defaultExpanded?: boolean;
 }
 
-export function MapLegend({ bottomClassName = "bottom-2" }: MapLegendProps) {
-    const [isExpanded, setIsExpanded] = useState(false);
+export function MapLegend({
+    bottomClassName = "bottom-2",
+    style,
+    defaultExpanded = false,
+}: MapLegendProps) {
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
     return (
         <button
@@ -24,6 +30,7 @@ export function MapLegend({ bottomClassName = "bottom-2" }: MapLegendProps) {
             aria-label={
                 isExpanded ? "Collapse risk legend" : "Expand risk legend"
             }
+            style={style}
             className={
                 isExpanded
                     ? `absolute right-2 ${bottomClassName} z-[var(--z-sticky)] min-w-[140px] rounded-lg bg-color-surface-raised p-3 text-left shadow-md`
@@ -32,16 +39,8 @@ export function MapLegend({ bottomClassName = "bottom-2" }: MapLegendProps) {
         >
             {isExpanded ? (
                 <>
-                    <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs font-semibold text-color-text-primary uppercase tracking-wider">
-                            Risk Level
-                        </span>
-                        <span
-                            aria-hidden="true"
-                            className="text-xs text-color-text-secondary"
-                        >
-                            &times;
-                        </span>
+                    <div className="mb-2 text-xs font-semibold text-color-text-primary uppercase tracking-wider">
+                        Risk Level
                     </div>
                     <div className="flex flex-col gap-2">
                         {LEGEND_ROWS.map(({ level, label }) => (

@@ -6,6 +6,7 @@ import { MapControls } from "@/components/map/MapControls";
 import { MapLegend } from "@/components/map/MapLegend";
 import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { PatrolRouteLayer } from "@/components/map/PatrolRouteLayer";
+import { LoadingPill } from "@/components/map/LoadingPill";
 import { History } from "lucide-react";
 import { PatrolPlannerForm } from "@/components/patrol/PatrolPlannerForm";
 import { RouteComparisonView } from "@/components/patrol/RouteComparisonView";
@@ -26,22 +27,15 @@ import { assignRandomRisk, parseGridCells } from "@/lib/riskGrid";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { ArmedField, LatLon } from "@/types/patrol";
+import { getSnapHeightPx } from "@/lib/utils";
 
 const PARK_ID = "klaserie";
 const PARK_CENTER: [number, number] = [31.18, -24.2];
 const DEFAULT_ZOOM = 10;
 
-const COLLAPSED_SNAP = "148px";
+const COLLAPSED_SNAP = "24px";
 const EXPANDED_SNAP = 0.6;
-
-function LoadingPill({ label }: { label: string }) {
-    return (
-        <div className="absolute top-2 left-2 z-[var(--z-sticky)] inline-flex items-center gap-2 rounded-md bg-color-surface-raised px-2 py-1 shadow-sm">
-            <span className="size-2 shrink-0 rounded-full bg-brand-steel" />
-            <span className="text-xs text-color-text-primary">{label}</span>
-        </div>
-    );
-}
+const FULL_SNAP = 1;
 
 interface SidebarContentProps {
     startPoint: LatLon | null;
@@ -365,8 +359,18 @@ export default function PatrolPlannerPage() {
                     defaultZoom={DEFAULT_ZOOM}
                 />
                 <MapLegend
-                    bottomClassName={
-                        isMobile ? "bottom-[calc(148px+0.5rem)]" : "bottom-2"
+                    bottomClassName={isMobile ? "" : "bottom-2"}
+                    style={
+                        isMobile
+                            ? {
+                                  bottom: `calc(${Math.min(
+                                      getSnapHeightPx(
+                                          drawerSnap ?? COLLAPSED_SNAP,
+                                      ),
+                                      getSnapHeightPx(EXPANDED_SNAP),
+                                  )}px + 0.5rem)`,
+                              }
+                            : undefined
                     }
                 />
                 <HeatmapLayer
@@ -393,8 +397,20 @@ export default function PatrolPlannerPage() {
                     disabled={!grid}
                     className={
                         isMobile
-                            ? "absolute right-2 bottom-[calc(148px+2.5rem)] z-[var(--z-sticky)] bg-color-surface-raised shadow-sm"
+                            ? "absolute right-2 z-[var(--z-sticky)] bg-color-surface-raised shadow-sm"
                             : "absolute right-2 bottom-10 z-[var(--z-sticky)] bg-color-surface-raised shadow-sm"
+                    }
+                    style={
+                        isMobile
+                            ? {
+                                  bottom: `calc(${Math.min(
+                                      getSnapHeightPx(
+                                          drawerSnap ?? COLLAPSED_SNAP,
+                                      ),
+                                      getSnapHeightPx(EXPANDED_SNAP),
+                                  )}px + 2.5rem)`,
+                              }
+                            : undefined
                     }
                 >
                     Randomise risk
@@ -405,22 +421,11 @@ export default function PatrolPlannerPage() {
                 <Drawer
                     modal={false}
                     open
-                    snapPoints={[COLLAPSED_SNAP, EXPANDED_SNAP]}
+                    dismissible={false}
+                    snapPoints={[COLLAPSED_SNAP, EXPANDED_SNAP, FULL_SNAP]}
                     activeSnapPoint={drawerSnap}
                     setActiveSnapPoint={setDrawerSnap}
                 >
-                    {/*
-                     * `h-full` is required, not cosmetic: vaul parks a
-                     * snap-point drawer by translating the content element
-                     * down by (viewport height - snap height), which only
-                     * lands correctly if that element spans the full
-                     * viewport. With the intrinsic height it would otherwise
-                     * take, the translate pushes the whole sheet off the
-                     * bottom of the screen. The inner wrapper does the
-                     * scrolling instead, and only once fully expanded, so a
-                     * swipe up from the collapsed snap drags the sheet rather
-                     * than scrolling its contents.
-                     */}
                     <DrawerContent className="h-full">
                         <DrawerTitle className="sr-only">
                             Patrol planner
@@ -430,15 +435,7 @@ export default function PatrolPlannerPage() {
                             generate patrol routes, and compare the
                             alternatives.
                         </DrawerDescription>
-                        <div
-                            className={
-                                typeof drawerSnap === "number" &&
-                                Math.abs(drawerSnap - EXPANDED_SNAP) <
-                                    Number.EPSILON
-                                    ? "min-h-0 flex-1 overflow-y-auto"
-                                    : "min-h-0 flex-1 overflow-hidden"
-                            }
-                        >
+                        <div className="min-h-0 flex-1 overflow-y-auto">
                             <SidebarContent {...sidebarProps} />
                         </div>
                     </DrawerContent>
