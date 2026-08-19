@@ -20,6 +20,10 @@ export interface ParkGridResponse {
     features: GridCellFeature[];
 }
 
+export interface BoundaryCheckResponse {
+    "uploaded": boolean;
+}
+
 export const riskApi = {
     getParkGrid: async (
         parkId: string = "reserve",
@@ -39,5 +43,9 @@ export const riskApi = {
                 "Content-Type": "multipart/form-data",
             }
         })
-    }   
+    },
+    
+    checkUploaded: async (): Promise<BoundaryCheckResponse> => {
+        return api.get<BoundaryCheckResponse>("/risk/initialise").then((r) => r.data);
+    }
 };
