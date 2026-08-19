@@ -101,6 +101,30 @@ describe("computeCellOpacity", () => {
             0.15,
         );
     });
+
+    describe("opacityOverride", () => {
+        it("replaces the default opacity for a non-suppressed cell", () => {
+            const riskByCell = new Map(cells.map((c) => [c.cellId, 0.1]));
+            riskByCell.set("b", 0.9);
+            expect(computeCellOpacity(cells[0], index, riskByCell, 0.8)).toBe(
+                0.8,
+            );
+        });
+
+        it("caps a suppressed cell's opacity at the suppressed ceiling instead of scaling it", () => {
+            const riskByCell = new Map(cells.map((c) => [c.cellId, 0.1]));
+            expect(computeCellOpacity(cells[0], index, riskByCell, 1)).toBe(
+                0.15,
+            );
+        });
+
+        it("lets a suppressed cell go below the ceiling for a low override", () => {
+            const riskByCell = new Map(cells.map((c) => [c.cellId, 0.1]));
+            expect(computeCellOpacity(cells[0], index, riskByCell, 0.05)).toBe(
+                0.05,
+            );
+        });
+    });
 });
 
 describe("buildGridFeatureCollection", () => {
@@ -114,5 +138,15 @@ describe("buildGridFeatureCollection", () => {
         expect(fc.features[0].geometry.type).toBe("Polygon");
         expect(fc.features[0].properties?.cellId).toBe("cell-1");
         expect(fc.features[0].properties?.fillColor).toBe("#06b050");
+    });
+
+    it("bakes the opacity override into each feature's fillOpacity", () => {
+        const cells = parseGridCells(TEST_GRID);
+        const riskByCell = new Map(cells.map((c) => [c.cellId, 0.1]));
+        const fc = buildGridFeatureCollection(cells, riskByCell, 0.05);
+
+        for (const feature of fc.features) {
+            expect(feature.properties?.fillOpacity).toBe(0.05);
+        }
     });
 });
