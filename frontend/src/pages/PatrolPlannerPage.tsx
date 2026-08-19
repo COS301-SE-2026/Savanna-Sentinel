@@ -117,7 +117,6 @@ const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
     let minLat = Infinity, maxLat = -Infinity;
 
     for (const cell of cells) {
-        // Assuming cell.corners or cell geometry contains [lng, lat] tuples
         for (const [lng, lat] of cell.corners) {
             if (lng < minLng) minLng = lng;
             if (lng > maxLng) maxLng = lng;
@@ -139,7 +138,7 @@ export default function PatrolPlannerPage() {
 
     const [startPoint, setStartPoint] = useState<LatLon | null>(null);
     const [endPoint, setEndPoint] = useState<LatLon | null>(null);
-    const [armedField, setArmedField] = useState<ArmedField>(null);
+    const [armedField, setArmedField] = useState<ArmesdField>(null);
     const [maxTime, setMaxTime] = useState("");
     const [maxFuel, setMaxFuel] = useState("");
 
