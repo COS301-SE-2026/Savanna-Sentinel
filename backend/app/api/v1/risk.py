@@ -5,7 +5,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from app.core.dependencies import get_current_user, require_roles
 from app.models.user import User
 from app.schemas.risk import ParkGridResponse
-from app.services.risk_service import get_park_grid, validate_boundaries
+from app.services.risk_service import (
+    check_if_uploaded,
+    get_park_grid,
+    validate_boundaries,
+)
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 
@@ -43,3 +47,18 @@ async def upload_geojson(
     content = await file.read()
 
     validate_boundaries(content)
+
+
+@router.get(
+    "/initialise",
+    status_code=status.HTTP_200_OK,
+    summary="Returns a JSON determining if a geojson has been uploaded",
+)
+async def check_env(
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    result = check_if_uploaded()
+
+    return {
+        "uploaded": result,
+    }

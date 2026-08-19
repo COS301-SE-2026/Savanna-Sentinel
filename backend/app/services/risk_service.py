@@ -126,3 +126,7 @@ def validate_boundaries(file: bytes):
     return {
         "total_cells": len(full_blocks),
     }
+
+
+def check_if_uploaded():
+    return Path("/app/app/data/reserve-grid.geojson").is_file()
