@@ -34,6 +34,38 @@ function setUser(role: string) {
     });
 }
 
+function stubGeolocation(latitude: number, longitude: number) {
+    Object.defineProperty(navigator, "geolocation", {
+        configurable: true,
+        value: {
+            getCurrentPosition: (success: PositionCallback) =>
+                success({
+                    coords: { latitude, longitude },
+                } as GeolocationPosition),
+        },
+    });
+}
+
+async function fillAndSubmitTipoff() {
+    await userEvent.type(
+        screen.getByLabelText("Description"),
+        "Snare seen near the north gate.",
+    );
+    await userEvent.selectOptions(
+        screen.getByRole("combobox", { name: "Incident Type" }),
+        "Snare Found",
+    );
+    const occurredAt = screen.getByLabelText("When did this happen?");
+    await userEvent.clear(occurredAt);
+    await userEvent.type(occurredAt, "2020-01-01T08:00");
+    await userEvent.click(
+        screen.getByRole("button", { name: "Use current location" }),
+    );
+    await userEvent.click(
+        screen.getByRole("button", { name: "Submit Tip-off" }),
+    );
+}
+
 describe("TipoffPage", () => {
     beforeEach(() => {
         URL.createObjectURL = vi.fn(() => "blob:mock-url");
@@ -146,6 +178,82 @@ describe("TipoffPage", () => {
         expect(
             await screen.findByText("Suspicious tracks near the fence"),
         ).toBeInTheDocument();
+    });
+
+    it("submits a tip-off and reports it as sent", async () => {
+        stubGeolocation(-24.205, 31.185);
+        setUser("community_liaison");
+        render(<TipoffPage />);
+
+        await fillAndSubmitTipoff();
+
+        await waitFor(() =>
+            expect(tipoffsApi.submitTipoff).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    report_type: "incident",
+                    description: "Snare seen near the north gate.",
+                    incident_type: "Snare Found",
+                    location: { lat: -24.205, lon: 31.185 },
+                    images: [],
+                }),
+            ),
+        );
+        expect(notifySafe).toHaveBeenCalledWith(
+            "Tip-off submitted",
+            "Thank you, rangers have been notified.",
+        );
+    });
+
+    it("adds the submitted tip-off to the list for an admin", async () => {
+        stubGeolocation(-24.205, 31.185);
+        setUser("admin");
+        render(<TipoffPage />);
+
+        await fillAndSubmitTipoff();
+        await waitFor(() => expect(notifySafe).toHaveBeenCalled());
+
+        await userEvent.click(
+            screen.getByRole("tab", { name: "All Tip-offs" }),
+        );
+        expect(
+            await screen.findByText("Snare seen near the north gate."),
+        ).toBeInTheDocument();
+    });
+
+    it("shows a toast when submitting a tip-off fails", async () => {
+        vi.mocked(tipoffsApi.submitTipoff).mockRejectedValueOnce(
+            new Error("Network error"),
+        );
+        stubGeolocation(-24.205, 31.185);
+        setUser("community_liaison");
+        render(<TipoffPage />);
+
+        await fillAndSubmitTipoff();
+
+        await waitFor(() =>
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Submission failed",
+                "Could not send tip-off to the server",
+            ),
+        );
+        expect(notifySafe).not.toHaveBeenCalled();
+    });
+
+    it("re-enables the submit button after a failed submission", async () => {
+        vi.mocked(tipoffsApi.submitTipoff).mockRejectedValueOnce(
+            new Error("Network error"),
+        );
+        stubGeolocation(-24.205, 31.185);
+        setUser("community_liaison");
+        render(<TipoffPage />);
+
+        await fillAndSubmitTipoff();
+
+        await waitFor(() =>
+            expect(
+                screen.getByRole("button", { name: "Submit Tip-off" }),
+            ).toBeEnabled(),
+        );
     });
 
     it("shows a toast if fetching tip-offs fails", async () => {
