@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ReportsPage from "@/pages/ReportsPage";
 import { useAuthStore } from "@/store/authStore";
@@ -34,6 +34,46 @@ function setUser(role: string) {
         user: { id: "u1", username: "ranger1", role },
         accessToken: "token",
         refreshToken: "refresh",
+    });
+}
+
+async function applyFilter(groupName: RegExp, optionLabel: string) {
+    if (!screen.queryByRole("button", { name: /^report type/i })) {
+        await userEvent.click(
+            screen.getByRole("button", { name: /^open filters/i }),
+        );
+    }
+    const trigger = screen
+        .getAllByRole("button", { name: groupName })
+        .find((button) => button.getAttribute("aria-haspopup") === "listbox");
+    await userEvent.click(trigger!);
+    await userEvent.click(
+        within(screen.getByRole("listbox")).getByLabelText(optionLabel),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+}
+
+function mockOneReport() {
+    vi.mocked(reportsApi.listReports).mockResolvedValue({
+        results: [
+            {
+                report_id: "rep-9",
+                submitted_by: "u1",
+                report_type: "incident",
+                description: "Snare near the fence",
+                incident_type: "Snare Found",
+                severity: "high",
+                occurred_at: "2026-01-01T00:00:00Z",
+                location: { lat: -25.1, lon: 28.1 },
+                images: [],
+                created_at: "2026-01-01T00:00:00Z",
+            } as unknown as Awaited<
+                ReturnType<typeof reportsApi.listReports>
+            >["results"][number],
+        ],
+        total: 1,
+        page: 1,
+        page_size: 10,
     });
 }
 
@@ -269,5 +309,64 @@ describe("ReportsPage", () => {
         );
         expect(reportsApi.deleteReport).toHaveBeenCalled();
         expect(notifySafe).toHaveBeenCalledWith("Report deleted");
+    });
+
+    it("re-queries the backend as the search term changes", async () => {
+        mockOneReport();
+        setUser("analyst");
+        render(<ReportsPage />);
+        await screen.findByText("Snare near the fence");
+
+        await userEvent.type(
+            screen.getByPlaceholderText("Search reports..."),
+            "snare",
+        );
+
+        await waitFor(() =>
+            expect(reportsApi.listReports).toHaveBeenLastCalledWith(
+                expect.objectContaining({ search: "snare" }),
+            ),
+        );
+    });
+
+    it("re-queries the backend for each filter group", async () => {
+        vi.mocked(reportsApi.getSpecies).mockResolvedValue({
+            species: ["Elephant"],
+        });
+        vi.mocked(reportsApi.getUsernames).mockResolvedValue({
+            usernames: ["admin1"],
+        });
+        mockOneReport();
+        setUser("analyst");
+        render(<ReportsPage />);
+        await screen.findByText("Snare near the fence");
+
+        await applyFilter(/^report type/i, "Incident");
+        await waitFor(() =>
+            expect(reportsApi.listReports).toHaveBeenLastCalledWith(
+                expect.objectContaining({ report_type: ["incident"] }),
+            ),
+        );
+
+        await applyFilter(/^severity/i, "High");
+        await waitFor(() =>
+            expect(reportsApi.listReports).toHaveBeenLastCalledWith(
+                expect.objectContaining({ severity: ["high"] }),
+            ),
+        );
+
+        await applyFilter(/^species/i, "Elephant");
+        await waitFor(() =>
+            expect(reportsApi.listReports).toHaveBeenLastCalledWith(
+                expect.objectContaining({ species: ["Elephant"] }),
+            ),
+        );
+
+        await applyFilter(/^submitted by/i, "admin1");
+        await waitFor(() =>
+            expect(reportsApi.listReports).toHaveBeenLastCalledWith(
+                expect.objectContaining({ users: ["admin1"] }),
+            ),
+        );
     });
 });
