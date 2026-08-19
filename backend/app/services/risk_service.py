@@ -126,6 +126,10 @@ def validate_boundaries(file: bytes):
     output_file.parent.mkdir(parents=True, exist_ok=True)
     full_blocks.to_file(output_file, driver="GeoJSON")
 
+    # Dev thing, clears the cache if the file is deleted and
+    # recreated in the same session, should not be relevant in prod
+    invalidate_grid_cache()
+
     return {
         "total_cells": len(full_blocks),
     }

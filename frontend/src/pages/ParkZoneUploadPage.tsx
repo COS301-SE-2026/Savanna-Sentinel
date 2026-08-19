@@ -7,6 +7,7 @@ import { notifyCritical } from "@/components/ui/toast";
 import { parseGridCells } from "@/lib/riskGrid";
 import { riskApi, type ParkGridResponse } from "@/services/riskApi";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const PARK_ID = "reserve";
 const DEFAULT_ZOOM = 10;
@@ -39,6 +40,8 @@ const ParkZoneUploadPage = () => {
     const [grid, setGrid] = useState<ParkGridResponse | null>(null);
     const [riskByCell, setRiskByCell] = useState<Map<string, number>>(new Map());
 
+    const navigate = useNavigate();
+
     const handleFilesSelected = async (files: FileList | null) => {
         const file = files?.[0]
         if(!file){
@@ -46,22 +49,20 @@ const ParkZoneUploadPage = () => {
         }
         try{
             await riskApi.uploadParkZone(file);
-            riskApi.getParkGrid(PARK_ID)
-                .then((response) => {
-                    setGrid(response);
-                    const cells = parseGridCells(response)
-                    if(cells.length > 0){
-                        const emptyRiskMap = new Map<string, number>(
-                            cells.map((cell) => [cell.cellId, DEFAULT_RISK_SCORE])
-                        );
-                        setRiskByCell(emptyRiskMap);
-                        const { center, bounds } = getGridCenterAndBounds(cells);
-                        setMapCenter(center);
-                        setMapBounds(bounds)
-                    }
+            const response = await riskApi.getParkGrid(PARK_ID);
+            setGrid(response);
 
-                    setIsConfirmOpen(true)
-                })
+            const cells = parseGridCells(response);
+            if (cells.length > 0) {
+                const emptyRiskMap = new Map<string, number>(
+                    cells.map((cell) => [cell.cellId, DEFAULT_RISK_SCORE])
+                );
+                setRiskByCell(emptyRiskMap);
+                const { center, bounds } = getGridCenterAndBounds(cells);
+                setMapCenter(center);
+                setMapBounds(bounds);
+            }
+        setIsConfirmOpen(true);
         }
         catch{
             notifyCritical("Failed to upload park zone file")
@@ -71,6 +72,18 @@ const ParkZoneUploadPage = () => {
 
     const handleConfirm = async () => {
         setIsConfirmOpen(false)
+        navigate("/profile")
+    }
+    const handleReject = async () => {
+        try{
+            await riskApi.deleteUpload()
+                .then(() => {
+                    setIsConfirmOpen(false)
+                })
+        }
+        catch{
+            notifyCritical("Failed to delete park zone file")
+        }
     }
 
     useEffect(() => {
@@ -116,9 +129,9 @@ const ParkZoneUploadPage = () => {
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setIsConfirmOpen(false)}
+                            onClick={handleReject}
                         >
-                            Cancel
+                            Reject
                         </Button>
                         <Button
                             type="button"
