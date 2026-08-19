@@ -105,6 +105,25 @@ const NEIGHBOR_OFFSETS: [number, number][] = [
     [1, 1],
 ];
 
+function isInteriorSuppressed(
+    cell: GridCell,
+    index: RowColIndex,
+    riskByCell: Map<string, number>,
+): boolean {
+    const level = getRiskLevel(riskByCell.get(cell.cellId) ?? 0);
+    if (level !== "safe") return false;
+
+    for (const [dRow, dCol] of NEIGHBOR_OFFSETS) {
+        const neighbor = index.get(`${cell.row + dRow},${cell.col + dCol}`);
+        if (!neighbor) continue;
+        const neighborLevel = getRiskLevel(
+            riskByCell.get(neighbor.cellId) ?? 0,
+        );
+        if (neighborLevel !== "safe") return false;
+    }
+    return true;
+}
+
 /**
  * Interior-suppression rule: a safe cell whose every present 8-neighbour is
  * also safe (absent neighbours at the grid edge don't count against it)
@@ -115,24 +134,20 @@ export function computeCellOpacity(
     cell: GridCell,
     index: RowColIndex,
     riskByCell: Map<string, number>,
+    opacityOverride?: number,
 ): number {
-    const level = getRiskLevel(riskByCell.get(cell.cellId) ?? 0);
-    if (level !== "safe") return DEFAULT_OPACITY;
-
-    for (const [dRow, dCol] of NEIGHBOR_OFFSETS) {
-        const neighbor = index.get(`${cell.row + dRow},${cell.col + dCol}`);
-        if (!neighbor) continue;
-        const neighborLevel = getRiskLevel(
-            riskByCell.get(neighbor.cellId) ?? 0,
-        );
-        if (neighborLevel !== "safe") return DEFAULT_OPACITY;
+    if (isInteriorSuppressed(cell, index, riskByCell)) {
+        return opacityOverride !== undefined
+            ? Math.min(opacityOverride, SUPPRESSED_OPACITY)
+            : SUPPRESSED_OPACITY;
     }
-    return SUPPRESSED_OPACITY;
+    return opacityOverride ?? DEFAULT_OPACITY;
 }
 
 export function buildGridFeatureCollection(
     cells: GridCell[],
     riskByCell: Map<string, number>,
+    opacityOverride?: number,
 ): GeoJSON.FeatureCollection {
     const index = buildRowColIndex(cells);
     return {
@@ -145,7 +160,12 @@ export function buildGridFeatureCollection(
                 properties: {
                     cellId: cell.cellId,
                     fillColor: RISK_LEVEL_COLORS[level],
-                    fillOpacity: computeCellOpacity(cell, index, riskByCell),
+                    fillOpacity: computeCellOpacity(
+                        cell,
+                        index,
+                        riskByCell,
+                        opacityOverride,
+                    ),
                 },
                 geometry: {
                     type: "Polygon",

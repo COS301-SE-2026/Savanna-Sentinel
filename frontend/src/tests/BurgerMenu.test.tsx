@@ -65,6 +65,17 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Savanna Sentinel")).toBeInTheDocument();
     });
 
+    it("does not trigger Radix's missing Description warning when opened", async () => {
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+        setUser("ranger");
+        renderMenu();
+        await openMenu();
+        expect(warnSpy).not.toHaveBeenCalledWith(
+            expect.stringContaining("Missing `Description`"),
+        );
+        warnSpy.mockRestore();
+    });
+
     it("displays the user role in the drawer header", async () => {
         setUser("community_liaison");
         renderMenu();

@@ -1,5 +1,6 @@
 import {
     FileText,
+    Map,
     RouteIcon,
     Upload,
     ShieldCheck,
@@ -21,6 +22,12 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Reports",
         path: "/reports",
         icon: FileText,
+        roles: ["ranger", "analyst", "admin"],
+    },
+    {
+        label: "Heatmap",
+        path: "/map",
+        icon: Map,
         roles: ["ranger", "analyst", "admin"],
     },
     {
