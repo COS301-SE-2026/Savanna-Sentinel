@@ -1,14 +1,16 @@
+import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { MapView } from "@/components/map/MapView";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { notifyCritical } from "@/components/ui/toast";
 import { parseGridCells } from "@/lib/riskGrid";
-import { riskApi } from "@/services/riskApi";
+import { riskApi, type ParkGridResponse } from "@/services/riskApi";
 import { useEffect, useState } from "react";
 
 const PARK_ID = "reserve";
 const DEFAULT_ZOOM = 10;
+const DEFAULT_RISK_SCORE = 0.5;
 
 const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
     let minLng = Infinity, maxLng = -Infinity;
@@ -32,50 +34,50 @@ const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
 const ParkZoneUploadPage = () => {
     const [mapCenter, setMapCenter] = useState<[number, number]>([20.33, -34.41]);
     const [map, setMap] = useState<maplibregl.Map | null>(null);
+    const [mapBounds, setMapBounds] = useState<[[number, number], [number, number]] | null>(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [grid, setGrid] = useState<ParkGridResponse | null>(null);
+    const [riskByCell, setRiskByCell] = useState<Map<string, number>>(new Map());
 
     const handleFilesSelected = async (files: FileList | null) => {
         const file = files?.[0]
         if(!file){
             return;
         }
+        try{
+            await riskApi.uploadParkZone(file);
+            riskApi.getParkGrid(PARK_ID)
+                .then((response) => {
+                    setGrid(response);
+                    const cells = parseGridCells(response)
+                    if(cells.length > 0){
+                        const emptyRiskMap = new Map<string, number>(
+                            cells.map((cell) => [cell.cellId, DEFAULT_RISK_SCORE])
+                        );
+                        setRiskByCell(emptyRiskMap);
+                        const { center, bounds } = getGridCenterAndBounds(cells);
+                        setMapCenter(center);
+                        setMapBounds(bounds)
+                    }
 
-        await riskApi.uploadParkZone(file);
+                    setIsConfirmOpen(true)
+                })
+        }
+        catch{
+            notifyCritical("Failed to upload park zone file")
+        }
 
     }
 
     const handleConfirm = async () => {
-        //set env variable here
-        return;
+        setIsConfirmOpen(false)
     }
 
     useEffect(() => {
-            let isCancelled = false;
-            riskApi
-                .getParkGrid(PARK_ID)
-                .then((response) => {
-                    setIsConfirmOpen(true)
-                    if (isCancelled) return;
-                    
-                    const cells = parseGridCells(response)
-                    
-    
-                    if (cells.length > 0){
-                        const {center, bounds} = getGridCenterAndBounds(cells);
-                        setMapCenter(center)
-    
-                        if (map) {
-                            map.fitBounds(bounds, { padding: 40, animate: false });
-                        }
-                    }
-                })
-                .catch(() => {
-                    if (!isCancelled) notifyCritical("Could not load risk grid");
-                })
-            return () => {
-                isCancelled = true;
-            };
-        }, [map]);
+        if (map && mapBounds) {
+            map.fitBounds(mapBounds, { padding: 20, animate: false }); 
+        }
+    }, [map, mapBounds]);
 
     return (
         <div>
@@ -91,7 +93,7 @@ const ParkZoneUploadPage = () => {
             <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
                 <DialogContent preventBackdropClose>
                     <DialogHeader>
-                        <DialogTitle>Confirm deletion</DialogTitle>
+                        <DialogTitle>Confirm Map Layout</DialogTitle>
                     </DialogHeader>
                     <div className="relative my-4 h-64 w-full overflow-hidden rounded-md border border-color-border">
                         <MapView
@@ -101,6 +103,13 @@ const ParkZoneUploadPage = () => {
                             onMapRemove={() => setMap(null)}
                             onMapClick={() => {}}
                             className="absolute inset-0"
+                        />
+                        <HeatmapLayer
+                            map={map}
+                            grid={grid}
+                            riskByCell={riskByCell}
+                            pickingActive={false}
+                            isMobile={false}
                         />
                     </div>
                     <DialogFooter>
