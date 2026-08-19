@@ -52,6 +52,9 @@ uploads/
 *.pkl
 *.joblib
 
+# Celery beat schedule state (written to cwd by `celery ... beat`)
+celerybeat-schedule
+
 # Coverage
 backend/coverage.xml
 frontend/coverage

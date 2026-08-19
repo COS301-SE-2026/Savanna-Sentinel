@@ -121,6 +121,7 @@ const IngestionPage = () => {
     const [serverErrors, setServerErrors] = useState<ServerErrorsMap | null>(
         null,
     );
+    const [filename, setFilename] = useState<string | null>(null);
     const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
     const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -136,12 +137,13 @@ const IngestionPage = () => {
         startIndex + REVIEW_PAGE_SIZE,
     );
 
-    const handleFileAccepted = (lines: string[]) => {
+    const handleFileAccepted = (lines: string[], name: string) => {
         // header already validated by UploadWizard
         const dataLines = lines.slice(1);
         setParsedRows(
             dataLines.map((line) => line.split(",").map((cell) => cell.trim())),
         );
+        setFilename(name);
         setIsComplete(false);
         setServerErrors(null);
         setPage(1);
@@ -149,6 +151,7 @@ const IngestionPage = () => {
 
     const handleReset = () => {
         setParsedRows([]);
+        setFilename(null);
         setIsComplete(false);
         setServerErrors(null);
         setPage(1);
@@ -201,7 +204,7 @@ const IngestionPage = () => {
         const records = parsedRows.map(mapRowToRecord);
 
         try {
-            await ingestionApi.uploadFile(records, 1);
+            await ingestionApi.uploadFile(records, 1, filename ?? undefined);
 
             setServerErrors(null);
             setIsComplete(true);

@@ -4,6 +4,14 @@ import { describe, it, expect, vi } from "vitest";
 
 import { RouteComparisonView } from "@/components/patrol/RouteComparisonView";
 import type { PlannedRoute } from "@/services/routeApi";
+import { COMPLETED_ROUTES } from "./mocks/routeHandlers";
+
+const SAVE_PROPS = {
+    onSave: vi.fn(),
+    savingIndex: null,
+    savedIndices: new Set<number>(),
+    canSave: true,
+};
 
 const ROUTES: PlannedRoute[] = [
     {
@@ -30,6 +38,7 @@ describe("RouteComparisonView", () => {
                 routes={[]}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(
@@ -44,6 +53,7 @@ describe("RouteComparisonView", () => {
                 routes={[]}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(
@@ -58,6 +68,7 @@ describe("RouteComparisonView", () => {
                 routes={ROUTES}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(screen.getByText("Route A")).toBeInTheDocument();
@@ -73,6 +84,7 @@ describe("RouteComparisonView", () => {
                 routes={ROUTES}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(
@@ -91,10 +103,26 @@ describe("RouteComparisonView", () => {
                 routes={ROUTES}
                 selectedIndex={0}
                 onSelect={onSelect}
+                {...SAVE_PROPS}
             />,
         );
         await userEvent.click(screen.getByRole("button", { name: "Select" }));
         expect(onSelect).toHaveBeenCalledWith(1);
+    });
+
+    it("shows a message when there are no feasible routes", () => {
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={[]}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                {...SAVE_PROPS}
+            />,
+        );
+        expect(
+            screen.getByText(/no feasible routes found/i),
+        ).toBeInTheDocument();
     });
 
     it("shows a failure message when status is failed", () => {
@@ -104,6 +132,7 @@ describe("RouteComparisonView", () => {
                 routes={[]}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(screen.getByRole("alert")).toHaveTextContent(
@@ -118,9 +147,134 @@ describe("RouteComparisonView", () => {
                 routes={[ROUTES[0]]}
                 selectedIndex={0}
                 onSelect={vi.fn()}
+                {...SAVE_PROPS}
             />,
         );
         expect(screen.getByText("Route A")).toBeInTheDocument();
         expect(screen.queryByText("Route B")).not.toBeInTheDocument();
+    });
+
+    it("shows a Save button per card, disabled when canSave is false", () => {
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={COMPLETED_ROUTES.results}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                onSave={vi.fn()}
+                savingIndex={null}
+                savedIndices={new Set()}
+                canSave={false}
+            />,
+        );
+        screen
+            .getAllByRole("button", { name: /^save/i })
+            .forEach((btn) => expect(btn).toBeDisabled());
+    });
+
+    it("asks for confirmation before calling onSave", async () => {
+        const onSave = vi.fn();
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={COMPLETED_ROUTES.results}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                onSave={onSave}
+                savingIndex={null}
+                savedIndices={new Set()}
+                canSave
+            />,
+        );
+        await userEvent.click(
+            screen.getAllByRole("button", { name: /^save route a/i })[0],
+        );
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(
+            screen.getByRole("heading", { name: /save this route/i }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(/route a will be added to your saved routes/i),
+        ).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
+        expect(onSave).toHaveBeenCalledWith(0);
+    });
+
+    it("does not call onSave when the confirmation is cancelled", async () => {
+        const onSave = vi.fn();
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={COMPLETED_ROUTES.results}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                onSave={onSave}
+                savingIndex={null}
+                savedIndices={new Set()}
+                canSave
+            />,
+        );
+        await userEvent.click(
+            screen.getAllByRole("button", { name: /^save route a/i })[0],
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^cancel$/i }),
+        );
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(
+            screen.queryByRole("heading", { name: /save this route/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("closes the save confirmation dialog when Escape is pressed", async () => {
+        const onSave = vi.fn();
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={COMPLETED_ROUTES.results}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                onSave={onSave}
+                savingIndex={null}
+                savedIndices={new Set()}
+                canSave
+            />,
+        );
+        await userEvent.click(
+            screen.getAllByRole("button", { name: /^save route a/i })[0],
+        );
+        expect(
+            screen.getByRole("heading", { name: /save this route/i }),
+        ).toBeInTheDocument();
+
+        await userEvent.keyboard("{Escape}");
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(
+            screen.queryByRole("heading", { name: /save this route/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("marks a saved card as saved and disables it", () => {
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={COMPLETED_ROUTES.results}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                onSave={vi.fn()}
+                savingIndex={null}
+                savedIndices={new Set([0])}
+                canSave
+            />,
+        );
+        expect(
+            screen.getByRole("button", { name: /route a saved/i }),
+        ).toBeDisabled();
     });
 });

@@ -51,8 +51,25 @@ CREATE TABLE users (
     deleted_at    TIMESTAMPTZ
 );
 
+CREATE TABLE risk_models (
+    id                     UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    park_id                TEXT        NOT NULL,
+    object_storage_key     TEXT        NOT NULL,
+    is_active              BOOLEAN     NOT NULL DEFAULT FALSE,
+    trained_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    trained_by             UUID        NOT NULL REFERENCES users(id),
+    training_window_start  TIMESTAMPTZ NOT NULL,
+    training_window_end    TIMESTAMPTZ NOT NULL,
+    n_training_examples    INT         NOT NULL,
+    metrics                JSONB       NOT NULL
+);
+
+CREATE UNIQUE INDEX risk_models_one_active_per_park
+    ON risk_models (park_id) WHERE is_active;
+
 CREATE TABLE risk_heatmaps (
     id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    model_id        UUID        NOT NULL REFERENCES risk_models(id),
     grid_resolution TEXT        NOT NULL,
     time_interval   TEXT        NOT NULL,
     computed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -129,12 +146,14 @@ CREATE TABLE patrol_routes (
     request_id     UUID                       NOT NULL,
     requested_by   UUID                       NOT NULL REFERENCES users(id),
     start_point    GEOGRAPHY(Point, 4326)     NOT NULL,
-    max_time       FLOAT                      NOT NULL,
-    max_fuel       FLOAT                      NOT NULL,
+    end_point      GEOGRAPHY(Point, 4326)     NOT NULL,
+    max_time       FLOAT,
+    max_fuel       FLOAT,
     suggested_path GEOGRAPHY(LineString, 4326) NOT NULL,
     estimated_time FLOAT                      NOT NULL,
     estimated_fuel FLOAT                      NOT NULL,
     risk_coverage  FLOAT                      NOT NULL,
+    risk_heatmap   JSONB                      NOT NULL,
     created_at     TIMESTAMPTZ                NOT NULL DEFAULT NOW()
 );
 
@@ -196,14 +215,32 @@ CREATE TABLE photos (
 
 CREATE TABLE grid_cells (
     id             UUID                     PRIMARY KEY DEFAULT uuid_generate_v4(),
-    heatmap_id     UUID                     NOT NULL REFERENCES risk_heatmaps(id) ON DELETE CASCADE,
+    park_id        TEXT                     NOT NULL,
+    cell_ref       TEXT                     NOT NULL,
+    row_index      INT                      NOT NULL,
+    col_index      INT                      NOT NULL,
     polygon_bounds GEOGRAPHY(Polygon, 4326) NOT NULL,
-    risk_score     FLOAT                    NOT NULL
+    UNIQUE (park_id, cell_ref)
+);
+
+CREATE TABLE cell_risk_scores (
+    id            UUID  PRIMARY KEY DEFAULT uuid_generate_v4(),
+    heatmap_id    UUID  NOT NULL REFERENCES risk_heatmaps(id) ON DELETE CASCADE,
+    grid_cell_id  UUID  NOT NULL REFERENCES grid_cells(id) ON DELETE CASCADE,
+    risk_score    FLOAT NOT NULL
+);
+
+CREATE TABLE grid_cell_features (
+    id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    heatmap_id    UUID        NOT NULL REFERENCES risk_heatmaps(id) ON DELETE CASCADE,
+    grid_cell_id  UUID        NOT NULL REFERENCES grid_cells(id) ON DELETE CASCADE,
+    features      JSONB       NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE explainability_metrics (
     id               UUID  PRIMARY KEY DEFAULT uuid_generate_v4(),
-    cell_id          UUID  NOT NULL REFERENCES grid_cells(id) ON DELETE CASCADE,
+    cell_id          UUID  NOT NULL REFERENCES cell_risk_scores(id) ON DELETE CASCADE,
     key_reason       TEXT  NOT NULL,
     confidence_level FLOAT NOT NULL
 );
