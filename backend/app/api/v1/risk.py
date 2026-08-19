@@ -7,6 +7,7 @@ from app.models.user import User
 from app.schemas.risk import ParkGridResponse
 from app.services.risk_service import (
     check_if_uploaded,
+    delete_geojson_file,
     get_park_grid,
     validate_boundaries,
 )
@@ -54,11 +55,25 @@ async def upload_geojson(
     status_code=status.HTTP_200_OK,
     summary="Returns a JSON determining if a geojson has been uploaded",
 )
-async def check_env(
+async def check_file(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     result = check_if_uploaded()
 
     return {
         "uploaded": result,
+    }
+
+@router.delete(
+    "/geojson",
+    status_code=status.HTTP_200_OK,
+    summary="Deletes the uploaded geojson in case the user is not satisfied",
+)
+async def delete_geojson(
+    authenticated: Annotated[User, Depends(require_roles("admin"))],
+):
+    result = delete_geojson_file()
+
+    return {
+        "success": result,
     }

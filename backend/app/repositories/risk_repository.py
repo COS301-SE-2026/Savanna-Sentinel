@@ -61,3 +61,7 @@ def load_grid_geometry(park_id: str) -> list[dict]:
             },
         )
     return cells
+
+
+def invalidate_grid_cache() -> None:
+    load_grid_geometry.cache_clear()

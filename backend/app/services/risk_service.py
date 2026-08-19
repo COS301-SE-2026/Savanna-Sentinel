@@ -7,7 +7,10 @@ import numpy
 from fastapi import HTTPException, status
 from shapely.geometry import box
 
-from app.repositories.risk_repository import load_grid_geometry
+from app.repositories.risk_repository import (
+    invalidate_grid_cache,
+    load_grid_geometry,
+)
 from app.schemas.geo import GeoPolygon
 from app.schemas.risk import (
     GridCellFeature,
@@ -130,3 +133,13 @@ def validate_boundaries(file: bytes):
 
 def check_if_uploaded():
     return Path("/app/app/data/reserve-grid.geojson").is_file()
+
+
+def delete_geojson_file():
+    try:
+        Path("/app/app/data/reserve-grid.geojson").unlink(missing_ok=True)
+        invalidate_grid_cache()
+    except Exception:
+        return False
+
+    return True
