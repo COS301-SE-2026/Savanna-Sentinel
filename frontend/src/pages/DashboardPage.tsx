@@ -1,6 +1,7 @@
 import { Shield, Users, Map, AlertTriangle } from "lucide-react";
 import { DashCard } from "@/components/dashboard/DashCard";
 import { RecentFieldReportsCard } from "@/components/dashboard/RecentFieldReportsCard";
+import { RiskZoneOverviewCard } from "@/components/dashboard/RiskZoneOverviewCard";
 
 const STATS = [
     {
@@ -47,8 +48,9 @@ export function DashboardPage() {
                 ))}
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <RecentFieldReportsCard />
+                <RiskZoneOverviewCard />
             </div>
         </div>
     );

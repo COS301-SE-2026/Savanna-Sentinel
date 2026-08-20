@@ -28,4 +28,10 @@ describe("DashboardPage", () => {
         expect(screen.getByText("Recent Field Reports")).toBeInTheDocument();
         expect(screen.getByText("RPT-041")).toBeInTheDocument();
     });
+
+    it("renders the Risk Zone Overview panel", () => {
+        render(<DashboardPage />);
+        expect(screen.getByText("Risk Zone Overview")).toBeInTheDocument();
+        expect(screen.getByText("Critical")).toBeInTheDocument();
+    });
 });
