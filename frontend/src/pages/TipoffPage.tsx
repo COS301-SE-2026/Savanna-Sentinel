@@ -37,7 +37,8 @@ export default function TipoffPage() {
     const user = useAuthStore((s) => s.user);
     const canSubmit =
         user?.role === "community_liaison" || user?.role === "admin";
-    const canViewAll =
+    const canViewAll = 
+        user?.role === "community_liaison" ||
         user?.role === "analyst" ||
         user?.role === "ranger" ||
         user?.role === "admin";
