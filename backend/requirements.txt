@@ -60,7 +60,7 @@ msgpack==1.2.1
 nab-index==0.0.12
 nab-python==0.0.12
 nab-resolver==0.0.12
-numpy==2.2.0
+numpy==2.3.3
 packageurl-python==0.17.6
 packaging==26.2
 pandas==3.0.5

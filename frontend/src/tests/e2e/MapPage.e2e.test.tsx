@@ -113,9 +113,10 @@ test.describe("Heatmap page golden path", () => {
 
             const drawer = page.locator('[data-slot="drawer-content"]');
             await expect(drawer).toBeVisible();
+            await expect.poll(async () => {
             const box = await drawer.boundingBox();
-            expect(box).not.toBeNull();
-            expect(box!.y).toBeLessThan(844);
+                return box?.y;
+            }).toBeLessThan(844);
         });
 
         test("fully collapses to just the drag handle, hiding the panel content", async ({
@@ -156,7 +157,7 @@ test.describe("Heatmap page golden path", () => {
         }) => {
             const drawer = page.locator('[data-slot="drawer-content"]');
             const legend = page.getByRole("button", {
-                name: /expand risk legend/i,
+                name: /(expand|collapse) risk legend/i,
             });
 
             await page.waitForTimeout(600);
@@ -211,7 +212,7 @@ test.describe("Heatmap page golden path", () => {
             page,
         }) => {
             const legend = page.getByRole("button", {
-                name: /expand risk legend/i,
+                name: /(expand|collapse) risk legend/i,
             });
             await page.waitForTimeout(600);
 

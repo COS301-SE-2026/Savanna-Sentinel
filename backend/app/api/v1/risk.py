@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-    
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, require_roles
@@ -19,6 +18,8 @@ from app.schemas.risk import (
     RiskTrainRequest,
 )
 from app.services.risk_service import (
+    check_if_uploaded,
+    delete_geojson_file,
     get_active_model_metrics,
     get_cell_explanation,
     get_heatmap,
@@ -27,8 +28,6 @@ from app.services.risk_service import (
     get_training_job,
     trigger_scoring_job,
     trigger_training_job,
-    check_if_uploaded,
-    delete_geojson_file,
     validate_boundaries,
 )
 
@@ -84,6 +83,7 @@ async def check_file(
         "uploaded": result,
     }
 
+
 @router.delete(
     "/geojson",
     status_code=status.HTTP_200_OK,
@@ -96,7 +96,8 @@ async def delete_geojson(
 
     return {
         "success": result,
-    
+    }
+
 
 @router.post(
     "/train",

@@ -1,5 +1,7 @@
 import io
 import math
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import geopandas
@@ -7,14 +9,11 @@ import numpy
 from fastapi import HTTPException, status
 from shapely.geometry import box
 
+from app.repositories import risk_repository
 from app.repositories.risk_repository import (
     invalidate_grid_cache,
     load_grid_geometry,
 )
-import uuid
-from datetime import datetime, timezone
-
-from app.repositories import risk_repository
 from app.schemas.geo import GeoPolygon
 from app.schemas.risk import (
     ActiveModelResponse,
