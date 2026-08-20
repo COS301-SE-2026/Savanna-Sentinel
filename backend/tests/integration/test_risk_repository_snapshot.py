@@ -7,7 +7,9 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 from app.repositories.risk_repository import (
     get_grid_cells,
+    get_risk_zone_overview,
     persist_grid_cells,
+    risk_level_for_score,
     save_heatmap_snapshot,
     save_model_version,
 )
@@ -254,3 +256,65 @@ async def test_save_heatmap_snapshot_persists_non_default_time_interval():
             {"id": heatmap_id},
         )
         assert db_row.fetchone()[0] == "ad-hoc"
+
+
+def test_risk_level_for_score_buckets_thresholds():
+    assert risk_level_for_score(0.9) == "Critical"
+    assert risk_level_for_score(0.6) == "High"
+    assert risk_level_for_score(0.3) == "Medium"
+    assert risk_level_for_score(0.1) == "Low"
+
+
+@pytest.mark.asyncio
+async def test_get_risk_zone_overview_returns_highest_scoring_cells_first():
+    model_id = await _make_trained_model()
+
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+        await session.commit()
+        cells = await get_grid_cells(session, _PARK)
+
+    assert len(cells) >= 2
+    low_cell, high_cell = cells[0], cells[1]
+    scores = {low_cell["cell_id"]: 0.2, high_cell["cell_id"]: 0.9}
+    features_per_cell = {
+        low_cell["cell_id"]: {
+            "incident_density_self": 1.0,
+            "incident_density_neighbors": 0.0,
+            "patrol_recency_days": 3.0,
+            "patrol_frequency": 1.0,
+        },
+        high_cell["cell_id"]: {
+            "incident_density_self": 5.0,
+            "incident_density_neighbors": 2.0,
+            "patrol_recency_days": 1.0,
+            "patrol_frequency": 4.0,
+        },
+    }
+    explanations = {
+        low_cell["cell_id"]: [("incident_density_self", 0.1)],
+        high_cell["cell_id"]: [("incident_density_self", 0.8)],
+    }
+
+    async with _Session() as session:
+        await save_heatmap_snapshot(
+            session, model_id, [low_cell, high_cell], scores,
+            features_per_cell, explanations,
+        )
+        await session.commit()
+
+    async with _Session() as session:
+        zones = await get_risk_zone_overview(session, _PARK, limit=5)
+
+    assert zones[0]["level"] == "Critical"
+    assert zones[0]["zone"] == f"Zone {high_cell['row'] + 1}-{high_cell['col'] + 1}"
+    assert zones[0]["risk_score"] == pytest.approx(0.9)
+    assert any(z["level"] == "Low" for z in zones)
+
+
+@pytest.mark.asyncio
+async def test_get_risk_zone_overview_returns_empty_when_no_heatmap_exists():
+    async with _Session() as session:
+        zones = await get_risk_zone_overview(session, "no-such-park")
+
+    assert zones == []

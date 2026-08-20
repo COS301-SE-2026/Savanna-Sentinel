@@ -37,8 +37,25 @@ class ModelPerformance(BaseModel):
     last_trained_at: str | None = None
 
 
+class RecentFieldReport(BaseModel):
+    report_id: str
+    ranger: str | None = None
+    report_type: str
+    severity: str | None = None
+    zone: str | None = None
+    occurred_at: str
+
+
+class RiskZone(BaseModel):
+    zone: str
+    level: str
+    risk_score: float
+
+
 class DashboardResponse(BaseModel):
     stats: list[StatCard]
     patrol_coverage: PatrolCoverage
     report_trends: ReportTrends
     model_performance: ModelPerformance
+    recent_field_reports: list[RecentFieldReport]
+    risk_zones: list[RiskZone]

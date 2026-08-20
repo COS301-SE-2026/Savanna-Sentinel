@@ -128,6 +128,8 @@ async def test_dashboard_allows_analyst(analyst_token):
         "patrol_coverage",
         "report_trends",
         "model_performance",
+        "recent_field_reports",
+        "risk_zones",
     }
 
 

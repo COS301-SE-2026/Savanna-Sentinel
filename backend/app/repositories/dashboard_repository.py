@@ -98,3 +98,50 @@ async def get_report_trends(session, since: datetime) -> tuple[list[dict], list[
     return [dict(r) for r in counts_by_type], [
         {"date": r["day"].isoformat(), "count": r["count"]} for r in trend
     ]
+
+
+async def get_recent_field_reports(
+    session,
+    park_id: str,
+    limit: int = 5,
+) -> list[dict]:
+    rows = (
+        await session.execute(
+            text("""
+                SELECT
+                    fr.id::text AS report_id,
+                    u.username AS ranger,
+                    fr.report_type::text AS report_type,
+                    i.severity::text AS severity,
+                    gc.row_index AS row_index,
+                    gc.col_index AS col_index,
+                    fr.occurred_at
+                FROM field_reports fr
+                LEFT JOIN incidents i ON i.field_report_id = fr.id
+                LEFT JOIN users u ON u.id = fr.submitted_by
+                LEFT JOIN grid_cells gc
+                    ON gc.park_id = :park_id
+                    AND ST_Contains(gc.polygon_bounds::geometry, fr.location::geometry)
+                WHERE fr.deleted_at IS NULL
+                ORDER BY fr.occurred_at DESC
+                LIMIT :limit
+            """),
+            {"park_id": park_id, "limit": limit},
+        )
+    ).mappings().all()
+
+    return [
+        {
+            "report_id": r["report_id"],
+            "ranger": r["ranger"],
+            "report_type": r["report_type"],
+            "severity": r["severity"],
+            "zone": (
+                f"Zone {r['row_index'] + 1}-{r['col_index'] + 1}"
+                if r["row_index"] is not None
+                else None
+            ),
+            "occurred_at": r["occurred_at"].isoformat(),
+        }
+        for r in rows
+    ]

@@ -34,6 +34,25 @@ async def test_get_dashboard_composes_all_sections(monkeypatch):
             "metrics": {"f1_score": 0.84},
         }),
     )
+    monkeypatch.setattr(
+        "app.services.dashboard_service.dashboard_repository.get_recent_field_reports",
+        AsyncMock(return_value=[
+            {
+                "report_id": "rpt-1",
+                "ranger": "ranger1",
+                "report_type": "incident",
+                "severity": "high",
+                "zone": "Zone 1-3",
+                "occurred_at": "2026-08-19T10:00:00",
+            },
+        ]),
+    )
+    monkeypatch.setattr(
+        "app.services.dashboard_service.risk_repository.get_risk_zone_overview",
+        AsyncMock(return_value=[
+            {"zone": "Zone 1-3", "level": "Critical", "risk_score": 0.9},
+        ]),
+    )
 
     result = await get_dashboard(session=object())
 
@@ -41,6 +60,8 @@ async def test_get_dashboard_composes_all_sections(monkeypatch):
     assert result.patrol_coverage.area_covered_km2 == 120.0
     assert result.model_performance.metrics[0].label == "F1 Score"
     assert result.model_performance.metrics[0].value == 0.84
+    assert result.recent_field_reports[0].report_id == "rpt-1"
+    assert result.risk_zones[0].level == "Critical"
 
 
 @pytest.mark.asyncio
@@ -69,8 +90,18 @@ async def test_get_dashboard_handles_no_active_model(monkeypatch):
         "app.services.dashboard_service.risk_repository.get_active_model_details",
         AsyncMock(return_value=None),
     )
+    monkeypatch.setattr(
+        "app.services.dashboard_service.dashboard_repository.get_recent_field_reports",
+        AsyncMock(return_value=[]),
+    )
+    monkeypatch.setattr(
+        "app.services.dashboard_service.risk_repository.get_risk_zone_overview",
+        AsyncMock(return_value=[]),
+    )
 
     result = await get_dashboard(session=object())
 
     assert result.model_performance.metrics == []
     assert result.model_performance.last_trained_at is None
+    assert result.recent_field_reports == []
+    assert result.risk_zones == []

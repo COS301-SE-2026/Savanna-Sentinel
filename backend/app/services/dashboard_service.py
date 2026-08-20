@@ -6,7 +6,9 @@ from app.schemas.dashboard import (
     ModelMetric,
     ModelPerformance,
     PatrolCoverage,
+    RecentFieldReport,
     ReportTrends,
+    RiskZone,
     StatCard,
 )
 
@@ -21,6 +23,8 @@ async def get_dashboard(session) -> DashboardResponse:
     covered_km2, total_km2 = await dashboard_repository.get_patrol_coverage(session, _PARK_ID, since)
     counts_by_type, trend = await dashboard_repository.get_report_trends(session, since)
     active_model = await risk_repository.get_active_model_details(session, _PARK_ID)
+    recent_field_reports = await dashboard_repository.get_recent_field_reports(session, _PARK_ID)
+    risk_zones = await risk_repository.get_risk_zone_overview(session, _PARK_ID)
 
     return DashboardResponse(
         stats=[
@@ -44,4 +48,6 @@ async def get_dashboard(session) -> DashboardResponse:
             ),
             last_trained_at=active_model["trained_at"] if active_model else None,
         ),
+        recent_field_reports=[RecentFieldReport(**r) for r in recent_field_reports],
+        risk_zones=[RiskZone(**z) for z in risk_zones],
     )

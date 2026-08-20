@@ -16,6 +16,7 @@ from sqlalchemy import text
 from app.repositories.dashboard_repository import (
     get_operational_stats,
     get_patrol_coverage,
+    get_recent_field_reports,
     get_report_trends,
 )
 from app.repositories.risk_repository import get_grid_cells, persist_grid_cells
@@ -180,3 +181,44 @@ async def test_get_report_trends_groups_by_day_and_type(db_session):
     )
     assert incident_count >= 2
     assert len(trend) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_recent_field_reports_includes_ranger_and_zone(db_session):
+    await persist_grid_cells(db_session, _PARK)
+    cells = await get_grid_cells(db_session, _PARK)
+    target = cells[0]
+    lons = [corner[0] for corner in target["corners"]]
+    lats = [corner[1] for corner in target["corners"]]
+    center_lng = sum(lons) / len(lons)
+    center_lat = sum(lats) / len(lats)
+
+    uid = await _create_user(db_session, "test_dashboard_recent_ranger")
+    await _create_field_report(
+        db_session,
+        uid,
+        report_type="incident",
+        lng=center_lng,
+        lat=center_lat,
+    )
+
+    reports = await get_recent_field_reports(db_session, _PARK, limit=5)
+
+    assert len(reports) >= 1
+    latest = reports[0]
+    assert latest["ranger"] == "test_dashboard_recent_ranger"
+    assert latest["report_type"] == "incident"
+    assert latest["zone"] == f"Zone {target['row'] + 1}-{target['col'] + 1}"
+
+
+@pytest.mark.asyncio
+async def test_get_recent_field_reports_orders_most_recent_first(db_session):
+    older = datetime.now(timezone.utc) - timedelta(days=2)
+    newer = datetime.now(timezone.utc) - timedelta(hours=1)
+    uid = await _create_user(db_session, "test_dashboard_recent_order")
+    await _create_field_report(db_session, uid, occurred_at=older)
+    await _create_field_report(db_session, uid, occurred_at=newer)
+
+    reports = await get_recent_field_reports(db_session, _PARK, limit=5)
+
+    assert reports[0]["occurred_at"] >= reports[1]["occurred_at"]
