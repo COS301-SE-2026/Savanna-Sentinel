@@ -1,6 +1,9 @@
+import json
 from unittest.mock import patch
 
-from app.services.risk_service import get_park_grid
+import pytest
+
+from app.services.risk_service import get_park_grid, validate_boundaries
 
 
 def test_get_park_grid_builds_response_from_repository():
@@ -31,3 +34,69 @@ def test_get_park_grid_builds_response_from_repository():
     assert response.features[0].geometry.coordinates == [
         fake_cells[0]["corners"],
     ]
+
+
+@pytest.fixture
+def sample_geojson():
+    geojson_data = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [36.8219, -1.2921],
+                            [36.8329, -1.2921],
+                            [36.8329, -1.2811],
+                            [36.8219, -1.2811],
+                            [36.8219, -1.2921],
+                        ]
+                    ],
+                },
+            },
+        ],
+    }
+    return json.dumps(geojson_data).encode("utf-8")
+
+
+# Various things need to be intercepted here
+@patch("app.services.risk_service.invalidate_grid_cache")
+@patch("pathlib.Path.mkdir")
+@patch("geopandas.GeoDataFrame.to_file", autospec=True)
+def test_validate_boundaries_success(
+    mock_to_file,
+    mock_mkdir,
+    mock_invalidate,
+    sample_geojson,
+):
+    result = validate_boundaries(sample_geojson)
+
+    written_gdf = mock_to_file.call_args[0][0]
+
+    assert written_gdf.crs.to_epsg() == 32737
+
+    # assert that the grid is in fact 1km x 1km cells
+    for _, row in written_gdf.iterrows():
+        assert (row["right"] - row["left"]) == 1000.0
+        assert (row["top"] - row["bottom"]) == 1000.0
+        assert row["left"] % 1000 == 0
+        assert row["bottom"] % 1000 == 0
+
+    required_cols = {
+        "geometry",
+        "left",
+        "right",
+        "top",
+        "bottom",
+        "row_index",
+        "col_index",
+        "id",
+        }
+
+    assert required_cols.issubset(set(written_gdf.columns))
+    assert written_gdf["id"].iloc[0] == "cell-0"
+
+    assert result["total_cells"] == len(written_gdf)
