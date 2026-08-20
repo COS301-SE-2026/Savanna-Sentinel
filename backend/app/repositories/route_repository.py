@@ -18,7 +18,8 @@ _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 # Maps a park_id to its pre-generated grid file. Only one park is available
 # today; add entries here as more parks get their own grid exports.
 _PARK_GRID_FILES = {
-    "klaserie": _DATA_DIR / "klaserie_grid.geojson",
+    "klaserie": _DATA_DIR / "reserve-grid.geojson",
+    "reserve": _DATA_DIR / "reserve-grid.geojson",
 }
 
 
