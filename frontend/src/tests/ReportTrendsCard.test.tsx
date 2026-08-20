@@ -5,7 +5,9 @@ import { ReportTrendsCard } from "@/components/dashboard/ReportTrendsCard";
 describe("ReportTrendsCard", () => {
     it("renders the heading", () => {
         render(<ReportTrendsCard />);
-        expect(screen.getByText("Report Trends (Last 7 Days)")).toBeInTheDocument();
+        expect(
+            screen.getByText("Report Trends (Last 7 Days)"),
+        ).toBeInTheDocument();
     });
 
     it("renders an empty state when there is no trend data", () => {

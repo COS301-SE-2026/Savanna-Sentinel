@@ -5,7 +5,9 @@ import { RiskZoneOverviewCard } from "@/components/dashboard/RiskZoneOverviewCar
 describe("RiskZoneOverviewCard", () => {
     it("renders an empty state when there is no risk zone data", () => {
         render(<RiskZoneOverviewCard />);
-        expect(screen.getByText("No risk zone data available")).toBeInTheDocument();
+        expect(
+            screen.getByText("No risk zone data available"),
+        ).toBeInTheDocument();
         expect(screen.queryAllByRole("progressbar")).toHaveLength(0);
     });
 });

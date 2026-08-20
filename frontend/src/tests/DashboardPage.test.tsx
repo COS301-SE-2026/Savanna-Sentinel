@@ -5,7 +5,9 @@ import { DashboardPage } from "@/pages/DashboardPage";
 describe("DashboardPage", () => {
     it("renders the page heading and subtitle", () => {
         render(<DashboardPage />);
-        expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+        expect(
+            screen.getByRole("heading", { name: "Dashboard" }),
+        ).toBeInTheDocument();
         expect(
             screen.getByText("Here's what's happening on the reserve."),
         ).toBeInTheDocument();
@@ -29,12 +31,16 @@ describe("DashboardPage", () => {
     it("renders the Risk Zone Overview panel", () => {
         render(<DashboardPage />);
         expect(screen.getByText("Risk Zone Overview")).toBeInTheDocument();
-        expect(screen.getByText("No risk zone data available")).toBeInTheDocument();
+        expect(
+            screen.getByText("No risk zone data available"),
+        ).toBeInTheDocument();
     });
 
     it("renders the Report Trends chart", () => {
         render(<DashboardPage />);
-        expect(screen.getByText("Report Trends (Last 7 Days)")).toBeInTheDocument();
+        expect(
+            screen.getByText("Report Trends (Last 7 Days)"),
+        ).toBeInTheDocument();
     });
 
     it("renders the Model Performance card", () => {

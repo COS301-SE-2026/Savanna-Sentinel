@@ -13,7 +13,11 @@ export function ReportTrendsCard() {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
             <div className="mb-4 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-brand-primary" strokeWidth={2} aria-hidden="true" />
+                <TrendingUp
+                    className="h-4 w-4 text-brand-primary"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                />
                 <h2 className="font-heading text-xl font-bold text-brand-primary">
                     Report Trends (Last 7 Days)
                 </h2>
@@ -31,13 +35,18 @@ export function ReportTrendsCard() {
                             role="img"
                             aria-label={`${point.day}: ${point.count} reports`}
                         >
-                            <span aria-hidden="true" className="mb-1 text-xs font-semibold text-brand-primary">
+                            <span
+                                aria-hidden="true"
+                                className="mb-1 text-xs font-semibold text-brand-primary"
+                            >
                                 {point.count}
                             </span>
                             <div
                                 aria-hidden="true"
                                 className="w-full rounded-t-sm bg-brand-primary"
-                                style={{ height: `${(point.count / maxCount) * 100}%` }}
+                                style={{
+                                    height: `${(point.count / maxCount) * 100}%`,
+                                }}
                             />
                         </div>
                     ))

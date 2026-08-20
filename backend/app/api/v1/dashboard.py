@@ -17,7 +17,7 @@ router = APIRouter(tags=["dashboard"])
     summary="Get operational dashboard metrics",
 )
 async def get_dashboard_endpoint(
-        db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
-    ):
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+):
     return await get_dashboard(db)

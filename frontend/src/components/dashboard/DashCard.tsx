@@ -9,10 +9,13 @@ interface DashCardProps {
     valueClassName?: string;
 }
 
-// Matches the "Dashboard Panel / Card" spec in the brand style guide exactly:
-// off-white surface, 8px radius, light-grey border, dark-blue underlined
-// uppercase label, no drop shadow.
-export function DashCard({ title, value, subtext, icon: Icon, valueClassName }: DashCardProps) {
+export function DashCard({
+    title,
+    value,
+    subtext,
+    icon: Icon,
+    valueClassName,
+}: DashCardProps) {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
             <div className="mb-2.5 flex items-start justify-between gap-2">
@@ -35,7 +38,11 @@ export function DashCard({ title, value, subtext, icon: Icon, valueClassName }: 
             >
                 {value}
             </div>
-            {subtext && <p className="mt-0.5 text-xs text-color-text-secondary">{subtext}</p>}
+            {subtext && (
+                <p className="mt-0.5 text-xs text-color-text-secondary">
+                    {subtext}
+                </p>
+            )}
         </div>
     );
 }

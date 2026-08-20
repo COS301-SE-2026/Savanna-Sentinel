@@ -1,13 +1,3 @@
-"""Real-Postgres integration tests for dashboard_repository.
-
-PostGIS functions (ST_Area, ST_Intersects) don't exist in SQLite, so these run
-against the real Postgres instance via the db_session/engine fixtures in
-tests/integration/conftest.py. Inserts are left uncommitted on purpose:
-db_session's teardown closes the session without committing, which rolls back
-everything the test wrote and gives each test a clean slate with no manual
-cleanup fixture required.
-"""
-
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -78,8 +68,11 @@ async def _create_tipoff(session, user_id, lng=28.1, lat=-25.7) -> str:
     result = await session.execute(
         text("""
             INSERT INTO tipoffs
-                (submitted_by, report_type, description, location, occurred_at)
-            VALUES (:uid, 'incident', 'Test tipoff', ST_GeogFromText(:wkt), NOW())
+                (submitted_by, report_type, description, location,
+                 occurred_at)
+            VALUES
+                (:uid, 'incident', 'Test tipoff', ST_GeogFromText(:wkt),
+                 NOW())
             RETURNING id
         """),
         {"uid": user_id, "wkt": wkt},
@@ -87,7 +80,9 @@ async def _create_tipoff(session, user_id, lng=28.1, lat=-25.7) -> str:
     return str(result.scalar_one())
 
 
-async def _create_patrol_track(session, wkt_linestring, occurred_at=None) -> str:
+async def _create_patrol_track(
+    session, wkt_linestring, occurred_at=None,
+) -> str:
     occurred_at = occurred_at or datetime.now(timezone.utc)
     center = await session.execute(
         text("SELECT ST_AsText(ST_Centroid(ST_GeomFromText(:wkt, 4326)))"),
@@ -120,13 +115,12 @@ async def test_get_operational_stats_counts_correctly(db_session, engine):
     uid = await _create_user(db_session, "test_dashboard_stats_ranger")
     await _create_field_report(db_session, uid)
     await _create_tipoff(db_session, uid)
-    await _create_patrol_track(db_session, "LINESTRING(28.10 -25.70, 28.11 -25.71)")
+    await _create_patrol_track(
+        db_session, "LINESTRING(28.10 -25.70, 28.11 -25.71)",
+    )
 
     stats = await get_operational_stats(db_session, _PARK, since)
 
-    # get_operational_stats counts globally (no park scoping), so this can't
-    # assert an exact count without risking flakes against other committed
-    # rows in the shared DB -- see the ==1 note in the follow-up summary.
     assert stats["reports_this_week"] >= 1
     assert stats["tipoffs_this_week"] >= 1
     assert stats["patrols_this_week"] >= 1
@@ -167,15 +161,18 @@ async def test_get_report_trends_groups_by_day_and_type(db_session):
     day2 = datetime.now(timezone.utc) - timedelta(days=1)
     uid = await _create_user(db_session, "test_dashboard_trends_ranger")
 
-    await _create_field_report(db_session, uid, report_type="incident", occurred_at=day1)
-    await _create_field_report(db_session, uid, report_type="incident", occurred_at=day1)
-    await _create_field_report(db_session, uid, report_type="sighting", occurred_at=day2)
+    await _create_field_report(
+        db_session, uid, report_type="incident", occurred_at=day1,
+    )
+    await _create_field_report(
+        db_session, uid, report_type="incident", occurred_at=day1,
+    )
+    await _create_field_report(
+        db_session, uid, report_type="sighting", occurred_at=day2,
+    )
 
     counts_by_type, trend = await get_report_trends(db_session, since)
 
-    # counts_by_type ignores `since` entirely (all-time totals), so we can
-    # only assert our two incidents are reflected in the total, not that the
-    # total equals 2 -- see the follow-up summary for the same caveat.
     incident_count = next(
         r["count"] for r in counts_by_type if r["report_type"] == "incident"
     )

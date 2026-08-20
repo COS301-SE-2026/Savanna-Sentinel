@@ -11,7 +11,9 @@ describe("ModelPerformanceCard", () => {
 
     it("renders an empty state when there is no performance data", () => {
         render(<ModelPerformanceCard />);
-        expect(screen.getByText("No performance data available")).toBeInTheDocument();
+        expect(
+            screen.getByText("No performance data available"),
+        ).toBeInTheDocument();
         expect(screen.queryAllByRole("progressbar")).toHaveLength(0);
     });
 });

@@ -1,11 +1,3 @@
-"""Endpoint integration tests for GET /v1/dashboard.
-
-Self-contained module-level engine/session, matching the pattern used by
-test_report_endpoints.py: ASGITransport keeps requests in-process against a
-single asyncpg-backed session, avoiding the cross-loop issues TestClient has
-with an async session.
-"""
-
 import asyncio
 
 import pytest
@@ -33,7 +25,9 @@ app.dependency_overrides[get_db] = _override_get_db
 
 
 def _client() -> AsyncClient:
-    return AsyncClient(transport=ASGITransport(app=app), base_url="https://test")
+    return AsyncClient(
+        transport=ASGITransport(app=app), base_url="https://test",
+    )
 
 
 async def _create_user(username: str, role: str) -> str:
@@ -73,7 +67,9 @@ def cleanup():
     async def _delete():
         async with _engine.begin() as conn:
             await conn.execute(
-                text("DELETE FROM users WHERE username LIKE 'test_dashboard_%'"),
+                text(
+                    "DELETE FROM users WHERE username LIKE 'test_dashboard_%'",
+                ),
             )
 
     asyncio.run(_delete())
