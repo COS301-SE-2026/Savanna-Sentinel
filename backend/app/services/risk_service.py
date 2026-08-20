@@ -44,6 +44,13 @@ _CELERY_STATUS_MAP = {
     "FAILURE": "failed",
 }
 
+GRID_FILE_PATH = (
+    Path(__file__).resolve().parent.parent.parent
+    / "app"
+    / "data"
+    / "reserve-grid.geojson"
+)
+
 
 def get_park_grid(park_id: str) -> ParkGridResponse:
     cells = load_grid_geometry(park_id)
@@ -164,17 +171,19 @@ def validate_boundaries(file: bytes):
 
 
 def check_if_uploaded():
-    return Path("/app/app/data/reserve-grid.geojson").is_file()
+    return GRID_FILE_PATH.is_file()
 
 
 def delete_geojson_file():
     try:
-        Path("/app/app/data/reserve-grid.geojson").unlink(missing_ok=True)
+        GRID_FILE_PATH.unlink(missing_ok=True)
         invalidate_grid_cache()
     except Exception:
         return False
 
     return True
+
+
 def trigger_training_job(request: RiskTrainRequest, user) -> RiskJobResponse:
     job_id = str(uuid.uuid4())
     run_risk_training_job.apply_async(
