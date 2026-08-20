@@ -68,3 +68,33 @@ async def get_patrol_coverage(session, park_id: str, since: datetime) -> tuple[f
     ).one()
 
     return row.covered_area_m2 / 1_000_000, row.total_area_m2 / 1_000_000
+
+
+async def get_report_trends(session, since: datetime) -> tuple[list[dict], list[dict]]:
+    counts_by_type = (
+        await session.execute(
+            text("""
+                SELECT report_type::text AS report_type, COUNT(*) AS count
+                FROM field_reports
+                WHERE deleted_at IS NULL
+                GROUP BY report_type
+            """),
+        )
+    ).mappings().all()
+
+    trend = (
+        await session.execute(
+            text("""
+                SELECT date_trunc('day', occurred_at)::date AS day, COUNT(*) AS count
+                FROM field_reports
+                WHERE deleted_at IS NULL AND occurred_at >= :since
+                GROUP BY day
+                ORDER BY day
+            """),
+            {"since": since},
+        )
+    ).mappings().all()
+
+    return [dict(r) for r in counts_by_type], [
+        {"date": r["day"].isoformat(), "count": r["count"]} for r in trend
+    ]
