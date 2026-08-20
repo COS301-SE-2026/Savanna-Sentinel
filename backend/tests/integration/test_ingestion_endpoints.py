@@ -4,7 +4,7 @@ from sqlalchemy import text
 
 # HELPERS TO GET A USER IN THE DB
 def _register_user(username: str, email: str, role: str) -> dict:
-    return{
+    return {
         "username": username,
         "email": email,
         "password": "SecurePass1!",
@@ -12,6 +12,7 @@ def _register_user(username: str, email: str, role: str) -> dict:
         "last_name": "user",
         "requested_role": role,
     }
+
 
 async def _activate_user(db_session, username: str, target_role: str) -> None:
     await db_session.execute(
@@ -24,15 +25,17 @@ async def _activate_user(db_session, username: str, target_role: str) -> None:
     )
     await db_session.commit()
 
+
 async def _get_auth_headers(
-        client,
-        db_session,
-        username: str,
-        email: str,
-        role: str,
-        ) -> dict[str, str]:
+    client,
+    db_session,
+    username: str,
+    email: str,
+    role: str,
+) -> dict[str, str]:
     await client.post(
-        "/v1/auth/register", json=_register_user(username, email, role),
+        "/v1/auth/register",
+        json=_register_user(username, email, role),
     )
 
     await _activate_user(db_session, username, role)
@@ -44,7 +47,9 @@ async def _get_auth_headers(
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
+
 # FIXTURES
+
 
 @pytest.fixture
 def valid_body():
@@ -66,6 +71,7 @@ def valid_body():
         ],
     }
 
+
 @pytest.fixture
 def invalid_body():
     return {
@@ -86,14 +92,16 @@ def invalid_body():
         ],
     }
 
+
 # INTEGRATION TESTS
+
 
 @pytest.mark.asyncio
 async def test_upload_flow_as_authorised_analyst(
-        client,
-        db_session,
-        valid_body,
-    ):
+    client,
+    db_session,
+    valid_body,
+):
     headers = await _get_auth_headers(
         client,
         db_session,
@@ -111,6 +119,43 @@ async def test_upload_flow_as_authorised_analyst(
     assert response.status_code == 200
     assert response.json()["status"] == "success"
     assert "rows 1 to 1" in response.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_upload_is_recorded_in_audit_log(client, db_session, valid_body):
+    headers = await _get_auth_headers(
+        client,
+        db_session,
+        username="test_analyst_audit",
+        email="analyst_audit@example.com",
+        role="analyst",
+    )
+
+    response = await client.post(
+        "/v1/ingestion/upload",
+        json={**valid_body, "filename": "sightings_q1.csv"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    row = (
+        await db_session.execute(
+            text(
+                "SELECT a.action, a.target_type, a.details "
+                "FROM audit_logs a JOIN users u ON u.id = a.actor_id "
+                "WHERE u.username = :username "
+                "ORDER BY a.created_at DESC LIMIT 1",
+            ),
+            {"username": "test_analyst_audit"},
+        )
+    ).first()
+
+    assert row is not None
+    assert row.action == "ingestion.csv_uploaded"
+    assert row.target_type == "ingestion"
+    assert row.details["filename"] == "sightings_q1.csv"
+    assert row.details["record_count"] == 1
+
 
 @pytest.mark.asyncio
 async def test_upload_flow_as_unauthorised_user(client, db_session, valid_body):
@@ -130,6 +175,7 @@ async def test_upload_flow_as_unauthorised_user(client, db_session, valid_body):
 
     assert response.status_code == 403
 
+
 @pytest.mark.asyncio
 async def test_upload_missing_token(client, valid_body):
     response = await client.post(
@@ -138,6 +184,7 @@ async def test_upload_missing_token(client, valid_body):
     )
 
     assert response.status_code == 401
+
 
 @pytest.mark.asyncio
 async def test_upload_invalid_body(client, db_session, invalid_body):
@@ -156,6 +203,7 @@ async def test_upload_invalid_body(client, db_session, invalid_body):
     )
 
     assert response.status_code == 422
+
 
 # Right now this is a successful operation, since it shouldnt modify
 # can be modified to 400 if necessary
@@ -182,6 +230,7 @@ async def test_upload_empty_records_list(client, db_session):
 
     assert response.status_code == 200
 
+
 @pytest.mark.asyncio
 async def test_upload_malkformed_json(client, db_session):
     headers = await _get_auth_headers(
@@ -199,6 +248,7 @@ async def test_upload_malkformed_json(client, db_session):
     )
 
     assert response.status_code == 422
+
 
 @pytest.mark.asyncio
 async def test_upload_non_json_content(client, db_session, valid_body):

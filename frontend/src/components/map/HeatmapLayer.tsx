@@ -16,6 +16,7 @@ import { CellAnalysisPanel } from "@/components/map/CellAnalysisPanel";
 
 const SOURCE_ID = "patrol-risk-grid";
 const LAYER_ID = "patrol-risk-grid-fill";
+const OUTLINE_LAYER_ID = "patrol-risk-grid-outline";
 
 export interface HeatmapLayerProps {
     map: maplibregl.Map | null;
@@ -23,6 +24,7 @@ export interface HeatmapLayerProps {
     riskByCell: Map<string, number>;
     pickingActive: boolean;
     isMobile: boolean;
+    opacityOverride?: number;
 }
 
 interface SelectedCell {
@@ -43,6 +45,7 @@ export function HeatmapLayer({
     riskByCell,
     pickingActive,
     isMobile,
+    opacityOverride,
 }: HeatmapLayerProps) {
     const pickingActiveRef = useRef(pickingActive);
     useEffect(() => {
@@ -53,6 +56,11 @@ export function HeatmapLayer({
     useEffect(() => {
         riskByCellRef.current = riskByCell;
     }, [riskByCell]);
+
+    const opacityOverrideRef = useRef(opacityOverride);
+    useEffect(() => {
+        opacityOverrideRef.current = opacityOverride;
+    }, [opacityOverride]);
 
     const cellIndexRef = useRef<Map<string, GridCell>>(new Map());
 
@@ -82,7 +90,11 @@ export function HeatmapLayer({
         cellIndexRef.current = new Map(
             cells.map((cell) => [cell.cellId, cell]),
         );
-        const data = buildGridFeatureCollection(cells, riskByCellRef.current);
+        const data = buildGridFeatureCollection(
+            cells,
+            riskByCellRef.current,
+            opacityOverrideRef.current,
+        );
 
         map.addSource(SOURCE_ID, { type: "geojson", data });
         map.addLayer({
@@ -92,6 +104,16 @@ export function HeatmapLayer({
             paint: {
                 "fill-color": ["get", "fillColor"],
                 "fill-opacity": ["get", "fillOpacity"],
+                "fill-antialias": false,
+            },
+        });
+        map.addLayer({
+            id: OUTLINE_LAYER_ID,
+            type: "line",
+            source: SOURCE_ID,
+            paint: {
+                "line-color": "rgba(255, 255, 255, 0.25)",
+                "line-width": 0.5,
             },
         });
 
@@ -117,21 +139,24 @@ export function HeatmapLayer({
 
         return () => {
             map.off("click", handleClick);
+            if (map.getLayer(OUTLINE_LAYER_ID))
+                map.removeLayer(OUTLINE_LAYER_ID);
             if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID);
             if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
             setSelected(null);
         };
     }, [map, grid]);
 
-    // Refresh fill data whenever risk scores change, without touching the layer.
     useEffect(() => {
         if (!map || !grid) return;
         const source = map.getSource(SOURCE_ID) as
             maplibregl.GeoJSONSource | undefined;
         if (!source) return;
         const cells = parseGridCells(grid);
-        source.setData(buildGridFeatureCollection(cells, riskByCell));
-    }, [map, grid, riskByCell]);
+        source.setData(
+            buildGridFeatureCollection(cells, riskByCell, opacityOverride),
+        );
+    }, [map, grid, riskByCell, opacityOverride]);
 
     useEffect(() => {
         if (!map || (!selected && !analysisCell)) return undefined;

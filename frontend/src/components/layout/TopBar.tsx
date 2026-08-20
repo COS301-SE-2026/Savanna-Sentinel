@@ -3,15 +3,13 @@ import { Popover } from "radix-ui";
 import { GlobeOffIcon, HelpCircleIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { useAuthStore } from "@/store/authStore";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import AccountMenu from "./AccountMenu";
 import BurgerMenu from "./BurgerMenu";
 import NotificationBell from "./NotificationBell";
 
 export default function TopBar() {
-    const user = useAuthStore((s) => s.user);
     const isOnline = useOnlineStatus();
-    const initials = user ? user.username[0].toUpperCase() : "";
 
     return (
         <header className="fixed top-0 inset-x-0 z-40 h-14 flex items-center justify-between px-5 border-b border-color-border bg-color-surface-raised shadow-sm">
@@ -54,13 +52,7 @@ export default function TopBar() {
                         <HelpCircleIcon className="size-5" />
                     </Link>
                 </Button>
-                <Link
-                    to="/profile"
-                    aria-label="Account"
-                    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-mid font-heading text-sm font-bold tracking-[0.3px] text-color-text-inverse outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary focus-visible:[--tw-outline-style:solid]"
-                >
-                    {initials}
-                </Link>
+                <AccountMenu />
             </div>
         </header>
     );

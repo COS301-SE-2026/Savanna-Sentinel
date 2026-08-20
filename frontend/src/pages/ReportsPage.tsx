@@ -4,34 +4,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/store/authStore";
 import { NewReportTab } from "@/components/reports/NewReportTab";
 import { ReportList } from "@/components/reports/ReportList";
-import { notifySafe } from "@/components/ui/toast";
-import { toDatetimeLocalValue } from "@/lib/utils";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
+import { toDatetimeLocalValue, formatToUTC } from "@/lib/utils";
+import { PLACEHOLDER_PHOTO_TYPE, resolvePhotoUrls } from "@/lib/media";
 import type {
     DraftReport,
     DraftReportInput,
-    PhotoAttachment,
+    ReportType,
+    Severity,
 } from "@/types/reports";
 import { reportsApi } from "@/services/reportsApi";
 import type {
     ReportListItem,
     ReportCreate,
     ReportUpdate,
+    ListReportsQueryParams,
 } from "@/services/reportsApi";
-import { mediaApi } from "@/services/mediaApi";
-
-const PLACEHOLDER_PHOTO_TYPE = "image/placeholder";
-
-async function resolvePhotoUrls(photos: PhotoAttachment[]): Promise<string[]> {
-    const urls: string[] = [];
-    for (const photo of photos) {
-        if (photo.file.type === PLACEHOLDER_PHOTO_TYPE) {
-            urls.push(photo.previewUrl);
-            continue;
-        }
-        urls.push(await mediaApi.uploadPhoto(photo.file));
-    }
-    return urls;
-}
+import { useDebounce } from "@/hooks/useDebounce";
 
 // Helper functions
 function mapToDraft(item: ReportListItem): DraftReport {
@@ -56,20 +45,6 @@ function mapToDraft(item: ReportListItem): DraftReport {
         syncStatus: item.sync_status as DraftReport["syncStatus"],
     };
 }
-
-function formatToUTC(dateString: string): string {
-    const parsed = new Date(dateString);
-    if (isNaN(parsed.getTime())) {
-        return new Date().toISOString();
-    }
-
-    const now = new Date();
-    if (parsed > now) {
-        return now.toISOString();
-    }
-
-    return parsed.toISOString();
-}
 // Helper functions end
 
 // todo
@@ -81,22 +56,44 @@ export default function ReportsPage() {
     const canSubmit = user?.role === "ranger" || user?.role === "admin";
     const [activeTab, setActiveTab] = React.useState(canSubmit ? "new" : "all");
     const [isLoading, setIsLoading] = useState(false);
+    const [search, setSearch] = React.useState("");
+    const [isInitialLoad, setInitialLoad] = React.useState(true);
+    const [typeFilter, setTypeFilter] = React.useState<ReportType[]>([]);
+    const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
+    const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
+    const [usernameFilter, setUsernameFilter] = React.useState<string[]>([]);
+
+    const debouncedSearch = useDebounce(search, 300);
 
     useEffect(() => {
         async function fetchReports() {
             setIsLoading(true);
+            const temp: ListReportsQueryParams = {
+                search: debouncedSearch || undefined,
+                report_type: typeFilter || null,
+                severity: severityFilter || null,
+                species: speciesFilter || null,
+                users: usernameFilter || null,
+            };
             try {
-                const res = await reportsApi.listReports();
+                const res = await reportsApi.listReports(temp);
                 setReports(res.results.map(mapToDraft));
             } catch (err) {
-                notifySafe("Error", "Failed to fetch reports");
+                notifyCritical("Error", "Failed to fetch reports");
                 console.error(err);
             } finally {
                 setIsLoading(false);
+                setInitialLoad(false);
             }
         }
         fetchReports();
-    }, []);
+    }, [
+        debouncedSearch,
+        typeFilter,
+        severityFilter,
+        speciesFilter,
+        usernameFilter,
+    ]);
 
     const myDrafts = useMemo(
         () =>
@@ -111,7 +108,7 @@ export default function ReportsPage() {
 
         // Validate coords
         if (input.lat === null || input.lon === null) {
-            notifySafe("Error", "Locational coordinates are required");
+            notifyCritical("Error", "Locational coordinates are required");
             return;
         }
 
@@ -147,7 +144,7 @@ export default function ReportsPage() {
             );
             window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (err) {
-            notifySafe(
+            notifyCritical(
                 "Submission failed",
                 "Could not send report to the server",
             );
@@ -182,7 +179,7 @@ export default function ReportsPage() {
             notifySafe("Draft saved", "Your report has been updated.");
             window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (err) {
-            notifySafe("Upate failed", "Unable to update report");
+            notifyCritical("Upate failed", "Unable to update report");
             console.error(err);
         }
     };
@@ -193,7 +190,7 @@ export default function ReportsPage() {
             setReports((prev) => prev.filter((r) => r.localId !== localId));
             notifySafe("Report deleted");
         } catch (err) {
-            notifySafe("Delete failed");
+            notifyCritical("Delete failed");
             console.error(err);
         }
     };
@@ -224,15 +221,47 @@ export default function ReportsPage() {
                 )}
 
                 <TabsContent value="all" className="mt-6">
-                    {isLoading ? (
+                    {isInitialLoad ? (
                         //replace with a better loading state, like the skeleton loading
                         <p>Loading reports...</p>
                     ) : (
-                        <ReportList
-                            reports={reports}
-                            canSubmit={canSubmit}
-                            onGoToNewReport={() => setActiveTab("new")}
-                        />
+                        <div
+                            className={
+                                isLoading ? "opacity-60 transition-opacity" : ""
+                            }
+                        >
+                            <ReportList
+                                reports={reports}
+                                canSubmit={canSubmit}
+                                onGoToNewReport={() => setActiveTab("new")}
+                                search={search}
+                                setSearch={(value) => {
+                                    setIsLoading(true);
+                                    setSearch(value);
+                                }}
+                                typeFilter={typeFilter}
+                                setTypeFilter={(value) => {
+                                    setIsLoading(true);
+                                    setTypeFilter(value);
+                                }}
+                                severityFilter={severityFilter}
+                                setSeverityFilter={(value) => {
+                                    setIsLoading(true);
+                                    setSeverityFilter(value);
+                                }}
+                                speciesFilter={speciesFilter}
+                                setSpeciesFilter={(value) => {
+                                    setIsLoading(true);
+                                    setSpeciesFilter(value);
+                                }}
+                                usernameFilter={usernameFilter}
+                                setUsernameFilter={(value) => {
+                                    setIsLoading(true);
+                                    setUsernameFilter(value);
+                                }}
+                                isLoading={isLoading}
+                            />
+                        </div>
                     )}
                 </TabsContent>
             </Tabs>

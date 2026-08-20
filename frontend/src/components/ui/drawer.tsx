@@ -43,15 +43,20 @@ function DrawerOverlay({
     );
 }
 
-function DrawerContent({
-    className,
-    children,
-    ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Content>) {
+const DrawerContent = React.forwardRef<
+    React.ComponentRef<typeof DrawerPrimitive.Content>,
+    React.ComponentProps<typeof DrawerPrimitive.Content> & {
+        onHandleClick?: () => void;
+    }
+>(function DrawerContent(
+    { className, children, onHandleClick, ...props },
+    ref,
+) {
     return (
         <DrawerPortal>
             <DrawerOverlay />
             <DrawerPrimitive.Content
+                ref={ref}
                 data-slot="drawer-content"
                 className={cn(
                     "fixed inset-x-0 bottom-0 z-[var(--z-modal)] flex flex-col rounded-t-lg border-t border-color-border bg-color-surface-raised",
@@ -59,12 +64,23 @@ function DrawerContent({
                 )}
                 {...props}
             >
-                <div className="mx-auto mt-2 h-1 w-8 shrink-0 rounded-full bg-color-border" />
+                <button
+                    type="button"
+                    aria-label="Toggle panel size"
+                    data-drawer-handle
+                    onClick={onHandleClick}
+                    className={cn(
+                        "mx-auto flex min-h-11 w-20 shrink-0 items-center justify-center",
+                        !onHandleClick && "pointer-events-none",
+                    )}
+                >
+                    <span className="h-1 w-8 rounded-full bg-color-border" />
+                </button>
                 {children}
             </DrawerPrimitive.Content>
         </DrawerPortal>
     );
-}
+});
 
 function DrawerTitle({
     className,

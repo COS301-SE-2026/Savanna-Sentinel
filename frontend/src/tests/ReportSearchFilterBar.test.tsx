@@ -7,13 +7,16 @@ import type { ReportType, Severity } from "@/types/reports";
 
 function Harness({
     speciesOptions = ["Elephant", "Rhino"],
+    usernameOptions = ["ranger1", "ranger2"],
 }: {
     speciesOptions?: string[];
+    usernameOptions?: string[];
 }) {
     const [search, setSearch] = React.useState("");
     const [typeFilter, setTypeFilter] = React.useState<ReportType[]>([]);
     const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
     const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
+    const [usernameFilter, setUsernameFilter] = React.useState<string[]>([]);
     return (
         <ReportSearchFilterBar
             search={search}
@@ -25,6 +28,9 @@ function Harness({
             speciesFilter={speciesFilter}
             onSpeciesFilterChange={setSpeciesFilter}
             speciesOptions={speciesOptions}
+            usernameFilter={usernameFilter}
+            onUsernameFilterChange={setUsernameFilter}
+            usernameOptions={usernameOptions}
         />
     );
 }
@@ -47,6 +53,12 @@ function openSeverityList() {
 
 function openSpeciesList() {
     return userEvent.click(screen.getByRole("button", { name: /^species/i }));
+}
+
+function openUsernameList() {
+    return userEvent.click(
+        screen.getByRole("button", { name: /^submitted by/i }),
+    );
 }
 
 describe("ReportSearchFilterBar", () => {
@@ -183,5 +195,34 @@ describe("ReportSearchFilterBar", () => {
         expect(
             within(screen.getByRole("listbox")).getAllByRole("checkbox"),
         ).toHaveLength(1);
+    });
+
+    it("opens the submitted-by dropdown and applies a username filter as a chip", async () => {
+        render(<Harness />);
+        await openFilters();
+        await openUsernameList();
+        await userEvent.click(
+            within(screen.getByRole("listbox")).getByLabelText("ranger1"),
+        );
+        await userEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+        expect(screen.getByText("Submitted By: ranger1")).toBeInTheDocument();
+    });
+
+    it("removes an active submitted-by filter chip", async () => {
+        render(<Harness />);
+        await openFilters();
+        await openUsernameList();
+        await userEvent.click(
+            within(screen.getByRole("listbox")).getByLabelText("ranger1"),
+        );
+        await userEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+        await userEvent.click(
+            screen.getByRole("button", {
+                name: "Remove submitted by filter: ranger1",
+            }),
+        );
+        expect(
+            screen.queryByText("Submitted By: ranger1"),
+        ).not.toBeInTheDocument();
     });
 });

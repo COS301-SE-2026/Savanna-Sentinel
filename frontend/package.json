@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "format:check": "prettier --check \"src/**/*/*.{ts,tsx}\"",
     "test:coverage": "vitest run --coverage",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "patch-package"
   },
   "author": "SIGILL",
   "license": "ISC",
@@ -29,6 +30,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.14.0",
     "maplibre-gl": "^5.24.0",
+    "qs": "^6.15.3",
     "radix-ui": "^1.4.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -51,6 +53,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.13.3",
+    "@types/qs": "^6.15.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/selenium-webdriver": "^4.35.6",
@@ -63,6 +66,7 @@
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
     "msw": "^2.14.6",
+    "patch-package": "^8.0.1",
     "playwright": "^1.61.1",
     "prettier": "3.9.6",
     "typescript": "~6.0.2",
