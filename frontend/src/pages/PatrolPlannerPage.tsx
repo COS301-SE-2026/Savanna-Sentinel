@@ -138,7 +138,7 @@ export default function PatrolPlannerPage() {
 
     const [startPoint, setStartPoint] = useState<LatLon | null>(null);
     const [endPoint, setEndPoint] = useState<LatLon | null>(null);
-    const [armedField, setArmedField] = useState<ArmesdField>(null);
+    const [armedField, setArmedField] = useState<ArmedField>(null);
     const [maxTime, setMaxTime] = useState("");
     const [maxFuel, setMaxFuel] = useState("");
 
