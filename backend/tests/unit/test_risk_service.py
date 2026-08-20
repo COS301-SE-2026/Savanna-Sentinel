@@ -2,6 +2,7 @@ import json
 from unittest.mock import patch
 
 import pytest
+from fastapi import HTTPException
 
 from app.services.risk_service import get_park_grid, validate_boundaries
 
@@ -53,7 +54,7 @@ def sample_geojson():
                             [36.8329, -1.2811],
                             [36.8219, -1.2811],
                             [36.8219, -1.2921],
-                        ]
+                        ],
                     ],
                 },
             },
@@ -94,9 +95,55 @@ def test_validate_boundaries_success(
         "row_index",
         "col_index",
         "id",
-        }
+    }
 
     assert required_cols.issubset(set(written_gdf.columns))
     assert written_gdf["id"].iloc[0] == "cell-0"
 
     assert result["total_cells"] == len(written_gdf)
+
+
+def test_validate_boundaries_invalid_file():
+    bad_bytes = b"not a valid geojson file"
+
+    with pytest.raises(HTTPException) as exc:
+        validate_boundaries(bad_bytes)
+
+    assert exc.value.status_code == 400
+
+
+@patch("app.services.risk_service.invalidate_grid_cache")
+@patch("pathlib.Path.mkdir")
+@patch("geopandas.GeoDataFrame.to_file", autospec=True)
+def test_validate_boundaries_out_of_bounds(
+    mock_to_file,
+    mock_mkdir,
+    mock_invalidate,
+):
+    invalid_coords_data = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [200.0, -1.0],
+                            [201.0, -1.0],
+                            [201.0, 0.0],
+                            [200.0, -1.0],
+                        ],
+                    ],
+                },
+            },
+        ],
+    }
+
+    payload = json.dumps(invalid_coords_data).encode("utf-8")
+
+    with pytest.raises(HTTPException) as exc:
+        validate_boundaries(payload)
+
+    assert exc.value.status_code == 422
+    mock_to_file.assert_not_called()
