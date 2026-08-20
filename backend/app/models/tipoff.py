@@ -7,17 +7,12 @@ from typing import Optional
 from sqlalchemy import DateTime, Enum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.types import UserDefinedType
+
+from app.models.report import GeographyPoint  # noqa: I001
 
 
 class _BASE(DeclarativeBase):
     pass
-
-class GeographyPoint(UserDefinedType):
-    cache_ok = True
-
-    def get_col_spec(self, **kw):
-        return "GEOGRAPHY(Point, 4326)"
 
 class TipOff(_BASE):
     __tablename__ = "tipoffs"
