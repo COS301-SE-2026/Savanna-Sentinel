@@ -1,21 +1,28 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Activity } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import type { ModelPerformanceData } from "@/types/dashboard";
 
-interface ModelPerformanceCardProps {
-    data: ModelPerformanceData;
+interface ModelMetric {
+    label: string;
+    value: number;
 }
 
-export function ModelPerformanceCard({ data }: ModelPerformanceCardProps) {
+const METRICS: ModelMetric[] = [{ label: "Precision", value: 78 }];
+
+export function ModelPerformanceCard() {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-heading text-xl font-bold text-brand-primary">
-                    Model Performance
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {data.metrics.map((metric) => (
+        <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
+            <div className="mb-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-brand-primary" strokeWidth={2} aria-hidden="true" />
+                    <h2 className="font-heading text-xl font-bold text-brand-primary">
+                        Model Performance
+                    </h2>
+                </div>
+                <Badge variant="neutral">Indicative only</Badge>
+            </div>
+            <div className="space-y-4">
+                {METRICS.map((metric) => (
                     <div key={metric.label} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
                             <span className="text-color-text-primary">{metric.label}</span>
@@ -24,13 +31,8 @@ export function ModelPerformanceCard({ data }: ModelPerformanceCardProps) {
                         <Progress value={metric.value} />
                     </div>
                 ))}
-                <p className="text-xs text-color-text-secondary">
-                    {data.lastTrainedAt
-                        ? `Last trained ${new Date(data.lastTrainedAt).toLocaleDateString()}`
-                        : "Not yet trained"}
-                </p>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }
 

@@ -39,4 +39,10 @@ describe("DashboardPage", () => {
         render(<DashboardPage />);
         expect(screen.getByText("Report Trends (Last 7 Days)")).toBeInTheDocument();
     });
+
+    it("renders the Model Performance card", () => {
+        render(<DashboardPage />);
+        expect(screen.getByText("Model Performance")).toBeInTheDocument();
+        expect(screen.getByText("Indicative only")).toBeInTheDocument();
+    });
 });

@@ -3,26 +3,16 @@ import { render, screen } from "@testing-library/react";
 import { ModelPerformanceCard } from "@/components/dashboard/ModelPerformanceCard";
 
 describe("ModelPerformanceCard", () => {
-    it("renders one labeled progress bar per metric", () => {
-        render(
-            <ModelPerformanceCard
-                data={{
-                    metrics: [{ label: "Precision", value: 82 }],
-                    lastTrainedAt: "2026-08-10T09:00:00.000Z",
-                }}
-            />,
-        );
-        expect(screen.getByText("Precision")).toBeInTheDocument();
-        expect(screen.getByText("82%")).toBeInTheDocument();
-        expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "82");
+    it("renders the heading and the indicative-only badge", () => {
+        render(<ModelPerformanceCard />);
+        expect(screen.getByText("Model Performance")).toBeInTheDocument();
+        expect(screen.getByText("Indicative only")).toBeInTheDocument();
     });
 
-    it("shows the last-trained date", () => {
-        render(
-            <ModelPerformanceCard
-                data={{ metrics: [], lastTrainedAt: "2026-08-10T09:00:00.000Z" }}
-            />,
-        );
-        expect(screen.getByText(/last trained/i)).toBeInTheDocument();
+    it("renders the Precision metric with its progress bar", () => {
+        render(<ModelPerformanceCard />);
+        expect(screen.getByText("Precision")).toBeInTheDocument();
+        expect(screen.getByText("78%")).toBeInTheDocument();
+        expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "78");
     });
 });

@@ -3,6 +3,7 @@ import { DashCard } from "@/components/dashboard/DashCard";
 import { RecentFieldReportsCard } from "@/components/dashboard/RecentFieldReportsCard";
 import { RiskZoneOverviewCard } from "@/components/dashboard/RiskZoneOverviewCard";
 import { ReportTrendsCard } from "@/components/dashboard/ReportTrendsCard";
+import { ModelPerformanceCard } from "@/components/dashboard/ModelPerformanceCard";
 
 const STATS = [
     {
@@ -54,8 +55,9 @@ export function DashboardPage() {
                 <RiskZoneOverviewCard />
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <ReportTrendsCard />
+                <ModelPerformanceCard />
             </div>
         </div>
     );
