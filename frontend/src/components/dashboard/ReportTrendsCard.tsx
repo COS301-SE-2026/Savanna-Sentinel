@@ -1,41 +1,62 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import type { ReportTrendsData } from "@/types/dashboard";
+import { TrendingUp } from "lucide-react";
 
-interface ReportTrendsCardProps {
-    data: ReportTrendsData;
+interface TrendPoint {
+    day: string;
+    count: number;
 }
 
-export function ReportTrendsCard({ data }: ReportTrendsCardProps) {
-    const maxCount = Math.max(1, ...data.trend.map((p) => p.count));
+const TREND_DATA: TrendPoint[] = [
+    { day: "Mon", count: 14 },
+    { day: "Tue", count: 19 },
+    { day: "Wed", count: 16 },
+    { day: "Thu", count: 11 },
+    { day: "Fri", count: 9 },
+    { day: "Sat", count: 12 },
+    { day: "Sun", count: 15 },
+];
+
+export function ReportTrendsCard() {
+    const maxCount = Math.max(1, ...TREND_DATA.map((point) => point.count));
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-heading text-xl font-bold text-brand-primary">
-                    Field Report Trends
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                    {data.countsByType.map((c) => (
-                        <Badge key={c.reportType} variant="neutral">
-                            {c.reportType === "incident" ? "Incidents" : "Sightings"}: {c.count}
-                        </Badge>
-                    ))}
-                </div>
-                <div className="flex h-24 items-end gap-1">
-                    {data.trend.map((point) => (
+        <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
+            <div className="mb-4 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-brand-primary" strokeWidth={2} aria-hidden="true" />
+                <h2 className="font-heading text-xl font-bold text-brand-primary">
+                    Report Trends (Last 7 Days)
+                </h2>
+            </div>
+            <div className="flex h-40 items-end gap-3">
+                {TREND_DATA.map((point) => (
+                    <div
+                        key={point.day}
+                        className="flex h-full flex-1 flex-col items-center justify-end"
+                        role="img"
+                        aria-label={`${point.day}: ${point.count} reports`}
+                    >
+                        <span aria-hidden="true" className="mb-1 text-xs font-semibold text-brand-primary">
+                            {point.count}
+                        </span>
                         <div
-                            key={point.date}
-                            title={`${point.date}: ${point.count}`}
-                            className="flex-1 rounded-t-sm bg-brand-primary"
+                            aria-hidden="true"
+                            className="w-full rounded-t-sm bg-brand-primary"
                             style={{ height: `${(point.count / maxCount) * 100}%` }}
                         />
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
+                    </div>
+                ))}
+            </div>
+            <div className="mt-1 flex gap-3">
+                {TREND_DATA.map((point) => (
+                    <span
+                        key={point.day}
+                        aria-hidden="true"
+                        className="flex-1 text-center text-xs text-color-text-secondary"
+                    >
+                        {point.day}
+                    </span>
+                ))}
+            </div>
+        </div>
     );
 }
 

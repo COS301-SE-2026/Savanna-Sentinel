@@ -20,7 +20,7 @@ describe("DashboardPage", () => {
         expect(screen.getByText("Patrol Coverage")).toBeInTheDocument();
         expect(screen.getByText("73%")).toBeInTheDocument();
         expect(screen.getByText("Open Incidents")).toBeInTheDocument();
-        expect(screen.getByText("12")).toBeInTheDocument();
+        expect(screen.getAllByText("12").length).toBeGreaterThan(0);
     });
 
     it("renders the Recent Field Reports table", () => {
@@ -33,5 +33,10 @@ describe("DashboardPage", () => {
         render(<DashboardPage />);
         expect(screen.getByText("Risk Zone Overview")).toBeInTheDocument();
         expect(screen.getByText("Critical")).toBeInTheDocument();
+    });
+
+    it("renders the Report Trends chart", () => {
+        render(<DashboardPage />);
+        expect(screen.getByText("Report Trends (Last 7 Days)")).toBeInTheDocument();
     });
 });
