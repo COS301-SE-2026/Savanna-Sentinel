@@ -21,10 +21,10 @@ export interface ParkGridResponse {
 }
 
 export interface BoundaryCheckResponse {
-    "uploaded": boolean;
+    uploaded: boolean;
 }
 export interface DeleteBoundaryResponse {
-    "success": boolean;
+    success: boolean;
 }
 
 export const riskApi = {
@@ -40,18 +40,22 @@ export const riskApi = {
     uploadParkZone: async (file: File) => {
         const formData = new FormData();
 
-        formData.append("file", file)
+        formData.append("file", file);
         return api.post("/risk/upload", formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
-            }
-        })
+            },
+        });
     },
-    
+
     checkUploaded: async (): Promise<BoundaryCheckResponse> => {
-        return api.get<BoundaryCheckResponse>("/risk/initialise").then((r) => r.data);
+        return api
+            .get<BoundaryCheckResponse>("/risk/initialise")
+            .then((r) => r.data);
     },
-    deleteUpload: async(): Promise<DeleteBoundaryResponse> => {
-        return api.delete<DeleteBoundaryResponse>("/risk/geojson").then((r) => r.data)
-    }
+    deleteUpload: async (): Promise<DeleteBoundaryResponse> => {
+        return api
+            .delete<DeleteBoundaryResponse>("/risk/geojson")
+            .then((r) => r.data);
+    },
 };

@@ -113,8 +113,10 @@ function SidebarContent({
 }
 
 const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
-    let minLng = Infinity, maxLng = -Infinity;
-    let minLat = Infinity, maxLat = -Infinity;
+    let minLng = Infinity,
+        maxLng = -Infinity;
+    let minLat = Infinity,
+        maxLat = -Infinity;
 
     for (const cell of cells) {
         for (const [lng, lat] of cell.corners) {
@@ -125,16 +127,24 @@ const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
         }
     }
 
-    const center: [number, number] = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
-    const bounds: [[number, number], [number, number]] = [[minLng, minLat], [maxLng, maxLat]];
+    const center: [number, number] = [
+        (minLng + maxLng) / 2,
+        (minLat + maxLat) / 2,
+    ];
+    const bounds: [[number, number], [number, number]] = [
+        [minLng, minLat],
+        [maxLng, maxLat],
+    ];
 
     return { center, bounds };
-}
+};
 
 export default function PatrolPlannerPage() {
     const isMobile = useIsMobile();
     const [map, setMap] = useState<maplibregl.Map | null>(null);
-    const [mapCenter, setMapCenter] = useState<[number, number]>([20.33, -34.41]);
+    const [mapCenter, setMapCenter] = useState<[number, number]>([
+        20.33, -34.41,
+    ]);
 
     const [startPoint, setStartPoint] = useState<LatLon | null>(null);
     const [endPoint, setEndPoint] = useState<LatLon | null>(null);
@@ -168,13 +178,13 @@ export default function PatrolPlannerPage() {
             .then((response) => {
                 if (isCancelled) return;
                 setGrid(response);
-                
-                const cells = parseGridCells(response)
+
+                const cells = parseGridCells(response);
                 setRiskByCell(assignRandomRisk(cells));
 
-                if (cells.length > 0){
-                    const {center, bounds} = getGridCenterAndBounds(cells);
-                    setMapCenter(center)
+                if (cells.length > 0) {
+                    const { center, bounds } = getGridCenterAndBounds(cells);
+                    setMapCenter(center);
 
                     if (map) {
                         map.fitBounds(bounds, { padding: 40, animate: false });

@@ -1,7 +1,13 @@
 import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { MapView } from "@/components/map/MapView";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { notifyCritical } from "@/components/ui/toast";
 import { parseGridCells } from "@/lib/riskGrid";
@@ -14,8 +20,10 @@ const DEFAULT_ZOOM = 10;
 const DEFAULT_RISK_SCORE = 0.5;
 
 const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
-    let minLng = Infinity, maxLng = -Infinity;
-    let minLat = Infinity, maxLat = -Infinity;
+    let minLng = Infinity,
+        maxLng = -Infinity;
+    let minLat = Infinity,
+        maxLat = -Infinity;
 
     for (const cell of cells) {
         for (const [lng, lat] of cell.corners) {
@@ -26,28 +34,40 @@ const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
         }
     }
 
-    const center: [number, number] = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
-    const bounds: [[number, number], [number, number]] = [[minLng, minLat], [maxLng, maxLat]];
+    const center: [number, number] = [
+        (minLng + maxLng) / 2,
+        (minLat + maxLat) / 2,
+    ];
+    const bounds: [[number, number], [number, number]] = [
+        [minLng, minLat],
+        [maxLng, maxLat],
+    ];
 
     return { center, bounds };
-}
+};
 
 const ParkZoneUploadPage = () => {
-    const [mapCenter, setMapCenter] = useState<[number, number]>([20.33, -34.41]);
+    const [mapCenter, setMapCenter] = useState<[number, number]>([
+        20.33, -34.41,
+    ]);
     const [map, setMap] = useState<maplibregl.Map | null>(null);
-    const [mapBounds, setMapBounds] = useState<[[number, number], [number, number]] | null>(null);
+    const [mapBounds, setMapBounds] = useState<
+        [[number, number], [number, number]] | null
+    >(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [grid, setGrid] = useState<ParkGridResponse | null>(null);
-    const [riskByCell, setRiskByCell] = useState<Map<string, number>>(new Map());
+    const [riskByCell, setRiskByCell] = useState<Map<string, number>>(
+        new Map(),
+    );
 
     const navigate = useNavigate();
 
     const handleFilesSelected = async (files: FileList | null) => {
-        const file = files?.[0]
-        if(!file){
+        const file = files?.[0];
+        if (!file) {
             return;
         }
-        try{
+        try {
             await riskApi.uploadParkZone(file);
             const response = await riskApi.getParkGrid(PARK_ID);
             setGrid(response);
@@ -55,40 +75,36 @@ const ParkZoneUploadPage = () => {
             const cells = parseGridCells(response);
             if (cells.length > 0) {
                 const emptyRiskMap = new Map<string, number>(
-                    cells.map((cell) => [cell.cellId, DEFAULT_RISK_SCORE])
+                    cells.map((cell) => [cell.cellId, DEFAULT_RISK_SCORE]),
                 );
                 setRiskByCell(emptyRiskMap);
                 const { center, bounds } = getGridCenterAndBounds(cells);
                 setMapCenter(center);
                 setMapBounds(bounds);
             }
-        setIsConfirmOpen(true);
+            setIsConfirmOpen(true);
+        } catch {
+            notifyCritical("Failed to upload park zone file");
         }
-        catch{
-            notifyCritical("Failed to upload park zone file")
-        }
-
-    }
+    };
 
     const handleConfirm = async () => {
-        setIsConfirmOpen(false)
-        navigate("/profile")
-    }
+        setIsConfirmOpen(false);
+        navigate("/profile");
+    };
     const handleReject = async () => {
-        try{
-            await riskApi.deleteUpload()
-                .then(() => {
-                    setIsConfirmOpen(false)
-                })
+        try {
+            await riskApi.deleteUpload().then(() => {
+                setIsConfirmOpen(false);
+            });
+        } catch {
+            notifyCritical("Failed to delete park zone file");
         }
-        catch{
-            notifyCritical("Failed to delete park zone file")
-        }
-    }
+    };
 
     useEffect(() => {
         if (map && mapBounds) {
-            map.fitBounds(mapBounds, { padding: 20, animate: false }); 
+            map.fitBounds(mapBounds, { padding: 20, animate: false });
         }
     }, [map, mapBounds]);
 
@@ -97,7 +113,7 @@ const ParkZoneUploadPage = () => {
             <FileUploadDropzone
                 inputId="park-geojson-file"
                 //Expand later with testing
-                accept=".geojson,.json" 
+                accept=".geojson,.json"
                 title="Upload WGS84 Boundary File here (.geojson, .json)"
                 hint="Upload the shape file of the game reserve."
                 onFilesSelected={handleFilesSelected}
@@ -144,7 +160,7 @@ const ParkZoneUploadPage = () => {
                 </DialogContent>
             </Dialog>
         </div>
-    )
-}
+    );
+};
 
 export default ParkZoneUploadPage;
