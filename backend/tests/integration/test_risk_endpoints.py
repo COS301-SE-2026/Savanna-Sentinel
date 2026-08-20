@@ -94,7 +94,7 @@ def cleanup():
 
 @pytest.fixture
 def backup_grid_file():
-    backup_path = Path("/app/app/data/reserve-grid.geojson.test_bak")
+    backup_path = GRID_FILE_PATH.parent / f"{GRID_FILE_PATH.name}.test_bak"
 
     if GRID_FILE_PATH.exists():
         shutil.copy(GRID_FILE_PATH, backup_path)
