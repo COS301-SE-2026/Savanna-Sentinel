@@ -1,13 +1,27 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
+import {
+    describe,
+    beforeAll,
+    afterAll,
+    afterEach,
+    it,
+    expect,
+    vi,
+} from "vitest";
 import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import DeleteAccounts from "@/components/admin/DeleteAccounts";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import {
     deleteAccountsHandlers,
     resetMockActiveUsers,
 } from "./mocks/deleteAccountsHandlers";
+
+vi.mock("@/components/ui/toast", () => ({
+    notifySafe: vi.fn(),
+    notifyCritical: vi.fn(),
+}));
 
 const server = setupServer(...deleteAccountsHandlers);
 
@@ -15,6 +29,8 @@ beforeAll(() => server.listen());
 afterEach(() => {
     server.resetHandlers();
     resetMockActiveUsers();
+    vi.mocked(notifySafe).mockClear();
+    vi.mocked(notifyCritical).mockClear();
 });
 afterAll(() => server.close());
 
@@ -126,6 +142,12 @@ describe("DeleteAccounts - Delete Accounts", () => {
 
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         await waitFor(() =>
+            expect(notifySafe).toHaveBeenCalledWith(
+                "Account deleted",
+                expect.stringMatching(/john doe/i),
+            ),
+        );
+        await waitFor(() =>
             expect(screen.queryByText("ranger1")).not.toBeInTheDocument(),
         );
         expect(screen.getByText("analyst2")).toBeInTheDocument();
@@ -150,9 +172,11 @@ describe("DeleteAccounts - Delete Accounts", () => {
         );
 
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-        expect(
-            await screen.findByText(/failed to delete account/i),
-        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Failed to delete account.",
+            ),
+        );
         expect(screen.getByText("ranger1")).toBeInTheDocument();
     });
 

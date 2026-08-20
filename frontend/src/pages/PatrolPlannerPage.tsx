@@ -155,10 +155,15 @@ export default function PatrolPlannerPage() {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const { status: jobStatus, routes } = usePollRouteJob(requestId);
 
+    const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
+        COLLAPSED_SNAP,
+    );
+
     const [prevRoutes, setPrevRoutes] = useState(routes);
     if (routes !== prevRoutes) {
         setPrevRoutes(routes);
         setSelectedIndex(0);
+        if (isMobile && routes.length > 0) setDrawerSnap(EXPANDED_SNAP);
     }
 
     const [savingIndex, setSavingIndex] = useState<number | null>(null);
@@ -180,9 +185,6 @@ export default function PatrolPlannerPage() {
     const [isGridLoading, setIsGridLoading] = useState(true);
     const [riskByCell, setRiskByCell] = useState<Map<string, number>>(
         new Map(),
-    );
-    const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
-        COLLAPSED_SNAP,
     );
 
     useEffect(() => {
@@ -211,6 +213,17 @@ export default function PatrolPlannerPage() {
         if (armedField === "start") setStartPoint(point);
         else setEndPoint(point);
         setArmedField(null);
+        if (isMobile) setDrawerSnap(EXPANDED_SNAP);
+    }
+
+    function handleArmField(field: "start" | "end") {
+        setArmedField(field);
+        if (isMobile) setDrawerSnap(COLLAPSED_SNAP);
+    }
+
+    function handleSelectRoute(index: number) {
+        setSelectedIndex(index);
+        if (isMobile) setDrawerSnap(COLLAPSED_SNAP);
     }
 
     function handleRandomizeRisk() {
@@ -309,7 +322,7 @@ export default function PatrolPlannerPage() {
         startPoint,
         endPoint,
         armedField,
-        onArmField: setArmedField,
+        onArmField: handleArmField,
         onStartPointChange: setStartPoint,
         onEndPointChange: setEndPoint,
         maxTime,
@@ -322,7 +335,7 @@ export default function PatrolPlannerPage() {
         jobStatus: displayStatus,
         routes: displayRoutes,
         selectedIndex,
-        onSelectRoute: setSelectedIndex,
+        onSelectRoute: handleSelectRoute,
         onSaveRoute: handleSaveRoute,
         savingIndex,
         savedIndices,

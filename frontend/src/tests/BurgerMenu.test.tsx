@@ -91,6 +91,7 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Patrol Planner")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
+        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
         expect(screen.queryByText("Ingestion")).not.toBeInTheDocument();
         expect(screen.queryByText("Admin")).not.toBeInTheDocument();
     });
@@ -103,7 +104,21 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Ingestion")).toBeInTheDocument();
         expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
+        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
         expect(screen.queryByText("Patrol Planner")).not.toBeInTheDocument();
+        expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+    });
+
+    it("shows correct nav items for community liaison", async () => {
+        setUser("community_liaison");
+        renderMenu();
+        await openMenu();
+
+        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
+        expect(screen.getByText("Profile")).toBeInTheDocument();
+        expect(screen.queryByText("Reports")).not.toBeInTheDocument();
+        expect(screen.queryByText("Patrol Planner")).not.toBeInTheDocument();
+        expect(screen.queryByText("Ingestion")).not.toBeInTheDocument();
         expect(screen.queryByText("Admin")).not.toBeInTheDocument();
     });
 
@@ -114,6 +129,7 @@ describe("BurgerMenu", () => {
 
         expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Patrol Planner")).toBeInTheDocument();
+        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
         expect(screen.getByText("Ingestion")).toBeInTheDocument();
         expect(screen.getByText("Admin")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();

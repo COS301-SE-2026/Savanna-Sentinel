@@ -50,35 +50,41 @@ interface ReportListProps {
     reports: DraftReport[];
     canSubmit: boolean;
     onGoToNewReport: () => void;
-    search: string;
-    setSearch: React.Dispatch<React.SetStateAction<string>>;
-    typeFilter: ReportType[];
-    setTypeFilter: React.Dispatch<React.SetStateAction<ReportType[]>>;
-    severityFilter: Severity[];
-    setSeverityFilter: React.Dispatch<React.SetStateAction<Severity[]>>;
-    speciesFilter: string[];
-    setSpeciesFilter: React.Dispatch<React.SetStateAction<string[]>>;
-    usernameFilter: string[];
-    setUsernameFilter: React.Dispatch<React.SetStateAction<string[]>>;
-    isLoading: boolean;
+    search?: string;
+    setSearch?: React.Dispatch<React.SetStateAction<string>>;
+    typeFilter?: ReportType[];
+    setTypeFilter?: React.Dispatch<React.SetStateAction<ReportType[]>>;
+    severityFilter?: Severity[];
+    setSeverityFilter?: React.Dispatch<React.SetStateAction<Severity[]>>;
+    speciesFilter?: string[];
+    setSpeciesFilter?: React.Dispatch<React.SetStateAction<string[]>>;
+    usernameFilter?: string[];
+    setUsernameFilter?: React.Dispatch<React.SetStateAction<string[]>>;
+    isLoading?: boolean;
 }
+
+const NO_TYPES: ReportType[] = [];
+const NO_SEVERITIES: Severity[] = [];
+const NO_STRINGS: string[] = [];
 
 export function ReportList({
     reports,
     canSubmit,
     onGoToNewReport,
-    search,
+    search = "",
     setSearch,
-    typeFilter,
+    typeFilter = NO_TYPES,
     setTypeFilter,
-    severityFilter,
+    severityFilter = NO_SEVERITIES,
     setSeverityFilter,
-    speciesFilter,
+    speciesFilter = NO_STRINGS,
     setSpeciesFilter,
-    usernameFilter,
+    usernameFilter = NO_STRINGS,
     setUsernameFilter,
-    isLoading,
+    isLoading = false,
 }: ReportListProps) {
+    const showFilterBar = setSearch !== undefined;
+
     const [speciesOptions, setSpeciesOptions] = React.useState<string[]>([]);
     const [usernameOptions, setUsernameOptions] = React.useState<string[]>([]);
     const [page, setPage] = React.useState(1);
@@ -87,7 +93,7 @@ export function ReportList({
 
     const handleSearchChange = React.useCallback(
         (value: string) => {
-            setSearch(value);
+            setSearch?.(value);
             setPage(1);
         },
         [setSearch],
@@ -95,7 +101,7 @@ export function ReportList({
 
     const handleTypeFilterChange = React.useCallback(
         (types: ReportType[]) => {
-            setTypeFilter(types);
+            setTypeFilter?.(types);
             setPage(1);
         },
         [setTypeFilter, setPage],
@@ -103,7 +109,7 @@ export function ReportList({
 
     const handleSeverityFilterChange = React.useCallback(
         (severities: Severity[]) => {
-            setSeverityFilter(severities);
+            setSeverityFilter?.(severities);
             setPage(1);
         },
         [setSeverityFilter, setPage],
@@ -111,20 +117,21 @@ export function ReportList({
 
     const handleSpeciesFilterChange = React.useCallback(
         (species: string[]) => {
-            setSpeciesFilter(species);
+            setSpeciesFilter?.(species);
             setPage(1);
         },
         [setSpeciesFilter, setPage],
     );
 
     React.useEffect(() => {
+        if (!showFilterBar) return;
         getSpeciesOptions().then((species) => {
             setSpeciesOptions(species);
         });
         getUsernameOptions().then((user) => {
             setUsernameOptions(user);
         });
-    }, []);
+    }, [showFilterBar]);
 
     const { sorted, sortKey, direction, requestSort } = useSort<
         DraftReport,
@@ -168,23 +175,25 @@ export function ReportList({
 
     return (
         <div className="flex flex-col gap-4">
-            <ReportSearchFilterBar
-                search={search}
-                onSearchChange={handleSearchChange}
-                typeFilter={typeFilter}
-                onTypeFilterChange={handleTypeFilterChange}
-                severityFilter={severityFilter}
-                onSeverityFilterChange={handleSeverityFilterChange}
-                speciesFilter={speciesFilter}
-                onSpeciesFilterChange={handleSpeciesFilterChange}
-                speciesOptions={speciesOptions}
-                usernameFilter={usernameFilter}
-                onUsernameFilterChange={(usernames) => {
-                    setUsernameFilter(usernames);
-                    setPage(1);
-                }}
-                usernameOptions={usernameOptions}
-            />
+            {showFilterBar && (
+                <ReportSearchFilterBar
+                    search={search}
+                    onSearchChange={handleSearchChange}
+                    typeFilter={typeFilter}
+                    onTypeFilterChange={handleTypeFilterChange}
+                    severityFilter={severityFilter}
+                    onSeverityFilterChange={handleSeverityFilterChange}
+                    speciesFilter={speciesFilter}
+                    onSpeciesFilterChange={handleSpeciesFilterChange}
+                    speciesOptions={speciesOptions}
+                    usernameFilter={usernameFilter}
+                    onUsernameFilterChange={(usernames) => {
+                        setUsernameFilter?.(usernames);
+                        setPage(1);
+                    }}
+                    usernameOptions={usernameOptions}
+                />
+            )}
 
             {sorted.length === 0 ? (
                 <p className="py-10 text-center text-sm text-color-text-secondary">
