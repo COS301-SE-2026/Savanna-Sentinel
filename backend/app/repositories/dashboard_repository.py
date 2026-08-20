@@ -44,3 +44,27 @@ async def get_operational_stats(session, park_id: str, since: datetime) -> dict:
         "active_rangers": active_rangers,
         "patrols_this_week": patrols,
     }
+
+
+async def get_patrol_coverage(session, park_id: str, since: datetime) -> tuple[float, float]:
+    row = (
+        await session.execute(
+            text("""
+                SELECT
+                    COALESCE(SUM(ST_Area(gc.polygon_bounds)) FILTER (
+                        WHERE EXISTS (
+                            SELECT 1 FROM patrol_tracks pt
+                            JOIN geospatial_events ge ON ge.id = pt.id
+                            WHERE ST_Intersects(gc.polygon_bounds::geometry, pt.route_line::geometry)
+                              AND ge.occurred_at >= :since
+                        )
+                    ), 0) AS covered_area_m2,
+                    COALESCE(SUM(ST_Area(gc.polygon_bounds)), 0) AS total_area_m2
+                FROM grid_cells gc
+                WHERE gc.park_id = :park_id
+            """),
+            {"park_id": park_id, "since": since},
+        )
+    ).one()
+
+    return row.covered_area_m2 / 1_000_000, row.total_area_m2 / 1_000_000
