@@ -58,7 +58,12 @@ async def list_tipoffs(
     current_user: Annotated[User, Depends(get_current_user)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
-    if current_user.role not in ("community_liaison", "analyst", "admin"):
+    if current_user.role not in (
+            "community_liaison",
+            "ranger",
+            "analyst",
+            "admin",
+        ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=_ROLE_DENIED,
