@@ -2,18 +2,74 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import text
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    Integer,
+    MetaData,
+    Table,
+    Text,
+    cast,
+    func,
+    insert,
+    text,
+)
+from sqlalchemy.dialects.postgresql import UUID
+
+from app.models.report import GeographyPoint
+from app.models.tipoff import TipOff
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
+
+_metadata = MetaData()
+_event_type = Enum(
+    "incident", "sighting", "patrol_track",
+    name="event_type", create_type=False,
+)
+_severity_level = Enum(
+    "low", "medium", "high", name="severity_level", create_type=False,
+)
+_geospatial_events = Table(
+    "geospatial_events",
+    _metadata,
+    Column("id", UUID(as_uuid=False), primary_key=True),
+    Column("event_type", _event_type, nullable=False),
+    Column("location", GeographyPoint(), nullable=False),
+    Column("occurred_at", DateTime(timezone=True), nullable=False),
+)
+_incidents = Table(
+    "incidents",
+    _metadata,
+    Column("id", UUID(as_uuid=False), primary_key=True),
+    Column("tipoff_id", UUID(as_uuid=False), nullable=True),
+    Column("incident_type", Text, nullable=False),
+    Column("severity", _severity_level),
+)
+_sightings = Table(
+    "sightings",
+    _metadata,
+    Column("id", UUID(as_uuid=False), primary_key=True),
+    Column("tipoff_id", UUID(as_uuid=False), nullable=True),
+    Column("species", Text, nullable=False),
+    Column("count", Integer),
+)
+_photos = Table(
+    "photos",
+    _metadata,
+    Column("geospatial_event_id", UUID(as_uuid=False), nullable=False),
+    Column("image_url", Text, nullable=False),
+)
+
+
 class TipoffRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    # Replace all the inserts with sql sqlalchemys notation
     async def create(
         self,
         user_id: str,
@@ -29,85 +85,62 @@ class TipoffRepository:
     ) -> dict:
         tip_row = (
             await self.db.execute(
-                text("""
-                INSERT INTO tipoffs
-                    (submitted_by, report_type, description, location,
-                     occurred_at)
-                VALUES
-                    (:uid, CAST(:rtype AS report_type), :desc,
-                     ST_GeogFromText(:wkt), :occurred_at)
-                RETURNING id, created_at
-            """),
-                {
-                    "uid": user_id,
-                    "rtype": report_type,
-                    "desc": description,
-                    "wkt": location_wkt,
-                    "occurred_at": occurred_at,
-                },
+                insert(TipOff)
+                .values(
+                    submitted_by=user_id,
+                    report_type=cast(
+                        report_type,
+                        TipOff.__table__.c.report_type.type,
+                    ),
+                    description=description,
+                    location=func.ST_GeogFromText(location_wkt),
+                    occurred_at=occurred_at,
+                )
+                .returning(TipOff.id, TipOff.created_at),
             )
-        ).fetchone()
+        ).one()
 
         tipoff_id = str(tip_row[0])
         created_at = tip_row[1]
 
         ev_row = (
             await self.db.execute(
-                text("""
-                INSERT INTO geospatial_events
-                    (event_type, location, occurred_at)
-                VALUES
-                    (CAST(:etype AS event_type), ST_GeogFromText(:wkt),
-                      :occurred_at)
-                RETURNING id
-            """),
-                {
-                    "etype": report_type,
-                    "wkt": location_wkt,
-                    "occurred_at": occurred_at,
-                },
+                insert(_geospatial_events)
+                .values(
+                    event_type=cast(report_type, _event_type),
+                    location=func.ST_GeogFromText(location_wkt),
+                    occurred_at=occurred_at,
+                )
+                .returning(_geospatial_events.c.id),
             )
-        ).fetchone()
+        ).one()
         event_id = str(ev_row[0])
 
         if report_type == "incident":
             await self.db.execute(
-                text("""
-                    INSERT INTO incidents
-                        (id, tipoff_id, incident_type, severity)
-                    VALUES
-                        (:id, :tip_id, :itype, CAST(:sev AS severity_level))
-                """),
-                {
-                    "id": event_id,
-                    "tip_id": tipoff_id,
-                    "itype": incident_type,
-                    "sev": severity,
-                },
+                insert(_incidents).values(
+                    id=event_id,
+                    tipoff_id=tipoff_id,
+                    incident_type=incident_type,
+                    severity=cast(severity, _severity_level),
+                ),
             )
         else:
             await self.db.execute(
-                text("""
-                    INSERT INTO sightings
-                        (id, tipoff_id, species, count)
-                    VALUES
-                        (:id, :tip_id, :species, :cnt)
-                """),
-                {
-                    "id": event_id,
-                    "tip_id": tipoff_id,
-                    "species": species,
-                    "cnt": count,
-                },
+                insert(_sightings).values(
+                    id=event_id,
+                    tipoff_id=tipoff_id,
+                    species=species,
+                    count=count,
+                ),
             )
 
         for url in images or []:
             await self.db.execute(
-                text("""
-                    INSERT INTO photos (geospatial_event_id, image_url)
-                    VALUES (:eid, :url)
-                """),
-                {"eid": event_id, "url": url},
+                insert(_photos).values(
+                    geospatial_event_id=event_id,
+                    image_url=url,
+                ),
             )
 
         await self.db.commit()
