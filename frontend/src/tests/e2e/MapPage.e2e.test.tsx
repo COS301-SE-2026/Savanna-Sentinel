@@ -113,10 +113,12 @@ test.describe("Heatmap page golden path", () => {
 
             const drawer = page.locator('[data-slot="drawer-content"]');
             await expect(drawer).toBeVisible();
-            await expect.poll(async () => {
-            const box = await drawer.boundingBox();
-                return box?.y;
-            }).toBeLessThan(844);
+            await expect
+                .poll(async () => {
+                    const box = await drawer.boundingBox();
+                    return box?.y;
+                })
+                .toBeLessThan(844);
         });
 
         test("fully collapses to just the drag handle, hiding the panel content", async ({
