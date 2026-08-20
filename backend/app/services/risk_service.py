@@ -148,7 +148,9 @@ def validate_boundaries(file: bytes):
     full_blocks["id"] = [f"cell-{i}" for i in range(len(full_blocks))]
 
     # Save to file
-    output_file = Path("/app/app/data/reserve-grid.geojson")
+    base_dir = Path(__file__).resolve().parent.parent
+    output_file = base_dir / "data" / "reserve-grid.geojson"
+
     output_file.parent.mkdir(parents=True, exist_ok=True)
     full_blocks.to_file(output_file, driver="GeoJSON")
 
