@@ -18,6 +18,25 @@ export function currentLocalDatetime(): string {
     return toDatetimeLocalValue(new Date());
 }
 
+export function formatToUTC(dateString: string): string {
+    const parsed = new Date(dateString);
+    if (isNaN(parsed.getTime())) {
+        return new Date().toISOString();
+    }
+
+    const now = new Date();
+    if (parsed > now) {
+        return now.toISOString();
+    }
+
+    return parsed.toISOString();
+}
+
+export function getSnapHeightPx(snap: string | number): number {
+    if (typeof snap === "string") return parseInt(snap, 10);
+    return snap * window.innerHeight;
+}
+
 export function formatRelativeTime(timestamp: string) {
     const diffMs = Date.now() - new Date(timestamp).getTime();
     const diffMin = Math.max(0, Math.floor(diffMs / 60_000));

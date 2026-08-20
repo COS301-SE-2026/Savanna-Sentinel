@@ -1,14 +1,34 @@
+import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+    
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, require_roles
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.user import User
-from app.schemas.risk import ParkGridResponse
+from app.schemas.risk import (
+    ActiveModelResponse,
+    CellExplainResponse,
+    HeatmapResponse,
+    ParkGridResponse,
+    RiskJobResponse,
+    RiskScoreJobStatus,
+    RiskTrainJobStatus,
+    RiskTrainRequest,
+)
 from app.services.risk_service import (
+    get_active_model_metrics,
+    get_cell_explanation,
+    get_heatmap,
+    get_park_grid,
+    get_scoring_job,
+    get_training_job,
+    trigger_scoring_job,
+    trigger_training_job,
     check_if_uploaded,
     delete_geojson_file,
-    get_park_grid,
     validate_boundaries,
 )
 
@@ -76,4 +96,98 @@ async def delete_geojson(
 
     return {
         "success": result,
-    }
+    
+
+@router.post(
+    "/train",
+    response_model=RiskJobResponse,
+    status_code=202,
+    summary="Queue a risk model training job",
+)
+async def train_model_endpoint(
+    request: RiskTrainRequest,
+    current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+):
+    return trigger_training_job(request, current_user)
+
+
+@router.get(
+    "/train/{job_id}",
+    response_model=RiskTrainJobStatus,
+    summary="Get training job status/result",
+)
+async def get_train_job(
+    job_id: str,
+    current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+):
+    return get_training_job(job_id)
+
+
+@router.post(
+    "/score",
+    response_model=RiskJobResponse,
+    status_code=202,
+    summary="Queue an ad-hoc risk scoring job",
+)
+async def score_endpoint(
+    current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+):
+    return trigger_scoring_job(current_user)
+
+
+@router.get(
+    "/score/{job_id}",
+    response_model=RiskScoreJobStatus,
+    summary="Get scoring job status/result",
+)
+async def get_score_job(
+    job_id: str,
+    current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+):
+    return get_scoring_job(job_id)
+
+
+@router.get(
+    "/heatmap",
+    response_model=HeatmapResponse,
+    summary="Get a risk heatmap: latest, or a snapshot via date/snapshot",
+)
+async def get_heatmap_endpoint(
+    current_user: Annotated[
+        User,
+        Depends(require_roles(["ranger", "analyst", "admin"])),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    date: datetime | None = None,
+    snapshot: uuid.UUID | None = None,
+):
+    return await get_heatmap(
+        db,
+        date=date,
+        snapshot=str(snapshot) if snapshot else None,
+    )
+
+
+@router.get(
+    "/heatmap/cells/{cell_id}/explain",
+    response_model=CellExplainResponse,
+    summary="Get top SHAP feature contributions for a cell's latest score",
+)
+async def explain_cell_endpoint(
+    cell_id: uuid.UUID,
+    current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await get_cell_explanation(db, str(cell_id))
+
+
+@router.get(
+    "/models/active",
+    response_model=ActiveModelResponse,
+    summary="Get the active model's training window and performance metrics",
+)
+async def get_active_model_endpoint(
+    current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await get_active_model_metrics(db)

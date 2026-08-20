@@ -2,7 +2,15 @@ import AuthPage from "@/pages/AdminAuthAccount";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { authHandlers, mockUsers } from "./mocks/adminauthHandlers";
-import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
+import {
+    describe,
+    beforeAll,
+    afterAll,
+    afterEach,
+    it,
+    expect,
+    vi,
+} from "vitest";
 import {
     render,
     screen,
@@ -11,11 +19,19 @@ import {
     fireEvent,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { notifyCritical } from "@/components/ui/toast";
+
+vi.mock("@/components/ui/toast", () => ({
+    notifyCritical: vi.fn(),
+}));
 
 const server = setupServer(...authHandlers);
 
 beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+    server.resetHandlers();
+    vi.mocked(notifyCritical).mockClear();
+});
 afterAll(() => server.close());
 
 function renderAuthPage() {
@@ -159,9 +175,11 @@ describe("Authpage - Pending Registrations", () => {
             within(dialog).getByRole("button", { name: /confirm/i }),
         );
 
-        expect(
-            await screen.findByText(/permission denied. cannot modify admins/i),
-        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Permission denied. Cannot modify admins",
+            ),
+        );
         expect(acceptButton).not.toBeDisabled();
     });
     it("Displays an error message when accept call returns an error message", async () => {
@@ -184,7 +202,11 @@ describe("Authpage - Pending Registrations", () => {
             within(dialog).getByRole("button", { name: /confirm/i }),
         );
 
-        expect(await screen.findByText(/failed to accept user\./i));
+        await waitFor(() =>
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Failed to accept user.",
+            ),
+        );
         expect(acceptButton).not.toBeDisabled();
         expect(screen.getByText("ranger1")).toBeInTheDocument();
     });
@@ -208,9 +230,11 @@ describe("Authpage - Pending Registrations", () => {
             within(dialog).getByRole("button", { name: /confirm/i }),
         );
 
-        expect(
-            await screen.findByText(/failed to reject user\./i),
-        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Failed to reject user.",
+            ),
+        );
         expect(rejectButton).not.toBeDisabled();
         expect(screen.getByText("analyst2")).toBeInTheDocument();
     });

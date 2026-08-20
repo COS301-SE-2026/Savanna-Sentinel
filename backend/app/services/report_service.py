@@ -104,9 +104,9 @@ class ReportService:
             report_type=existing["report_type"],
             fields=fields,
         )
-        result["submitted_by_username"] = (
-            await self.user_repo.get_username_by_id(result["submitted_by"])
-        )
+        result[
+            "submitted_by_username"
+        ] = await self.user_repo.get_username_by_id(result["submitted_by"])
         return result
 
     async def delete_report(
@@ -202,9 +202,8 @@ class ReportService:
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
-        owner_id = current_user.id if current_user.role == "ranger" else None
         results, total = await self.repo.get_list(
-            owner_id=owner_id,
+            owner_id=None,
             search=search,
             report_types=report_types,
             severities=severities,
@@ -218,9 +217,9 @@ class ReportService:
         )
         for item in results:
             item["images"] = self._view_urls(item.get("images"))
-            item["submitted_by_username"] = (
-                await self.user_repo.get_username_by_id(item["submitted_by"])
-            )
+            item[
+                "submitted_by_username"
+            ] = await self.user_repo.get_username_by_id(item["submitted_by"])
         return results, total
 
     async def get_report(
@@ -231,18 +230,10 @@ class ReportService:
         report = await self.repo.get_by_id(report_id)
         if report is None:
             return None
-        if (
-            current_user.role == "ranger"
-            and report["submitted_by"] != current_user.id
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
-            )
         report["images"] = self._view_urls(report.get("images"))
-        report["submitted_by_username"] = (
-            await self.user_repo.get_username_by_id(report["submitted_by"])
-        )
+        report[
+            "submitted_by_username"
+        ] = await self.user_repo.get_username_by_id(report["submitted_by"])
         return report
 
     def _view_urls(self, images: Optional[list]) -> list:
@@ -251,13 +242,13 @@ class ReportService:
         ]
 
     async def get_species(
-            self,
+        self,
     ) -> list[str]:
         species = await self.repo.get_species()
         return species
 
     async def get_usernames(
-                self,
-        ) -> list[str]:
-            species = await self.repo.get_usernames()
-            return species
+        self,
+    ) -> list[str]:
+        species = await self.repo.get_usernames()
+        return species

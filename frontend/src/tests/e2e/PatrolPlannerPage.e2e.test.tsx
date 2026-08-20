@@ -115,7 +115,7 @@ test.describe("Patrol Planner golden path", () => {
     test.describe("on a phone viewport", () => {
         test.use({ viewport: { width: 390, height: 844 } });
 
-        test("keeps the collapsed drawer and its first field on screen", async ({
+        test("shows a collapsed drawer with the first field off screen", async ({
             page,
         }) => {
             const drawer = page.locator('[data-slot="drawer-content"]');
@@ -128,7 +128,112 @@ test.describe("Patrol Planner golden path", () => {
                 })
                 .toBeLessThan(844);
 
+            await expect(
+                page.getByRole("button", { name: /zoom in/i }),
+            ).toBeVisible();
+        });
+
+        test("fully collapses to just the drag handle, hiding the panel content", async ({
+            page,
+        }) => {
+            await page.waitForTimeout(600);
+
+            await expect(
+                page.getByLabel(/^start point$/i),
+            ).not.toBeInViewport();
+        });
+
+        async function dragDrawerTo(
+            page: import("@playwright/test").Page,
+            targetY: number,
+            { settle = true }: { settle?: boolean } = {},
+        ) {
+            const drawer = page.locator('[data-slot="drawer-content"]');
+            const box = (await drawer.boundingBox())!;
+            const startX = box.x + box.width / 2;
+            const startY = box.y + 10;
+
+            await page.mouse.move(startX, startY);
+            await page.mouse.down();
+            const steps = 20;
+            for (let i = 1; i <= steps; i++) {
+                const y = startY + ((targetY - startY) * i) / steps;
+                await page.mouse.move(startX, y);
+                await page.waitForTimeout(20);
+            }
+            await page.mouse.up();
+            if (settle) {
+                await page.waitForTimeout(600);
+            }
+        }
+
+        test("dragging to the midpoint reveals the first field and moves the legend up", async ({
+            page,
+        }) => {
+            const drawer = page.locator('[data-slot="drawer-content"]');
+            const legend = page.getByRole("button", {
+                name: /expand risk legend/i,
+            });
+            await page.waitForTimeout(600);
+
+            const collapsedDrawerBox = (await drawer.boundingBox())!;
+            const collapsedLegendBox = (await legend.boundingBox())!;
+            await dragDrawerTo(page, 844 * 0.4);
+
+            const expandedDrawerBox = (await drawer.boundingBox())!;
+            const expandedLegendBox = (await legend.boundingBox())!;
+
+            expect(expandedDrawerBox.y).toBeLessThan(collapsedDrawerBox.y);
+            expect(expandedLegendBox.y).toBeLessThan(collapsedLegendBox.y);
             await expect(page.getByLabel(/^start point$/i)).toBeInViewport();
+        });
+
+        test("dragging all the way down rests at the collapsed height instead of sliding off-screen", async ({
+            page,
+        }) => {
+            const drawer = page.locator('[data-slot="drawer-content"]');
+            await page.waitForTimeout(600);
+            const collapsedBox = (await drawer.boundingBox())!;
+
+            await dragDrawerTo(page, 844 + 200, { settle: false });
+
+            const immediateBox = (await drawer.boundingBox())!;
+            expect(immediateBox.y).toBeLessThan(844);
+
+            await page.waitForTimeout(600);
+            const settledBox = (await drawer.boundingBox())!;
+
+            expect(settledBox.y).toBeLessThan(844);
+            expect(Math.abs(settledBox.y - collapsedBox.y)).toBeLessThan(20);
+        });
+
+        test("can be dragged to a fully expanded step above the midpoint", async ({
+            page,
+        }) => {
+            const drawer = page.locator('[data-slot="drawer-content"]');
+            await page.waitForTimeout(600);
+
+            await dragDrawerTo(page, 20);
+
+            const settledBox = (await drawer.boundingBox())!;
+            expect(settledBox.y).toBeLessThan(844 * 0.4);
+        });
+
+        test("legend stops moving once the sheet passes the midpoint", async ({
+            page,
+        }) => {
+            const legend = page.getByRole("button", {
+                name: /expand risk legend/i,
+            });
+            await page.waitForTimeout(600);
+
+            await dragDrawerTo(page, 844 * 0.4);
+            const legendAtMidpoint = (await legend.boundingBox())!;
+
+            await dragDrawerTo(page, 20);
+            const legendAtFull = (await legend.boundingBox())!;
+
+            expect(legendAtFull.y).toBeCloseTo(legendAtMidpoint.y, 0);
         });
     });
 });

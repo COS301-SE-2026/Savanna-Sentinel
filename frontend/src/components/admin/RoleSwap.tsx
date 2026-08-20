@@ -18,6 +18,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { cn, formatRole } from "@/lib/utils";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { usersApi, type UserResponse } from "@/services/usersApi";
 import { useManagedUsers } from "@/hooks/useManagedUsers";
 import { UserSearchFilterBar } from "@/components/admin/UserSearchFilterBar";
@@ -35,7 +36,6 @@ import {
 } from "@/components/admin/standardUserColumns";
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
 import { Pagination } from "../ui/pagination";
-import { notifyCritical, notifySafe } from "../ui/toast";
 
 const ASSIGNABLE_ROLES = [
     { value: "ranger", label: "Ranger" },
@@ -69,14 +69,11 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
             await usersApi.changeUserRole(user.id, selectedRole);
             notifySafe(
                 "Role updated",
-                `Updated ${fullName}'s role to ${formatRole(selectedRole)}`,
+                `${fullName} is now ${formatRole(selectedRole)}.`,
             );
             onRoleChanged();
         } catch {
-            notifyCritical(
-                "Update Failed",
-                `Failed to update role for ${fullName}`,
-            );
+            notifyCritical("Failed to update role.");
             setSelectedRole(user.role);
         } finally {
             setIsProcessing(false);
@@ -158,7 +155,6 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
 export const RoleSwap = () => {
     const {
         users,
-        setUsers,
         isLoading,
         pageError,
         search,
@@ -170,21 +166,13 @@ export const RoleSwap = () => {
         sortKey,
         direction,
         requestSort,
+        refetch,
         page,
         setPage,
         totalPages,
     } = useManagedUsers(usersApi.getActiveUsers, sortAccessors);
 
     const isInitialLoading = isLoading && users.length === 0;
-
-    const fetchUsers = async () => {
-        try {
-            const data = await usersApi.getActiveUsers();
-            setUsers(data.results);
-        } catch {
-            // silent on refresh
-        }
-    };
 
     return (
         <div className="space-y-4">
@@ -236,9 +224,9 @@ export const RoleSwap = () => {
                             ) : (
                                 sortedUsers.map((user) => (
                                     <UserRow
-                                        key={`${user.id}-${user.role}`}
+                                        key={user.id}
                                         user={user}
-                                        onRoleChanged={fetchUsers}
+                                        onRoleChanged={refetch}
                                     />
                                 ))
                             )}

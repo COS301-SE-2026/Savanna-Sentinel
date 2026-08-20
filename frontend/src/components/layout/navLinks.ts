@@ -1,9 +1,11 @@
 import {
     FileText,
+    Map,
     RouteIcon,
     Upload,
     ShieldCheck,
     User,
+    Megaphone,
     type LucideIcon,
 } from "lucide-react";
 
@@ -23,10 +25,22 @@ export const NAV_ITEMS: NavItem[] = [
         roles: ["ranger", "analyst", "admin"],
     },
     {
+        label: "Heatmap",
+        path: "/map",
+        icon: Map,
+        roles: ["ranger", "analyst", "admin"],
+    },
+    {
         label: "Patrol Planner",
         path: "/patrol",
         icon: RouteIcon,
         roles: ["ranger", "admin"],
+    },
+    {
+        label: "Tip-offs",
+        path: "/tipoffs",
+        icon: Megaphone,
+        roles: ["community_liaison", "analyst", "ranger", "admin"],
     },
     {
         label: "Ingestion",

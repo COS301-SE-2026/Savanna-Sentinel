@@ -203,12 +203,12 @@ test.describe("Admin Role Swap Management", () => {
 
         await confirmDialog.getByRole("button", { name: /confirm/i }).click();
 
-        const toast = page.getByRole("status");
+        const fullName = `${userCleanup!.first_name} ${userCleanup!.last_name}`;
+        const toast = page
+            .getByRole("status")
+            .filter({ hasText: "Role updated" });
         await expect(toast).toBeVisible();
-        await expect(toast).toContainText("Role updated");
-        await expect(toast).toContainText(
-            `Updated ${userCleanup!.first_name} ${userCleanup!.last_name}'s role to Analyst`,
-        );
+        await expect(toast).toContainText(`${fullName} is now Analyst.`);
     });
 });
 

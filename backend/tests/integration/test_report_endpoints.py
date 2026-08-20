@@ -707,13 +707,14 @@ async def test_ranger_gets_own_report_returns_200():
 
 
 @pytest.mark.asyncio
-async def test_ranger_blocked_from_other_rangers_report_returns_403():
+async def test_ranger_gets_other_rangers_report_returns_200():
     owner_id = await _create_user("test_owner_sc21")
     other_id = await _create_user("test_other_sc21")
     rid = await _create_report(owner_id)
     async with _client() as c:
         r = await c.get(f"/v1/reports/{rid}", headers=_auth_header(other_id))
-    assert r.status_code == 403
+    assert r.status_code == 200
+    assert r.json()["submitted_by"] == owner_id
 
 
 @pytest.mark.asyncio
@@ -806,7 +807,7 @@ async def test_list_returns_200_with_pagination_envelope():
 
 
 @pytest.mark.asyncio
-async def test_list_ranger_sees_only_own_reports():
+async def test_list_ranger_sees_other_rangers_reports():
     uid = await _create_user("test_ranger_sc20b")
     other_id = await _create_user("test_other_sc20b")
     await _create_report(uid)
@@ -814,7 +815,8 @@ async def test_list_ranger_sees_only_own_reports():
     async with _client() as c:
         r = await c.get("/v1/reports", headers=_auth_header(uid))
     body = r.json()
-    assert all(item["submitted_by"] == uid for item in body["results"])
+    submitters = {item["submitted_by"] for item in body["results"]}
+    assert {uid, other_id} <= submitters
 
 
 @pytest.mark.asyncio

@@ -65,6 +65,17 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Savanna Sentinel")).toBeInTheDocument();
     });
 
+    it("does not trigger Radix's missing Description warning when opened", async () => {
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+        setUser("ranger");
+        renderMenu();
+        await openMenu();
+        expect(warnSpy).not.toHaveBeenCalledWith(
+            expect.stringContaining("Missing `Description`"),
+        );
+        warnSpy.mockRestore();
+    });
+
     it("displays the user role in the drawer header", async () => {
         setUser("community_liaison");
         renderMenu();
@@ -80,6 +91,7 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Patrol Planner")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
+        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
         expect(screen.queryByText("Ingestion")).not.toBeInTheDocument();
         expect(screen.queryByText("Admin")).not.toBeInTheDocument();
     });
@@ -92,7 +104,21 @@ describe("BurgerMenu", () => {
         expect(screen.getByText("Ingestion")).toBeInTheDocument();
         expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();
+        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
         expect(screen.queryByText("Patrol Planner")).not.toBeInTheDocument();
+        expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+    });
+
+    it("shows correct nav items for community liaison", async () => {
+        setUser("community_liaison");
+        renderMenu();
+        await openMenu();
+
+        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
+        expect(screen.getByText("Profile")).toBeInTheDocument();
+        expect(screen.queryByText("Reports")).not.toBeInTheDocument();
+        expect(screen.queryByText("Patrol Planner")).not.toBeInTheDocument();
+        expect(screen.queryByText("Ingestion")).not.toBeInTheDocument();
         expect(screen.queryByText("Admin")).not.toBeInTheDocument();
     });
 
@@ -103,6 +129,7 @@ describe("BurgerMenu", () => {
 
         expect(screen.getByText("Reports")).toBeInTheDocument();
         expect(screen.getByText("Patrol Planner")).toBeInTheDocument();
+        expect(screen.getByText("Tip-offs")).toBeInTheDocument();
         expect(screen.getByText("Ingestion")).toBeInTheDocument();
         expect(screen.getByText("Admin")).toBeInTheDocument();
         expect(screen.getByText("Profile")).toBeInTheDocument();

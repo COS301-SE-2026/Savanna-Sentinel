@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import ProfilePage from "@/pages/ProfilePage";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 
 const { getMe, updateProfile, changePassword, logout } = vi.hoisted(() => ({
     getMe: vi.fn(),
@@ -22,6 +23,11 @@ vi.mock("@/services/usersApi", () => ({
 vi.mock("@/store/authStore", () => ({
     useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
         selector({ logout }),
+}));
+
+vi.mock("@/components/ui/toast", () => ({
+    notifySafe: vi.fn(),
+    notifyCritical: vi.fn(),
 }));
 
 const createPlainUser = () => userEvent.setup();
@@ -46,6 +52,11 @@ describe("ProfilePage", () => {
         vi.clearAllMocks();
         vi.useRealTimers();
     });
+
+    const expectProfileUpdatedToast = () =>
+        waitFor(() =>
+            expect(notifySafe).toHaveBeenCalledWith("Profile updated"),
+        );
 
     it("loads the current profile", async () => {
         render(<ProfilePage />);
@@ -85,9 +96,7 @@ describe("ProfilePage", () => {
         await waitFor(() => {
             expect(updateProfile).toHaveBeenCalledWith({ first_name: "Janet" });
         });
-        expect(await screen.findByRole("status")).toHaveTextContent(
-            /profile updated/i,
-        );
+        await expectProfileUpdatedToast();
     });
 
     it("passes when updating last name with empty first name", async () => {
@@ -110,9 +119,7 @@ describe("ProfilePage", () => {
                 last_name: "Ranger-Smith",
             });
         });
-        expect(await screen.findByRole("status")).toHaveTextContent(
-            /profile updated/i,
-        );
+        await expectProfileUpdatedToast();
     });
 
     it("passes when updating both first and last name", async () => {
@@ -137,9 +144,7 @@ describe("ProfilePage", () => {
                 last_name: "Ranger-Smith",
             });
         });
-        expect(await screen.findByRole("status")).toHaveTextContent(
-            /profile updated/i,
-        );
+        await expectProfileUpdatedToast();
     });
 
     it("fails password update when current password is empty", async () => {
@@ -213,8 +218,10 @@ describe("ProfilePage", () => {
             screen.getByRole("button", { name: /confirm changes/i }),
         );
 
-        expect(await screen.findByRole("alert")).toHaveTextContent(
-            /current password is incorrect/i,
+        await waitFor(() =>
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Current password is incorrect",
+            ),
         );
     });
 
@@ -247,8 +254,9 @@ describe("ProfilePage", () => {
                 "new-pass-123",
             );
         });
-        expect(screen.getByRole("status")).toHaveTextContent(
-            /you will be signed out/i,
+        expect(notifySafe).toHaveBeenCalledWith(
+            "Password changed",
+            "You will be signed out...",
         );
     });
 
