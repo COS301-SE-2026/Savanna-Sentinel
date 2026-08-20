@@ -28,7 +28,7 @@ export const parkZoneHandlers = [
   http.get("**/v1/risk/grid*", () => {
     return HttpResponse.json(mockParkGrid);
   }),
-  http.delete("**/v1/risk/upload*", () => {
+  http.delete("**/v1/risk/geojson*", () => {
     return HttpResponse.json({ message: "Deleted successfully" });
   }),
 ];
@@ -40,7 +40,7 @@ export const uploadErrorHandlers = [
 ];
 
 export const deleteErrorHandlers = [
-  http.delete("**/v1/risk/upload*", () => {
+  http.delete("**/v1/risk/geojson*", () => {
     return new HttpResponse(null, { status: 500 });
   }),
 ];
