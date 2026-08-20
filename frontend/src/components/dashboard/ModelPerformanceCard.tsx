@@ -7,7 +7,7 @@ interface ModelMetric {
     value: number;
 }
 
-const METRICS: ModelMetric[] = [{ label: "Precision", value: 78 }];
+const METRICS: ModelMetric[] = [];
 
 export function ModelPerformanceCard() {
     return (
@@ -22,15 +22,19 @@ export function ModelPerformanceCard() {
                 <Badge variant="neutral">Indicative only</Badge>
             </div>
             <div className="space-y-4">
-                {METRICS.map((metric) => (
-                    <div key={metric.label} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-color-text-primary">{metric.label}</span>
-                            <span className="font-semibold text-brand-primary">{metric.value}%</span>
+                {METRICS.length === 0 ? (
+                    <p className="text-sm text-color-text-secondary">No performance data available</p>
+                ) : (
+                    METRICS.map((metric) => (
+                        <div key={metric.label} className="space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-color-text-primary">{metric.label}</span>
+                                <span className="font-semibold text-brand-primary">{metric.value}%</span>
+                            </div>
+                            <Progress value={metric.value} />
                         </div>
-                        <Progress value={metric.value} />
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
         </div>
     );

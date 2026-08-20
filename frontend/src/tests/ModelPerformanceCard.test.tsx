@@ -9,10 +9,9 @@ describe("ModelPerformanceCard", () => {
         expect(screen.getByText("Indicative only")).toBeInTheDocument();
     });
 
-    it("renders the Precision metric with its progress bar", () => {
+    it("renders an empty state when there is no performance data", () => {
         render(<ModelPerformanceCard />);
-        expect(screen.getByText("Precision")).toBeInTheDocument();
-        expect(screen.getByText("78%")).toBeInTheDocument();
-        expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "78");
+        expect(screen.getByText("No performance data available")).toBeInTheDocument();
+        expect(screen.queryAllByRole("progressbar")).toHaveLength(0);
     });
 });

@@ -11,28 +11,25 @@ describe("DashboardPage", () => {
         ).toBeInTheDocument();
     });
 
-    it("renders all four stat cards with their values", () => {
+    it("renders all four stat cards with a placeholder value", () => {
         render(<DashboardPage />);
         expect(screen.getByText("Total Field Reports")).toBeInTheDocument();
-        expect(screen.getByText("124")).toBeInTheDocument();
         expect(screen.getByText("Active Rangers")).toBeInTheDocument();
-        expect(screen.getByText("8")).toBeInTheDocument();
         expect(screen.getByText("Patrol Coverage")).toBeInTheDocument();
-        expect(screen.getByText("73%")).toBeInTheDocument();
         expect(screen.getByText("Open Incidents")).toBeInTheDocument();
-        expect(screen.getAllByText("12").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("-")).toHaveLength(4);
     });
 
     it("renders the Recent Field Reports table", () => {
         render(<DashboardPage />);
         expect(screen.getByText("Recent Field Reports")).toBeInTheDocument();
-        expect(screen.getByText("RPT-041")).toBeInTheDocument();
+        expect(screen.getByText("No recent field reports")).toBeInTheDocument();
     });
 
     it("renders the Risk Zone Overview panel", () => {
         render(<DashboardPage />);
         expect(screen.getByText("Risk Zone Overview")).toBeInTheDocument();
-        expect(screen.getByText("Critical")).toBeInTheDocument();
+        expect(screen.getByText("No risk zone data available")).toBeInTheDocument();
     });
 
     it("renders the Report Trends chart", () => {

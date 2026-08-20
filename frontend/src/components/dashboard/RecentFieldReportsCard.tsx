@@ -12,13 +12,7 @@ interface RecentFieldReport {
     time: string;
 }
 
-const RECENT_REPORTS: RecentFieldReport[] = [
-    { id: "RPT-041", ranger: "ranger1", type: "High", badgeVariant: "critical", location: "Zone A-3", time: "2h ago" },
-    { id: "RPT-040", ranger: "ranger2", type: "Sighting", badgeVariant: "neutral", location: "Zone B-1", time: "4h ago" },
-    { id: "RPT-039", ranger: "ranger1", type: "Medium", badgeVariant: "alert", location: "Zone C-2", time: "6h ago" },
-    { id: "RPT-038", ranger: "ranger3", type: "Sighting", badgeVariant: "neutral", location: "Zone A-1", time: "8h ago" },
-    { id: "RPT-037", ranger: "ranger2", type: "Low", badgeVariant: "safe", location: "Zone D-4", time: "1d ago" },
-];
+const RECENT_REPORTS: RecentFieldReport[] = [];
 
 export function RecentFieldReportsCard() {
     return (
@@ -41,17 +35,25 @@ export function RecentFieldReportsCard() {
                         </tr>
                     </thead>
                     <tbody>
-                        {RECENT_REPORTS.map((report) => (
-                            <tr key={report.id} className="border-b border-color-border last:border-0">
-                                <td className="py-2 pr-4 text-color-text-secondary">{report.id}</td>
-                                <td className="py-2 pr-4 text-color-text-primary">{report.ranger}</td>
-                                <td className="py-2 pr-4">
-                                    <Badge variant={report.badgeVariant}>{report.type}</Badge>
+                        {RECENT_REPORTS.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="py-6 text-center text-color-text-secondary">
+                                    No recent field reports
                                 </td>
-                                <td className="py-2 pr-4 text-color-text-primary">{report.location}</td>
-                                <td className="py-2 text-color-text-secondary">{report.time}</td>
                             </tr>
-                        ))}
+                        ) : (
+                            RECENT_REPORTS.map((report) => (
+                                <tr key={report.id} className="border-b border-color-border last:border-0">
+                                    <td className="py-2 pr-4 text-color-text-secondary">{report.id}</td>
+                                    <td className="py-2 pr-4 text-color-text-primary">{report.ranger}</td>
+                                    <td className="py-2 pr-4">
+                                        <Badge variant={report.badgeVariant}>{report.type}</Badge>
+                                    </td>
+                                    <td className="py-2 pr-4 text-color-text-primary">{report.location}</td>
+                                    <td className="py-2 text-color-text-secondary">{report.time}</td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>

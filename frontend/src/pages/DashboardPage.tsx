@@ -8,29 +8,23 @@ import { ModelPerformanceCard } from "@/components/dashboard/ModelPerformanceCar
 const STATS = [
     {
         title: "Total Field Reports",
-        value: 124,
-        subtext: "+12 this week",
+        value: "-",
         icon: Shield,
     },
     {
         title: "Active Rangers",
-        value: 8,
-        subtext: "2 on patrol now",
+        value: "-",
         icon: Users,
     },
     {
         title: "Patrol Coverage",
-        value: "73%",
-        subtext: "+5% vs last week",
+        value: "-",
         icon: Map,
-        valueClassName: "text-status-safe",
     },
     {
         title: "Open Incidents",
-        value: 12,
-        subtext: "3 high severity",
+        value: "-",
         icon: AlertTriangle,
-        valueClassName: "text-status-alert",
     },
 ];
 

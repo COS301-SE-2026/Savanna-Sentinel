@@ -3,22 +3,9 @@ import { render, screen } from "@testing-library/react";
 import { RiskZoneOverviewCard } from "@/components/dashboard/RiskZoneOverviewCard";
 
 describe("RiskZoneOverviewCard", () => {
-    it("renders one row per zone with its risk level", () => {
+    it("renders an empty state when there is no risk zone data", () => {
         render(<RiskZoneOverviewCard />);
-        expect(screen.getByText("Zone A-3")).toBeInTheDocument();
-        expect(screen.getByText("Critical")).toBeInTheDocument();
-        expect(screen.getByText("Zone C-2")).toBeInTheDocument();
-        expect(screen.getByText("High")).toBeInTheDocument();
-        expect(screen.getByText("Zone A-1")).toBeInTheDocument();
-        expect(screen.getByText("Low")).toBeInTheDocument();
-        expect(screen.getAllByText("Medium")).toHaveLength(2);
-    });
-
-    it("exposes each zone's risk level as an accessible progressbar", () => {
-        render(<RiskZoneOverviewCard />);
-        const bars = screen.getAllByRole("progressbar");
-        expect(bars).toHaveLength(5);
-        expect(bars[0]).toHaveAttribute("aria-valuenow", "95");
-        expect(bars[0]).toHaveAttribute("aria-label", "Zone A-3 risk level: Critical");
+        expect(screen.getByText("No risk zone data available")).toBeInTheDocument();
+        expect(screen.queryAllByRole("progressbar")).toHaveLength(0);
     });
 });

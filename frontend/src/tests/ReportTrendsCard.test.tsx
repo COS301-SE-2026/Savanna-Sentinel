@@ -8,11 +8,9 @@ describe("ReportTrendsCard", () => {
         expect(screen.getByText("Report Trends (Last 7 Days)")).toBeInTheDocument();
     });
 
-    it("renders one accessible bar per day with its count", () => {
+    it("renders an empty state when there is no trend data", () => {
         render(<ReportTrendsCard />);
-        const bars = screen.getAllByRole("img");
-        expect(bars).toHaveLength(7);
-        expect(bars[0]).toHaveAttribute("aria-label", "Mon: 14 reports");
-        expect(bars[1]).toHaveAttribute("aria-label", "Tue: 19 reports");
+        expect(screen.getByText("No trend data available")).toBeInTheDocument();
+        expect(screen.queryAllByRole("img")).toHaveLength(0);
     });
 });

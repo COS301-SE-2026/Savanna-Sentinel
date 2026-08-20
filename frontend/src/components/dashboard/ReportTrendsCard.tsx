@@ -5,15 +5,7 @@ interface TrendPoint {
     count: number;
 }
 
-const TREND_DATA: TrendPoint[] = [
-    { day: "Mon", count: 14 },
-    { day: "Tue", count: 19 },
-    { day: "Wed", count: 16 },
-    { day: "Thu", count: 11 },
-    { day: "Fri", count: 9 },
-    { day: "Sat", count: 12 },
-    { day: "Sun", count: 15 },
-];
+const TREND_DATA: TrendPoint[] = [];
 
 export function ReportTrendsCard() {
     const maxCount = Math.max(1, ...TREND_DATA.map((point) => point.count));
@@ -27,23 +19,29 @@ export function ReportTrendsCard() {
                 </h2>
             </div>
             <div className="flex h-40 items-end gap-3">
-                {TREND_DATA.map((point) => (
-                    <div
-                        key={point.day}
-                        className="flex h-full flex-1 flex-col items-center justify-end"
-                        role="img"
-                        aria-label={`${point.day}: ${point.count} reports`}
-                    >
-                        <span aria-hidden="true" className="mb-1 text-xs font-semibold text-brand-primary">
-                            {point.count}
-                        </span>
+                {TREND_DATA.length === 0 ? (
+                    <p className="w-full self-center text-center text-sm text-color-text-secondary">
+                        No trend data available
+                    </p>
+                ) : (
+                    TREND_DATA.map((point) => (
                         <div
-                            aria-hidden="true"
-                            className="w-full rounded-t-sm bg-brand-primary"
-                            style={{ height: `${(point.count / maxCount) * 100}%` }}
-                        />
-                    </div>
-                ))}
+                            key={point.day}
+                            className="flex h-full flex-1 flex-col items-center justify-end"
+                            role="img"
+                            aria-label={`${point.day}: ${point.count} reports`}
+                        >
+                            <span aria-hidden="true" className="mb-1 text-xs font-semibold text-brand-primary">
+                                {point.count}
+                            </span>
+                            <div
+                                aria-hidden="true"
+                                className="w-full rounded-t-sm bg-brand-primary"
+                                style={{ height: `${(point.count / maxCount) * 100}%` }}
+                            />
+                        </div>
+                    ))
+                )}
             </div>
             <div className="mt-1 flex gap-3">
                 {TREND_DATA.map((point) => (

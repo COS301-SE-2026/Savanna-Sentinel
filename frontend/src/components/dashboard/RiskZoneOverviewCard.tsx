@@ -10,13 +10,7 @@ interface RiskZone {
     percent: number;
 }
 
-const RISK_ZONES: RiskZone[] = [
-    { zone: "Zone A-3", level: "Critical", percent: 95 },
-    { zone: "Zone C-2", level: "High", percent: 74 },
-    { zone: "Zone B-4", level: "Medium", percent: 55 },
-    { zone: "Zone D-1", level: "Medium", percent: 45 },
-    { zone: "Zone A-1", level: "Low", percent: 20 },
-];
+const RISK_ZONES: RiskZone[] = [];
 
 // Reuses the same safe/caution/alert/critical status system as Badge
 // elsewhere in the app, so a zone's risk level always reads the same way
@@ -41,27 +35,31 @@ export function RiskZoneOverviewCard() {
                 </h2>
             </div>
             <div className="space-y-3">
-                {RISK_ZONES.map((zone) => (
-                    <div key={zone.zone}>
-                        <div className="mb-1 flex items-center justify-between">
-                            <span className="text-sm text-color-text-primary">{zone.zone}</span>
-                            <Badge variant={LEVEL_STYLES[zone.level].badge}>{zone.level}</Badge>
-                        </div>
-                        <div
-                            className="h-1.5 w-full overflow-hidden rounded-full bg-color-surface-raised"
-                            role="progressbar"
-                            aria-valuenow={zone.percent}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-label={`${zone.zone} risk level: ${zone.level}`}
-                        >
+                {RISK_ZONES.length === 0 ? (
+                    <p className="text-sm text-color-text-secondary">No risk zone data available</p>
+                ) : (
+                    RISK_ZONES.map((zone) => (
+                        <div key={zone.zone}>
+                            <div className="mb-1 flex items-center justify-between">
+                                <span className="text-sm text-color-text-primary">{zone.zone}</span>
+                                <Badge variant={LEVEL_STYLES[zone.level].badge}>{zone.level}</Badge>
+                            </div>
                             <div
-                                className={cn("h-full rounded-full", LEVEL_STYLES[zone.level].bar)}
-                                style={{ width: `${zone.percent}%` }}
-                            />
+                                className="h-1.5 w-full overflow-hidden rounded-full bg-color-surface-raised"
+                                role="progressbar"
+                                aria-valuenow={zone.percent}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-label={`${zone.zone} risk level: ${zone.level}`}
+                            >
+                                <div
+                                    className={cn("h-full rounded-full", LEVEL_STYLES[zone.level].bar)}
+                                    style={{ width: `${zone.percent}%` }}
+                                />
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
         </div>
     );

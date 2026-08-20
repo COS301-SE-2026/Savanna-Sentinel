@@ -12,15 +12,8 @@ describe("RecentFieldReportsCard", () => {
         expect(screen.getByText("Time")).toBeInTheDocument();
     });
 
-    it("renders one row per report with a severity/type badge", () => {
+    it("renders an empty state when there are no reports", () => {
         render(<RecentFieldReportsCard />);
-        expect(screen.getByText("RPT-041")).toBeInTheDocument();
-        expect(screen.getAllByText("ranger1")).toHaveLength(2);
-        expect(screen.getByText("Zone A-3")).toBeInTheDocument();
-        expect(screen.getByText("2h ago")).toBeInTheDocument();
-        expect(screen.getByText("High")).toBeInTheDocument();
-        expect(screen.getAllByText("Sighting")).toHaveLength(2);
-        expect(screen.getByText("Medium")).toBeInTheDocument();
-        expect(screen.getByText("Low")).toBeInTheDocument();
+        expect(screen.getByText("No recent field reports")).toBeInTheDocument();
     });
 });
