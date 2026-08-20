@@ -14,8 +14,15 @@ describe("PatrolCoverageCard", () => {
         expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "68");
     });
 
-    it("shows 0% without dividing by zero when totalAreaKm2 is 0", () => {
+    it("shows a coming-soon message when totalAreaKm2 is 0 (grid cells not yet persisted)", () => {
         render(<PatrolCoverageCard data={{ areaCoveredKm2: 0, totalAreaKm2: 0 }} />);
+        expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
+        expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    });
+
+    it("shows a real 0% reading when totalAreaKm2 is known but nothing has been covered", () => {
+        render(<PatrolCoverageCard data={{ areaCoveredKm2: 0, totalAreaKm2: 500 }} />);
         expect(screen.getByText("0%")).toBeInTheDocument();
+        expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
     });
 });

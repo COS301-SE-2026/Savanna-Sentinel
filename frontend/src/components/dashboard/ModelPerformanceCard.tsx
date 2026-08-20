@@ -25,7 +25,9 @@ export function ModelPerformanceCard({ data }: ModelPerformanceCardProps) {
                     </div>
                 ))}
                 <p className="text-xs text-color-text-secondary">
-                    Last trained {new Date(data.lastTrainedAt).toLocaleDateString()}
+                    {data.lastTrainedAt
+                        ? `Last trained ${new Date(data.lastTrainedAt).toLocaleDateString()}`
+                        : "Not yet trained"}
                 </p>
             </CardContent>
         </Card>

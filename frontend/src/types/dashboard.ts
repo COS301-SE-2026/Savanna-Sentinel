@@ -31,7 +31,7 @@ export interface ModelMetric {
 
 export interface ModelPerformanceData {
     metrics: ModelMetric[];
-    lastTrainedAt: string;
+    lastTrainedAt: string | null;
 }
 
 export interface DashboardData {

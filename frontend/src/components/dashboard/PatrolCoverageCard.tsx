@@ -7,9 +7,24 @@ interface PatrolCoverageCardProps {
 }
 
 export function PatrolCoverageCard({ data }: PatrolCoverageCardProps) {
-    const percent = data.totalAreaKm2 > 0
-        ? Math.round((data.areaCoveredKm2 / data.totalAreaKm2) * 100)
-        : 0;
+    if (data.totalAreaKm2 === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-heading text-xl font-bold text-brand-primary">
+                        Patrol Coverage
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-color-text-secondary">
+                        Coming soon - patrol tracking isn't set up for this park yet.
+                    </p>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    const percent = Math.round((data.areaCoveredKm2 / data.totalAreaKm2) * 100);
 
     return (
         <Card>
