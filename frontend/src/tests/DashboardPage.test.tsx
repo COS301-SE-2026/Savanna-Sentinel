@@ -22,4 +22,10 @@ describe("DashboardPage", () => {
         expect(screen.getByText("Open Incidents")).toBeInTheDocument();
         expect(screen.getByText("12")).toBeInTheDocument();
     });
+
+    it("renders the Recent Field Reports table", () => {
+        render(<DashboardPage />);
+        expect(screen.getByText("Recent Field Reports")).toBeInTheDocument();
+        expect(screen.getByText("RPT-041")).toBeInTheDocument();
+    });
 });

@@ -1,5 +1,6 @@
 import { Shield, Users, Map, AlertTriangle } from "lucide-react";
 import { DashCard } from "@/components/dashboard/DashCard";
+import { RecentFieldReportsCard } from "@/components/dashboard/RecentFieldReportsCard";
 
 const STATS = [
     {
@@ -44,6 +45,10 @@ export function DashboardPage() {
                 {STATS.map((stat) => (
                     <DashCard key={stat.title} {...stat} />
                 ))}
+            </div>
+
+            <div className="mt-4">
+                <RecentFieldReportsCard />
             </div>
         </div>
     );
