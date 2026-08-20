@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import type maplibregl from "maplibre-gl";
 
 import { MapView } from "@/components/map/MapView";
@@ -158,7 +158,6 @@ export default function PatrolPlannerPage() {
     const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
         COLLAPSED_SNAP,
     );
-    const drawerContentRef = useRef<HTMLDivElement>(null);
 
     const [prevRoutes, setPrevRoutes] = useState(routes);
     if (routes !== prevRoutes) {
@@ -226,77 +225,6 @@ export default function PatrolPlannerPage() {
         setSelectedIndex(index);
         if (isMobile) setDrawerSnap(COLLAPSED_SNAP);
     }
-
-    function handleToggleDrawer() {
-        setDrawerSnap((current) =>
-            current === COLLAPSED_SNAP ? EXPANDED_SNAP : COLLAPSED_SNAP,
-        );
-    }
-
-    const drawerSnapRef = useRef(drawerSnap);
-    useEffect(() => {
-        drawerSnapRef.current = drawerSnap;
-    }, [drawerSnap]);
-
-    useEffect(() => {
-        if (!isMobile) return;
-
-        let shouldSuppressNextClick = false;
-
-        function isExpanded() {
-            const snap = drawerSnapRef.current;
-            return (
-                typeof snap === "number" &&
-                Math.abs(snap - EXPANDED_SNAP) < Number.EPSILON
-            );
-        }
-
-        function handlePointerDownCapture(event: PointerEvent) {
-            const content = drawerContentRef.current;
-            if (!content) return;
-            const target = event.target as Node;
-            const isInsideDrawer = content.contains(target);
-            const isHandle = Boolean(
-                target instanceof Element &&
-                target.closest("[data-drawer-handle]"),
-            );
-
-            if (isExpanded()) {
-                if (!isInsideDrawer) {
-                    setDrawerSnap(COLLAPSED_SNAP);
-                    shouldSuppressNextClick = true;
-                }
-                return;
-            }
-
-            if (isInsideDrawer && !isHandle) {
-                setDrawerSnap(EXPANDED_SNAP);
-                shouldSuppressNextClick = true;
-            }
-        }
-
-        function handleClickCapture(event: MouseEvent) {
-            if (!shouldSuppressNextClick) return;
-            shouldSuppressNextClick = false;
-            event.stopPropagation();
-            event.preventDefault();
-        }
-
-        document.addEventListener(
-            "pointerdown",
-            handlePointerDownCapture,
-            true,
-        );
-        document.addEventListener("click", handleClickCapture, true);
-        return () => {
-            document.removeEventListener(
-                "pointerdown",
-                handlePointerDownCapture,
-                true,
-            );
-            document.removeEventListener("click", handleClickCapture, true);
-        };
-    }, [isMobile]);
 
     function handleRandomizeRisk() {
         if (!grid) return;
@@ -511,23 +439,7 @@ export default function PatrolPlannerPage() {
                     activeSnapPoint={drawerSnap}
                     setActiveSnapPoint={setDrawerSnap}
                 >
-                    {/*
-                     * `h-full` is required, not cosmetic: vaul parks a
-                     * snap-point drawer by translating the content element
-                     * down by (viewport height - snap height), which only
-                     * lands correctly if that element spans the full
-                     * viewport. With the intrinsic height it would otherwise
-                     * take, the translate pushes the whole sheet off the
-                     * bottom of the screen. The inner wrapper does the
-                     * scrolling instead, and only once fully expanded, so a
-                     * swipe up from the collapsed snap drags the sheet rather
-                     * than scrolling its contents.
-                     */}
-                    <DrawerContent
-                        ref={drawerContentRef}
-                        className="h-full"
-                        onHandleClick={handleToggleDrawer}
-                    >
+                    <DrawerContent className="h-full">
                         <DrawerTitle className="sr-only">
                             Patrol planner
                         </DrawerTitle>
@@ -536,13 +448,7 @@ export default function PatrolPlannerPage() {
                             generate patrol routes, and compare the
                             alternatives.
                         </DrawerDescription>
-                        <div
-                            className={
-                                typeof drawerSnap === "number"
-                                    ? "min-h-0 flex-1 overflow-y-auto"
-                                    : "min-h-0 flex-1 overflow-hidden"
-                            }
-                        >
+                        <div className="min-h-0 flex-1 overflow-y-auto">
                             <SidebarContent {...sidebarProps} />
                         </div>
                     </DrawerContent>
