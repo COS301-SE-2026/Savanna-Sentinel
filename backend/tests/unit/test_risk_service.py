@@ -4,7 +4,12 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 
-from app.services.risk_service import get_park_grid, validate_boundaries
+from app.services.risk_service import (
+    check_if_uploaded,
+    delete_geojson_file,
+    get_park_grid,
+    validate_boundaries,
+)
 
 
 def test_get_park_grid_builds_response_from_repository():
@@ -147,3 +152,45 @@ def test_validate_boundaries_out_of_bounds(
 
     assert exc.value.status_code == 422
     mock_to_file.assert_not_called()
+
+
+@patch("pathlib.Path.is_file")
+def test_check_if_uploaded_returns_true_when_file_exists(
+    mock_is_file,
+):
+    mock_is_file.return_value = True
+    result = check_if_uploaded()
+
+    assert result is True
+
+
+@patch("pathlib.Path.is_file")
+def test_check_if_uploaded_returns_false_when_file_does_not_exist(
+    mock_is_file,
+):
+    mock_is_file.return_value = False
+    result = check_if_uploaded()
+
+    assert result is False
+
+
+@patch("app.services.risk_service.invalidate_grid_cache")
+@patch("pathlib.Path.unlink")
+def test_delete_geojson_file_success(mock_unlink, mock_invalidate):
+    result = delete_geojson_file()
+
+    assert result is True
+    mock_unlink.assert_called_once_with(missing_ok=True)
+    mock_invalidate.assert_called_once()
+
+
+@patch("app.services.risk_service.invalidate_grid_cache")
+@patch("pathlib.Path.unlink")
+def test_delete_geojson_file_failure(mock_unlink, mock_invalidate):
+    mock_unlink.side_effect = PermissionError("Permission denied")
+
+    result = delete_geojson_file()
+
+    assert result is False
+    mock_unlink.assert_called_once_with(missing_ok=True)
+    mock_invalidate.assert_not_called()
