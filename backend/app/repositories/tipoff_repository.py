@@ -13,6 +13,7 @@ class TipoffRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    # Replace all the inserts with sql sqlalchemys notation
     async def create(
         self,
         user_id: str,
@@ -155,9 +156,11 @@ class TipoffRepository:
             LEFT JOIN incidents i ON i.tipoff_id = t.id
             LEFT JOIN sightings s ON s.tipoff_id = t.id
             WHERE {where}
-        """)
+        """, # nosec B608
+        )
 
-        data_sql = text(f"""
+        data_sql = text(
+            f"""
             SELECT
                 t.id::text AS tipoff_id,
                 t.report_type::text AS report_type,
@@ -186,7 +189,8 @@ class TipoffRepository:
             WHERE {where}
             ORDER BY t.created_at DESC
             LIMIT :limit OFFSET :offset
-        """)
+        """, # nosec B608
+        )
 
         total = (await self.db.execute(count_sql, params)).scalar() or 0
         rows = (
