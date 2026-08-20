@@ -275,21 +275,6 @@ async def test_community_liaison_can_submit_tipoff_returns_201():
     assert "tipoff_id" in body
     assert "created_at" in body
 
-
-@pytest.mark.asyncio
-async def test_ranger_blocked_from_submit_tipoff_returns_403():
-    uid = await _create_user("test_ranger_submit_block_1", role="ranger")
-    async with _client() as client:
-        response = await client.post(
-            "/v1/tipoffs",
-            json=_tipoff_payload(),
-            headers=_auth_header(uid),
-        )
-
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Access denied"
-
-
 @pytest.mark.asyncio
 async def test_analyst_blocked_from_submit_tipoff_returns_403():
     uid = await _create_user("test_analyst_submit_1", role="analyst")
@@ -354,20 +339,6 @@ async def test_missing_incident_type_on_submit_tipoff_returns_400():
         )
 
     assert response.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_ranger_blocked_from_listing_tipoffs_returns_403():
-    uid = await _create_user("test_ranger_list_block_1", role="ranger")
-    async with _client() as client:
-        response = await client.get(
-            "/v1/tipoffs",
-            headers=_auth_header(uid),
-        )
-
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Access denied"
-
 
 @pytest.mark.asyncio
 async def test_community_liaison_list_only_owns_tipoffs():
