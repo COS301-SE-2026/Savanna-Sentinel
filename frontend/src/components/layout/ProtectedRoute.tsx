@@ -21,25 +21,23 @@ export default function ProtectedRoute() {
     const [isUploaded, setIsUploaded] = useState<boolean | null>(null);
 
     useEffect(() => {
-        if(!accessToken){
+        if (!accessToken) {
             return;
         }
 
         const verifyUpload = async () => {
             try {
                 const response = await riskApi.checkUploaded();
-                setIsUploaded(response.uploaded)
-            }
-            catch{
+                setIsUploaded(response.uploaded);
+            } catch {
                 setIsUploaded(false);
-            }
-            finally{
+            } finally {
                 setIsChecking(false);
             }
-        }
+        };
 
-        verifyUpload()
-    }, [accessToken])
+        verifyUpload();
+    }, [accessToken]);
 
     if (!accessToken) {
         return <Navigate to="/login" state={{ from: location }} replace />;
@@ -49,7 +47,7 @@ export default function ProtectedRoute() {
         return <div>Loading...</div>;
     }
 
-    if (isUploaded && location.pathname !== "/upload") {
+    if (!isUploaded && location.pathname !== "/upload") {
         return <Navigate to="/upload" replace />;
     }
 
