@@ -17,7 +17,14 @@ from app.repositories.risk_repository import invalidate_grid_cache
 
 _engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 _Session = async_sessionmaker(_engine, expire_on_commit=False)
-GRID_FILE_PATH = Path("/app/app/data/reserve-grid.geojson")
+GRID_FILE_PATH = (
+    Path(__file__)
+    .resolve()
+    .parent.parent.parent
+    / "app"
+    / "data"
+    / "reserve-grid.geojson"
+)
 
 
 async def _override_get_db():
