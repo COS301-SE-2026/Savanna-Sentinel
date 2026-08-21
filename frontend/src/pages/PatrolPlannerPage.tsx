@@ -30,7 +30,6 @@ import type { ArmedField, LatLon } from "@/types/patrol";
 import { getSnapHeightPx } from "@/lib/utils";
 
 const PARK_ID = "reserve";
-const PARK_CENTER: [number, number] = [20.330476767788639, -34.409923491276061];
 const DEFAULT_ZOOM = 10;
 
 const COLLAPSED_SNAP = "24px";
@@ -411,7 +410,7 @@ export default function PatrolPlannerPage() {
                 )}
                 <MapControls
                     map={map}
-                    defaultCenter={PARK_CENTER}
+                    defaultCenter={mapCenter}
                     defaultZoom={DEFAULT_ZOOM}
                 />
                 <MapLegend
