@@ -66,7 +66,7 @@ export default function MapPage() {
                 if (result.isFromCache) {
                     notifyCaution(
                         "Showing saved risk map",
-                        "No connection, so this is the last version downloaded.",
+                        "No connection, this is the last version downloaded.",
                     );
                 }
             })

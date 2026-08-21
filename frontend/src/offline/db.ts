@@ -67,6 +67,7 @@ db.version(1).stores({
 export const cacheKeys = {
     riskGrid: (parkId: string) => `risk-grid:${parkId}`,
     reports: (query: string) => `reports:${query}`,
+    savedRoutes: () => "saved-routes:list",
 };
 
 export interface CacheRead<T> {
