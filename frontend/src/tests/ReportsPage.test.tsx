@@ -3,12 +3,17 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ReportsPage from "@/pages/ReportsPage";
 import { useAuthStore } from "@/store/authStore";
-import { notifySafe, notifyCritical } from "@/components/ui/toast";
+import {
+    notifySafe,
+    notifyCaution,
+    notifyCritical,
+} from "@/components/ui/toast";
 import { reportsApi } from "@/services/reportsApi";
 import { mediaApi } from "@/services/mediaApi";
 
 vi.mock("@/components/ui/toast", () => ({
     notifySafe: vi.fn(),
+    notifyCaution: vi.fn(),
     notifyCritical: vi.fn(),
 }));
 
@@ -91,6 +96,7 @@ async function submitMinimalIncidentReport(description: string) {
     await userEvent.click(
         screen.getByRole("button", { name: "Submit Report" }),
     );
+    await waitFor(() => expect(reportsApi.submitReport).toHaveBeenCalled());
 }
 
 describe("ReportsPage", () => {
@@ -98,6 +104,7 @@ describe("ReportsPage", () => {
         URL.createObjectURL = vi.fn(() => "blob:mock-url");
         URL.revokeObjectURL = vi.fn();
         vi.mocked(notifySafe).mockClear();
+        vi.mocked(notifyCaution).mockClear();
         vi.mocked(notifyCritical).mockClear();
         vi.mocked(reportsApi.getSpecies).mockResolvedValue({ species: [] });
         vi.mocked(reportsApi.listReports).mockResolvedValue({
@@ -233,10 +240,13 @@ describe("ReportsPage", () => {
         setUser("ranger");
         render(<ReportsPage />);
         await submitMinimalIncidentReport("Snare found near the river");
-        expect(notifyCritical).toHaveBeenCalledWith(
-            "Submission failed",
-            "Could not send report to the server",
-        );
+        await waitFor(() => {
+            expect(notifyCaution).toHaveBeenCalledWith(
+                "Saved to this device",
+                expect.any(String),
+            );
+        });
+        expect(notifyCritical).not.toHaveBeenCalled();
     });
 
     it("uploads attached photos through mediaApi and includes the returned url in the submitted report", async () => {
@@ -262,10 +272,12 @@ describe("ReportsPage", () => {
         setUser("ranger");
         render(<ReportsPage />);
         await submitMinimalIncidentReport("Snare found near the river");
-        expect(notifySafe).toHaveBeenCalledWith(
-            "Report submitted",
-            expect.any(String),
-        );
+        await waitFor(() => {
+            expect(notifySafe).toHaveBeenCalledWith(
+                "Report submitted",
+                expect.any(String),
+            );
+        });
         expect(window.scrollTo).toHaveBeenCalledWith({
             top: 0,
             behavior: "smooth",
