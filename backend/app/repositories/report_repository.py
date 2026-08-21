@@ -140,6 +140,35 @@ class ReportRepository:
 
         return results, total
 
+    async def find_by_client_id(
+        self,
+        user_id: str,
+        client_id: str,
+    ) -> Optional[dict]:
+        row = (
+            await self.db.execute(
+                text("""
+                    SELECT id, report_type, created_at
+                    FROM field_reports
+                    WHERE submitted_by = :uid
+                      AND client_id = :cid
+                      AND deleted_at IS NULL
+                """),
+                {"uid": user_id, "cid": client_id},
+            )
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return {
+            "report_id": str(row[0]),
+            "report_type": row[1],
+            "status": "submitted",
+            "submitted_by": user_id,
+            "created_at": row[2],
+        }
+
     async def create(
         self,
         user_id: str,
@@ -153,6 +182,7 @@ class ReportRepository:
         species: Optional[str] = None,
         count: Optional[int] = None,
         images: Optional[list] = None,
+        client_id: Optional[str] = None,
     ) -> dict:
         if route_id is not None:
             exists = (
@@ -173,10 +203,11 @@ class ReportRepository:
                 text("""
                 INSERT INTO field_reports
                     (submitted_by, report_type, description, location,
-                     occurred_at, route_id)
+                     occurred_at, route_id, client_id)
                 VALUES
                     (:uid, CAST(:rtype AS report_type), :desc,
-                     ST_GeogFromText(:wkt), :occurred_at, :route_id)
+                     ST_GeogFromText(:wkt), :occurred_at, :route_id,
+                     CAST(:client_id AS UUID))
                 RETURNING id, created_at
             """),
                 {
@@ -186,6 +217,7 @@ class ReportRepository:
                     "wkt": location_wkt,
                     "occurred_at": occurred_at,
                     "route_id": route_id,
+                    "client_id": client_id,
                 },
             )
         ).fetchone()

@@ -58,6 +58,15 @@ class ReportService:
                 detail="species is required for sighting reports",
             )
 
+        if data.client_id:
+            existing = await self.repo.find_by_client_id(
+                current_user.id,
+                data.client_id,
+            )
+            if existing is not None:
+                existing["submitted_by_username"] = current_user.username
+                return existing
+
         wkt = f"POINT({lon} {lat})"
         result = await self.repo.create(
             user_id=current_user.id,
@@ -71,6 +80,7 @@ class ReportService:
             species=data.species,
             count=data.count,
             images=data.images,
+            client_id=data.client_id,
         )
         result["submitted_by_username"] = current_user.username
         return result

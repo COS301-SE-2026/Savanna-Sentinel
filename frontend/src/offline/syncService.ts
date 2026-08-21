@@ -35,6 +35,7 @@ async function syncCreate(item: OutboxItem): Promise<void> {
         count: draft.count ?? undefined,
         images,
         sync_status: "pending",
+        client_id: item.draftLocalId,
     };
 
     await reportsApi.submitReport(payload);

@@ -76,6 +76,7 @@ export interface ReportCreate {
     images?: string[];
     route_id?: string;
     sync_status?: SyncStatus;
+    client_id?: string;
 }
 
 export interface ReportUpdate {

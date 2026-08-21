@@ -172,6 +172,7 @@ export default function ReportsPage() {
                 count: input.count ?? undefined,
                 images,
                 sync_status: "pending",
+                client_id: localId,
             };
 
             const res = await reportsApi.submitReport(payload);
