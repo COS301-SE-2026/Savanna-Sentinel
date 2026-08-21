@@ -26,6 +26,8 @@ export interface DraftPhoto {
     draftLocalId: string;
     blob: Blob;
     contentType: string;
+    fileName: string;
+    remoteUrl?: string;
 }
 
 export interface OutboxItem {
@@ -62,6 +64,10 @@ db.version(1).stores({
     outbox: "id, createdAt",
     cache: "key, fetchedAt",
     routes: "routeId, userId, savedAt",
+});
+
+db.version(2).stores({
+    outbox: "id, userId, draftLocalId, createdAt",
 });
 
 export const cacheKeys = {
