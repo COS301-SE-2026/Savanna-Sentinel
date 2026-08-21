@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { usersApi } from "@/services/usersApi";
 import type { UserResponse } from "@/services/usersApi";
+import { loadProfile } from "@/offline/profileCache";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,10 @@ import {
 
 export const ProfilePage: React.FC = () => {
     const [profile, setProfile] = useState<UserResponse | null>(null);
+    const [offlineNames, setOfflineNames] = useState<{
+        first: string;
+        last: string;
+    } | null>(null);
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
 
@@ -38,15 +43,17 @@ export const ProfilePage: React.FC = () => {
     const [isConfirming, setIsConfirming] = useState(false);
 
     const logout = useAuthStore((s) => s.logout);
-    const profileFirstName = profile?.first_name ?? "";
-    const profileLastName = profile?.last_name ?? "";
+    const user = useAuthStore((s) => s.user);
+    const isOffline = offlineNames !== null;
+    const profileFirstName = profile?.first_name ?? offlineNames?.first ?? "";
+    const profileLastName = profile?.last_name ?? offlineNames?.last ?? "";
     const hasAnyProfileName = firstName.trim() !== "" || lastName.trim() !== "";
     const isProfileDirty =
         !isLoadingProfile &&
         (firstName.trim() !== profileFirstName.trim() ||
             lastName.trim() !== profileLastName.trim());
     const isSaveDisabled =
-        isSavingProfile || !isProfileDirty || !hasAnyProfileName;
+        isOffline || isSavingProfile || !isProfileDirty || !hasAnyProfileName;
     const isResetDisabled = !isProfileDirty;
     const canChangePassword =
         currentPassword.trim() !== "" &&
@@ -57,7 +64,8 @@ export const ProfilePage: React.FC = () => {
         currentPassword !== newPassword &&
         newPassword === confirmPassword;
 
-    const isChangePasswordDisabled = isChangingPassword || !canChangePassword;
+    const isChangePasswordDisabled =
+        isOffline || isChangingPassword || !canChangePassword;
     const isConfirmDialogOpen = pendingAction !== null;
     const confirmDialogTitle =
         pendingAction === "change-password"
@@ -70,13 +78,20 @@ export const ProfilePage: React.FC = () => {
 
     useEffect(() => {
         let isMounted = true;
-        usersApi
-            .getMe()
-            .then((p) => {
+        loadProfile(user?.id ?? null)
+            .then((result) => {
                 if (!isMounted) return;
-                setProfile(p);
-                setFirstName(p.first_name ?? "");
-                setLastName(p.last_name ?? "");
+                setProfile(result.profile);
+                setFirstName(result.firstName);
+                setLastName(result.lastName);
+                setOfflineNames(
+                    result.isFromCache
+                        ? {
+                              first: result.firstName,
+                              last: result.lastName,
+                          }
+                        : null,
+                );
             })
             .catch(() => {
                 if (!isMounted) return;
@@ -87,7 +102,7 @@ export const ProfilePage: React.FC = () => {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [user?.id]);
 
     const getErrorMessage = (err: unknown, fallback: string) => {
         if (typeof err === "object" && err !== null) {
@@ -261,11 +276,19 @@ export const ProfilePage: React.FC = () => {
                             onSubmit={onSaveProfile}
                             className="flex flex-col gap-5"
                         >
+                            {isOffline && (
+                                <p className="text-sm text-status-caution-text">
+                                    No connection. Showing the name saved on
+                                    this device. Changes need a connection.
+                                </p>
+                            )}
+
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="first_name">First name</Label>
                                 <Input
                                     id="first_name"
                                     value={firstName}
+                                    disabled={isOffline}
                                     onChange={(e) =>
                                         setFirstName(e.target.value)
                                     }
@@ -277,6 +300,7 @@ export const ProfilePage: React.FC = () => {
                                 <Input
                                     id="last_name"
                                     value={lastName}
+                                    disabled={isOffline}
                                     onChange={(e) =>
                                         setLastName(e.target.value)
                                     }

@@ -74,6 +74,7 @@ export const cacheKeys = {
     riskGrid: (parkId: string) => `risk-grid:${parkId}`,
     reports: (query: string) => `reports:${query}`,
     savedRoutes: () => "saved-routes:list",
+    profile: () => "profile:me",
 };
 
 export interface CacheRead<T> {

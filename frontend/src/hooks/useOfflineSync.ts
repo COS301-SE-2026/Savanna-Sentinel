@@ -39,7 +39,8 @@ export function useOfflineSync(onSynced?: () => void): OfflineSyncState {
                 );
                 onSyncedRef.current?.();
             }
-        } catch {
+        } catch (error) {
+            console.error("Offline sync failed", error);
         } finally {
             setSyncing(false);
             setPending(await countPending(userId).catch(() => 0));
