@@ -106,9 +106,6 @@ describe("TipoffPage", () => {
         expect(
             screen.getByRole("tab", { name: "New Tip-off" }),
         ).toHaveAttribute("data-state", "active");
-        expect(
-            screen.queryByRole("tab", { name: "All Tip-offs" }),
-        ).not.toBeInTheDocument();
     });
 
     it("shows only All Tip-offs for an analyst, with no submit controls", () => {

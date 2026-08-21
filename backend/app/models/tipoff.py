@@ -1,0 +1,48 @@
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
+
+from sqlalchemy import DateTime, Enum, ForeignKey, Text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from app.models.report import GeographyPoint  # noqa: I001
+
+
+class _BASE(DeclarativeBase):
+    pass
+
+class TipOff(_BASE):
+    __tablename__ = "tipoffs"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    submitted_by: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+    report_type: Mapped[str] = mapped_column(
+        Enum("incident", "sighting", name="report_type", create_type=False),
+        nullable=False,
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    location: Mapped[str] = mapped_column(GeographyPoint, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
