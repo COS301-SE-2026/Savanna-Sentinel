@@ -1,10 +1,12 @@
 import {
+    LayoutDashboard,
     FileText,
     Map,
     RouteIcon,
     Upload,
     ShieldCheck,
     User,
+    Megaphone,
     type LucideIcon,
 } from "lucide-react";
 
@@ -17,6 +19,12 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+    {
+        label: "Dashboard",
+        path: "/dashboard",
+        icon: LayoutDashboard,
+        roles: [],
+    },
     {
         label: "Reports",
         path: "/reports",
@@ -34,6 +42,12 @@ export const NAV_ITEMS: NavItem[] = [
         path: "/patrol",
         icon: RouteIcon,
         roles: ["ranger", "admin"],
+    },
+    {
+        label: "Tip-offs",
+        path: "/tipoffs",
+        icon: Megaphone,
+        roles: ["community_liaison", "analyst", "ranger", "admin"],
     },
     {
         label: "Ingestion",

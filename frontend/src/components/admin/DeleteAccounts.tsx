@@ -17,6 +17,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { usersApi, type UserResponse } from "@/services/usersApi";
 import { useManagedUsers } from "@/hooks/useManagedUsers";
 import { UserSearchFilterBar } from "@/components/admin/UserSearchFilterBar";
@@ -43,19 +44,18 @@ interface UserRowProps {
 export const UserRow = ({ user, onDeleted }: UserRowProps) => {
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     const fullName = `${user.first_name} ${user.last_name}`;
 
     const handleConfirm = async () => {
         setIsConfirmOpen(false);
         setIsDeleting(true);
-        setError(null);
         try {
             await usersApi.softDeleteUser(user.id);
+            notifySafe("Account deleted", `${fullName}'s account was deleted.`);
             onDeleted();
         } catch {
-            setError("Failed to delete account.");
+            notifyCritical("Failed to delete account.");
         } finally {
             setIsDeleting(false);
         }
@@ -113,17 +113,6 @@ export const UserRow = ({ user, onDeleted }: UserRowProps) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-            {error && (
-                <TableRow className={rowClass}>
-                    <TableCell
-                        colSpan={5}
-                        className="bg-status-critical/5 px-4 py-1.5 text-xs italic text-status-critical-text"
-                    >
-                        {error}
-                    </TableCell>
-                </TableRow>
-            )}
         </>
     );
 };

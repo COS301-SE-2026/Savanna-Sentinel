@@ -29,8 +29,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import type { ArmedField, LatLon } from "@/types/patrol";
 import { getSnapHeightPx } from "@/lib/utils";
 
-const PARK_ID = "klaserie";
-const PARK_CENTER: [number, number] = [31.18, -24.2];
+const PARK_ID = "reserve";
 const DEFAULT_ZOOM = 10;
 
 const COLLAPSED_SNAP = "24px";
@@ -141,9 +140,39 @@ function SidebarContent({
     );
 }
 
+const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
+    let minLng = Infinity,
+        maxLng = -Infinity;
+    let minLat = Infinity,
+        maxLat = -Infinity;
+
+    for (const cell of cells) {
+        for (const [lng, lat] of cell.corners) {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+        }
+    }
+
+    const center: [number, number] = [
+        (minLng + maxLng) / 2,
+        (minLat + maxLat) / 2,
+    ];
+    const bounds: [[number, number], [number, number]] = [
+        [minLng, minLat],
+        [maxLng, maxLat],
+    ];
+
+    return { center, bounds };
+};
+
 export default function PatrolPlannerPage() {
     const isMobile = useIsMobile();
     const [map, setMap] = useState<maplibregl.Map | null>(null);
+    const [mapCenter, setMapCenter] = useState<[number, number]>([
+        20.33, -34.41,
+    ]);
 
     const [startPoint, setStartPoint] = useState<LatLon | null>(null);
     const [endPoint, setEndPoint] = useState<LatLon | null>(null);
@@ -155,10 +184,15 @@ export default function PatrolPlannerPage() {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const { status: jobStatus, routes } = usePollRouteJob(requestId);
 
+    const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
+        COLLAPSED_SNAP,
+    );
+
     const [prevRoutes, setPrevRoutes] = useState(routes);
     if (routes !== prevRoutes) {
         setPrevRoutes(routes);
         setSelectedIndex(0);
+        if (isMobile && routes.length > 0) setDrawerSnap(EXPANDED_SNAP);
     }
 
     const [savingIndex, setSavingIndex] = useState<number | null>(null);
@@ -181,9 +215,6 @@ export default function PatrolPlannerPage() {
     const [riskByCell, setRiskByCell] = useState<Map<string, number>>(
         new Map(),
     );
-    const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
-        COLLAPSED_SNAP,
-    );
 
     useEffect(() => {
         let isCancelled = false;
@@ -192,7 +223,18 @@ export default function PatrolPlannerPage() {
             .then((response) => {
                 if (isCancelled) return;
                 setGrid(response);
-                setRiskByCell(assignRandomRisk(parseGridCells(response)));
+
+                const cells = parseGridCells(response);
+                setRiskByCell(assignRandomRisk(cells));
+
+                if (cells.length > 0) {
+                    const { center, bounds } = getGridCenterAndBounds(cells);
+                    setMapCenter(center);
+
+                    if (map) {
+                        map.fitBounds(bounds, { padding: 40, animate: false });
+                    }
+                }
             })
             .catch(() => {
                 if (!isCancelled) notifyCritical("Could not load risk grid");
@@ -203,7 +245,7 @@ export default function PatrolPlannerPage() {
         return () => {
             isCancelled = true;
         };
-    }, []);
+    }, [map]);
 
     function handleMapClick(lngLat: { lng: number; lat: number }) {
         if (!armedField) return;
@@ -211,6 +253,17 @@ export default function PatrolPlannerPage() {
         if (armedField === "start") setStartPoint(point);
         else setEndPoint(point);
         setArmedField(null);
+        if (isMobile) setDrawerSnap(EXPANDED_SNAP);
+    }
+
+    function handleArmField(field: "start" | "end") {
+        setArmedField(field);
+        if (isMobile) setDrawerSnap(COLLAPSED_SNAP);
+    }
+
+    function handleSelectRoute(index: number) {
+        setSelectedIndex(index);
+        if (isMobile) setDrawerSnap(COLLAPSED_SNAP);
     }
 
     function handleRandomizeRisk() {
@@ -309,7 +362,7 @@ export default function PatrolPlannerPage() {
         startPoint,
         endPoint,
         armedField,
-        onArmField: setArmedField,
+        onArmField: handleArmField,
         onStartPointChange: setStartPoint,
         onEndPointChange: setEndPoint,
         maxTime,
@@ -322,7 +375,7 @@ export default function PatrolPlannerPage() {
         jobStatus: displayStatus,
         routes: displayRoutes,
         selectedIndex,
-        onSelectRoute: setSelectedIndex,
+        onSelectRoute: handleSelectRoute,
         onSaveRoute: handleSaveRoute,
         savingIndex,
         savedIndices,
@@ -341,21 +394,23 @@ export default function PatrolPlannerPage() {
             )}
 
             <div className="relative min-h-0 flex-1 overflow-hidden">
-                <MapView
-                    center={PARK_CENTER}
-                    zoom={DEFAULT_ZOOM}
-                    onMapReady={setMap}
-                    onMapRemove={() => setMap(null)}
-                    onMapClick={handleMapClick}
-                    className={
-                        isPickingActive
-                            ? "absolute inset-0 cursor-crosshair"
-                            : "absolute inset-0"
-                    }
-                />
+                {!isGridLoading && (
+                    <MapView
+                        center={mapCenter}
+                        zoom={DEFAULT_ZOOM}
+                        onMapReady={setMap}
+                        onMapRemove={() => setMap(null)}
+                        onMapClick={handleMapClick}
+                        className={
+                            isPickingActive
+                                ? "absolute inset-0 cursor-crosshair"
+                                : "absolute inset-0"
+                        }
+                    />
+                )}
                 <MapControls
                     map={map}
-                    defaultCenter={PARK_CENTER}
+                    defaultCenter={mapCenter}
                     defaultZoom={DEFAULT_ZOOM}
                 />
                 <MapLegend

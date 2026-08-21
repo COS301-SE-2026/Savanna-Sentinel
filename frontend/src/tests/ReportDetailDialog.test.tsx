@@ -101,4 +101,14 @@ describe("ReportDetailDialog", () => {
         );
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
+
+    it("renders the comment thread for the given report", () => {
+        const report = makeReport({ localId: "report-42" });
+        render(<ReportDetailDialog report={report} onOpenChange={vi.fn()} />);
+
+        expect(screen.getByText("Discussion")).toBeInTheDocument();
+        expect(
+            screen.getByText("No status", { selector: '[data-slot="badge"]' }),
+        ).toBeInTheDocument();
+    });
 });
