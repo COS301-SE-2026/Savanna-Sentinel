@@ -14,7 +14,8 @@ _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 # hardcoded for now
 _PARK_GRID_FILES = {
-    "klaserie": _DATA_DIR / "klaserie_grid.geojson",
+    "klaserie": _DATA_DIR / "reserve-grid.geojson",
+    "reserve": _DATA_DIR / "reserve-grid.geojson",
 }
 
 _cell_risk_scores_table = table(
@@ -72,10 +73,14 @@ def load_grid_geometry(park_id: str) -> list[dict]:
             (left, bottom),
             (left, top),
         ]
+
+        raw_id = str(props["id"]).replace("cell-", "")
+        cell_id = f"cell-{int(float(raw_id))}"
+
         corners = [to_wgs84.transform(x, y) for x, y in corners_xy]
         cells.append(
             {
-                "cell_id": f"cell-{int(props['id'])}",
+                "cell_id": cell_id,
                 "row": int(props["row_index"]),
                 "col": int(props["col_index"]),
                 "corners": corners,
@@ -84,6 +89,8 @@ def load_grid_geometry(park_id: str) -> list[dict]:
     return cells
 
 
+def invalidate_grid_cache() -> None:
+    load_grid_geometry.cache_clear()
 async def save_model_version(
     session: AsyncSession,
     park_id: str,

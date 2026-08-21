@@ -4,7 +4,10 @@ import pytest
 from pyproj import Transformer
 
 from app.repositories import risk_repository
-from app.repositories.risk_repository import load_grid_geometry
+from app.repositories.risk_repository import (
+    invalidate_grid_cache,
+    load_grid_geometry,
+)
 
 _EPSG = 32736
 _CELL_M = 1000.0
@@ -119,3 +122,15 @@ def test_klaserie_grid_geometry_corners_within_park_bounds():
         for lon, lat in cell["corners"]:
             assert 31.0 < lon < 31.4
             assert -24.4 < lat < -24.0
+
+
+def test_invalidate_cache_invalidates_the_cache(grid_2x2):
+    invalidate_grid_cache()
+
+    assert load_grid_geometry.cache_info().currsize == 0
+
+    load_grid_geometry(grid_2x2)
+    assert load_grid_geometry.cache_info().currsize == 1
+
+    invalidate_grid_cache()
+    assert load_grid_geometry.cache_info().currsize == 0

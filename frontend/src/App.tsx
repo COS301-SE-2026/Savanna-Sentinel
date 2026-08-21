@@ -16,6 +16,7 @@ import AdminPage from "@/pages/AdminPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import HelpPage from "@/pages/HelpPage";
+import ParkZoneUploadPage from "./pages/ParkZoneUploadPage";
 
 const App = () => {
     return (
@@ -39,6 +40,7 @@ const App = () => {
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/help" element={<HelpPage />} />
                     </Route>
+                    <Route path="/upload" element={<ParkZoneUploadPage />} />
                 </Route>
 
                 {/* authed users see 404, non logged in are redirected to login page */}

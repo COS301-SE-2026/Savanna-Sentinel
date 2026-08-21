@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, require_roles
@@ -18,6 +18,8 @@ from app.schemas.risk import (
     RiskTrainRequest,
 )
 from app.services.risk_service import (
+    check_if_uploaded,
+    delete_geojson_file,
     get_active_model_metrics,
     get_cell_explanation,
     get_heatmap,
@@ -26,6 +28,7 @@ from app.services.risk_service import (
     get_training_job,
     trigger_scoring_job,
     trigger_training_job,
+    validate_boundaries,
 )
 
 router = APIRouter(prefix="/risk", tags=["risk"])
@@ -50,6 +53,50 @@ async def get_grid(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=_PARK_NOT_FOUND,
         ) from exc
+
+
+@router.post(
+    "/upload",
+    status_code=status.HTTP_201_CREATED,
+    summary="Allows a geojson to be uploaded to be used for parks",
+)
+async def upload_geojson(
+    authenticated: Annotated[User, Depends(require_roles("admin"))],
+    file: Annotated[UploadFile, File()],
+):
+    content = await file.read()
+
+    validate_boundaries(content)
+
+
+@router.get(
+    "/initialise",
+    status_code=status.HTTP_200_OK,
+    summary="Returns a JSON determining if a geojson has been uploaded",
+)
+async def check_file(
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    result = check_if_uploaded()
+
+    return {
+        "uploaded": result,
+    }
+
+
+@router.delete(
+    "/geojson",
+    status_code=status.HTTP_200_OK,
+    summary="Deletes the uploaded geojson in case the user is not satisfied",
+)
+async def delete_geojson(
+    authenticated: Annotated[User, Depends(require_roles("admin"))],
+):
+    result = delete_geojson_file()
+
+    return {
+        "success": result,
+    }
 
 
 @router.post(
