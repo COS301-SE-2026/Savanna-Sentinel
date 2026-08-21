@@ -121,9 +121,12 @@ test.describe("Patrol Planner golden path", () => {
             const drawer = page.locator('[data-slot="drawer-content"]');
             await expect(drawer).toBeVisible();
 
-            const box = await drawer.boundingBox();
-            expect(box).not.toBeNull();
-            expect(box!.y).toBeLessThan(844);
+            await expect
+                .poll(async () => {
+                    const box = await drawer.boundingBox();
+                    return box?.y;
+                })
+                .toBeLessThan(844);
 
             await expect(
                 page.getByRole("button", { name: /zoom in/i }),

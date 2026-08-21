@@ -20,13 +20,42 @@ export interface ParkGridResponse {
     features: GridCellFeature[];
 }
 
+export interface BoundaryCheckResponse {
+    uploaded: boolean;
+}
+export interface DeleteBoundaryResponse {
+    success: boolean;
+}
+
 export const riskApi = {
     getParkGrid: async (
-        parkId: string = "klaserie",
+        parkId: string = "reserve",
     ): Promise<ParkGridResponse> =>
         api
             .get<ParkGridResponse>("/risk/grid", {
                 params: { park_id: parkId },
             })
             .then((r) => r.data),
+
+    uploadParkZone: async (file: File) => {
+        const formData = new FormData();
+
+        formData.append("file", file);
+        return api.post("/risk/upload", formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
+    },
+
+    checkUploaded: async (): Promise<BoundaryCheckResponse> => {
+        return api
+            .get<BoundaryCheckResponse>("/risk/initialise")
+            .then((r) => r.data);
+    },
+    deleteUpload: async (): Promise<DeleteBoundaryResponse> => {
+        return api
+            .delete<DeleteBoundaryResponse>("/risk/geojson")
+            .then((r) => r.data);
+    },
 };

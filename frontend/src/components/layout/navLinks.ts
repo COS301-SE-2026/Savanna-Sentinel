@@ -1,4 +1,5 @@
 import {
+    LayoutDashboard,
     FileText,
     Map,
     RouteIcon,
@@ -18,6 +19,12 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+    {
+        label: "Dashboard",
+        path: "/dashboard",
+        icon: LayoutDashboard,
+        roles: [],
+    },
     {
         label: "Reports",
         path: "/reports",
