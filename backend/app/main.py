@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.ingestion import router as ingestion_router
 from app.api.v1.media import router as media_router
 from app.api.v1.reports import router as reports_router
@@ -46,6 +47,7 @@ app.include_router(reports_router, prefix="/v1")
 app.include_router(audit_router, prefix="/v1")
 app.include_router(media_router, prefix="/v1")
 app.include_router(risk_router, prefix="/v1")
+app.include_router(dashboard_router, prefix="/v1")
 
 
 @app.get("/v1/health", tags=["health"])

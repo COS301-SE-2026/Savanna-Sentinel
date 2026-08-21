@@ -7,6 +7,7 @@ import RegisterPage from "@/pages/RegisterPage";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
 
+import DashboardPage from "@/pages/DashboardPage";
 import ReportsPage from "@/pages/ReportsPage";
 import MapPage from "@/pages/MapPage";
 import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
@@ -31,6 +32,7 @@ const App = () => {
                 {/* Protected routes - AppLayout renders TopBar + BurgerMenu for all children */}
                 <Route element={<ProtectedRoute />}>
                     <Route element={<AppLayout />}>
+                        <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/admin" element={<AdminPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
                         <Route path="/map" element={<MapPage />} />

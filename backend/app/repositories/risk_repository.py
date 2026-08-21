@@ -472,3 +472,59 @@ async def get_active_model_details(
         "n_training_examples": model.n_training_examples,
         "metrics": model.metrics,
     }
+
+
+def risk_level_for_score(risk_score: float) -> str:
+    if risk_score >= 0.75:
+        return "Critical"
+    if risk_score >= 0.5:
+        return "High"
+    if risk_score >= 0.25:
+        return "Medium"
+    return "Low"
+
+
+async def get_risk_zone_overview(
+    session: AsyncSession,
+    park_id: str,
+    limit: int = 5,
+) -> list[dict]:
+    heatmap_row = (
+        await session.execute(
+            text("""
+                SELECT rh.id
+                FROM risk_heatmaps rh
+                JOIN risk_models rm ON rm.id = rh.model_id
+                WHERE rm.park_id = :park_id
+                ORDER BY rh.computed_at DESC
+                LIMIT 1
+            """),
+            {"park_id": park_id},
+        )
+    ).fetchone()
+    if heatmap_row is None:
+        return []
+
+    rows = (
+        await session.execute(
+            text("""
+                SELECT gc.row_index AS row_index, gc.col_index AS col_index,
+                    crs.risk_score
+                FROM cell_risk_scores crs
+                JOIN grid_cells gc ON gc.id = crs.grid_cell_id
+                WHERE crs.heatmap_id = :heatmap_id
+                ORDER BY crs.risk_score DESC
+                LIMIT :limit
+            """),
+            {"heatmap_id": heatmap_row.id, "limit": limit},
+        )
+    ).fetchall()
+
+    return [
+        {
+            "zone": f"Zone {row.row_index + 1}-{row.col_index + 1}",
+            "level": risk_level_for_score(row.risk_score),
+            "risk_score": row.risk_score,
+        }
+        for row in rows
+    ]
