@@ -14,10 +14,10 @@ import {
     DrawerDescription,
     DrawerTitle,
 } from "@/components/ui/drawer";
-import { riskApi } from "@/services/riskApi";
 import type { ParkGridResponse } from "@/services/riskApi";
-import { assignRandomRisk, parseGridCells } from "@/lib/riskGrid";
-import { notifyCritical } from "@/components/ui/toast";
+import { loadRiskGrid } from "@/offline/riskGridCache";
+import { useAuthStore } from "@/store/authStore";
+import { notifyCaution, notifyCritical } from "@/components/ui/toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getSnapHeightPx } from "@/lib/utils";
 
@@ -35,11 +35,15 @@ export default function MapPage() {
     const isMobile = useIsMobile();
     const [map, setMap] = useState<maplibregl.Map | null>(null);
 
+    const user = useAuthStore((s) => s.user);
+
     const [grid, setGrid] = useState<ParkGridResponse | null>(null);
     const [isGridLoading, setIsGridLoading] = useState(true);
     const [riskByCell, setRiskByCell] = useState<Map<string, number>>(
         new Map(),
     );
+    const [gridFetchedAt, setGridFetchedAt] = useState<number | null>(null);
+    const [isGridStale, setGridStale] = useState(false);
 
     const [dayIndex, setDayIndex] = useState(SNAPSHOTS.length - 1);
     const [timeIndex, setTimeIndex] = useState(TIME_OF_DAY_SLOTS.length - 1);
@@ -52,12 +56,19 @@ export default function MapPage() {
 
     useEffect(() => {
         let isCancelled = false;
-        riskApi
-            .getParkGrid(PARK_ID)
-            .then((response) => {
+        loadRiskGrid(PARK_ID, user?.id ?? null)
+            .then((result) => {
                 if (isCancelled) return;
-                setGrid(response);
-                setRiskByCell(assignRandomRisk(parseGridCells(response)));
+                setGrid(result.grid);
+                setRiskByCell(result.riskByCell);
+                setGridFetchedAt(result.fetchedAt);
+                setGridStale(result.isStale);
+                if (result.isFromCache) {
+                    notifyCaution(
+                        "Showing saved risk map",
+                        "No connection, so this is the last version downloaded.",
+                    );
+                }
             })
             .catch(() => {
                 if (!isCancelled) notifyCritical("Could not load risk grid");
@@ -68,7 +79,7 @@ export default function MapPage() {
         return () => {
             isCancelled = true;
         };
-    }, []);
+    }, [user?.id]);
 
     const panelProps = {
         riskByCell,
@@ -80,6 +91,8 @@ export default function MapPage() {
         onHeatmapVisibleChange: setHeatmapVisible,
         opacity,
         onOpacityChange: setOpacity,
+        gridFetchedAt,
+        gridStale: isGridStale,
     };
 
     return (

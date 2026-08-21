@@ -18,9 +18,10 @@ import {
     DrawerTitle,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { riskApi } from "@/services/riskApi";
 import { routeApi } from "@/services/routeApi";
 import type { ParkGridResponse } from "@/services/riskApi";
+import { loadRiskGrid } from "@/offline/riskGridCache";
+import { useAuthStore } from "@/store/authStore";
 import type { SavedRoute, PlannedRoute } from "@/services/routeApi";
 import { usePollRouteJob } from "@/hooks/usePollRouteJob";
 import { assignRandomRisk, parseGridCells } from "@/lib/riskGrid";
@@ -142,6 +143,7 @@ function SidebarContent({
 }
 
 export default function PatrolPlannerPage() {
+    const user = useAuthStore((s) => s.user);
     const isMobile = useIsMobile();
     const [map, setMap] = useState<maplibregl.Map | null>(null);
 
@@ -189,12 +191,11 @@ export default function PatrolPlannerPage() {
 
     useEffect(() => {
         let isCancelled = false;
-        riskApi
-            .getParkGrid(PARK_ID)
-            .then((response) => {
+        loadRiskGrid(PARK_ID, user?.id ?? null)
+            .then((result) => {
                 if (isCancelled) return;
-                setGrid(response);
-                setRiskByCell(assignRandomRisk(parseGridCells(response)));
+                setGrid(result.grid);
+                setRiskByCell(result.riskByCell);
             })
             .catch(() => {
                 if (!isCancelled) notifyCritical("Could not load risk grid");
@@ -205,7 +206,7 @@ export default function PatrolPlannerPage() {
         return () => {
             isCancelled = true;
         };
-    }, []);
+    }, [user?.id]);
 
     function handleMapClick(lngLat: { lng: number; lat: number }) {
         if (!armedField) return;
