@@ -4,6 +4,7 @@ export interface StatCard {
     label: string,
     value: number, // float
     unit?: string | null,
+    badge: string,
 }
 
 export interface PatrolCoverage {
@@ -41,7 +42,7 @@ export interface RecentFieldReport {
     ranger?: string | null,
     report_type: string,
     severity?: string | null,
-    zone?: string | null,
+    zone?: string | null,   // THIS IS RETURNING NULL!!
     occurred_at: string,
 }
 
