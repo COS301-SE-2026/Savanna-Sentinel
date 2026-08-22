@@ -58,7 +58,6 @@ export async function saveDraft(
     localId: string,
     input: DraftReportInput,
     syncStatus: DraftSyncStatus,
-    remoteId?: string,
 ): Promise<void> {
     const { photos, ...rest } = input;
     const payload: DraftPayload = rest;
@@ -68,7 +67,6 @@ export async function saveDraft(
         userId,
         syncStatus,
         createdAt: Date.now(),
-        remoteId,
         payload,
     });
     await persistPhotos(localId, photos);
@@ -91,30 +89,18 @@ export async function listDrafts(userId: string): Promise<DraftReport[]> {
     );
 }
 
-export async function getDraft(
-    localId: string,
-): Promise<{ draft: DraftReport; remoteId?: string } | null> {
+export async function getDraft(localId: string): Promise<DraftReport | null> {
     const row = await db.drafts.get(localId);
     if (!row) return null;
 
     return {
-        remoteId: row.remoteId,
-        draft: {
-            ...(row.payload as DraftPayload),
-            photos: await readPhotos(localId),
-            localId: row.localId,
-            submittedBy: row.userId,
-            createdAt: new Date(row.createdAt).toISOString(),
-            syncStatus: row.syncStatus,
-        },
+        ...(row.payload as DraftPayload),
+        photos: await readPhotos(localId),
+        localId: row.localId,
+        submittedBy: row.userId,
+        createdAt: new Date(row.createdAt).toISOString(),
+        syncStatus: row.syncStatus,
     };
-}
-
-export async function markDraftSynced(
-    localId: string,
-    remoteId: string,
-): Promise<void> {
-    await db.drafts.update(localId, { syncStatus: "synced", remoteId });
 }
 
 export async function deleteDraft(localId: string): Promise<void> {

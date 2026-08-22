@@ -103,6 +103,25 @@ export interface ListReportsQueryParams {
     page_size?: number;
 }
 
+export type SyncItemStatus =
+    "created" | "updated" | "deleted" | "conflict" | "error";
+
+export interface SyncReportItem extends ReportCreate {
+    local_id: string;
+    deleted_at?: string;
+}
+
+export interface SyncResultItem {
+    local_id: string;
+    report_id?: string | null;
+    status: SyncItemStatus;
+    message?: string | null;
+}
+
+export interface SyncResponse {
+    results: SyncResultItem[];
+}
+
 export interface SpeciesResponse {
     species: string[];
 }
@@ -134,6 +153,11 @@ export const reportsApi = {
     deleteReport: async (reportId: string): Promise<void> => {
         await api.delete(`/reports/${reportId}`);
     },
+
+    syncReports: async (reports: SyncReportItem[]): Promise<SyncResponse> =>
+        api
+            .post<SyncResponse>("/reports/sync", { reports })
+            .then((r) => r.data),
 
     getReport: async (reportId: string): Promise<ReportResponse> =>
         api.get<ReportResponse>(`/reports/${reportId}`).then((r) => r.data),

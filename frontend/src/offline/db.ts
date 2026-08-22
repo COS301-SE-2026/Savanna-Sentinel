@@ -17,7 +17,6 @@ export interface OfflineDraft {
     userId: string;
     syncStatus: DraftSyncStatus;
     createdAt: number;
-    remoteId?: string;
     payload: unknown;
 }
 

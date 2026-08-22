@@ -1,7 +1,8 @@
 import { db, type OutboxItem } from "@/offline/db";
 import { deleteDraft, getDraft } from "@/offline/draftsStore";
+import { resolveSyncResult } from "@/offline/conflictResolver";
 import { resolvePhotoUrls } from "@/lib/media";
-import { reportsApi, type ReportCreate } from "@/services/reportsApi";
+import { reportsApi, type SyncReportItem } from "@/services/reportsApi";
 import { formatToUTC } from "@/lib/utils";
 
 const BASE_BACKOFF_MS = 5_000;
@@ -14,17 +15,28 @@ export interface SyncOutcome {
 
 let isFlushing = false;
 
-async function syncCreate(item: OutboxItem): Promise<void> {
-    const stored = await getDraft(item.draftLocalId);
-    if (!stored) return;
+async function buildSyncItem(item: OutboxItem): Promise<SyncReportItem | null> {
+    const draft = await getDraft(item.draftLocalId);
+    if (!draft) return null;
 
-    const { draft } = stored;
+    if (item.kind === "delete") {
+        return {
+            local_id: item.draftLocalId,
+            deleted_at: new Date().toISOString(),
+            report_type: draft.reportType,
+            location: { lat: draft.lat ?? 0, lon: draft.lon ?? 0 },
+            occurred_at: formatToUTC(draft.occurredAt),
+            description: draft.description,
+        };
+    }
+
     if (draft.lat === null || draft.lon === null) {
         throw new Error("Draft is missing coordinates");
     }
 
     const images = await resolvePhotoUrls(draft.photos);
-    const payload: ReportCreate = {
+    return {
+        local_id: item.draftLocalId,
         report_type: draft.reportType,
         location: { lat: draft.lat, lon: draft.lon },
         occurred_at: formatToUTC(draft.occurredAt),
@@ -34,23 +46,10 @@ async function syncCreate(item: OutboxItem): Promise<void> {
         species: draft.species || undefined,
         count: draft.count ?? undefined,
         images,
-        sync_status: "pending",
-        client_id: item.draftLocalId,
     };
-
-    await reportsApi.submitReport(payload);
-    await deleteDraft(item.draftLocalId);
 }
 
-async function syncDelete(item: OutboxItem): Promise<void> {
-    const stored = await getDraft(item.draftLocalId);
-    if (stored?.remoteId) {
-        await reportsApi.deleteReport(stored.remoteId);
-    }
-    await deleteDraft(item.draftLocalId);
-}
-
-async function recordFailure(item: OutboxItem, error: unknown): Promise<void> {
+async function recordFailure(item: OutboxItem, message: string): Promise<void> {
     const attempts = item.attempts + 1;
     const delay = Math.min(
         BASE_BACKOFF_MS * 2 ** (attempts - 1),
@@ -59,9 +58,13 @@ async function recordFailure(item: OutboxItem, error: unknown): Promise<void> {
 
     await db.outbox.update(item.id, {
         attempts,
-        lastError: error instanceof Error ? error.message : String(error),
+        lastError: message,
         nextAttemptAt: Date.now() + delay,
     });
+}
+
+function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
 }
 
 export async function flushOutbox(userId: string): Promise<SyncOutcome> {
@@ -70,21 +73,56 @@ export async function flushOutbox(userId: string): Promise<SyncOutcome> {
 
     try {
         const now = Date.now();
-        const items = (await db.outbox.where("userId").equals(userId).toArray())
+        const due = (await db.outbox.where("userId").equals(userId).toArray())
             .filter((item) => (item.nextAttemptAt ?? 0) <= now)
             .sort((a, b) => a.createdAt - b.createdAt);
 
-        let synced = 0;
+        if (due.length === 0) return { synced: 0, failed: 0 };
+
+        const byLocalId = new Map<string, OutboxItem>();
+        const payload: SyncReportItem[] = [];
         let failed = 0;
 
-        for (const item of items) {
+        for (const item of due) {
             try {
-                if (item.kind === "delete") await syncDelete(item);
-                else await syncCreate(item);
-                await db.outbox.delete(item.id);
-                synced++;
+                const built = await buildSyncItem(item);
+                if (!built) {
+                    await db.outbox.delete(item.id);
+                    continue;
+                }
+                byLocalId.set(item.draftLocalId, item);
+                payload.push(built);
             } catch (error) {
-                await recordFailure(item, error);
+                await recordFailure(item, errorMessage(error));
+                failed++;
+            }
+        }
+
+        if (payload.length === 0) return { synced: 0, failed };
+
+        let results;
+        try {
+            ({ results } = await reportsApi.syncReports(payload));
+        } catch (error) {
+            const message = errorMessage(error);
+            for (const item of byLocalId.values()) {
+                await recordFailure(item, message);
+            }
+            return { synced: 0, failed: failed + byLocalId.size };
+        }
+
+        let synced = 0;
+        for (const result of results) {
+            const item = byLocalId.get(result.local_id);
+            if (!item) continue;
+
+            const action = resolveSyncResult(result.status);
+            if (action.shouldDiscardLocal) {
+                await deleteDraft(item.draftLocalId);
+                await db.outbox.delete(item.id);
+                if (action.shouldCountAsSynced) synced++;
+            } else {
+                await recordFailure(item, result.message ?? "Sync failed");
                 failed++;
             }
         }
