@@ -1,19 +1,10 @@
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-type RiskLevel = "Critical" | "High" | "Medium" | "Low";
-
-interface RiskZone {
-    zone: string;
-    level: RiskLevel;
-    percent: number;
-}
-
-const RISK_ZONES: RiskZone[] = [];
+import type { RiskZone } from "@/services/dashboardApi";
 
 const LEVEL_STYLES: Record<
-    RiskLevel,
+    string,
     { badge: "critical" | "alert" | "caution" | "safe"; bar: string }
 > = {
     Critical: { badge: "critical", bar: "bg-status-critical" },
@@ -22,7 +13,11 @@ const LEVEL_STYLES: Record<
     Low: { badge: "safe", bar: "bg-status-safe" },
 };
 
-export function RiskZoneOverviewCard() {
+interface data {
+    riskData: RiskZone[],
+}
+
+export function RiskZoneOverviewCard({ riskData }: data) {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
             <div className="mb-4 flex items-center gap-2">
@@ -36,12 +31,12 @@ export function RiskZoneOverviewCard() {
                 </h2>
             </div>
             <div className="space-y-3">
-                {RISK_ZONES.length === 0 ? (
+                {riskData.length === 0 ? (
                     <p className="text-sm text-color-text-secondary">
                         No risk zone data available
                     </p>
                 ) : (
-                    RISK_ZONES.map((zone) => (
+                    riskData.map((zone) => (
                         <div key={zone.zone}>
                             <div className="mb-1 flex items-center justify-between">
                                 <span className="text-sm text-color-text-primary">
@@ -54,7 +49,7 @@ export function RiskZoneOverviewCard() {
                             <div
                                 className="h-1.5 w-full overflow-hidden rounded-full bg-color-surface-raised"
                                 role="progressbar"
-                                aria-valuenow={zone.percent}
+                                aria-valuenow={zone.risk_score}
                                 aria-valuemin={0}
                                 aria-valuemax={100}
                                 aria-label={`${zone.zone} risk level: ${zone.level}`}
@@ -64,7 +59,7 @@ export function RiskZoneOverviewCard() {
                                         "h-full rounded-full",
                                         LEVEL_STYLES[zone.level].bar,
                                     )}
-                                    style={{ width: `${zone.percent}%` }}
+                                    style={{ width: `${zone.risk_score}%` }}
                                 />
                             </div>
                         </div>
