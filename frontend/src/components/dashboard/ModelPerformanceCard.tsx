@@ -4,9 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import type { ModelPerformance } from "@/services/dashboardApi";
 
 // IMPORTANT, LAST TRAINED AT IS MISSING HERE??!
-export function ModelPerformanceCard({
-    metrics,
-}: ModelPerformance) {
+export function ModelPerformanceCard({ metrics }: ModelPerformance) {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
             <div className="mb-4 flex items-center justify-between gap-2">

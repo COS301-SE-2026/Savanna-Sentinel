@@ -15,7 +15,11 @@ describe("RiskZoneOverviewCard", () => {
         render(
             <RiskZoneOverviewCard
                 riskData={[
-                    { zone: "North corridor", level: "Critical", risk_score: 90 },
+                    {
+                        zone: "North corridor",
+                        level: "Critical",
+                        risk_score: 90,
+                    },
                     { zone: "River bend", level: "Low", risk_score: 20 },
                 ]}
             />,
@@ -25,7 +29,15 @@ describe("RiskZoneOverviewCard", () => {
         expect(screen.getByText("Critical")).toBeInTheDocument();
         expect(screen.getByText("River bend")).toBeInTheDocument();
         expect(screen.getByText("Low")).toBeInTheDocument();
-        expect(screen.getByRole("progressbar", { name: "North corridor risk level: Critical" })).toHaveAttribute("aria-valuenow", "90");
-        expect(screen.getByRole("progressbar", { name: "River bend risk level: Low" })).toHaveAttribute("aria-valuenow", "20");
+        expect(
+            screen.getByRole("progressbar", {
+                name: "North corridor risk level: Critical",
+            }),
+        ).toHaveAttribute("aria-valuenow", "90");
+        expect(
+            screen.getByRole("progressbar", {
+                name: "River bend risk level: Low",
+            }),
+        ).toHaveAttribute("aria-valuenow", "20");
     });
 });

@@ -27,8 +27,12 @@ describe("ReportTrendsCard", () => {
             />,
         );
 
-        expect(screen.getByRole("img", { name: "Mon: 4 reports" })).toBeInTheDocument();
-        expect(screen.getByRole("img", { name: "Tue: 8 reports" })).toBeInTheDocument();
+        expect(
+            screen.getByRole("img", { name: "Mon: 4 reports" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("img", { name: "Tue: 8 reports" }),
+        ).toBeInTheDocument();
         expect(screen.getByText("4")).toBeInTheDocument();
         expect(screen.getByText("8")).toBeInTheDocument();
         expect(screen.getAllByText("Mon")).toHaveLength(1);

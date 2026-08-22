@@ -38,6 +38,8 @@ describe("RecentFieldReportsCard", () => {
         expect(screen.getByText("Elephant sighting")).toBeInTheDocument();
         expect(screen.getByText("North corridor")).toBeInTheDocument();
         expect(screen.getByText("2026-08-22 08:30")).toBeInTheDocument();
-        expect(screen.queryByText("No recent field reports")).not.toBeInTheDocument();
+        expect(
+            screen.queryByText("No recent field reports"),
+        ).not.toBeInTheDocument();
     });
 });

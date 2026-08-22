@@ -76,7 +76,9 @@ describe("DashboardPage", () => {
         expect(screen.getByText("18")).toBeInTheDocument();
         expect(screen.getByText("Amina Yusuf")).toBeInTheDocument();
         expect(screen.getByText("Critical")).toBeInTheDocument();
-        expect(screen.getByRole("img", { name: "Mon: 4 reports" })).toBeInTheDocument();
+        expect(
+            screen.getByRole("img", { name: "Mon: 4 reports" }),
+        ).toBeInTheDocument();
         expect(screen.getByText("Precision")).toBeInTheDocument();
 
         vi.restoreAllMocks();
