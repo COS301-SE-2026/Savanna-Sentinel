@@ -9,11 +9,11 @@ const SEVERITY_BADGE_MAP: Record<string, ReportBadgeVariant> = {
     low: "safe",
 };
 
-interface data {
+interface Data {
     reports: RecentFieldReport[];
 }
 
-export function RecentFieldReportsCard({ reports }: data) {
+export function RecentFieldReportsCard({ reports }: Data) {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
             <div className="mb-4 flex items-center gap-2">

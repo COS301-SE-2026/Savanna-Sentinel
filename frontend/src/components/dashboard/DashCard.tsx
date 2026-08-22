@@ -7,7 +7,7 @@ interface DashCardProps {
     badge?: LucideIcon | string;
 }
 
-export function DashCard({ label, value, unit, badge: Icon }: DashCardProps) {
+export function DashCard({ label, value, badge: Icon }: DashCardProps) {
     const IconComponent =
         typeof Icon === "string"
             ? (icons[Icon as keyof typeof icons] ?? CircleDashed)

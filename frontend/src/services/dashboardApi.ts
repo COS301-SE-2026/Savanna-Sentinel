@@ -2,24 +2,24 @@ import { api } from "./api";
 
 export interface StatCard {
     label: string;
-    value: number; // float
+    value: number;
     unit?: string | null;
     badge: string;
 }
 
 export interface PatrolCoverage {
-    area_covered_km2: number; // float
-    total_area_km2: number; // float
+    area_covered_km2: number;
+    total_area_km2: number;
 }
 
 export interface ReportTypeCount {
     report_type: string;
-    count: number; // int
+    count: number;
 }
 
 export interface ReportTrendPoint {
     date: string;
-    count: number; // int
+    count: number;
 }
 
 export interface ReportTrends {
@@ -29,7 +29,7 @@ export interface ReportTrends {
 
 export interface ModelMetric {
     label: string;
-    value: number; // float
+    value: number;
 }
 
 export interface ModelPerformance {
@@ -37,19 +37,20 @@ export interface ModelPerformance {
     last_trained_at?: string | null;
 }
 
+// Zone is currently returning null
 export interface RecentFieldReport {
     report_id: string;
     ranger?: string | null;
     report_type: string;
     severity?: string | null;
-    zone?: string | null; // THIS IS RETURNING NULL!!
+    zone?: string | null;
     occurred_at: string;
 }
 
 export interface RiskZone {
     zone: string;
     level: string;
-    risk_score: number; // float
+    risk_score: number;
 }
 
 export interface DashboardResponse {

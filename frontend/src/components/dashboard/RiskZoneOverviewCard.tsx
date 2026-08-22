@@ -13,11 +13,11 @@ const LEVEL_STYLES: Record<
     Low: { badge: "safe", bar: "bg-status-safe" },
 };
 
-interface data {
+interface Data {
     riskData: RiskZone[];
 }
 
-export function RiskZoneOverviewCard({ riskData }: data) {
+export function RiskZoneOverviewCard({ riskData }: Data) {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
             <div className="mb-4 flex items-center gap-2">

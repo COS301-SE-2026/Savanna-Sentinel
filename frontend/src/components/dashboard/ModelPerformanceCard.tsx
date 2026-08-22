@@ -6,7 +6,6 @@ import type { ModelPerformance } from "@/services/dashboardApi";
 // IMPORTANT, LAST TRAINED AT IS MISSING HERE??!
 export function ModelPerformanceCard({
     metrics,
-    last_trained_at,
 }: ModelPerformance) {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
