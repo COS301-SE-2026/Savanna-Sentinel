@@ -3,19 +3,15 @@ import { icons, CircleDashed, type LucideIcon } from "lucide-react";
 interface DashCardProps {
     label: string;
     value: string | number;
-    unit?: string | null,
+    unit?: string | null;
     badge?: LucideIcon | string;
 }
 
-export function DashCard({
-    label,
-    value,
-    unit,
-    badge: Icon,
-}: DashCardProps) {
-    const IconComponent = typeof Icon === "string"
-        ? (icons[Icon as keyof typeof icons] ?? CircleDashed)
-        : Icon ?? CircleDashed;
+export function DashCard({ label, value, unit, badge: Icon }: DashCardProps) {
+    const IconComponent =
+        typeof Icon === "string"
+            ? (icons[Icon as keyof typeof icons] ?? CircleDashed)
+            : (Icon ?? CircleDashed);
 
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">

@@ -14,7 +14,7 @@ const LEVEL_STYLES: Record<
 };
 
 interface data {
-    riskData: RiskZone[],
+    riskData: RiskZone[];
 }
 
 export function RiskZoneOverviewCard({ riskData }: data) {

@@ -5,24 +5,26 @@ import { RiskZoneOverviewCard } from "@/components/dashboard/RiskZoneOverviewCar
 import { ReportTrendsCard } from "@/components/dashboard/ReportTrendsCard";
 import { ModelPerformanceCard } from "@/components/dashboard/ModelPerformanceCard";
 import { notifyCritical } from "@/components/ui/toast";
-import { dashboardApi } from "@/services/dashboardApi"
-import type { DashboardResponse } from "@/services/dashboardApi"
+import { dashboardApi } from "@/services/dashboardApi";
+import type { DashboardResponse } from "@/services/dashboardApi";
 
 const dashboardTemplate: DashboardResponse = {
     stats: [],
-    patrol_coverage: {area_covered_km2: 0, total_area_km2: 0},
-    report_trends: {counts_by_type: [], trend: []},
-    model_performance: {metrics: []},
+    patrol_coverage: { area_covered_km2: 0, total_area_km2: 0 },
+    report_trends: { counts_by_type: [], trend: [] },
+    model_performance: { metrics: [] },
     recent_field_reports: [],
     risk_zones: [],
-}
+};
 export function DashboardPage() {
-    const [dashboardData, setDashboardData] = useState<DashboardResponse>(dashboardTemplate);
+    const [dashboardData, setDashboardData] =
+        useState<DashboardResponse>(dashboardTemplate);
 
     useEffect(() => {
         async function fetchDashboard() {
             try {
-                const res: DashboardResponse = await dashboardApi.getDashboard();
+                const res: DashboardResponse =
+                    await dashboardApi.getDashboard();
                 setDashboardData(res);
                 console.log(dashboardData);
             } catch (err) {
@@ -54,9 +56,7 @@ export function DashboardPage() {
                 <RecentFieldReportsCard
                     reports={dashboardData.recent_field_reports}
                 />
-                <RiskZoneOverviewCard
-                    riskData={dashboardData.risk_zones}
-                />
+                <RiskZoneOverviewCard riskData={dashboardData.risk_zones} />
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -66,7 +66,9 @@ export function DashboardPage() {
                 />
                 <ModelPerformanceCard
                     metrics={dashboardData.model_performance.metrics}
-                    last_trained_at={dashboardData.model_performance.last_trained_at}
+                    last_trained_at={
+                        dashboardData.model_performance.last_trained_at
+                    }
                 />
             </div>
         </div>

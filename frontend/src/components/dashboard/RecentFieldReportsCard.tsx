@@ -10,7 +10,7 @@ const SEVERITY_BADGE_MAP: Record<string, ReportBadgeVariant> = {
 };
 
 interface data {
-    reports: RecentFieldReport[],
+    reports: RecentFieldReport[];
 }
 
 export function RecentFieldReportsCard({ reports }: data) {
@@ -60,11 +60,16 @@ export function RecentFieldReportsCard({ reports }: data) {
                                         {report.ranger}
                                     </td>
                                     <td className="py-2 pr-4">
-                                        <Badge variant={
-                                                (report.severity !== null && report.severity !== undefined)
-                                                    ? SEVERITY_BADGE_MAP[report.severity.toLowerCase()]
+                                        <Badge
+                                            variant={
+                                                report.severity !== null &&
+                                                report.severity !== undefined
+                                                    ? SEVERITY_BADGE_MAP[
+                                                          report.severity.toLowerCase()
+                                                      ]
                                                     : "neutral"
-                                            }>
+                                            }
+                                        >
                                             {report.report_type}
                                         </Badge>
                                     </td>

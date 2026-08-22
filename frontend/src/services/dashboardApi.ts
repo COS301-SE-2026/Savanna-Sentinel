@@ -1,68 +1,67 @@
-import { api } from "./api"
+import { api } from "./api";
 
 export interface StatCard {
-    label: string,
-    value: number, // float
-    unit?: string | null,
-    badge: string,
+    label: string;
+    value: number; // float
+    unit?: string | null;
+    badge: string;
 }
 
 export interface PatrolCoverage {
-    area_covered_km2: number, // float
-    total_area_km2: number,   // float
+    area_covered_km2: number; // float
+    total_area_km2: number; // float
 }
 
 export interface ReportTypeCount {
-    report_type: string,
-    count: number, // int
+    report_type: string;
+    count: number; // int
 }
 
 export interface ReportTrendPoint {
-    date: string,
-    count: number, // int
+    date: string;
+    count: number; // int
 }
 
 export interface ReportTrends {
-    counts_by_type: ReportTypeCount[],
-    trend: ReportTrendPoint[],
+    counts_by_type: ReportTypeCount[];
+    trend: ReportTrendPoint[];
 }
 
 export interface ModelMetric {
-    label: string,
-    value: number, // float
+    label: string;
+    value: number; // float
 }
 
 export interface ModelPerformance {
-    metrics: ModelMetric[],
-    last_trained_at?: string | null,
+    metrics: ModelMetric[];
+    last_trained_at?: string | null;
 }
 
 export interface RecentFieldReport {
-    report_id: string,
-    ranger?: string | null,
-    report_type: string,
-    severity?: string | null,
-    zone?: string | null,   // THIS IS RETURNING NULL!!
-    occurred_at: string,
+    report_id: string;
+    ranger?: string | null;
+    report_type: string;
+    severity?: string | null;
+    zone?: string | null; // THIS IS RETURNING NULL!!
+    occurred_at: string;
 }
 
 export interface RiskZone {
-    zone: string,
-    level: string,
-    risk_score: number // float
+    zone: string;
+    level: string;
+    risk_score: number; // float
 }
 
 export interface DashboardResponse {
-    stats: StatCard[],
-    patrol_coverage: PatrolCoverage,
-    report_trends: ReportTrends,
-    model_performance: ModelPerformance,
-    recent_field_reports: RecentFieldReport[],
-    risk_zones: RiskZone[],
+    stats: StatCard[];
+    patrol_coverage: PatrolCoverage;
+    report_trends: ReportTrends;
+    model_performance: ModelPerformance;
+    recent_field_reports: RecentFieldReport[];
+    risk_zones: RiskZone[];
 }
 
 export const dashboardApi = {
     getDashboard: async (): Promise<DashboardResponse> =>
         api.get<DashboardResponse>("/dashboard").then((r) => r.data),
-
-}
+};

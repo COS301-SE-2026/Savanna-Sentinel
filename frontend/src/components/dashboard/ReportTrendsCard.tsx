@@ -2,10 +2,7 @@ import { TrendingUp } from "lucide-react";
 import type { ReportTrends } from "@/services/dashboardApi";
 
 // COUNT_BY_TYPE NOT USED???
-export function ReportTrendsCard({
-    counts_by_type,
-    trend,
-}: ReportTrends) {
+export function ReportTrendsCard({ counts_by_type, trend }: ReportTrends) {
     const maxCount = Math.max(1, ...trend.map((point) => point.count));
 
     return (
