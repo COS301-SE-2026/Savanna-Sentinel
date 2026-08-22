@@ -6,7 +6,7 @@ import { flushOutbox } from "@/offline/syncService";
 import { reportsApi } from "@/services/reportsApi";
 import { blankDraftReportInput } from "@/types/reports";
 import type { DraftReportInput } from "@/types/reports";
-import type { SyncItemStatus } from "@/services/reportsApi";
+import type { SyncItemStatus, SyncResponse } from "@/services/reportsApi";
 
 vi.mock("@/services/reportsApi", () => ({
     reportsApi: { syncReports: vi.fn() },
@@ -145,11 +145,11 @@ describe("flushOutbox", () => {
 
     it("will not run two flushes at once", async () => {
         await queueDraft("d1", "create");
-        let release: (value: unknown) => void = () => {};
+        let release: (value: SyncResponse) => void = () => {};
         vi.mocked(reportsApi.syncReports).mockReturnValue(
-            new Promise((resolve) => {
+            new Promise<SyncResponse>((resolve) => {
                 release = resolve;
-            }) as ReturnType<typeof reportsApi.syncReports>,
+            }),
         );
 
         const first = flushOutbox(USER);

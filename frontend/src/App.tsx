@@ -5,6 +5,7 @@ import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
+import GuestRoute from "@/components/layout/GuestRoute";
 import AppLayout from "@/components/layout/AppLayout";
 
 import ReportsPage from "@/pages/ReportsPage";
@@ -23,9 +24,11 @@ const App = () => {
             <Toaster />
             <Routes>
                 {/* Public routes */}
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
+                <Route element={<GuestRoute />}>
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                </Route>
 
                 {/* Protected routes - AppLayout renders TopBar + BurgerMenu for all children */}
                 <Route element={<ProtectedRoute />}>
