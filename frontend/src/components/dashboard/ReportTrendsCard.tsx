@@ -1,14 +1,12 @@
 import { TrendingUp } from "lucide-react";
+import type { ReportTrends } from "@/services/dashboardApi";
 
-interface TrendPoint {
-    day: string;
-    count: number;
-}
-
-const TREND_DATA: TrendPoint[] = [];
-
-export function ReportTrendsCard() {
-    const maxCount = Math.max(1, ...TREND_DATA.map((point) => point.count));
+// COUNT_BY_TYPE NOT USED???
+export function ReportTrendsCard({
+    counts_by_type,
+    trend,
+}: ReportTrends) {
+    const maxCount = Math.max(1, ...trend.map((point) => point.count));
 
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
@@ -23,17 +21,17 @@ export function ReportTrendsCard() {
                 </h2>
             </div>
             <div className="flex h-40 items-end gap-3">
-                {TREND_DATA.length === 0 ? (
+                {trend.length === 0 ? (
                     <p className="w-full self-center text-center text-sm text-color-text-secondary">
                         No trend data available
                     </p>
                 ) : (
-                    TREND_DATA.map((point) => (
+                    trend.map((point) => (
                         <div
-                            key={point.day}
+                            key={point.date}
                             className="flex h-full flex-1 flex-col items-center justify-end"
                             role="img"
-                            aria-label={`${point.day}: ${point.count} reports`}
+                            aria-label={`${point.date}: ${point.count} reports`}
                         >
                             <span
                                 aria-hidden="true"
@@ -53,13 +51,13 @@ export function ReportTrendsCard() {
                 )}
             </div>
             <div className="mt-1 flex gap-3">
-                {TREND_DATA.map((point) => (
+                {trend.map((point) => (
                     <span
-                        key={point.day}
+                        key={point.date}
                         aria-hidden="true"
                         className="flex-1 text-center text-xs text-color-text-secondary"
                     >
-                        {point.day}
+                        {point.date}
                     </span>
                 ))}
             </div>
