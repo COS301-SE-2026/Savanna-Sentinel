@@ -41,11 +41,17 @@ async def get_dashboard(session) -> DashboardResponse:
             StatCard(
                 label="Field Reports This Week",
                 value=stats["reports_this_week"],
+                badge="Shield",
             ),
             StatCard(
-                label="Tip-offs This Week", value=stats["tipoffs_this_week"],
+                label="Tip-offs This Week",
+                value=stats["tipoffs_this_week"],
+                badge="Activity",
             ),
-            StatCard(label="Active Rangers", value=stats["active_rangers"]),
+            StatCard(label="Active Rangers",
+            value=stats["active_rangers"],
+            badge="Users",
+            ),
         ],
         patrol_coverage=PatrolCoverage(
             area_covered_km2=round(covered_km2, 1),
