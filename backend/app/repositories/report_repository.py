@@ -169,6 +169,33 @@ class ReportRepository:
             "created_at": row[2],
         }
 
+    async def find_sync_target(
+        self,
+        user_id: str,
+        client_id: str,
+    ) -> Optional[dict]:
+        """Look up a synced report, soft-deleted ones included."""
+        row = (
+            await self.db.execute(
+                text("""
+                    SELECT id, report_type, occurred_at, deleted_at
+                    FROM field_reports
+                    WHERE submitted_by = :uid AND client_id = :cid
+                """),
+                {"uid": user_id, "cid": client_id},
+            )
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return {
+            "report_id": str(row[0]),
+            "report_type": row[1],
+            "occurred_at": row[2],
+            "deleted_at": row[3],
+        }
+
     async def create(
         self,
         user_id: str,
@@ -381,11 +408,12 @@ class ReportRepository:
             return
 
         await self.db.execute(
-            text(f"""
+            text(
+                f"""
                 UPDATE geospatial_events
                 SET {", ".join(ev_sets)}
                 WHERE id = :eid
-            """, # nosec B608
+            """,  # nosec B608
             ),
             ev_params,
         )
@@ -414,11 +442,12 @@ class ReportRepository:
             return
 
         await self.db.execute(
-            text(f"""
+            text(
+                f"""
                 UPDATE incidents
                 SET {", ".join(inc_sets)}
                 WHERE id = :eid
-            """, # nosec B608
+            """,  # nosec B608
             ),
             inc_params,
         )
@@ -436,11 +465,12 @@ class ReportRepository:
             return
 
         await self.db.execute(
-            text(f"""
+            text(
+                f"""
                 UPDATE sightings
                 SET {", ".join(sig_sets)}
                 WHERE id = :eid
-            """, # nosec B608
+            """,  # nosec B608
             ),
             sig_params,
         )

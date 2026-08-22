@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, require_roles
@@ -17,7 +17,9 @@ from app.schemas.report import (
     SpeciesResponse,
     UserResponse,
 )
+from app.schemas.sync import SyncResponse
 from app.services.report_service import ReportService
+from app.services.sync_service import SyncService
 
 router = APIRouter(tags=["reports"])
 
@@ -45,6 +47,35 @@ async def submit_report(
     service = ReportService(ReportRepository(db), UserRepository(db))
     result = await service.create_report(current_user, body)
     return ReportSubmitResponse(**result)
+
+
+@router.post(
+    "/reports/sync",
+    response_model=SyncResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Batch sync offline reports (SC-28)",
+)
+async def sync_reports(
+    body: Annotated[dict, Body()],
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    if current_user.role not in ("ranger", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_ROLE_DENIED,
+        )
+
+    reports = body.get("reports")
+    if not isinstance(reports, list):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="reports must be an array",
+        )
+
+    repo = ReportRepository(db)
+    service = SyncService(repo, ReportService(repo, UserRepository(db)))
+    return SyncResponse(results=await service.sync_batch(current_user, reports))
 
 
 @router.get(
