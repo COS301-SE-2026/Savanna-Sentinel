@@ -1,48 +1,39 @@
-import type { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { icons, CircleDashed, type LucideIcon } from "lucide-react";
 
 interface DashCardProps {
-    title: string;
+    label: string;
     value: string | number;
-    subtext?: string;
-    icon?: LucideIcon;
-    valueClassName?: string;
+    unit?: string | null,
+    badge?: LucideIcon | string;
 }
 
 export function DashCard({
-    title,
+    label,
     value,
-    subtext,
-    icon: Icon,
-    valueClassName,
+    unit,
+    badge: Icon,
 }: DashCardProps) {
+    const IconComponent = typeof Icon === "string"
+        ? (icons[Icon as keyof typeof icons] ?? CircleDashed)
+        : Icon ?? CircleDashed;
+
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
             <div className="mb-2.5 flex items-start justify-between gap-2">
                 <span className="inline-block border-b-2 border-brand-primary pb-2 text-xs font-semibold tracking-stat text-brand-primary uppercase">
-                    {title}
+                    {label}
                 </span>
                 {Icon && (
-                    <Icon
+                    <IconComponent
                         className="h-4 w-4 shrink-0 text-color-text-secondary"
                         strokeWidth={2}
                         aria-hidden="true"
                     />
                 )}
             </div>
-            <div
-                className={cn(
-                    "font-heading text-xl font-bold leading-tight text-brand-primary",
-                    valueClassName,
-                )}
-            >
+            <div className="font-heading text-xl font-bold leading-tight text-brand-primary">
                 {value}
             </div>
-            {subtext && (
-                <p className="mt-0.5 text-xs text-color-text-secondary">
-                    {subtext}
-                </p>
-            )}
         </div>
     );
 }
