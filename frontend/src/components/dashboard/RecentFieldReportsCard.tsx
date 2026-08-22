@@ -1,20 +1,19 @@
 import { Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import type { RecentFieldReport } from "@/services/dashboardApi";
 
 type ReportBadgeVariant = "critical" | "alert" | "safe" | "neutral";
+const SEVERITY_BADGE_MAP: Record<string, ReportBadgeVariant> = {
+    high: "critical",
+    medium: "alert",
+    low: "safe",
+};
 
-interface RecentFieldReport {
-    id: string;
-    ranger: string;
-    type: string;
-    badgeVariant: ReportBadgeVariant;
-    location: string;
-    time: string;
+interface data {
+    reports: RecentFieldReport[],
 }
 
-const RECENT_REPORTS: RecentFieldReport[] = [];
-
-export function RecentFieldReportsCard() {
+export function RecentFieldReportsCard({ reports }: data) {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
             <div className="mb-4 flex items-center gap-2">
@@ -39,7 +38,7 @@ export function RecentFieldReportsCard() {
                         </tr>
                     </thead>
                     <tbody>
-                        {RECENT_REPORTS.length === 0 ? (
+                        {reports.length === 0 ? (
                             <tr>
                                 <td
                                     colSpan={5}
@@ -49,27 +48,31 @@ export function RecentFieldReportsCard() {
                                 </td>
                             </tr>
                         ) : (
-                            RECENT_REPORTS.map((report) => (
+                            reports.map((report) => (
                                 <tr
-                                    key={report.id}
+                                    key={report.report_id}
                                     className="border-b border-color-border last:border-0"
                                 >
                                     <td className="py-2 pr-4 text-color-text-secondary">
-                                        {report.id}
+                                        {report.report_id}
                                     </td>
                                     <td className="py-2 pr-4 text-color-text-primary">
                                         {report.ranger}
                                     </td>
                                     <td className="py-2 pr-4">
-                                        <Badge variant={report.badgeVariant}>
-                                            {report.type}
+                                        <Badge variant={
+                                                (report.severity !== null && report.severity !== undefined)
+                                                    ? SEVERITY_BADGE_MAP[report.severity.toLowerCase()]
+                                                    : "neutral"
+                                            }>
+                                            {report.report_type}
                                         </Badge>
                                     </td>
                                     <td className="py-2 pr-4 text-color-text-primary">
-                                        {report.location}
+                                        {report.zone}
                                     </td>
                                     <td className="py-2 text-color-text-secondary">
-                                        {report.time}
+                                        {report.occurred_at}
                                     </td>
                                 </tr>
                             ))
