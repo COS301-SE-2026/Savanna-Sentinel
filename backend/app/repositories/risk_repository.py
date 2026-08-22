@@ -14,7 +14,8 @@ _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 # hardcoded for now
 _PARK_GRID_FILES = {
-    "klaserie": _DATA_DIR / "klaserie_grid.geojson",
+    "klaserie": _DATA_DIR / "reserve-grid.geojson",
+    "reserve": _DATA_DIR / "reserve-grid.geojson",
 }
 
 _cell_risk_scores_table = table(
@@ -72,10 +73,14 @@ def load_grid_geometry(park_id: str) -> list[dict]:
             (left, bottom),
             (left, top),
         ]
+
+        raw_id = str(props["id"]).replace("cell-", "")
+        cell_id = f"cell-{int(float(raw_id))}"
+
         corners = [to_wgs84.transform(x, y) for x, y in corners_xy]
         cells.append(
             {
-                "cell_id": f"cell-{int(props['id'])}",
+                "cell_id": cell_id,
                 "row": int(props["row_index"]),
                 "col": int(props["col_index"]),
                 "corners": corners,
@@ -84,6 +89,8 @@ def load_grid_geometry(park_id: str) -> list[dict]:
     return cells
 
 
+def invalidate_grid_cache() -> None:
+    load_grid_geometry.cache_clear()
 async def save_model_version(
     session: AsyncSession,
     park_id: str,
@@ -465,3 +472,59 @@ async def get_active_model_details(
         "n_training_examples": model.n_training_examples,
         "metrics": model.metrics,
     }
+
+
+def risk_level_for_score(risk_score: float) -> str:
+    if risk_score >= 0.75:
+        return "Critical"
+    if risk_score >= 0.5:
+        return "High"
+    if risk_score >= 0.25:
+        return "Medium"
+    return "Low"
+
+
+async def get_risk_zone_overview(
+    session: AsyncSession,
+    park_id: str,
+    limit: int = 5,
+) -> list[dict]:
+    heatmap_row = (
+        await session.execute(
+            text("""
+                SELECT rh.id
+                FROM risk_heatmaps rh
+                JOIN risk_models rm ON rm.id = rh.model_id
+                WHERE rm.park_id = :park_id
+                ORDER BY rh.computed_at DESC
+                LIMIT 1
+            """),
+            {"park_id": park_id},
+        )
+    ).fetchone()
+    if heatmap_row is None:
+        return []
+
+    rows = (
+        await session.execute(
+            text("""
+                SELECT gc.row_index AS row_index, gc.col_index AS col_index,
+                    crs.risk_score
+                FROM cell_risk_scores crs
+                JOIN grid_cells gc ON gc.id = crs.grid_cell_id
+                WHERE crs.heatmap_id = :heatmap_id
+                ORDER BY crs.risk_score DESC
+                LIMIT :limit
+            """),
+            {"heatmap_id": heatmap_row.id, "limit": limit},
+        )
+    ).fetchall()
+
+    return [
+        {
+            "zone": f"Zone {row.row_index + 1}-{row.col_index + 1}",
+            "level": risk_level_for_score(row.risk_score),
+            "risk_score": row.risk_score,
+        }
+        for row in rows
+    ]

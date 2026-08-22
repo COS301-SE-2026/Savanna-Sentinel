@@ -38,6 +38,7 @@ export default function TipoffPage() {
     const canSubmit =
         user?.role === "community_liaison" || user?.role === "admin";
     const canViewAll =
+        user?.role === "community_liaison" ||
         user?.role === "analyst" ||
         user?.role === "ranger" ||
         user?.role === "admin";
