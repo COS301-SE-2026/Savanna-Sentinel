@@ -37,7 +37,6 @@ export interface ModelPerformance {
     last_trained_at?: string | null;
 }
 
-// Zone is currently returning null
 export interface RecentFieldReport {
     report_id: string;
     ranger?: string | null;
