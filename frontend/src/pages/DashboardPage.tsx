@@ -33,8 +33,8 @@ export function DashboardPage() {
         }
         fetchDashboard();
 
-        const TEN_MINUTES = 10 * 60 * 1000;
-        const tenMinTimer = setInterval(fetchDashboard, TEN_MINUTES);
+        const tenMins = 10 * 60 * 1000;
+        const tenMinTimer = setInterval(fetchDashboard, tenMins);
         return () => clearInterval(tenMinTimer);
     }, []);
 
