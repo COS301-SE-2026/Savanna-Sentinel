@@ -30,10 +30,12 @@ export function DashboardPage() {
                 notifyCritical("Error", "Failed to fetch dashboard data");
                 console.error(err);
             }
-            // maybe add a 10m timer?
         }
-
         fetchDashboard();
+
+        const TEN_MINUTES = 10 * 60 * 1000;
+        const tenMinTimer = setInterval(fetchDashboard, TEN_MINUTES);
+        return () => clearInterval(tenMinTimer);
     }, []);
 
     const covPercent =
