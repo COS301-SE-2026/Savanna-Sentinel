@@ -53,7 +53,7 @@ describe("DashboardPage", () => {
                 trend: [{ date: "Mon", count: 4 }],
             },
             model_performance: {
-                metrics: [{ label: "Precision", value: 92 }],
+                metrics: [{ label: "Precision", value: 0.92 }],
             },
             recent_field_reports: [
                 {
@@ -66,7 +66,7 @@ describe("DashboardPage", () => {
                 },
             ],
             risk_zones: [
-                { zone: "North corridor", level: "Critical", risk_score: 90 },
+                { zone: "North corridor", level: "Critical", risk_score: 0.9 },
             ],
         });
 

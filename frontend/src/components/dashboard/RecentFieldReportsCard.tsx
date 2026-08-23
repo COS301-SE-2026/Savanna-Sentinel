@@ -40,7 +40,7 @@ export function RecentFieldReportsCard({ reports }: Data) {
                         {reports.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={5}
+                                    colSpan={4}
                                     className="py-6 text-center text-color-text-secondary"
                                 >
                                     No recent field reports
