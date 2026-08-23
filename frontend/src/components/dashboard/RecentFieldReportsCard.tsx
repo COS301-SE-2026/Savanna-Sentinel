@@ -30,7 +30,6 @@ export function RecentFieldReportsCard({ reports }: Data) {
                 <table className="w-full text-left text-sm">
                     <thead>
                         <tr className="border-b border-color-border text-xs text-color-text-secondary uppercase">
-                            <th className="pb-2 pr-4 font-medium">ID</th>
                             <th className="pb-2 pr-4 font-medium">Ranger</th>
                             <th className="pb-2 pr-4 font-medium">Type</th>
                             <th className="pb-2 pr-4 font-medium">Location</th>
@@ -53,9 +52,6 @@ export function RecentFieldReportsCard({ reports }: Data) {
                                     key={report.report_id}
                                     className="border-b border-color-border last:border-0"
                                 >
-                                    <td className="py-2 pr-4 text-color-text-secondary">
-                                        {report.report_id}
-                                    </td>
                                     <td className="py-2 pr-4 text-color-text-primary">
                                         {report.ranger}
                                     </td>
@@ -77,7 +73,12 @@ export function RecentFieldReportsCard({ reports }: Data) {
                                         {report.zone}
                                     </td>
                                     <td className="py-2 text-color-text-secondary">
-                                        {report.occurred_at}
+                                        {new Date(
+                                            report.occurred_at,
+                                        ).toLocaleString(undefined, {
+                                            dateStyle: "medium",
+                                            timeStyle: "short",
+                                        })}
                                     </td>
                                 </tr>
                             ))

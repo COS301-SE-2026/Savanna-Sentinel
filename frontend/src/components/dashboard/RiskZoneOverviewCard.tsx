@@ -49,7 +49,7 @@ export function RiskZoneOverviewCard({ riskData }: Data) {
                             <div
                                 className="h-1.5 w-full overflow-hidden rounded-full bg-color-surface-raised"
                                 role="progressbar"
-                                aria-valuenow={zone.risk_score}
+                                aria-valuenow={zone.risk_score * 100}
                                 aria-valuemin={0}
                                 aria-valuemax={100}
                                 aria-label={`${zone.zone} risk level: ${zone.level}`}
@@ -59,7 +59,9 @@ export function RiskZoneOverviewCard({ riskData }: Data) {
                                         "h-full rounded-full",
                                         LEVEL_STYLES[zone.level].bar,
                                     )}
-                                    style={{ width: `${zone.risk_score}%` }}
+                                    style={{
+                                        width: `${zone.risk_score * 100}%`,
+                                    }}
                                 />
                             </div>
                         </div>

@@ -5,7 +5,6 @@ import { RecentFieldReportsCard } from "@/components/dashboard/RecentFieldReport
 describe("RecentFieldReportsCard", () => {
     it("renders the table header columns", () => {
         render(<RecentFieldReportsCard reports={[]} />);
-        expect(screen.getByText("ID")).toBeInTheDocument();
         expect(screen.getByText("Ranger")).toBeInTheDocument();
         expect(screen.getByText("Type")).toBeInTheDocument();
         expect(screen.getByText("Location")).toBeInTheDocument();
@@ -33,11 +32,10 @@ describe("RecentFieldReportsCard", () => {
             />,
         );
 
-        expect(screen.getByText("RPT-001")).toBeInTheDocument();
         expect(screen.getByText("Amina Yusuf")).toBeInTheDocument();
         expect(screen.getByText("Elephant sighting")).toBeInTheDocument();
         expect(screen.getByText("North corridor")).toBeInTheDocument();
-        expect(screen.getByText("2026-08-22 08:30")).toBeInTheDocument();
+        expect(screen.getByText("Aug 22, 2026, 8:30 AM")).toBeInTheDocument();
         expect(
             screen.queryByText("No recent field reports"),
         ).not.toBeInTheDocument();

@@ -26,16 +26,24 @@ export function DashboardPage() {
                 const res: DashboardResponse =
                     await dashboardApi.getDashboard();
                 setDashboardData(res);
-                console.log(dashboardData);
             } catch (err) {
                 notifyCritical("Error", "Failed to fetch dashboard data");
                 console.error(err);
             }
-            // maybe add a 10m timer? if so, then add dashboardData to the callback
+            // maybe add a 10m timer?
         }
 
         fetchDashboard();
     }, []);
+
+    const covPercent =
+        dashboardData.patrol_coverage.total_area_km2 > 0
+            ? Math.round(
+                  (dashboardData.patrol_coverage.area_covered_km2 /
+                      dashboardData.patrol_coverage.total_area_km2) *
+                      100,
+              )
+            : "-";
 
     return (
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
@@ -50,6 +58,12 @@ export function DashboardPage() {
                 {dashboardData.stats.map((stat) => (
                     <DashCard key={stat.label} {...stat} />
                 ))}
+
+                <DashCard
+                    label="Patrol Coverage"
+                    value={`${covPercent}%`}
+                    badge="Map"
+                />
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">

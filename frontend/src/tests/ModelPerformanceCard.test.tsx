@@ -21,8 +21,8 @@ describe("ModelPerformanceCard", () => {
         render(
             <ModelPerformanceCard
                 metrics={[
-                    { label: "Precision", value: 92 },
-                    { label: "Recall", value: 78 },
+                    { label: "Precision", value: 0.92 },
+                    { label: "Recall", value: 0.78 },
                 ]}
             />,
         );

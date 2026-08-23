@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { ModelPerformance } from "@/services/dashboardApi";
 
-// IMPORTANT, LAST TRAINED AT IS MISSING HERE??!
 export function ModelPerformanceCard({ metrics }: ModelPerformance) {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
@@ -33,10 +32,10 @@ export function ModelPerformanceCard({ metrics }: ModelPerformance) {
                                     {metric.label}
                                 </span>
                                 <span className="font-semibold text-brand-primary">
-                                    {metric.value}%
+                                    {metric.value * 100}%
                                 </span>
                             </div>
-                            <Progress value={metric.value} />
+                            <Progress value={metric.value * 100} />
                         </div>
                     ))
                 )}

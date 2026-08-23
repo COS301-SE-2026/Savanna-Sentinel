@@ -18,9 +18,9 @@ describe("RiskZoneOverviewCard", () => {
                     {
                         zone: "North corridor",
                         level: "Critical",
-                        risk_score: 90,
+                        risk_score: 0.9,
                     },
-                    { zone: "River bend", level: "Low", risk_score: 20 },
+                    { zone: "River bend", level: "Low", risk_score: 0.4 },
                 ]}
             />,
         );
@@ -38,6 +38,6 @@ describe("RiskZoneOverviewCard", () => {
             screen.getByRole("progressbar", {
                 name: "River bend risk level: Low",
             }),
-        ).toHaveAttribute("aria-valuenow", "20");
+        ).toHaveAttribute("aria-valuenow", "40");
     });
 });
