@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal, Optional
 
+from backend.app.services.comment_service import CommentService
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +10,7 @@ from app.models.user import User
 from app.repositories.report_repository import ReportRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.report import (
+    PostCommentRequest,
     ReportCreate,
     ReportListResponse,
     ReportResponse,
@@ -237,3 +239,17 @@ async def get_report(
         )
 
     return ReportResponse(**report)
+
+
+@router.post(
+    "/reports/{report_id}/comment",
+    status_code=status.HTTP_201_CREATED,
+    summary="Post a comment on the specified report",
+)
+async def post_comment(
+    report_id: str,
+    authenticated: Annotated[User, Depends(require_roles["admin", "ranger"])],
+    comment: PostCommentRequest,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    service = CommentService(db)

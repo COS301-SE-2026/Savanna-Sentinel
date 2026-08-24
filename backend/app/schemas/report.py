@@ -94,5 +94,12 @@ class ReportUpdate(BaseModel):
 class SpeciesResponse(BaseModel):
     species: list[str]
 
+
 class UserResponse(BaseModel):
     usernames: list[str]
+
+
+class PostCommentRequest:
+    body: str
+    photo_urls: str
+    created_at: datetime
