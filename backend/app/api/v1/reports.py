@@ -253,3 +253,11 @@ async def post_comment(
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     service = CommentService(db)
+
+    result = service.post_comment(
+        authenticated,
+        comment.body,
+        comment.photo_urls,
+        comment.created_at,
+        report_id,
+    )
