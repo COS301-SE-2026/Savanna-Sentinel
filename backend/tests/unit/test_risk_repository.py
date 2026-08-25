@@ -56,15 +56,14 @@ def grid_2x2(tmp_path, monkeypatch):
         _cell(4, row=1, col=1),
     ]
     path = _write_grid(tmp_path, cells)
-    park_id = "unit-test-2x2"
-    monkeypatch.setitem(risk_repository._PARK_GRID_FILES, park_id, path)
+    monkeypatch.setattr(risk_repository, "GRID_FILE_PATH", path)
     load_grid_geometry.cache_clear()
-    yield park_id
+    yield path
     load_grid_geometry.cache_clear()
 
 
 def test_load_grid_geometry_returns_one_cell_per_feature(grid_2x2):
-    cells = load_grid_geometry(grid_2x2)
+    cells = load_grid_geometry()
     assert len(cells) == 4
     assert {c["cell_id"] for c in cells} == {
         "cell-1",
@@ -75,7 +74,7 @@ def test_load_grid_geometry_returns_one_cell_per_feature(grid_2x2):
 
 
 def test_load_grid_geometry_preserves_row_and_col(grid_2x2):
-    cells = load_grid_geometry(grid_2x2)
+    cells = load_grid_geometry()
     by_id = {c["cell_id"]: c for c in cells}
     assert by_id["cell-1"]["row"] == 0
     assert by_id["cell-1"]["col"] == 0
@@ -84,7 +83,7 @@ def test_load_grid_geometry_preserves_row_and_col(grid_2x2):
 
 
 def test_load_grid_geometry_reprojects_corners_to_wgs84(grid_2x2):
-    cells = load_grid_geometry(grid_2x2)
+    cells = load_grid_geometry()
     cell_1 = next(c for c in cells if c["cell_id"] == "cell-1")
 
     to_wgs84 = Transformer.from_crs(
@@ -100,24 +99,34 @@ def test_load_grid_geometry_reprojects_corners_to_wgs84(grid_2x2):
     assert cell_1["corners"][0] == cell_1["corners"][-1]
 
 
-def test_load_grid_geometry_unknown_park_id_raises_value_error():
-    with pytest.raises(ValueError, match="unknown-park"):
-        load_grid_geometry("unknown-park")
+def test_load_grid_geometry_raises_when_no_grid_uploaded_yet(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        risk_repository,
+        "GRID_FILE_PATH",
+        tmp_path / "never-uploaded.geojson",
+    )
+    load_grid_geometry.cache_clear()
+    with pytest.raises(FileNotFoundError):
+        load_grid_geometry()
+    load_grid_geometry.cache_clear()
 
 
 def test_load_grid_geometry_is_cached_across_calls(grid_2x2):
-    first = load_grid_geometry(grid_2x2)
-    second = load_grid_geometry(grid_2x2)
+    first = load_grid_geometry()
+    second = load_grid_geometry()
     assert first is second
 
 
 def test_klaserie_grid_geometry_loads_all_cells():
-    cells = load_grid_geometry("klaserie")
+    cells = load_grid_geometry()
     assert len(cells) == 684
 
 
 def test_klaserie_grid_geometry_corners_within_park_bounds():
-    cells = load_grid_geometry("klaserie")
+    cells = load_grid_geometry()
     for cell in cells:
         for lon, lat in cell["corners"]:
             assert 31.0 < lon < 31.4
@@ -129,7 +138,7 @@ def test_invalidate_cache_invalidates_the_cache(grid_2x2):
 
     assert load_grid_geometry.cache_info().currsize == 0
 
-    load_grid_geometry(grid_2x2)
+    load_grid_geometry()
     assert load_grid_geometry.cache_info().currsize == 1
 
     invalidate_grid_cache()

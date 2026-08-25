@@ -31,7 +31,7 @@ def test_get_park_grid_builds_response_from_repository():
         "app.services.risk_service.load_grid_geometry",
         return_value=fake_cells,
     ):
-        response = get_park_grid("klaserie")
+        response = get_park_grid()
 
     assert response.type == "FeatureCollection"
     assert len(response.features) == 1
