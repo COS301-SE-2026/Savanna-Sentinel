@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+from app.core.config import settings
 from app.repositories import dashboard_repository, risk_repository
 from app.schemas.dashboard import (
     DashboardResponse,
@@ -12,7 +13,7 @@ from app.schemas.dashboard import (
     StatCard,
 )
 
-_PARK_ID = "klaserie"
+_PARK_ID = settings.PARK_ID
 _TREND_WINDOW_DAYS = 7
 
 
@@ -20,19 +21,26 @@ async def get_dashboard(session) -> DashboardResponse:
     since = datetime.now(timezone.utc) - timedelta(days=_TREND_WINDOW_DAYS)
 
     stats = await dashboard_repository.get_operational_stats(
-        session, _PARK_ID, since,
+        session,
+        _PARK_ID,
+        since,
     )
     covered_km2, total_km2 = await dashboard_repository.get_patrol_coverage(
-        session, _PARK_ID, since,
+        session,
+        _PARK_ID,
+        since,
     )
     counts_by_type, trend = await dashboard_repository.get_report_trends(
-        session, since,
+        session,
+        since,
     )
     active_model = await risk_repository.get_active_model_details(
-        session, _PARK_ID,
+        session,
+        _PARK_ID,
     )
     recent_field_reports = await dashboard_repository.get_recent_field_reports(
-        session, _PARK_ID,
+        session,
+        _PARK_ID,
     )
     risk_zones = await risk_repository.get_risk_zone_overview(session, _PARK_ID)
 
@@ -43,7 +51,8 @@ async def get_dashboard(session) -> DashboardResponse:
                 value=stats["reports_this_week"],
             ),
             StatCard(
-                label="Tip-offs This Week", value=stats["tipoffs_this_week"],
+                label="Tip-offs This Week",
+                value=stats["tipoffs_this_week"],
             ),
             StatCard(label="Active Rangers", value=stats["active_rangers"]),
         ],
