@@ -25,6 +25,11 @@ CREATE TYPE event_type AS ENUM (
     'patrol_track'
 );
 
+CREATE TYPE risk_job_type AS ENUM (
+    'train',
+    'score'
+);
+
 CREATE TABLE file_ingestion_staging (
     record_id           BIGINT,
     ingestion_timestamp TIMESTAMPTZ,
@@ -155,6 +160,21 @@ CREATE TABLE patrol_routes (
     risk_coverage  FLOAT                      NOT NULL,
     risk_heatmap   JSONB                      NOT NULL,
     created_at     TIMESTAMPTZ                NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE risk_jobs (
+    id           UUID          PRIMARY KEY,
+    job_type     risk_job_type NOT NULL,
+    park_id      TEXT          NOT NULL,
+    triggered_by UUID          NOT NULL REFERENCES users(id),
+    created_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE route_jobs (
+    id           UUID        PRIMARY KEY,
+    park_id      TEXT        NOT NULL,
+    requested_by UUID        NOT NULL REFERENCES users(id),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE field_reports (
