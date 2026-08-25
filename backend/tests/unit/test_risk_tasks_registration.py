@@ -29,13 +29,13 @@ def test_risk_tasks_are_registered_on_the_celery_app():
 
 
 @pytest.mark.asyncio
-@patch("app.workers.tasks.risk_tasks.RiskModelStorage")
+@patch("app.workers.tasks.risk_tasks._storage")
 @patch("app.workers.tasks.risk_tasks.risk_repository")
 @patch("app.workers.tasks.risk_tasks._TaskSessionLocal")
 async def test_train_can_run_twice_in_the_same_process(
     mock_session_local,
     mock_repo,
-    mock_storage_cls,
+    mock_storage,
 ):
     mock_session = AsyncMock()
     mock_session_local.return_value.__aenter__.return_value = mock_session

@@ -25,13 +25,13 @@ async def test_score_skips_when_no_active_model(mock_session_local, mock_repo):
 @patch("app.workers.tasks.risk_tasks.score_cells")
 @patch("app.workers.tasks.risk_tasks.compute_cell_features")
 @patch("app.workers.tasks.risk_tasks.load_model")
-@patch("app.workers.tasks.risk_tasks.RiskModelStorage")
+@patch("app.workers.tasks.risk_tasks._storage")
 @patch("app.workers.tasks.risk_tasks.risk_repository")
 @patch("app.workers.tasks.risk_tasks._TaskSessionLocal")
 async def test_score_computes_and_saves_snapshot_when_model_exists(
     mock_session_local,
     mock_repo,
-    mock_storage_cls,
+    mock_storage,
     mock_load_model,
     mock_compute_features,
     mock_score_cells,
@@ -55,9 +55,7 @@ async def test_score_computes_and_saves_snapshot_when_model_exists(
         return_value=("heatmap-1", datetime(2026, 6, 1, tzinfo=timezone.utc)),
     )
 
-    mock_storage = MagicMock()
     mock_storage.download_model.return_value = b"model-bytes"
-    mock_storage_cls.return_value = mock_storage
     mock_load_model.return_value = "the-model"
     mock_compute_features.return_value = {"c1": {"incident_density_self": 1.0}}
     mock_score_cells.return_value = {"c1": 0.4}
@@ -81,13 +79,13 @@ async def test_score_computes_and_saves_snapshot_when_model_exists(
 @patch("app.workers.tasks.risk_tasks.score_cells")
 @patch("app.workers.tasks.risk_tasks.compute_cell_features")
 @patch("app.workers.tasks.risk_tasks.load_model")
-@patch("app.workers.tasks.risk_tasks.RiskModelStorage")
+@patch("app.workers.tasks.risk_tasks._storage")
 @patch("app.workers.tasks.risk_tasks.risk_repository")
 @patch("app.workers.tasks.risk_tasks._TaskSessionLocal")
 async def test_score_result_computed_at_matches_repository_value_not_reference_time(  # noqa: E501
     mock_session_local,
     mock_repo,
-    mock_storage_cls,
+    mock_storage,
     mock_load_model,
     mock_compute_features,
     mock_score_cells,
@@ -112,9 +110,7 @@ async def test_score_result_computed_at_matches_repository_value_not_reference_t
         return_value=("heatmap-1", db_computed_at),
     )
 
-    mock_storage = MagicMock()
     mock_storage.download_model.return_value = b"model-bytes"
-    mock_storage_cls.return_value = mock_storage
     mock_load_model.return_value = "the-model"
     mock_compute_features.return_value = {"c1": {"incident_density_self": 1.0}}
     mock_score_cells.return_value = {"c1": 0.4}
@@ -126,13 +122,13 @@ async def test_score_result_computed_at_matches_repository_value_not_reference_t
 
 
 @pytest.mark.asyncio
-@patch("app.workers.tasks.risk_tasks.RiskModelStorage")
+@patch("app.workers.tasks.risk_tasks._storage")
 @patch("app.workers.tasks.risk_tasks.risk_repository")
 @patch("app.workers.tasks.risk_tasks._TaskSessionLocal")
 async def test_score_skips_when_model_artifact_missing_from_storage(
     mock_session_local,
     mock_repo,
-    mock_storage_cls,
+    mock_storage,
 ):
     mock_session = AsyncMock()
     mock_session_local.return_value.__aenter__.return_value = mock_session
@@ -143,12 +139,10 @@ async def test_score_skips_when_model_artifact_missing_from_storage(
     )
     mock_repo.get_active_model = AsyncMock(return_value=active_model)
 
-    mock_storage = MagicMock()
     mock_storage.download_model.side_effect = ClientError(
         {"Error": {"Code": "NoSuchKey", "Message": "Not Found"}},
         "GetObject",
     )
-    mock_storage_cls.return_value = mock_storage
 
     result = await _score("klaserie")
 
@@ -156,13 +150,13 @@ async def test_score_skips_when_model_artifact_missing_from_storage(
 
 
 @pytest.mark.asyncio
-@patch("app.workers.tasks.risk_tasks.RiskModelStorage")
+@patch("app.workers.tasks.risk_tasks._storage")
 @patch("app.workers.tasks.risk_tasks.risk_repository")
 @patch("app.workers.tasks.risk_tasks._TaskSessionLocal")
 async def test_score_reraises_non_missing_key_client_errors(
     mock_session_local,
     mock_repo,
-    mock_storage_cls,
+    mock_storage,
 ):
     mock_session = AsyncMock()
     mock_session_local.return_value.__aenter__.return_value = mock_session
@@ -173,12 +167,10 @@ async def test_score_reraises_non_missing_key_client_errors(
     )
     mock_repo.get_active_model = AsyncMock(return_value=active_model)
 
-    mock_storage = MagicMock()
     mock_storage.download_model.side_effect = ClientError(
         {"Error": {"Code": "AccessDenied", "Message": "nope"}},
         "GetObject",
     )
-    mock_storage_cls.return_value = mock_storage
 
     with pytest.raises(ClientError):
         await _score("klaserie")
@@ -189,13 +181,13 @@ async def test_score_reraises_non_missing_key_client_errors(
 @patch("app.workers.tasks.risk_tasks.score_cells")
 @patch("app.workers.tasks.risk_tasks.compute_cell_features")
 @patch("app.workers.tasks.risk_tasks.load_model")
-@patch("app.workers.tasks.risk_tasks.RiskModelStorage")
+@patch("app.workers.tasks.risk_tasks._storage")
 @patch("app.workers.tasks.risk_tasks.risk_repository")
 @patch("app.workers.tasks.risk_tasks._TaskSessionLocal")
 async def test_score_labels_manual_trigger_as_ad_hoc(
     mock_session_local,
     mock_repo,
-    mock_storage_cls,
+    mock_storage,
     mock_load_model,
     mock_compute_features,
     mock_score_cells,
@@ -219,9 +211,7 @@ async def test_score_labels_manual_trigger_as_ad_hoc(
         return_value=("heatmap-1", datetime(2026, 6, 1, tzinfo=timezone.utc)),
     )
 
-    mock_storage = MagicMock()
     mock_storage.download_model.return_value = b"model-bytes"
-    mock_storage_cls.return_value = mock_storage
     mock_load_model.return_value = "the-model"
     mock_compute_features.return_value = {"c1": {"incident_density_self": 1.0}}
     mock_score_cells.return_value = {"c1": 0.4}
@@ -238,13 +228,13 @@ async def test_score_labels_manual_trigger_as_ad_hoc(
 @patch("app.workers.tasks.risk_tasks.score_cells")
 @patch("app.workers.tasks.risk_tasks.compute_cell_features")
 @patch("app.workers.tasks.risk_tasks.load_model")
-@patch("app.workers.tasks.risk_tasks.RiskModelStorage")
+@patch("app.workers.tasks.risk_tasks._storage")
 @patch("app.workers.tasks.risk_tasks.risk_repository")
 @patch("app.workers.tasks.risk_tasks._TaskSessionLocal")
 async def test_score_labels_scheduled_trigger_as_6h_by_default(
     mock_session_local,
     mock_repo,
-    mock_storage_cls,
+    mock_storage,
     mock_load_model,
     mock_compute_features,
     mock_score_cells,
@@ -268,9 +258,7 @@ async def test_score_labels_scheduled_trigger_as_6h_by_default(
         return_value=("heatmap-1", datetime(2026, 6, 1, tzinfo=timezone.utc)),
     )
 
-    mock_storage = MagicMock()
     mock_storage.download_model.return_value = b"model-bytes"
-    mock_storage_cls.return_value = mock_storage
     mock_load_model.return_value = "the-model"
     mock_compute_features.return_value = {"c1": {"incident_density_self": 1.0}}
     mock_score_cells.return_value = {"c1": 0.4}
