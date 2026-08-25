@@ -59,6 +59,7 @@ CREATE TABLE users (
 CREATE TABLE risk_models (
     id                     UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     park_id                TEXT        NOT NULL,
+    version                INT         NOT NULL,
     object_storage_key     TEXT        NOT NULL,
     is_active              BOOLEAN     NOT NULL DEFAULT FALSE,
     trained_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -66,7 +67,8 @@ CREATE TABLE risk_models (
     training_window_start  TIMESTAMPTZ NOT NULL,
     training_window_end    TIMESTAMPTZ NOT NULL,
     n_training_examples    INT         NOT NULL,
-    metrics                JSONB       NOT NULL
+    metrics                JSONB       NOT NULL,
+    UNIQUE (park_id, version)
 );
 
 CREATE UNIQUE INDEX risk_models_one_active_per_park

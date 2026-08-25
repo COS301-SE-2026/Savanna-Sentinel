@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, Text
+from sqlalchemy import JSON, Boolean, DateTime, Integer, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,6 +12,9 @@ from app.models.user import Base
 
 class RiskModel(Base):
     __tablename__ = "risk_models"
+    __table_args__ = (
+        UniqueConstraint("park_id", "version", name="risk_models_park_version"),
+    )
 
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
@@ -19,6 +22,7 @@ class RiskModel(Base):
         default=lambda: str(uuid.uuid4()),
     )
     park_id: Mapped[str] = mapped_column(Text, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
     object_storage_key: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(
         Boolean,
