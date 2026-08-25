@@ -11,6 +11,7 @@ from app.schemas.risk import (
     ActiveModelResponse,
     CellExplainResponse,
     HeatmapResponse,
+    HeatmapSnapshotListResponse,
     ParkGridResponse,
     RiskJobResponse,
     RiskScoreJobStatus,
@@ -23,6 +24,7 @@ from app.services.risk_service import (
     get_active_model_metrics,
     get_cell_explanation,
     get_heatmap,
+    get_heatmap_snapshots,
     get_park_grid,
     get_scoring_job,
     get_training_job,
@@ -33,25 +35,21 @@ from app.services.risk_service import (
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 
-_PARK_NOT_FOUND = "Park not found"
+_GRID_NOT_UPLOADED = "No park grid has been uploaded yet"
 
 
 @router.get(
     "/grid",
     response_model=ParkGridResponse,
-    summary="Get reprojected grid cell polygons for a park",
+    summary="Get reprojected grid cell polygons for the park",
 )
-async def get_grid(
-    current_user: Annotated[User, Depends(get_current_user)],
-    # hardcode for now
-    park_id: str = "klaserie",
-):
+async def get_grid(current_user: Annotated[User, Depends(get_current_user)]):
     try:
-        return get_park_grid(park_id)
-    except ValueError as exc:
+        return get_park_grid()
+    except FileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=_PARK_NOT_FOUND,
+            detail=_GRID_NOT_UPLOADED,
         ) from exc
 
 
@@ -108,8 +106,9 @@ async def delete_geojson(
 async def train_model_endpoint(
     request: RiskTrainRequest,
     current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return trigger_training_job(request, current_user)
+    return await trigger_training_job(db, request, current_user)
 
 
 @router.get(
@@ -120,8 +119,9 @@ async def train_model_endpoint(
 async def get_train_job(
     job_id: str,
     current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return get_training_job(job_id)
+    return await get_training_job(db, job_id)
 
 
 @router.post(
@@ -132,8 +132,9 @@ async def get_train_job(
 )
 async def score_endpoint(
     current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return trigger_scoring_job(current_user)
+    return await trigger_scoring_job(db, current_user)
 
 
 @router.get(
@@ -144,8 +145,9 @@ async def score_endpoint(
 async def get_score_job(
     job_id: str,
     current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return get_scoring_job(job_id)
+    return await get_scoring_job(db, job_id)
 
 
 @router.get(
@@ -167,6 +169,21 @@ async def get_heatmap_endpoint(
         date=date,
         snapshot=str(snapshot) if snapshot else None,
     )
+
+
+@router.get(
+    "/heatmap/snapshots",
+    response_model=HeatmapSnapshotListResponse,
+    summary="List every computed heatmap for the park, oldest first",
+)
+async def get_heatmap_snapshots_endpoint(
+    current_user: Annotated[
+        User,
+        Depends(require_roles(["ranger", "analyst", "admin"])),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await get_heatmap_snapshots(db)
 
 
 @router.get(

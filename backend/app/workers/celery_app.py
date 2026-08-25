@@ -15,6 +15,16 @@ celery_app.conf.beat_schedule = {
     "score-heatmap-every-6-hours": {
         "task": "risk.score_heatmap",
         "schedule": crontab(hour="0,6,12,18", minute=0),
-        "args": ("klaserie",),
+        "args": (settings.PARK_ID,),
     },
+}
+
+# Single source for Celery state
+CELERY_STATUS_MAP = {
+    "PENDING": "queued",
+    "RECEIVED": "queued",
+    "STARTED": "processing",
+    "RETRY": "processing",
+    "SUCCESS": "completed",
+    "FAILURE": "failed",
 }
