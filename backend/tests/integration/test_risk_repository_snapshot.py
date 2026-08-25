@@ -7,7 +7,9 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 from app.repositories.risk_repository import (
     get_grid_cells,
+    get_latest_heatmap,
     get_risk_zone_overview,
+    list_heatmap_snapshots,
     persist_grid_cells,
     risk_level_for_score,
     save_heatmap_snapshot,
@@ -56,8 +58,7 @@ async def _make_trained_model() -> str:
 
 
 @pytest.mark.asyncio
-async def test_save_heatmap_snapshot_persists_scores_features_and_explanations(
-):
+async def test_save_heatmap_snapshot_persists_scores_and_explanations():
     model_id = await _make_trained_model()
 
     async with _Session() as session:
@@ -81,7 +82,11 @@ async def test_save_heatmap_snapshot_persists_scores_features_and_explanations(
 
     async with _Session() as session:
         heatmap_id, _computed_at = await save_heatmap_snapshot(
-            session, model_id, cells[:1], scores, features_per_cell,
+            session,
+            model_id,
+            cells[:1],
+            scores,
+            features_per_cell,
             explanations,
         )
         await session.commit()
@@ -146,7 +151,11 @@ async def test_save_heatmap_snapshot_returns_db_assigned_computed_at():
 
     async with _Session() as session:
         heatmap_id, computed_at = await save_heatmap_snapshot(
-            session, model_id, cells[:1], scores, features_per_cell,
+            session,
+            model_id,
+            cells[:1],
+            scores,
+            features_per_cell,
             explanations,
         )
         await session.commit()
@@ -194,7 +203,11 @@ async def test_save_heatmap_snapshot_links_explanations_to_correct_cell_when_bat
 
     async with _Session() as session:
         heatmap_id, _ = await save_heatmap_snapshot(
-            session, model_id, cells[:2], scores, features_per_cell,
+            session,
+            model_id,
+            cells[:2],
+            scores,
+            features_per_cell,
             explanations,
         )
         await session.commit()
@@ -217,7 +230,8 @@ async def test_save_heatmap_snapshot_links_explanations_to_correct_cell_when_bat
 
     assert by_cell[cell_a] == ["incident_density_self"]
     assert sorted(by_cell[cell_b]) == [
-        "incident_density_self", "patrol_frequency",
+        "incident_density_self",
+        "patrol_frequency",
     ]
 
 
@@ -244,7 +258,11 @@ async def test_save_heatmap_snapshot_persists_non_default_time_interval():
 
     async with _Session() as session:
         heatmap_id, _computed_at = await save_heatmap_snapshot(
-            session, model_id, cells[:1], scores, features_per_cell,
+            session,
+            model_id,
+            cells[:1],
+            scores,
+            features_per_cell,
             explanations,
             time_interval="ad-hoc",
         )
@@ -256,6 +274,173 @@ async def test_save_heatmap_snapshot_persists_non_default_time_interval():
             {"id": heatmap_id},
         )
         assert db_row.fetchone()[0] == "ad-hoc"
+
+
+@pytest.mark.asyncio
+async def test_list_heatmap_snapshots_returns_all_heatmaps_sorted_ascending():
+    model_id = await _make_trained_model()
+
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+        await session.commit()
+        cells = await get_grid_cells(session, _PARK)
+
+    cell_id = cells[0]["cell_id"]
+    features = {
+        cell_id: {
+            "incident_density_self": 1.0,
+            "incident_density_neighbors": 0.0,
+            "patrol_recency_days": 3.0,
+            "patrol_frequency": 1.0,
+        },
+    }
+    explanations = {cell_id: [("incident_density_self", 0.5)]}
+
+    async with _Session() as session:
+        first_id, first_computed_at = await save_heatmap_snapshot(
+            session,
+            model_id,
+            cells[:1],
+            {cell_id: 0.3},
+            features,
+            explanations,
+        )
+        await session.commit()
+
+    async with _Session() as session:
+        second_id, second_computed_at = await save_heatmap_snapshot(
+            session,
+            model_id,
+            cells[:1],
+            {cell_id: 0.6},
+            features,
+            explanations,
+        )
+        await session.commit()
+
+    async with _Session() as session:
+        snapshots = await list_heatmap_snapshots(session, _PARK)
+
+    ids = [s["heatmap_id"] for s in snapshots]
+    assert first_id in ids
+    assert second_id in ids
+    first_index = ids.index(first_id)
+    second_index = ids.index(second_id)
+    if first_computed_at <= second_computed_at:
+        assert first_index < second_index
+    else:
+        assert second_index < first_index
+    assert snapshots[ids.index(first_id)]["computed_at"] == (
+        first_computed_at.isoformat()
+    )
+
+
+@pytest.mark.asyncio
+async def test_list_heatmap_snapshots_excludes_heatmaps_with_no_cells():
+    model_id = await _make_trained_model()
+
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+        await session.commit()
+        cells = await get_grid_cells(session, _PARK)
+
+    cell_id = cells[0]["cell_id"]
+    features = {
+        cell_id: {
+            "incident_density_self": 1.0,
+            "incident_density_neighbors": 0.0,
+            "patrol_recency_days": 3.0,
+            "patrol_frequency": 1.0,
+        },
+    }
+    explanations = {cell_id: [("incident_density_self", 0.5)]}
+
+    async with _Session() as session:
+        scored_id, _ = await save_heatmap_snapshot(
+            session,
+            model_id,
+            cells[:1],
+            {cell_id: 0.4},
+            features,
+            explanations,
+        )
+        await session.commit()
+
+    async with _Session() as session:
+        empty_id, _ = await save_heatmap_snapshot(
+            session,
+            model_id,
+            cells[:1],
+            {},
+            features,
+            explanations,
+        )
+        await session.commit()
+
+    async with _Session() as session:
+        snapshots = await list_heatmap_snapshots(session, _PARK)
+
+    ids = [s["heatmap_id"] for s in snapshots]
+    assert scored_id in ids
+    assert empty_id not in ids
+
+
+@pytest.mark.asyncio
+async def test_get_latest_heatmap_ignores_newer_snapshot_with_no_cells():
+    model_id = await _make_trained_model()
+
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+        await session.commit()
+        cells = await get_grid_cells(session, _PARK)
+
+    cell_id = cells[0]["cell_id"]
+    features = {
+        cell_id: {
+            "incident_density_self": 1.0,
+            "incident_density_neighbors": 0.0,
+            "patrol_recency_days": 3.0,
+            "patrol_frequency": 1.0,
+        },
+    }
+    explanations = {cell_id: [("incident_density_self", 0.5)]}
+
+    async with _Session() as session:
+        scored_id, _ = await save_heatmap_snapshot(
+            session,
+            model_id,
+            cells[:1],
+            {cell_id: 0.4},
+            features,
+            explanations,
+        )
+        await session.commit()
+
+    async with _Session() as session:
+        await save_heatmap_snapshot(
+            session,
+            model_id,
+            cells[:1],
+            {},
+            features,
+            explanations,
+        )
+        await session.commit()
+
+    async with _Session() as session:
+        latest = await get_latest_heatmap(session, _PARK)
+
+    assert latest is not None
+    assert latest["heatmap_id"] == scored_id
+    assert len(latest["cells"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_list_heatmap_snapshots_empty_for_park_with_no_heatmaps():
+    async with _Session() as session:
+        snapshots = await list_heatmap_snapshots(session, "no-such-park")
+
+    assert snapshots == []
 
 
 def test_risk_level_for_score_buckets_thresholds():
@@ -298,8 +483,12 @@ async def test_get_risk_zone_overview_returns_highest_scoring_cells_first():
 
     async with _Session() as session:
         await save_heatmap_snapshot(
-            session, model_id, [low_cell, high_cell], scores,
-            features_per_cell, explanations,
+            session,
+            model_id,
+            [low_cell, high_cell],
+            scores,
+            features_per_cell,
+            explanations,
         )
         await session.commit()
 
