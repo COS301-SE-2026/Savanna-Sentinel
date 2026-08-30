@@ -254,10 +254,29 @@ async def post_comment(
 ):
     service = CommentService(db)
 
-    result = service.post_comment(
+    service.post_comment(
         authenticated,
         comment.body,
         comment.photo_urls,
         comment.created_at,
         report_id,
     )
+
+    return {
+        "status": "successful",
+    }
+
+
+@router.get(
+    "reports/{report_id}/comment",
+    status_code=status.HTTP_200_OK,
+    summary="Retrieve all posted comments",
+)
+async def get_comments(
+    report_id: str,
+    authenticated: Annotated[User, Depends(require_roles["admin", "ranger"])],
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    service = CommentService(db)
+
+    result = service.get_comments(report_id)

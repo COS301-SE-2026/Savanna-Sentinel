@@ -9,4 +9,13 @@ class CommentService:
         self.repo = repo
 
     async def post_comment(self, user, body, photo_urls, created_at, report_id):
-        self.repo.upload_comment(user, body, photo_urls, created_at, report_id)
+        await self.repo.upload_comment(
+            user,
+            body,
+            photo_urls,
+            created_at,
+            report_id,
+        )
+
+    async def get_comments(self, report_id):
+        await self.repo.get_comments(report_id)

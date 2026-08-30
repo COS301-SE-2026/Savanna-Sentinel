@@ -1,4 +1,4 @@
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.comment import Comment
@@ -13,7 +13,12 @@ class CommentRepository:
         self.db = db
 
     async def upload_comment(
-        self, user, body, photo_urls, created_at, report_id
+        self,
+        user,
+        body,
+        photo_urls,
+        created_at,
+        report_id,
     ):
         stmt = insert(Comment).values(
             report_id=report_id,
@@ -24,3 +29,13 @@ class CommentRepository:
         )
 
         await self.db.execute(stmt)
+        await self.db.commit()
+
+    async def get_comments(self, report_id):
+        stmt = select(Comment).where(
+            Comment.report_id.is_(report_id),
+        )
+
+        comments = await self.db.execute(stmt)
+
+        return comments.scalar().all()
