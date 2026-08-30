@@ -99,7 +99,7 @@ class UserResponse(BaseModel):
     usernames: list[str]
 
 
-class PostCommentRequest:
+class PostCommentRequest(BaseModel):
     body: str
     photo_urls: str
     created_at: datetime

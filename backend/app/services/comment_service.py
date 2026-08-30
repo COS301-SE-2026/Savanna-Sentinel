@@ -1,4 +1,4 @@
-from backend.app.repositories.comment_repository import CommentRepository
+from app.repositories.comment_repository import CommentRepository
 
 
 class CommentService:

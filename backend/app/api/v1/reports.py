@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Annotated, Literal, Optional
 
-from backend.app.services.comment_service import CommentService
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +18,7 @@ from app.schemas.report import (
     SpeciesResponse,
     UserResponse,
 )
+from app.services.comment_service import CommentService
 from app.services.report_service import ReportService
 
 router = APIRouter(tags=["reports"])
@@ -248,7 +248,7 @@ async def get_report(
 )
 async def post_comment(
     report_id: str,
-    authenticated: Annotated[User, Depends(require_roles["admin", "ranger"])],
+    authenticated: Annotated[User, Depends(require_roles(["admin", "ranger"]))],
     comment: PostCommentRequest,
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
@@ -275,7 +275,7 @@ async def post_comment(
 )
 async def get_comments(
     report_id: str,
-    authenticated: Annotated[User, Depends(require_roles["admin", "ranger"])],
+    authenticated: Annotated[User, Depends(require_roles(["admin", "ranger"]))],
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     service = CommentService(db)

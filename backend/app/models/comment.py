@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import ARRAY, UUID, String, func
+from sqlalchemy import ARRAY, UUID, ForeignKey, String, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -11,6 +11,7 @@ class Base(DeclarativeBase):
 
 
 class Comment(Base):
+    __tablename__ = "comments"
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
         primary_key=True,
@@ -18,9 +19,13 @@ class Comment(Base):
     )
     report_id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
+        ForeignKey("field_reports.id", ondelete="CASCADE"),
+        nullable=False,
     )
     author_id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     body: Mapped[str] = mapped_column(String)
     photo_urls: Mapped[List[str]] = mapped_column(ARRAY(String))
