@@ -13,17 +13,36 @@ interface ReportCommentsState {
     getStatus: (reportId: string) => ReportStatus;
 }
 
-function mapCommentResponse(data: any): ReportComment {
+export interface ReportCommentResponse {
+    id: string;
+    report_id?: string;
+    reportId?: string;
+    author_id?: string;
+    authorId?: string;
+    author_username?: string;
+    authorUsername?: string;
+    author_role?: string;
+    authorRole?: string;
+    body: string;
+    photo_urls?: string[];
+    photoUrls?: string[];
+    status_change?: string;
+    statusChange?: string;
+    created_at?: string;
+    createdAt?: string;
+}
+
+function mapCommentResponse(data: ReportCommentResponse): ReportComment {
     return {
         id: data.id,
-        reportId: data.report_id ?? data.reportId,
-        authorId: data.author_id ?? data.authorId,
+        reportId: data.report_id ?? data.reportId ?? "",
+        authorId: data.author_id ?? data.authorId ?? "",
         authorUsername: data.author_username ?? data.authorUsername ?? "Unknown",
         authorRole: data.author_role ?? data.authorRole ?? "ranger",
         body: data.body,
         photoUrls: data.photo_urls ?? data.photoUrls ?? [],
-        statusChange: data.status_change ?? data.statusChange ?? "none",
-        createdAt: data.created_at ?? data.createdAt,
+        statusChange: (data.status_change ?? data.statusChange ?? "none") as ReportComment["statusChange"],
+        createdAt: data.created_at ?? data.createdAt ?? new Date().toISOString(),
     };
 }
 
