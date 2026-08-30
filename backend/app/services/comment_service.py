@@ -18,4 +18,4 @@ class CommentService:
         )
 
     async def get_comments(self, report_id):
-        await self.repo.get_comments(report_id)
+        return await self.repo.get_comments(report_id)

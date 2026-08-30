@@ -280,3 +280,5 @@ async def get_comments(
     service = CommentService(db)
 
     result = service.get_comments(report_id)
+
+    return result
