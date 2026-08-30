@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 
 class LocationResponse(BaseModel):
@@ -101,6 +102,28 @@ class UserResponse(BaseModel):
 
 class PostCommentRequest(BaseModel):
     body: str
-    photo_urls: str
+    photo_urls: List[str] = []
     created_at: datetime
-    status: Optional[str]
+    status: Optional[str] = "None"
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+
+class ReportCommentResponse(BaseModel):
+    id: str
+    report_id: str
+    author_id: str
+    author_username: str
+    body: str
+    photo_urls: List[str] = []
+    status_change: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )

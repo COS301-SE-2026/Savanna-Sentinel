@@ -6,12 +6,10 @@ from typing import Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import UserDefinedType
 
-
-class _Base(DeclarativeBase):
-    pass
+from app.models.user import Base
 
 
 class GeographyPoint(UserDefinedType):
@@ -21,7 +19,7 @@ class GeographyPoint(UserDefinedType):
         return "GEOGRAPHY(Point, 4326)"
 
 
-class FieldReport(_Base):
+class FieldReport(Base):
     __tablename__ = "field_reports"
 
     id: Mapped[str] = mapped_column(

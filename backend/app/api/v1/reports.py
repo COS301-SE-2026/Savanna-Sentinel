@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Literal, Optional
+from typing import Annotated, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,7 @@ from app.repositories.report_repository import ReportRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.report import (
     PostCommentRequest,
+    ReportCommentResponse,
     ReportCreate,
     ReportListResponse,
     ReportResponse,
@@ -254,13 +255,10 @@ async def post_comment(
 ):
     service = CommentService(db)
 
-    service.post_comment(
-        authenticated,
-        comment.body,
-        comment.photo_urls,
-        comment.created_at,
-        report_id,
-        comment.status,
+    await service.post_comment(
+        report_id=report_id,
+        user=authenticated,
+        payload=comment,
     )
 
     return {
@@ -272,6 +270,7 @@ async def post_comment(
     "reports/{report_id}/comment",
     status_code=status.HTTP_200_OK,
     summary="Retrieve all posted comments",
+    response_model=List[ReportCommentResponse],
 )
 async def get_comments(
     report_id: str,

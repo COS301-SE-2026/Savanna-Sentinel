@@ -1,13 +1,11 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import ARRAY, UUID, ForeignKey, String, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import ARRAY, UUID, DateTime, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column
 
-
-class Base(DeclarativeBase):
-    pass
+from app.models.user import Base
 
 
 class Comment(Base):
@@ -29,5 +27,8 @@ class Comment(Base):
     )
     body: Mapped[str] = mapped_column(String)
     photo_urls: Mapped[List[str]] = mapped_column(ARRAY(String))
-    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
     status_change: Mapped[Optional[str]] = mapped_column(String, nullable=True)

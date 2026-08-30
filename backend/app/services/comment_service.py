@@ -1,29 +1,30 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.repositories.comment_repository import CommentRepository
+from app.models.user import User
+from app.schemas.report import PostCommentRequest
 
 
 class CommentService:
     def __init__(
         self,
-        repo: CommentRepository,
+        db: AsyncSession,
     ):
-        self.repo = repo
+        self.repo = CommentRepository(db)
 
     async def post_comment(
         self,
-        user,
-        body,
-        photo_urls,
-        created_at,
-        report_id,
-        status,
+        report_id: str,
+        user: User,
+        payload: PostCommentRequest,
     ):
         await self.repo.upload_comment(
-            user,
-            body,
-            photo_urls,
-            created_at,
-            report_id,
-            status,
+            report_id=report_id,
+            author_id=user.id,
+            body=payload.body,
+            photo_urls=payload.photo_urls,
+            created_at=payload.created_at,
+            status=payload.status,
         )
 
     async def get_comments(self, report_id):

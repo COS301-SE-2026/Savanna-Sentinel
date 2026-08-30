@@ -170,6 +170,16 @@ CREATE TABLE field_reports (
     deleted_at   TIMESTAMPTZ
 );
 
+CREATE TABLE comments (
+    id UUID PRIMARY KEY,
+    report_id UUID NOT NULL REFERENCES field_reports(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT,
+    photo_urls VARCHAR[],
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    status_change VARCHAR
+);
+
 CREATE TABLE tipoffs (
     id           UUID           PRIMARY KEY DEFAULT uuid_generate_v4(),
     submitted_by UUID           NOT NULL REFERENCES users(id),
