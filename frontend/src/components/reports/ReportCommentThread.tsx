@@ -19,6 +19,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useReportCommentsStore } from "@/store/reportCommentsStore";
 import type { ReportComment, ReportStatus } from "@/types/reportComments";
 import type { PhotoAttachment } from "@/types/reports";
+import { resolvePhotoUrls } from "@/lib/media";
+import { notifyCritical } from "../ui/toast";
 
 interface ReportCommentThreadProps {
     reportId: string;
@@ -57,25 +59,33 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
 
     const [body, setBody] = React.useState("");
     const [photos, setPhotos] = React.useState<PhotoAttachment[]>([]);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [pendingStatus, setPendingStatus] =
         React.useState<ReportStatus | null>(null);
 
-    const handlePost = () => {
-        if (!user || body.trim() === "") return;
+    const handlePost = async () => {
+        if (!user || (body.trim() === "" && photos.length === 0)) return;
 
-        const comment: ReportComment = {
-            id: crypto.randomUUID(),
-            reportId,
-            authorId: user.id,
-            authorUsername: user.username,
-            authorRole: user.role,
-            body: body.trim(),
-            photoUrls: photos.map((p) => p.previewUrl),
-            createdAt: new Date().toISOString(),
-        };
-        addComment(comment);
-        setBody("");
-        setPhotos([]);
+        setIsSubmitting(true);
+        try{
+            const photoUrls = await resolvePhotoUrls(photos);
+
+            await addComment(reportId, {
+                body: body.trim(),
+                photoUrls: photoUrls,
+                createdAt: new Date().toISOString()
+            })
+
+            setBody("")
+            setPhotos([])
+        }
+        catch (err) {
+            notifyCritical("Comment error", "Failed to post comment");
+            console.error(err);
+        }
+        finally {
+            setIsSubmitting(false)
+        }
     };
 
     const handleConfirmStatusChange = () => {
@@ -161,15 +171,16 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
                             placeholder="Add a comment..."
                             value={body}
                             onChange={(e) => setBody(e.target.value)}
+                            disabled={isSubmitting}
                         />
                         <PhotoPicker photos={photos} onChange={setPhotos} />
                         <Button
                             type="button"
                             onClick={handlePost}
-                            disabled={body.trim() === ""}
+                            disabled={isSubmitting || (body.trim() === "" && photos.length === 0)}
                             className="self-start"
                         >
-                            Post comment
+                            {isSubmitting ? "Uploading..." : "Post comment"}
                         </Button>
                     </div>
                 )}
