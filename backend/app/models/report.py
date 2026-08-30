@@ -61,3 +61,4 @@ class FieldReport(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    status: Mapped[str] = mapped_column(default="none")

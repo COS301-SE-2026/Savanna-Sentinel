@@ -24,6 +24,7 @@ import { notifyCritical } from "../ui/toast";
 
 interface ReportCommentThreadProps {
     reportId: string;
+    initialStatus?: ReportStatus;
 }
 
 // Must not be mutated, shared fallback reference returned by the selector below.
@@ -44,7 +45,7 @@ const STATUS_OPTIONS: { value: ReportStatus; label: string }[] = [
     { value: "resolved", label: "Resolved" },
 ];
 
-export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
+export function ReportCommentThread({ reportId, initialStatus }: ReportCommentThreadProps) {
     const user = useAuthStore((s) => s.user);
     const canParticipate = user?.role === "ranger" || user?.role === "admin";
 
@@ -62,6 +63,14 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
     React.useEffect(() => {
         if(reportId) {
             fetchComments(reportId);
+            if(initialStatus) {
+                useReportCommentsStore.setState((state) => ({
+                    statusByReportId: {
+                        ...state.statusByReportId,
+                        [reportId]: initialStatus as ReportStatus,
+                    },
+                }));
+            }
         }
     }, [reportId, fetchComments])
 

@@ -17,6 +17,7 @@ from app.schemas.report import (
     ReportSubmitResponse,
     ReportUpdate,
     SpeciesResponse,
+    StatusUpdateRequest,
     UserResponse,
 )
 from app.services.comment_service import CommentService
@@ -278,3 +279,23 @@ async def get_comments(
     result = await service.get_comments(report_id)
 
     return result
+
+
+@router.post(
+    "/reports/{report_id}/status/update",
+    status_code=status.HTTP_200_OK,
+    summary="Update a reports currently reported status",
+)
+async def update_report_status(
+    report_id: str,
+    payload: StatusUpdateRequest,
+    authenticated: Annotated[User, Depends(require_roles(["admin", "ranger"]))],
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    service = ReportService(ReportRepository(db), UserRepository(db))
+
+    return await service.update_report(
+        report_id=report_id,
+        current_user=authenticated,
+        data=ReportUpdate(status=payload.status),
+    )

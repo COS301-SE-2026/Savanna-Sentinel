@@ -151,6 +151,8 @@ class ReportService:
             fields["location_wkt"] = self._validate_location(data.location)
         if "images" in provided:
             fields["images"] = provided["images"]
+        if "status" in provided:
+            fields["status"] = provided["status"]
 
         fields.update(self._type_specific_fields(report_type, provided))
         return fields

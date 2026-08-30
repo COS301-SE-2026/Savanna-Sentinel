@@ -43,6 +43,7 @@ function mapToDraft(item: ReportListItem): DraftReport {
         })),
         createdAt: item.created_at,
         syncStatus: item.sync_status as DraftReport["syncStatus"],
+        status: item.status ?? "none"
     };
 }
 // Helper functions end
@@ -136,6 +137,7 @@ export default function ReportsPage() {
                 submittedByUsername: res.submitted_by_username,
                 createdAt: res.created_at,
                 syncStatus: "pending",
+                status: "none"
             };
             setReports((prev) => [...prev, newReport]);
             notifySafe(

@@ -24,6 +24,7 @@ class ReportResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     images: list[str] = []
+    status: str
 
 
 class LocationLatLon(BaseModel):
@@ -49,6 +50,7 @@ class ReportListItem(BaseModel):
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
+    status: Optional[str] = None
 
 
 class ReportListResponse(BaseModel):
@@ -90,6 +92,7 @@ class ReportUpdate(BaseModel):
     severity: Optional[Literal["low", "medium", "high"]] = None
     species: Optional[str] = None
     count: Optional[int] = None
+    status: Optional[str] = None
 
 
 class SpeciesResponse(BaseModel):
@@ -127,3 +130,7 @@ class ReportCommentResponse(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
+
+
+class StatusUpdateRequest(BaseModel):
+    status: str

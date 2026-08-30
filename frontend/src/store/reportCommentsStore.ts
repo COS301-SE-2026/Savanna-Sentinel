@@ -9,7 +9,7 @@ interface ReportCommentsState {
     isLoading: boolean;
     fetchComments: (reportId: string) => Promise<void>;
     addComment: (reportId: string, comment: {body: string, photoUrls: string[], createdAt: string, status: string}) => Promise<void>;
-    setStatus: (reportId: string, status: ReportStatus) => void;
+    setStatus: (reportId: string, status: ReportStatus) => Promise<void>;
     getStatus: (reportId: string) => ReportStatus;
 }
 
@@ -82,14 +82,30 @@ export const useReportCommentsStore = create<ReportCommentsState>()(
             }));
         },
 
-        setStatus: (reportId, status) =>
+        setStatus: async (reportId, status) => {
+            const previousStatus = get().statusByReportId[reportId]
+
             set((state) => ({
                 statusByReportId: {
                     ...state.statusByReportId,
-                    [reportId]: status,
-                },
-            })),
+                    [reportId]: status
+                }
+            }));
 
+            try{
+                await api.post(`reports/${reportId}/status/update`, { status });
+            }
+            catch (error) {
+                set((state) => ({
+                    statusByReportId: {
+                        ...state.statusByReportId,
+                        [reportId]: previousStatus,
+                    },
+                }));
+                notifyCritical("Status Error", "Failed to update report status");
+                console.error(error);
+            }
+        },
         getStatus: (reportId) => get().statusByReportId[reportId] ?? "none",
     }),
 );
