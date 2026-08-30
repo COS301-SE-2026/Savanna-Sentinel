@@ -57,6 +57,14 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
     const addComment = useReportCommentsStore((s) => s.addComment);
     const setStatus = useReportCommentsStore((s) => s.setStatus);
 
+    const fetchComments = useReportCommentsStore((s) => s.fetchComments);
+
+    React.useEffect(() => {
+        if(reportId) {
+            fetchComments(reportId);
+        }
+    }, [reportId, fetchComments])
+
     const [body, setBody] = React.useState("");
     const [photos, setPhotos] = React.useState<PhotoAttachment[]>([]);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -74,11 +82,12 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
                 body: body.trim(),
                 photoUrls: photoUrls,
                 createdAt: new Date().toISOString(),
-                status: "None"
+                status: "none"
             })
 
             setBody("")
             setPhotos([])
+            await fetchComments(reportId);
         }
         catch (err) {
             notifyCritical("Comment error", "Failed to post comment");
@@ -89,17 +98,20 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
         }
     };
 
-    const handleConfirmStatusChange = () => {
+    const handleConfirmStatusChange = async () => {
         if (!user || pendingStatus === null) return;
 
+        const newStatus = pendingStatus;
+        setPendingStatus(null);
         setStatus(reportId, pendingStatus);
-        addComment(reportId, {
+        await addComment(reportId, {
             body: "",
             photoUrls: [],
             createdAt: new Date().toISOString(),
-            status: pendingStatus,
+            status: newStatus,
         });
-        setPendingStatus(null);
+    
+        await fetchComments(reportId);
     };
 
     const pendingLabel = STATUS_BADGE[pendingStatus ?? status].label;
@@ -145,7 +157,7 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
                         </p>
                     ) : (
                         comments.map((comment) =>
-                            comment.statusChange !== undefined ? (
+                            comment.statusChange && comment.statusChange !== "none" ? (
                                 <ReportStatusChangeItem
                                     key={comment.id}
                                     comment={comment}

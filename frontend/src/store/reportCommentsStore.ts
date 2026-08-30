@@ -13,6 +13,20 @@ interface ReportCommentsState {
     getStatus: (reportId: string) => ReportStatus;
 }
 
+function mapCommentResponse(data: any): ReportComment {
+    return {
+        id: data.id,
+        reportId: data.report_id ?? data.reportId,
+        authorId: data.author_id ?? data.authorId,
+        authorUsername: data.author_username ?? data.authorUsername ?? "Unknown",
+        authorRole: data.author_role ?? data.authorRole ?? "ranger",
+        body: data.body,
+        photoUrls: data.photo_urls ?? data.photoUrls ?? [],
+        statusChange: data.status_change ?? data.statusChange ?? "none",
+        createdAt: data.created_at ?? data.createdAt,
+    };
+}
+
 export const useReportCommentsStore = create<ReportCommentsState>()(
     (set, get) => ({
         commentsByReportId: {},
@@ -39,11 +53,12 @@ export const useReportCommentsStore = create<ReportCommentsState>()(
 
         addComment: async (reportId: string, comment) => {
             const res = await api.post<ReportComment>(`reports/${reportId}/comment`, comment);
+            const newComment = mapCommentResponse(res.data)
 
             set((state) => ({
                 commentsByReportId: {
                     ...state.commentsByReportId,
-                    [reportId]: [...(state.commentsByReportId[reportId] ?? []), res.data]
+                    [reportId]: [...(state.commentsByReportId[reportId] ?? []), newComment]
                 },
             }));
         },

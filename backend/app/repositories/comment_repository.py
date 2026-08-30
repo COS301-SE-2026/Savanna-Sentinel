@@ -44,7 +44,7 @@ class CommentRepository:
             select(Comment, User.username.label("author_username"))
             .join(User, Comment.author_id == User.id)
             .where(
-                Comment.report_id.is_(report_id),
+                Comment.report_id == report_id,
             )
             .order_by(Comment.created_at.asc())
         )

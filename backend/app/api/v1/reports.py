@@ -255,19 +255,15 @@ async def post_comment(
 ):
     service = CommentService(db)
 
-    await service.post_comment(
+    return await service.post_comment(
         report_id=report_id,
         user=authenticated,
         payload=comment,
     )
 
-    return {
-        "status": "successful",
-    }
-
 
 @router.get(
-    "reports/{report_id}/comment",
+    "/reports/{report_id}/comment",
     status_code=status.HTTP_200_OK,
     summary="Retrieve all posted comments",
     response_model=List[ReportCommentResponse],
@@ -279,6 +275,6 @@ async def get_comments(
 ):
     service = CommentService(db)
 
-    result = service.get_comments(report_id)
+    result = await service.get_comments(report_id)
 
     return result
