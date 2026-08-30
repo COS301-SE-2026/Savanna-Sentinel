@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import ARRAY, UUID, String, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -25,3 +25,4 @@ class Comment(Base):
     body: Mapped[str] = mapped_column(String)
     photo_urls: Mapped[List[str]] = mapped_column(ARRAY(String))
     created_at: Mapped[datetime] = mapped_column(default=func.now())
+    status_change: Mapped[Optional[str]] = mapped_column(String, nullable=True)

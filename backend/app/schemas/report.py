@@ -103,3 +103,4 @@ class PostCommentRequest:
     body: str
     photo_urls: str
     created_at: datetime
+    status: Optional[str]

@@ -260,6 +260,7 @@ async def post_comment(
         comment.photo_urls,
         comment.created_at,
         report_id,
+        comment.status,
     )
 
     return {

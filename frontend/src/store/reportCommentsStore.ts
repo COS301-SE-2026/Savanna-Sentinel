@@ -8,7 +8,7 @@ interface ReportCommentsState {
     statusByReportId: Record<string, ReportStatus>;
     isLoading: boolean;
     fetchComments: (reportId: string) => Promise<void>;
-    addComment: (reportId: string, comment: {body: string, photoUrls: string[], createdAt: string}) => Promise<void>;
+    addComment: (reportId: string, comment: {body: string, photoUrls: string[], createdAt: string, status: string}) => Promise<void>;
     setStatus: (reportId: string, status: ReportStatus) => void;
     getStatus: (reportId: string) => ReportStatus;
 }

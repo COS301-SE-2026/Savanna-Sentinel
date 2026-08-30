@@ -73,7 +73,8 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
             await addComment(reportId, {
                 body: body.trim(),
                 photoUrls: photoUrls,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                status: "None"
             })
 
             setBody("")
@@ -92,16 +93,11 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
         if (!user || pendingStatus === null) return;
 
         setStatus(reportId, pendingStatus);
-        addComment({
-            id: crypto.randomUUID(),
-            reportId,
-            authorId: user.id,
-            authorUsername: user.username,
-            authorRole: user.role,
+        addComment(reportId, {
             body: "",
             photoUrls: [],
             createdAt: new Date().toISOString(),
-            statusChange: pendingStatus,
+            status: pendingStatus,
         });
         setPendingStatus(null);
     };
