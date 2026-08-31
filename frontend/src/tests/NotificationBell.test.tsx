@@ -1,10 +1,18 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 import NotificationBell from "@/components/layout/NotificationBell";
 import { useNotificationStore } from "@/store/notificationStore";
 import type { Notification } from "@/store/notificationStore";
+
+vi.mock("@/services/notificationsApi", () => ({
+    notificationsApi: {
+        list: vi.fn(),
+        markRead: vi.fn().mockResolvedValue(undefined),
+        markAllRead: vi.fn().mockResolvedValue(undefined),
+    },
+}));
 
 function setNotifications(notifications: Notification[]) {
     useNotificationStore.setState({ notifications });

@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+import { notificationsApi } from "@/services/notificationsApi";
+
 export interface Notification {
     id: string;
     title: string;
@@ -11,29 +13,42 @@ export interface Notification {
 interface NotificationState {
     notifications: Notification[];
     setNotifications: (notifications: Notification[]) => void;
-    markAsRead: (id: string) => void;
-    markAllRead: () => void;
+    markAsRead: (id: string) => Promise<void>;
+    markAllRead: () => Promise<void>;
 }
-// once api exists,
-// fetch initial notifications from api endpoint and subscribe
-// for live updates, then call setNotifications with the result
-export const useNotificationStore = create<NotificationState>()((set) => ({
-    notifications: [],
 
-    setNotifications: (notifications) => set({ notifications }),
+export const useNotificationStore = create<NotificationState>()(
+    (set, get) => ({
+        notifications: [],
 
-    markAsRead: (id) =>
-        set((state) => ({
-            notifications: state.notifications.map((n) =>
-                n.id === id ? { ...n, read: true } : n,
-            ),
-        })),
+        setNotifications: (notifications) => set({ notifications }),
 
-    markAllRead: () =>
-        set((state) => ({
-            notifications: state.notifications.map((n) => ({
-                ...n,
-                read: true,
-            })),
-        })),
-}));
+        markAsRead: async (id) => {
+            const previous = get().notifications;
+            set({
+                notifications: previous.map((n) =>
+                    n.id === id ? { ...n, read: true } : n,
+                ),
+            });
+
+            try {
+                await notificationsApi.markRead(id);
+            } catch {
+                set({ notifications: previous });
+            }
+        },
+
+        markAllRead: async () => {
+            const previous = get().notifications;
+            set({
+                notifications: previous.map((n) => ({ ...n, read: true })),
+            });
+
+            try {
+                await notificationsApi.markAllRead();
+            } catch {
+                set({ notifications: previous });
+            }
+        },
+    }),
+);
