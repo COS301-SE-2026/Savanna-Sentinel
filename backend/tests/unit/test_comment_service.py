@@ -226,7 +226,7 @@ async def test_comment_handles_empty_photo_field():
     comments = [
         {
             "id": "c1",
-            "body": "Legacy record missing key",
+            "body": "Empty Body",
             "photo_urls": None,
         },
     ]
