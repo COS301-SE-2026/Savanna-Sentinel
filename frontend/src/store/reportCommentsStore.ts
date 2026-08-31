@@ -56,9 +56,11 @@ export const useReportCommentsStore = create<ReportCommentsState>()(
             set({isLoading: true});
             try{
                 const res = await api.get<ReportComment[]>(`reports/${reportId}/comment`);
-
+                const mappedComments = Array.isArray(res.data) ?
+                    res.data.map(mapCommentResponse)
+                    : [];
                 set((state) => ({
-                    commentsByReportId: {...state.commentsByReportId, [reportId]: res.data},
+                    commentsByReportId: {...state.commentsByReportId, [reportId]: mappedComments},
                 }));
             }
             catch (error) {
@@ -71,7 +73,7 @@ export const useReportCommentsStore = create<ReportCommentsState>()(
         },
 
         addComment: async (reportId: string, comment) => {
-            const res = await api.post<ReportComment>(`reports/${reportId}/comment`, comment);
+            const res = await api.post<ReportCommentResponse>(`reports/${reportId}/comment`, comment);
             const newComment = mapCommentResponse(res.data)
 
             set((state) => ({
