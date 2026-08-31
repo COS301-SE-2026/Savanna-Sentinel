@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.repositories.tipoff_repository import TipoffRepository
     from app.repositories.user_repository import UserRepository
     from app.schemas.tipoff import TipoffCreate
+    from app.services.notification_service import NotificationService
 
 
 class TipoffService:
@@ -20,10 +21,12 @@ class TipoffService:
         repo: "TipoffRepository",
         user_repo: "UserRepository",
         media_service: Optional[MediaService] = None,
+        notification_service: Optional["NotificationService"] = None,
     ):
         self.repo = repo
         self.user_repo = user_repo
         self.media_service = media_service or MediaService()
+        self.notification_service = notification_service
 
     async def create_tipoff(
             self,
@@ -72,7 +75,43 @@ class TipoffService:
             images=data.images,
         )
         result["submitted_by_username"] = current_user.username
+
+        if self.notification_service:
+            await self._notify_tipoff_submitted(current_user, data, result)
+
         return result
+
+    async def _notify_tipoff_submitted(
+        self,
+        current_user: "User",
+        data: "TipoffCreate",
+        result: dict,
+    ) -> None:
+        subject = (
+            data.incident_type
+            if data.report_type == "incident"
+            else data.species
+        )
+        await self.notification_service.notify_roles(
+            ["ranger", "analyst", "admin"],
+            "tipoff_submitted",
+            f"New {data.report_type} tip-off",
+            f"{current_user.username} reported {subject}: "
+            f"{data.description[:120]}",
+            related_type="tipoff",
+            related_id=result["tipoff_id"],
+        )
+
+        if data.report_type == "incident" and data.severity == "high":
+            await self.notification_service.notify_roles(
+                ["ranger", "admin"],
+                "high_severity_incident",
+                "High-severity incident reported",
+                f"{data.incident_type} reported by {current_user.username} "
+                "— needs attention.",
+                related_type="tipoff",
+                related_id=result["tipoff_id"],
+            )
 
     async def get_tipoffs(
         self,
