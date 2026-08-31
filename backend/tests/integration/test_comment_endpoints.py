@@ -139,3 +139,75 @@ async def test_comment_endpoints_require_auth(seeded_report):
     assert res_post.status_code in (401, 403)
     assert res_get.status_code in (401, 403)
     assert res_status.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_post_comment_success(ranger_token, seeded_report):
+    payload = {
+        "body": "Test comment",
+        "photo_urls": ["http://minio/bucket/reports/footprint.jpg"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "in_progress",
+    }
+
+    async with _client() as c:
+        r = await c.post(
+            f"/v1/reports/{seeded_report}/comment",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {ranger_token}",
+            },
+        )
+
+    assert r.status_code == 201
+    body = r.json()
+    assert body["report_id"] == seeded_report
+    assert body["author_username"] == "test_comment_ranger"
+    assert body["body"] == payload["body"]
+    assert len(body["photo_urls"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_comments_returns_posted_comments(
+    ranger_token,
+    seeded_report,
+):
+    payload = {
+        "body": "Test comment 2",
+        "photo_urls": [],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    async with _client() as c:
+        await c.post(
+            f"/v1/reports/{seeded_report}/comment",
+            json=payload,
+            headers={"Authorization": f"Bearer {ranger_token}"},
+        )
+
+        r = await c.get(
+            f"/v1/reports/{seeded_report}/comment",
+            headers={"Authorization": f"Bearer {ranger_token}"},
+        )
+
+    assert r.status_code == 200
+    comments = r.json()
+    assert isinstance(comments, list)
+    assert len(comments) >= 1
+    assert comments[0]["body"] == "Test comment 2"
+
+
+@pytest.mark.asyncio
+async def test_update_report_status_success(ranger_token, seeded_report):
+    status_payload = {
+        "status": "resolved",
+    }
+
+    async with _client() as c:
+        r = await c.post(
+            f"/v1/reports/{seeded_report}/status/update",
+            json=status_payload,
+            headers={"Authorization": f"Bearer {ranger_token}"},
+        )
+
+    assert r.status_code == 200
