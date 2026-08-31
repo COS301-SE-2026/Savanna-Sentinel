@@ -9,6 +9,7 @@ from app.services.comment_service import CommentService
 
 _NOW = datetime.now(timezone.utc)
 _REPORT_ID = "aaaaaaaa-0000-0000-0000-000000000001"
+_AUTHOR_ID = "bbbbbbbb-0000-0000-0000-000000000002"
 
 
 def _ranger(
@@ -55,7 +56,7 @@ def _make_comment_service(
 def _fake_comment(
     comment_id: str = "cccccccc-0000-0000-0000-000000000001",
     report_id: str = _REPORT_ID,
-    author_id: str = "bbbbbbbb-0000-0000-0000-000000000002",
+    author_id: str = _AUTHOR_ID,
     body: str = "Test comment body",
     photo_urls: list[str] | None = None,
     status_change: str | None = None,
@@ -93,3 +94,73 @@ async def test_post_comment_calls_repo():
         created_at=_NOW,
         status="resolved",
     )
+
+
+@pytest.mark.asyncio
+async def test_post_comment_returns_expected_structure():
+    mock_comment = _fake_comment(status_change="unresolved")
+    service = _make_comment_service(upload_result=mock_comment)
+
+    result = await service.post_comment(
+        _REPORT_ID,
+        _ranger(),
+        _comment_payload(),
+    )
+
+    assert result == {
+        "id": mock_comment.id,
+        "report_id": _REPORT_ID,
+        "author_id": _AUTHOR_ID,
+        "author_username": "ranger2",
+        "body": mock_comment.body,
+        "photo_urls": [],
+        "status_change": "unresolved",
+        "created_at": _NOW,
+    }
+
+
+@pytest.mark.asyncio
+async def test_post_comment_transforms_urls():
+    raw_urls = [
+        "http://minio/bucket/comments/1.jpg",
+        "http://minio/bucket/comments/2.jpg",
+    ]
+    mock_comment = _fake_comment(photo_urls=raw_urls)
+    media_service = _make_media_service()
+    service = _make_comment_service(
+        upload_result=mock_comment,
+        media_service=media_service,
+    )
+
+    result = await service.post_comment(
+        _REPORT_ID,
+        _ranger(),
+        _comment_payload(),
+    )
+
+    assert media_service.generate_view_url.call_count == 2
+    assert (
+        result["photo_urls"][0] == "http://minio/bucket/comments/1.jpg?signed=1"
+    )
+    assert (
+        result["photo_urls"][1] == "http://minio/bucket/comments/2.jpg?signed=1"
+    )
+
+
+@pytest.mark.asyncio
+async def test_post_comment_handles_no_photos():
+    mock_comment = _fake_comment(photo_urls=None)
+    media_service = _make_media_service()
+    service = _make_comment_service(
+        upload_result=mock_comment,
+        media_service=media_service,
+    )
+
+    result = await service.post_comment(
+        _REPORT_ID,
+        _ranger(),
+        _comment_payload(),
+    )
+
+    media_service.generate_view_url.assert_not_called()
+    assert result["photo_urls"] == []
