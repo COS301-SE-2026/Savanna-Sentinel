@@ -27,6 +27,7 @@ function setViewport(width: number) {
 const sample: Notification[] = [
     {
         id: "1",
+        type: "field_report_submitted",
         title: "Reports uploaded successfully",
         body: "3 field reports queued offline were sent to the server.",
         timestamp: new Date(Date.now() - 2 * 60_000).toISOString(),
@@ -34,6 +35,7 @@ const sample: Notification[] = [
     },
     {
         id: "2",
+        type: "ingestion_complete",
         title: "CSV ingestion complete",
         body: "patrol_data_may.csv processed.",
         timestamp: new Date(Date.now() - 60 * 60_000).toISOString(),
@@ -91,6 +93,26 @@ describe("NotificationBell", () => {
         ).toBeInTheDocument();
         expect(screen.getByText("CSV ingestion complete")).toBeInTheDocument();
         expect(screen.getAllByText("New")).toHaveLength(1);
+    });
+
+    it("shows a tinted alert icon only for high-severity incident notifications", async () => {
+        setNotifications([
+            ...sample,
+            {
+                id: "3",
+                type: "high_severity_incident",
+                title: "High-severity incident reported",
+                body: "poaching reported by liaison1 - needs attention.",
+                timestamp: new Date(Date.now() - 5 * 60_000).toISOString(),
+                read: false,
+            },
+        ]);
+        render(<NotificationBell />);
+        await openPanel();
+
+        expect(
+            document.body.querySelectorAll(".lucide-triangle-alert"),
+        ).toHaveLength(1);
     });
 
     it("marks a single notification as read", async () => {

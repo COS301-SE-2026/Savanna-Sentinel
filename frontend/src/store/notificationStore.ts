@@ -1,9 +1,11 @@
 import { create } from "zustand";
 
 import { notificationsApi } from "@/services/notificationsApi";
+import type { NotificationType } from "@/services/notificationsApi";
 
 export interface Notification {
     id: string;
+    type: NotificationType;
     title: string;
     body: string;
     timestamp: string;

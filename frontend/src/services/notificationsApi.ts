@@ -27,6 +27,7 @@ interface NotificationListApiResponse {
 
 export interface MappedNotification {
     id: string;
+    type: NotificationType;
     title: string;
     body: string;
     timestamp: string;
@@ -56,6 +57,7 @@ export const notificationsApi = {
             .then((data) => ({
                 notifications: data.results.map((item) => ({
                     id: item.id,
+                    type: item.type,
                     title: item.title,
                     body: item.body,
                     timestamp: item.created_at,

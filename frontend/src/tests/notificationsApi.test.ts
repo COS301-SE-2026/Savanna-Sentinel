@@ -55,6 +55,7 @@ describe("notificationsApi", () => {
         expect(result.notifications).toEqual([
             {
                 id: "n1",
+                type: "tipoff_submitted",
                 title: "New incident tip-off",
                 body: "liaison1 reported poaching near the river",
                 timestamp: "2026-01-01T00:00:00Z",
@@ -62,6 +63,7 @@ describe("notificationsApi", () => {
             },
             {
                 id: "n2",
+                type: "ingestion_complete",
                 title: "CSV ingestion complete",
                 body: "42 records were ingested.",
                 timestamp: "2026-01-01T01:00:00Z",
