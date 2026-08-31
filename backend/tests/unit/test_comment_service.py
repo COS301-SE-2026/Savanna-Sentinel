@@ -164,3 +164,87 @@ async def test_post_comment_handles_no_photos():
 
     media_service.generate_view_url.assert_not_called()
     assert result["photo_urls"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_comments_calls_repo_and_returns_list():
+    comments = [
+        {
+            "id": "c1",
+            "body": "First comment",
+            "photo_urls": [],
+        },
+        {
+            "id": "c2",
+            "body": "Second comment",
+            "photo_urls": [],
+        },
+    ]
+
+    service = _make_comment_service(get_comments_result=comments)
+    result = await service.get_comments(_REPORT_ID)
+
+    service.repo.get_comments.assert_called_once_with(_REPORT_ID)
+    assert len(result) == 2
+    assert result[0]["id"] == "c1"
+
+
+@pytest.mark.asyncio
+async def test_get_comments_transforms_photo_urls():
+    comments = [
+        {
+            "id": "c1",
+            "body": "First comment",
+            "photo_urls": ["http://minio/bucket/comments/a.jpg"],
+        },
+        {
+            "id": "c2",
+            "body": "Second comment",
+            "photo_urls": [],
+        },
+    ]
+
+    media_service = _make_media_service()
+    service = _make_comment_service(
+        get_comments_result=comments,
+        media_service=media_service,
+    )
+
+    result = await service.get_comments(_REPORT_ID)
+
+    media_service.generate_view_url.assert_called_once_with(
+        "http://minio/bucket/comments/a.jpg",
+    )
+    assert result[0]["photo_urls"] == [
+        "http://minio/bucket/comments/a.jpg?signed=1",
+    ]
+    assert result[1]["photo_urls"] == []
+
+
+@pytest.mark.asyncio
+async def test_comment_handles_empty_photo_field():
+    comments = [
+        {
+            "id": "c1",
+            "body": "Legacy record missing key",
+            "photo_urls": None,
+        },
+    ]
+
+    media_service = _make_media_service()
+    service = _make_comment_service(
+        get_comments_result=comments,
+        media_service=media_service,
+    )
+
+    result = await service.get_comments(_REPORT_ID)
+    media_service.generate_view_url.assert_not_called()
+    assert result[0]["photo_urls"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_comments_returns_empty_list():
+    service = _make_comment_service(get_comments_result=[])
+
+    result = await service.get_comments(_REPORT_ID)
+    assert result == []
