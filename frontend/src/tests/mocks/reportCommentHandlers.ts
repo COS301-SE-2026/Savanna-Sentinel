@@ -1,4 +1,4 @@
-import {http, HttpResponse } from "msw"
+import { http, HttpResponse } from "msw";
 
 export const reportCommentHandlers = [
     http.get("*/reports/:reportId/comment", () => {
@@ -14,10 +14,10 @@ export const reportCommentHandlers = [
                 status_change: "none",
                 created_at: "2026-08-20T08:00:00.000Z",
             },
-        ])
+        ]);
     }),
 
-    http.post("*/reports/:reportId/comment", async ({request}) => {
+    http.post("*/reports/:reportId/comment", async ({ request }) => {
         const body = (await request.json()) as {
             body: string;
             photoUrls?: string[];
@@ -25,21 +25,21 @@ export const reportCommentHandlers = [
         };
 
         return HttpResponse.json(
-        {
-            id: "c2",
-            report_id: "report-1",
-            author_id: "u1",
-            author_username: "ranger1",
-            author_role: "ranger",
-            body: body.body,
-            photo_urls: body.photoUrls ?? [],
-            created_at: body.createdAt,
-        },
-        { status: 201 }
+            {
+                id: "c2",
+                report_id: "report-1",
+                author_id: "u1",
+                author_username: "ranger1",
+                author_role: "ranger",
+                body: body.body,
+                photo_urls: body.photoUrls ?? [],
+                created_at: body.createdAt,
+            },
+            { status: 201 },
         );
     }),
 
     http.post("*/reports/:reportId/status/update", () => {
         return HttpResponse.json({ status: "success" });
-    })
-]
+    }),
+];

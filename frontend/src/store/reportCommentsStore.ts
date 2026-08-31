@@ -8,7 +8,15 @@ interface ReportCommentsState {
     statusByReportId: Record<string, ReportStatus>;
     isLoading: boolean;
     fetchComments: (reportId: string) => Promise<void>;
-    addComment: (reportId: string, comment: {body: string, photoUrls: string[], createdAt: string, status: string}) => Promise<void>;
+    addComment: (
+        reportId: string,
+        comment: {
+            body: string;
+            photoUrls: string[];
+            createdAt: string;
+            status: string;
+        },
+    ) => Promise<void>;
     setStatus: (reportId: string, status: ReportStatus) => Promise<void>;
     getStatus: (reportId: string) => ReportStatus;
 }
@@ -37,12 +45,16 @@ function mapCommentResponse(data: ReportCommentResponse): ReportComment {
         id: data.id,
         reportId: data.report_id ?? data.reportId ?? "",
         authorId: data.author_id ?? data.authorId ?? "",
-        authorUsername: data.author_username ?? data.authorUsername ?? "Unknown",
+        authorUsername:
+            data.author_username ?? data.authorUsername ?? "Unknown",
         authorRole: data.author_role ?? data.authorRole ?? "ranger",
         body: data.body,
         photoUrls: data.photo_urls ?? data.photoUrls ?? [],
-        statusChange: (data.status_change ?? data.statusChange ?? "none") as ReportComment["statusChange"],
-        createdAt: data.created_at ?? data.createdAt ?? new Date().toISOString(),
+        statusChange: (data.status_change ??
+            data.statusChange ??
+            "none") as ReportComment["statusChange"],
+        createdAt:
+            data.created_at ?? data.createdAt ?? new Date().toISOString(),
     };
 }
 
@@ -53,58 +65,69 @@ export const useReportCommentsStore = create<ReportCommentsState>()(
         isLoading: false,
 
         fetchComments: async (reportId) => {
-            set({isLoading: true});
-            try{
-                const res = await api.get<ReportComment[]>(`reports/${reportId}/comment`);
-                const mappedComments = Array.isArray(res.data) ?
-                    res.data.map(mapCommentResponse)
+            set({ isLoading: true });
+            try {
+                const res = await api.get<ReportComment[]>(
+                    `reports/${reportId}/comment`,
+                );
+                const mappedComments = Array.isArray(res.data)
+                    ? res.data.map(mapCommentResponse)
                     : [];
                 set((state) => ({
-                    commentsByReportId: {...state.commentsByReportId, [reportId]: mappedComments},
+                    commentsByReportId: {
+                        ...state.commentsByReportId,
+                        [reportId]: mappedComments,
+                    },
                 }));
-            }
-            catch (error) {
+            } catch (error) {
                 notifyCritical("Comment error", "Failed to retrieve comments");
                 console.error(error);
-            }
-            finally{
-                set({ isLoading: false})
+            } finally {
+                set({ isLoading: false });
             }
         },
 
         addComment: async (reportId: string, comment) => {
-            const res = await api.post<ReportCommentResponse>(`reports/${reportId}/comment`, comment);
-            const newComment = mapCommentResponse(res.data)
+            const res = await api.post<ReportCommentResponse>(
+                `reports/${reportId}/comment`,
+                comment,
+            );
+            const newComment = mapCommentResponse(res.data);
 
             set((state) => ({
                 commentsByReportId: {
                     ...state.commentsByReportId,
-                    [reportId]: [...(state.commentsByReportId[reportId] ?? []), newComment]
+                    [reportId]: [
+                        ...(state.commentsByReportId[reportId] ?? []),
+                        newComment,
+                    ],
                 },
             }));
         },
 
         setStatus: async (reportId, status) => {
-            const previousStatus = get().statusByReportId[reportId]
+            const previousStatus = get().statusByReportId[reportId];
 
             set((state) => ({
                 statusByReportId: {
                     ...state.statusByReportId,
-                    [reportId]: status
-                }
+                    [reportId]: status,
+                },
             }));
 
-            try{
+            try {
                 await api.post(`reports/${reportId}/status/update`, { status });
-            }
-            catch (error) {
+            } catch (error) {
                 set((state) => ({
                     statusByReportId: {
                         ...state.statusByReportId,
                         [reportId]: previousStatus,
                     },
                 }));
-                notifyCritical("Status Error", "Failed to update report status");
+                notifyCritical(
+                    "Status Error",
+                    "Failed to update report status",
+                );
                 console.error(error);
             }
         },

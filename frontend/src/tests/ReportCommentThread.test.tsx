@@ -1,4 +1,12 @@
-import { describe, it, expect, afterEach, beforeAll, afterAll, vi } from "vitest";
+import {
+    describe,
+    it,
+    expect,
+    afterEach,
+    beforeAll,
+    afterAll,
+    vi,
+} from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ReportCommentThread } from "@/components/reports/ReportCommentThread";
@@ -8,8 +16,6 @@ import { setupServer } from "msw/node";
 import { reportCommentHandlers } from "./mocks/reportCommentHandlers";
 
 const server = setupServer(...reportCommentHandlers);
-
-
 
 function setUser(role: string) {
     useAuthStore.setState({
@@ -62,9 +68,7 @@ describe("ReportCommentThread", () => {
         );
         await user.click(screen.getByRole("button", { name: /post comment/i }));
 
-        expect(
-            screen.getByText("Test comment"),
-        ).toBeInTheDocument();
+        expect(screen.getByText("Test comment")).toBeInTheDocument();
         expect(
             useReportCommentsStore.getState().commentsByReportId["report-1"],
         ).toHaveLength(1);
@@ -105,7 +109,6 @@ describe("ReportCommentThread", () => {
         });
         expect(await statusBadge("No status")).toBeInTheDocument();
     });
-
 
     it("lets a ranger or admin cycle a report through no status, resolved, unresolved, and back to no status", async () => {
         const user = userEvent.setup();

@@ -45,7 +45,10 @@ const STATUS_OPTIONS: { value: ReportStatus; label: string }[] = [
     { value: "resolved", label: "Resolved" },
 ];
 
-export function ReportCommentThread({ reportId, initialStatus }: ReportCommentThreadProps) {
+export function ReportCommentThread({
+    reportId,
+    initialStatus,
+}: ReportCommentThreadProps) {
     const user = useAuthStore((s) => s.user);
     const canParticipate = user?.role === "ranger" || user?.role === "admin";
 
@@ -61,9 +64,9 @@ export function ReportCommentThread({ reportId, initialStatus }: ReportCommentTh
     const fetchComments = useReportCommentsStore((s) => s.fetchComments);
 
     React.useEffect(() => {
-        if(reportId) {
+        if (reportId) {
             fetchComments(reportId);
-            if(initialStatus) {
+            if (initialStatus) {
                 useReportCommentsStore.setState((state) => ({
                     statusByReportId: {
                         ...state.statusByReportId,
@@ -72,7 +75,7 @@ export function ReportCommentThread({ reportId, initialStatus }: ReportCommentTh
                 }));
             }
         }
-    }, [reportId, fetchComments])
+    }, [reportId, fetchComments, initialStatus]);
 
     const [body, setBody] = React.useState("");
     const [photos, setPhotos] = React.useState<PhotoAttachment[]>([]);
@@ -84,26 +87,24 @@ export function ReportCommentThread({ reportId, initialStatus }: ReportCommentTh
         if (!user || (body.trim() === "" && photos.length === 0)) return;
 
         setIsSubmitting(true);
-        try{
+        try {
             const photoUrls = await resolvePhotoUrls(photos);
 
             await addComment(reportId, {
                 body: body.trim(),
                 photoUrls: photoUrls,
                 createdAt: new Date().toISOString(),
-                status: "none"
-            })
+                status: "none",
+            });
 
-            setBody("")
-            setPhotos([])
+            setBody("");
+            setPhotos([]);
             await fetchComments(reportId);
-        }
-        catch (err) {
+        } catch (err) {
             notifyCritical("Comment error", "Failed to post comment");
             console.error(err);
-        }
-        finally {
-            setIsSubmitting(false)
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -119,7 +120,7 @@ export function ReportCommentThread({ reportId, initialStatus }: ReportCommentTh
             createdAt: new Date().toISOString(),
             status: newStatus,
         });
-    
+
         await fetchComments(reportId);
     };
 
@@ -166,7 +167,8 @@ export function ReportCommentThread({ reportId, initialStatus }: ReportCommentTh
                         </p>
                     ) : (
                         comments.map((comment) =>
-                            comment.statusChange && comment.statusChange !== "none" ? (
+                            comment.statusChange &&
+                            comment.statusChange !== "none" ? (
                                 <ReportStatusChangeItem
                                     key={comment.id}
                                     comment={comment}
@@ -194,7 +196,10 @@ export function ReportCommentThread({ reportId, initialStatus }: ReportCommentTh
                         <Button
                             type="button"
                             onClick={handlePost}
-                            disabled={isSubmitting || (body.trim() === "" && photos.length === 0)}
+                            disabled={
+                                isSubmitting ||
+                                (body.trim() === "" && photos.length === 0)
+                            }
                             className="self-start"
                         >
                             {isSubmitting ? "Uploading..." : "Post comment"}

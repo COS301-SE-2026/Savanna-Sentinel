@@ -185,7 +185,9 @@ export function ReportDetailDialog({
 
                                 <ReportCommentThread
                                     reportId={report.localId}
-                                    initialStatus={report.status as ReportStatus}
+                                    initialStatus={
+                                        report.status as ReportStatus
+                                    }
                                 />
                             </div>
                         </>

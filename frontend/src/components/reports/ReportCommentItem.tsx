@@ -24,9 +24,9 @@ function avatarColorFor(username?: string): string {
 }
 
 function initialsFor(username?: string): string {
-    if (!username){
+    if (!username) {
         return "??";
-    } 
+    }
     return username.slice(0, 2).toUpperCase();
 }
 
