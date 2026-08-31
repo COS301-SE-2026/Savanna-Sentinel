@@ -108,7 +108,7 @@ class TipoffService:
                 "high_severity_incident",
                 "High-severity incident reported",
                 f"{data.incident_type} reported by {current_user.username} "
-                "— needs attention.",
+                "- needs attention.",
                 related_type="tipoff",
                 related_id=result["tipoff_id"],
             )

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 import NotificationBell from "@/components/layout/NotificationBell";
+import { notificationsApi } from "@/services/notificationsApi";
 import { useNotificationStore } from "@/store/notificationStore";
 import type { Notification } from "@/store/notificationStore";
 
@@ -54,6 +55,7 @@ describe("NotificationBell", () => {
 
     afterEach(() => {
         useNotificationStore.setState({ notifications: [] });
+        vi.clearAllMocks();
     });
 
     it("renders the trigger without a dot when there are no unread notifications", () => {
@@ -108,6 +110,28 @@ describe("NotificationBell", () => {
                 .getState()
                 .notifications.find((n) => n.id === "1")?.read,
         ).toBe(true);
+        expect(notificationsApi.markRead).toHaveBeenCalledWith("1");
+    });
+
+    it("reverts the read state if marking as read fails on the server", async () => {
+        vi.mocked(notificationsApi.markRead).mockRejectedValueOnce(
+            new Error("network error"),
+        );
+        setNotifications(sample);
+        render(<NotificationBell />);
+        await openPanel();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /mark as read/i }),
+        );
+
+        await waitFor(() => {
+            expect(
+                useNotificationStore
+                    .getState()
+                    .notifications.find((n) => n.id === "1")?.read,
+            ).toBe(false);
+        });
     });
 
     it("marks all notifications as read and disables the action", async () => {
@@ -128,6 +152,7 @@ describe("NotificationBell", () => {
         expect(
             useNotificationStore.getState().notifications.every((n) => n.read),
         ).toBe(true);
+        expect(notificationsApi.markAllRead).toHaveBeenCalledTimes(1);
     });
 
     it("disables the mark all read action when nothing is unread", async () => {
