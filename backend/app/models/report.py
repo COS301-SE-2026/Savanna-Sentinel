@@ -6,6 +6,7 @@ from typing import Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import UserDefinedType
 
@@ -17,6 +18,11 @@ class GeographyPoint(UserDefinedType):
 
     def get_col_spec(self, **kw):
         return "GEOGRAPHY(Point, 4326)"
+
+
+@compiles(GeographyPoint, "sqlite")
+def _compile_geography_point_sqlite(type_, compiler, **kw):
+    return "TEXT"
 
 
 class FieldReport(Base):
