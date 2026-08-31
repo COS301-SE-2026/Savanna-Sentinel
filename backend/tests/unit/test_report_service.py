@@ -576,3 +576,44 @@ async def test_delete_already_deleted_report_returns_false():
     service = _make_delete_service(dict(_REPORT), soft_delete_result=False)
     result = await service.delete_report(_REPORT["id"], _admin())
     assert result is False
+
+
+# notifications
+
+
+def _make_notifying_service(notification_service=None):
+    repo = AsyncMock()
+    repo.create.return_value = {
+        "report_id": "aaaaaaaa-0000-0000-0000-000000000001",
+        "report_type": "incident",
+        "status": "submitted",
+        "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
+        "created_at": _NOW,
+    }
+    return ReportService(
+        repo,
+        _fake_user_repo(),
+        notification_service=notification_service or AsyncMock(),
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_report_without_notification_service_does_not_error():
+    service = _make_create_service()
+
+    await service.create_report(_ranger(), _incident_body())
+
+
+@pytest.mark.asyncio
+async def test_create_report_notifies_analysts_and_admins():
+    notification_service = AsyncMock()
+    service = _make_notifying_service(notification_service)
+
+    await service.create_report(_ranger(), _incident_body())
+
+    notification_service.notify_roles.assert_called_once()
+    args = notification_service.notify_roles.call_args
+    assert args.args[0] == ["analyst", "admin"]
+    assert args.args[1] == "field_report_submitted"
+    assert args.kwargs["related_type"] == "field_report"
+    assert args.kwargs["related_id"] == "aaaaaaaa-0000-0000-0000-000000000001"

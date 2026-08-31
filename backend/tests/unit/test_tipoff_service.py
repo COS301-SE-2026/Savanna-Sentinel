@@ -408,3 +408,95 @@ def test_service_instantiates_default_media_service():
     service = TipoffService(AsyncMock(), AsyncMock())
 
     assert isinstance(service.media_service, MediaService)
+
+
+# notifications
+
+
+def _make_notifying_service(notification_service=None):
+    repo = AsyncMock()
+    repo.create.return_value = {
+        "tipoff_id": "aaaaaaaa-0000-0000-0000-000000000001",
+        "report_type": "incident",
+        "status": "submitted",
+        "submitted_by": "bbbbbbbb-0000-0000-0000-000000000001",
+        "created_at": _NOW,
+    }
+    return TipoffService(
+        repo,
+        _fake_user_repo(),
+        notification_service=notification_service or AsyncMock(),
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_tipoff_without_notification_service_does_not_error():
+    service = _make_create_service()
+
+    await service.create_tipoff(_community_liaison(), _incident_body())
+
+
+@pytest.mark.asyncio
+async def test_create_incident_tipoff_notifies_ranger_analyst_and_admin():
+    notification_service = AsyncMock()
+    service = _make_notifying_service(notification_service)
+
+    await service.create_tipoff(_community_liaison(), _incident_body())
+
+    calls = notification_service.notify_roles.call_args_list
+    assert calls[0].args[0] == ["ranger", "analyst", "admin"]
+    assert calls[0].args[1] == "tipoff_submitted"
+
+
+@pytest.mark.asyncio
+async def test_high_severity_incident_sends_extra_alert():
+    notification_service = AsyncMock()
+    service = _make_notifying_service(notification_service)
+
+    await service.create_tipoff(
+        _community_liaison(),
+        _incident_body(severity="high"),
+    )
+
+    calls = notification_service.notify_roles.call_args_list
+    assert len(calls) == 2
+    assert calls[1].args[0] == ["ranger", "admin"]
+    assert calls[1].args[1] == "high_severity_incident"
+
+
+@pytest.mark.asyncio
+async def test_low_severity_incident_sends_only_one_notification():
+    notification_service = AsyncMock()
+    service = _make_notifying_service(notification_service)
+
+    await service.create_tipoff(
+        _community_liaison(),
+        _incident_body(severity="low"),
+    )
+
+    notification_service.notify_roles.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_sighting_never_sends_high_severity_alert():
+    notification_service = AsyncMock()
+    service = _make_notifying_service(notification_service)
+
+    await service.create_tipoff(
+        _community_liaison(),
+        _sighting_body(severity="high"),
+    )
+
+    notification_service.notify_roles.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_tipoff_notification_references_the_created_tipoff():
+    notification_service = AsyncMock()
+    service = _make_notifying_service(notification_service)
+
+    await service.create_tipoff(_community_liaison(), _incident_body())
+
+    kwargs = notification_service.notify_roles.call_args_list[0].kwargs
+    assert kwargs["related_type"] == "tipoff"
+    assert kwargs["related_id"] == "aaaaaaaa-0000-0000-0000-000000000001"

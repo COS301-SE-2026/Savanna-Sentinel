@@ -251,6 +251,34 @@ async def test_upload_malkformed_json(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_upload_notifies_the_uploading_analyst(
+    client,
+    db_session,
+    valid_body,
+):
+    headers = await _get_auth_headers(
+        client,
+        db_session,
+        username="test_analyst_notif",
+        email="analyst_notif@example.com",
+        role="analyst",
+    )
+
+    response = await client.post(
+        "/v1/ingestion/upload",
+        json={**valid_body, "filename": "sightings_q1.csv"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    notif_response = await client.get("/v1/notifications", headers=headers)
+    items = notif_response.json()["results"]
+    matching = [n for n in items if n["type"] == "ingestion_complete"]
+    assert len(matching) == 1
+    assert "sightings_q1.csv" in matching[0]["body"]
+
+
+@pytest.mark.asyncio
 async def test_upload_non_json_content(client, db_session, valid_body):
     headers = await _get_auth_headers(
         client,

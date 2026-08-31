@@ -6,14 +6,12 @@ from typing import Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.models.user import Base
 
 
-class _BASE(DeclarativeBase):
-    pass
-
-
-class Notification(_BASE):
+class Notification(Base):
     __tablename__ = "notifications"
 
     id: Mapped[str] = mapped_column(
