@@ -110,7 +110,7 @@ async def test_notify_roles_looks_up_ids_then_creates_for_them():
 
 
 @pytest.mark.asyncio
-async def test_notify_roles_with_no_matching_users_still_calls_repo_with_empty_list():
+async def test_notify_roles_with_no_users_calls_repo_with_empty_list():
     repo = AsyncMock()
     user_repo = AsyncMock()
     user_repo.get_ids_by_roles.return_value = []

@@ -25,7 +25,10 @@ async def list_notifications(
     current_user: Annotated[User, Depends(get_current_user)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
-    service = NotificationService(NotificationRepository(db), UserRepository(db))
+    service = NotificationService(
+        NotificationRepository(db),
+        UserRepository(db),
+    )
     results, total, unread_count = await service.get_notifications(
         current_user=current_user,
         page=page,
@@ -50,7 +53,10 @@ async def mark_all_notifications_read(
     current_user: Annotated[User, Depends(get_current_user)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
-    service = NotificationService(NotificationRepository(db), UserRepository(db))
+    service = NotificationService(
+        NotificationRepository(db),
+        UserRepository(db),
+    )
     await service.mark_all_read(current_user)
 
 
@@ -64,5 +70,8 @@ async def mark_notification_read(
     current_user: Annotated[User, Depends(get_current_user)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
-    service = NotificationService(NotificationRepository(db), UserRepository(db))
+    service = NotificationService(
+        NotificationRepository(db),
+        UserRepository(db),
+    )
     await service.mark_read(current_user, notification_id)

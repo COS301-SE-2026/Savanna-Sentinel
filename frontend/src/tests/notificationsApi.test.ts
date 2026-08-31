@@ -102,16 +102,16 @@ describe("notificationsApi", () => {
     });
 
     it("marks all notifications as read", async () => {
-        let called = false;
+        let hasBeenCalled = false;
         server.use(
             http.post(`${BASE}/notifications/read-all`, () => {
-                called = true;
+                hasBeenCalled = true;
                 return new HttpResponse(null, { status: 204 });
             }),
         );
 
         await notificationsApi.markAllRead();
 
-        expect(called).toBe(true);
+        expect(hasBeenCalled).toBe(true);
     });
 });

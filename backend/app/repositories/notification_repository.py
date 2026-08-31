@@ -49,7 +49,8 @@ class NotificationRepository:
         total = (
             await self.db.execute(
                 text(
-                    "SELECT COUNT(*) FROM notifications WHERE user_id = :user_id",
+                    "SELECT COUNT(*) FROM notifications "
+                    "WHERE user_id = :user_id",
                 ),
                 {"user_id": user_id},
             )

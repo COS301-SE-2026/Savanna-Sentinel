@@ -19,38 +19,36 @@ interface NotificationState {
     markAllRead: () => Promise<void>;
 }
 
-export const useNotificationStore = create<NotificationState>()(
-    (set, get) => ({
-        notifications: [],
+export const useNotificationStore = create<NotificationState>()((set, get) => ({
+    notifications: [],
 
-        setNotifications: (notifications) => set({ notifications }),
+    setNotifications: (notifications) => set({ notifications }),
 
-        markAsRead: async (id) => {
-            const previous = get().notifications;
-            set({
-                notifications: previous.map((n) =>
-                    n.id === id ? { ...n, read: true } : n,
-                ),
-            });
+    markAsRead: async (id) => {
+        const previous = get().notifications;
+        set({
+            notifications: previous.map((n) =>
+                n.id === id ? { ...n, read: true } : n,
+            ),
+        });
 
-            try {
-                await notificationsApi.markRead(id);
-            } catch {
-                set({ notifications: previous });
-            }
-        },
+        try {
+            await notificationsApi.markRead(id);
+        } catch {
+            set({ notifications: previous });
+        }
+    },
 
-        markAllRead: async () => {
-            const previous = get().notifications;
-            set({
-                notifications: previous.map((n) => ({ ...n, read: true })),
-            });
+    markAllRead: async () => {
+        const previous = get().notifications;
+        set({
+            notifications: previous.map((n) => ({ ...n, read: true })),
+        });
 
-            try {
-                await notificationsApi.markAllRead();
-            } catch {
-                set({ notifications: previous });
-            }
-        },
-    }),
-);
+        try {
+            await notificationsApi.markAllRead();
+        } catch {
+            set({ notifications: previous });
+        }
+    },
+}));

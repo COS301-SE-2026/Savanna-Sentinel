@@ -7,7 +7,11 @@ import { useNotificationStore } from "@/store/notificationStore";
 import type { ListNotificationsResult } from "@/services/notificationsApi";
 
 vi.mock("@/services/notificationsApi", () => ({
-    notificationsApi: { list: vi.fn(), markRead: vi.fn(), markAllRead: vi.fn() },
+    notificationsApi: {
+        list: vi.fn(),
+        markRead: vi.fn(),
+        markAllRead: vi.fn(),
+    },
 }));
 
 const listResult = (

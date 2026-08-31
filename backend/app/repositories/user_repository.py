@@ -114,7 +114,7 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     async def get_ids_by_roles(self, roles: list[str]) -> list[str]:
-        """Return ids of active, non-deleted users holding any of these roles."""
+        """Return ids of active, non-deleted users with any of these roles."""
         if not roles:
             return []
         stmt = select(User.id).where(
