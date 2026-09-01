@@ -3,18 +3,13 @@ import { X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { CellFactor } from "@/lib/cellFactors";
-import {
-    RISK_LEVEL_FILL_CLASS,
-    RISK_LEVEL_LABELS,
-    type RiskLevel,
-} from "@/lib/mapTokens";
+import { RISK_LEVEL_LABELS, type RiskLevel } from "@/lib/mapTokens";
 
 export interface CellPopupContentProps {
     level: RiskLevel;
     row: number;
     col: number;
-    factors: CellFactor[];
+    canViewAnalysis: boolean;
     onClose: () => void;
     onViewAnalysis: () => void;
 }
@@ -23,7 +18,7 @@ export function CellPopupContent({
     level,
     row,
     col,
-    factors,
+    canViewAnalysis,
     onClose,
     onViewAnalysis,
 }: CellPopupContentProps) {
@@ -56,44 +51,20 @@ export function CellPopupContent({
                 Cell {row}, {col}
             </p>
 
-            {factors.map((factor) => (
-                <div
-                    key={factor.label}
-                    className="mb-2 flex items-center gap-2"
-                >
-                    <span className="min-w-[130px] text-sm text-color-text-primary">
-                        {factor.label}
-                    </span>
-                    <div
-                        className="h-1 flex-1 overflow-hidden rounded-xs bg-color-border"
-                        role="progressbar"
-                        aria-valuenow={factor.pct}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label={`${factor.label} confidence`}
+            {canViewAnalysis && (
+                <>
+                    <hr className="my-3 border-color-border" />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={onViewAnalysis}
                     >
-                        <div
-                            className={`h-full rounded-xs ${RISK_LEVEL_FILL_CLASS[level]}`}
-                            style={{ width: `${factor.pct}%` }}
-                        />
-                    </div>
-                    <span className="text-sm text-color-text-secondary">
-                        {factor.pct}%
-                    </span>
-                </div>
-            ))}
-
-            <hr className="my-3 border-color-border" />
-
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={onViewAnalysis}
-            >
-                View Analysis
-            </Button>
+                        View Analysis
+                    </Button>
+                </>
+            )}
         </div>
     );
 }
