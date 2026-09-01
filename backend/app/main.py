@@ -6,6 +6,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.ingestion import router as ingestion_router
 from app.api.v1.media import router as media_router
+from app.api.v1.notifications import router as notifications_router
 from app.api.v1.reports import router as reports_router
 from app.api.v1.risk import router as risk_router
 from app.api.v1.routes import router as routes_router
@@ -50,6 +51,7 @@ app.include_router(media_router, prefix="/v1")
 app.include_router(risk_router, prefix="/v1")
 app.include_router(tipoff_router, prefix="/v1")
 app.include_router(dashboard_router, prefix="/v1")
+app.include_router(notifications_router, prefix="/v1")
 
 
 @app.get("/v1/health", tags=["health"])

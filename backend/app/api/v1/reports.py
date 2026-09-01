@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.user import User
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.report_repository import ReportRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.report import (
@@ -17,6 +18,7 @@ from app.schemas.report import (
     SpeciesResponse,
     UserResponse,
 )
+from app.services.notification_service import NotificationService
 from app.services.report_service import ReportService
 
 router = APIRouter(tags=["reports"])
@@ -42,7 +44,14 @@ async def submit_report(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db), UserRepository(db))
+    service = ReportService(
+        ReportRepository(db),
+        UserRepository(db),
+        notification_service=NotificationService(
+            NotificationRepository(db),
+            UserRepository(db),
+        ),
+    )
     result = await service.create_report(current_user, body)
     return ReportSubmitResponse(**result)
 
