@@ -19,7 +19,6 @@ export interface PlannedRoute {
 }
 
 export interface RouteRequest {
-    park_id: string;
     start_point: GeoPoint;
     end_point: GeoPoint;
     max_time?: number;

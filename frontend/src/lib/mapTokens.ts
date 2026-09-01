@@ -15,6 +15,9 @@ export const RISK_LEVEL_COLORS: Record<RiskLevel, string> = {
     critical: "#b30000",
 };
 
+export const NO_DATA_CELL_COLOR = "#4f7392";
+export const NO_DATA_CELL_OPACITY = 0.15;
+
 export const RISK_LEVEL_LABELS: Record<RiskLevel, string> = {
     critical: "Critical",
     alert: "High",
