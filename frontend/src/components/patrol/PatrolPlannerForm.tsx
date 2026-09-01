@@ -27,6 +27,7 @@ export interface PatrolPlannerFormProps {
     onMaxFuelChange: (value: string) => void;
     onGenerate: () => void;
     isGenerating: boolean;
+    heatmapHasNoData: boolean;
     hasRoutes: boolean;
     onClearRoutes: () => void;
 }
@@ -61,6 +62,7 @@ export function PatrolPlannerForm({
     onMaxFuelChange,
     onGenerate,
     isGenerating,
+    heatmapHasNoData,
     hasRoutes,
     onClearRoutes,
 }: PatrolPlannerFormProps) {
@@ -74,7 +76,8 @@ export function PatrolPlannerForm({
         endPoint !== null &&
         isBlankOrPositive(maxTime) &&
         isBlankOrPositive(maxFuel) &&
-        !isGenerating;
+        !isGenerating &&
+        !heatmapHasNoData;
 
     const [lastReportedStart, setLastReportedStart] = useState(startPoint);
     const [lastReportedEnd, setLastReportedEnd] = useState(endPoint);
@@ -197,6 +200,11 @@ export function PatrolPlannerForm({
                 type="button"
                 className="w-full"
                 disabled={!canGenerate}
+                title={
+                    heatmapHasNoData
+                        ? "No risk scores available yet"
+                        : undefined
+                }
                 onClick={onGenerate}
             >
                 {isGenerating ? "Generating..." : "Generate Routes"}

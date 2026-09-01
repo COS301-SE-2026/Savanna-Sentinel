@@ -15,7 +15,6 @@ import { riskApi, type ParkGridResponse } from "@/services/riskApi";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const PARK_ID = "reserve";
 const DEFAULT_ZOOM = 10;
 const DEFAULT_RISK_SCORE = 0.5;
 
@@ -69,7 +68,7 @@ const ParkZoneUploadPage = () => {
         }
         try {
             await riskApi.uploadParkZone(file);
-            const response = await riskApi.getParkGrid(PARK_ID);
+            const response = await riskApi.getParkGrid();
             setGrid(response);
 
             const cells = parseGridCells(response);
