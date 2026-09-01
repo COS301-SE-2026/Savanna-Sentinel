@@ -15,6 +15,7 @@ import {
 } from "@/types/reports";
 import { PhotoLightbox } from "@/components/reports/PhotoLightbox";
 import { ReportCommentThread } from "@/components/reports/ReportCommentThread";
+import type { ReportStatus } from "@/types/reportComments";
 
 const severityBadgeVariant: Record<Severity, "caution" | "alert" | "critical"> =
     {
@@ -184,6 +185,9 @@ export function ReportDetailDialog({
 
                                 <ReportCommentThread
                                     reportId={report.localId}
+                                    initialStatus={
+                                        report.status as ReportStatus
+                                    }
                                 />
                             </div>
                         </>

@@ -30,6 +30,13 @@ CREATE TYPE risk_job_type AS ENUM (
     'score'
 );
 
+CREATE TYPE notification_type AS ENUM (
+    'tipoff_submitted',
+    'field_report_submitted',
+    'high_severity_incident',
+    'ingestion_complete'
+);
+
 CREATE TABLE file_ingestion_staging (
     record_id           BIGINT,
     ingestion_timestamp TIMESTAMPTZ,
@@ -189,7 +196,18 @@ CREATE TABLE field_reports (
     occurred_at  TIMESTAMPTZ    NOT NULL,
     created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
-    deleted_at   TIMESTAMPTZ
+    deleted_at   TIMESTAMPTZ,
+    status       TEXT           NOT NULL DEFAULT 'none'
+);
+
+CREATE TABLE comments (
+    id UUID PRIMARY KEY,
+    report_id UUID NOT NULL REFERENCES field_reports(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT,
+    photo_urls VARCHAR[],
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    status_change VARCHAR
 );
 
 CREATE TABLE tipoffs (
@@ -266,3 +284,18 @@ CREATE TABLE explainability_metrics (
     key_reason       TEXT  NOT NULL,
     confidence_level FLOAT NOT NULL
 );
+
+CREATE TABLE notifications (
+    id           UUID               PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id      UUID               NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type         notification_type  NOT NULL,
+    title        TEXT               NOT NULL,
+    body         TEXT               NOT NULL,
+    related_type TEXT,
+    related_id   TEXT,
+    read_at      TIMESTAMPTZ,
+    created_at   TIMESTAMPTZ        NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX notifications_user_unread_idx ON notifications (user_id, read_at);
+CREATE INDEX notifications_user_created_idx ON notifications (user_id, created_at DESC);

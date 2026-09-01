@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db
 from app.models.user import User
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.tipoff_repository import TipoffRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.tipoff import (
@@ -13,6 +14,7 @@ from app.schemas.tipoff import (
     TipoffListResponse,
     TipoffSubmitResponse,
 )
+from app.services.notification_service import NotificationService
 from app.services.tipoff_service import TipoffService
 
 router = APIRouter(tags=["tipoff"])
@@ -36,7 +38,14 @@ async def submit_tipoff(
             detail=_ROLE_DENIED,
         )
 
-    service = TipoffService(TipoffRepository(db), UserRepository(db))
+    service = TipoffService(
+        TipoffRepository(db),
+        UserRepository(db),
+        notification_service=NotificationService(
+            NotificationRepository(db),
+            UserRepository(db),
+        ),
+    )
     result = await service.create_tipoff(current_user, body)
     return TipoffSubmitResponse(**result)
 

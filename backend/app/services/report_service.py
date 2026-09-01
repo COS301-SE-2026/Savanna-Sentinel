@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.repositories.report_repository import ReportRepository
     from app.repositories.user_repository import UserRepository
     from app.schemas.report import ReportCreate, ReportUpdate
+    from app.services.notification_service import NotificationService
 
 
 class ReportService:
@@ -20,10 +21,12 @@ class ReportService:
         repo: ReportRepository,
         user_repo: UserRepository,
         media_service: Optional[MediaService] = None,
+        notification_service: Optional["NotificationService"] = None,
     ):
         self.repo = repo
         self.user_repo = user_repo
         self.media_service = media_service or MediaService()
+        self.notification_service = notification_service
 
     async def create_report(
         self,
@@ -73,6 +76,18 @@ class ReportService:
             images=data.images,
         )
         result["submitted_by_username"] = current_user.username
+
+        if self.notification_service:
+            await self.notification_service.notify_roles(
+                ["analyst", "admin"],
+                "field_report_submitted",
+                f"New {data.report_type} field report",
+                f"{current_user.username} submitted a {data.report_type} "
+                f"report: {data.description[:120]}",
+                related_type="field_report",
+                related_id=result["report_id"],
+            )
+
         return result
 
     async def update_report(
@@ -151,6 +166,8 @@ class ReportService:
             fields["location_wkt"] = self._validate_location(data.location)
         if "images" in provided:
             fields["images"] = provided["images"]
+        if "status" in provided:
+            fields["status"] = provided["status"]
 
         fields.update(self._type_specific_fields(report_type, provided))
         return fields

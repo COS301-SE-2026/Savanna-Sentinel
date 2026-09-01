@@ -412,6 +412,35 @@ async def test_submitted_report_appears_in_list():
     assert report_id in ids
 
 
+@pytest.mark.asyncio
+async def test_submitting_report_notifies_analysts_and_admins():
+    ranger_id = await _create_user("test_ranger_notif_1")
+    analyst_id = await _create_user("test_analyst_notif_1", role="analyst")
+
+    async with _client() as c:
+        post_r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(),
+            headers=_auth_header(ranger_id),
+        )
+        assert post_r.status_code == 201
+        report_id = post_r.json()["report_id"]
+
+        notif_r = await c.get(
+            "/v1/notifications",
+            headers=_auth_header(analyst_id),
+        )
+
+    items = notif_r.json()["results"]
+    matching = [
+        n for n in items
+        if n["type"] == "field_report_submitted"
+        and n["related_id"] == report_id
+    ]
+    assert len(matching) == 1
+    assert matching[0]["read"] is False
+
+
 # PATCH /v1/reports/{report_id}
 
 

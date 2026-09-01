@@ -1,15 +1,9 @@
 import { Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import type { ModelPerformance } from "@/services/dashboardApi";
 
-interface ModelMetric {
-    label: string;
-    value: number;
-}
-
-const METRICS: ModelMetric[] = [];
-
-export function ModelPerformanceCard() {
+export function ModelPerformanceCard({ metrics }: ModelPerformance) {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
             <div className="mb-4 flex items-center justify-between gap-2">
@@ -26,22 +20,22 @@ export function ModelPerformanceCard() {
                 <Badge variant="neutral">Indicative only</Badge>
             </div>
             <div className="space-y-4">
-                {METRICS.length === 0 ? (
+                {metrics.length === 0 ? (
                     <p className="text-sm text-color-text-secondary">
                         No performance data available
                     </p>
                 ) : (
-                    METRICS.map((metric) => (
+                    metrics.map((metric) => (
                         <div key={metric.label} className="space-y-1">
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-color-text-primary">
                                     {metric.label}
                                 </span>
                                 <span className="font-semibold text-brand-primary">
-                                    {metric.value}%
+                                    {metric.value * 100}%
                                 </span>
                             </div>
-                            <Progress value={metric.value} />
+                            <Progress value={metric.value * 100} />
                         </div>
                     ))
                 )}

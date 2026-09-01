@@ -19,9 +19,12 @@ import { useAuthStore } from "@/store/authStore";
 import { useReportCommentsStore } from "@/store/reportCommentsStore";
 import type { ReportComment, ReportStatus } from "@/types/reportComments";
 import type { PhotoAttachment } from "@/types/reports";
+import { resolvePhotoUrls } from "@/lib/media";
+import { notifyCritical } from "../ui/toast";
 
 interface ReportCommentThreadProps {
     reportId: string;
+    initialStatus?: ReportStatus;
 }
 
 // Must not be mutated, shared fallback reference returned by the selector below.
@@ -42,7 +45,10 @@ const STATUS_OPTIONS: { value: ReportStatus; label: string }[] = [
     { value: "resolved", label: "Resolved" },
 ];
 
-export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
+export function ReportCommentThread({
+    reportId,
+    initialStatus,
+}: ReportCommentThreadProps) {
     const user = useAuthStore((s) => s.user);
     const canParticipate = user?.role === "ranger" || user?.role === "admin";
 
@@ -55,45 +61,67 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
     const addComment = useReportCommentsStore((s) => s.addComment);
     const setStatus = useReportCommentsStore((s) => s.setStatus);
 
+    const fetchComments = useReportCommentsStore((s) => s.fetchComments);
+
+    React.useEffect(() => {
+        if (reportId) {
+            fetchComments(reportId);
+            if (initialStatus) {
+                useReportCommentsStore.setState((state) => ({
+                    statusByReportId: {
+                        ...state.statusByReportId,
+                        [reportId]: initialStatus as ReportStatus,
+                    },
+                }));
+            }
+        }
+    }, [reportId, fetchComments, initialStatus]);
+
     const [body, setBody] = React.useState("");
     const [photos, setPhotos] = React.useState<PhotoAttachment[]>([]);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [pendingStatus, setPendingStatus] =
         React.useState<ReportStatus | null>(null);
 
-    const handlePost = () => {
-        if (!user || body.trim() === "") return;
+    const handlePost = async () => {
+        if (!user || (body.trim() === "" && photos.length === 0)) return;
 
-        const comment: ReportComment = {
-            id: crypto.randomUUID(),
-            reportId,
-            authorId: user.id,
-            authorUsername: user.username,
-            authorRole: user.role,
-            body: body.trim(),
-            photoUrls: photos.map((p) => p.previewUrl),
-            createdAt: new Date().toISOString(),
-        };
-        addComment(comment);
-        setBody("");
-        setPhotos([]);
+        setIsSubmitting(true);
+        try {
+            const photoUrls = await resolvePhotoUrls(photos);
+
+            await addComment(reportId, {
+                body: body.trim(),
+                photoUrls: photoUrls,
+                createdAt: new Date().toISOString(),
+                status: "none",
+            });
+
+            setBody("");
+            setPhotos([]);
+            await fetchComments(reportId);
+        } catch (err) {
+            notifyCritical("Comment error", "Failed to post comment");
+            console.error(err);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    const handleConfirmStatusChange = () => {
+    const handleConfirmStatusChange = async () => {
         if (!user || pendingStatus === null) return;
 
+        const newStatus = pendingStatus;
+        setPendingStatus(null);
         setStatus(reportId, pendingStatus);
-        addComment({
-            id: crypto.randomUUID(),
-            reportId,
-            authorId: user.id,
-            authorUsername: user.username,
-            authorRole: user.role,
+        await addComment(reportId, {
             body: "",
             photoUrls: [],
             createdAt: new Date().toISOString(),
-            statusChange: pendingStatus,
+            status: newStatus,
         });
-        setPendingStatus(null);
+
+        await fetchComments(reportId);
     };
 
     const pendingLabel = STATUS_BADGE[pendingStatus ?? status].label;
@@ -139,7 +167,8 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
                         </p>
                     ) : (
                         comments.map((comment) =>
-                            comment.statusChange !== undefined ? (
+                            comment.statusChange &&
+                            comment.statusChange !== "none" ? (
                                 <ReportStatusChangeItem
                                     key={comment.id}
                                     comment={comment}
@@ -161,15 +190,19 @@ export function ReportCommentThread({ reportId }: ReportCommentThreadProps) {
                             placeholder="Add a comment..."
                             value={body}
                             onChange={(e) => setBody(e.target.value)}
+                            disabled={isSubmitting}
                         />
                         <PhotoPicker photos={photos} onChange={setPhotos} />
                         <Button
                             type="button"
                             onClick={handlePost}
-                            disabled={body.trim() === ""}
+                            disabled={
+                                isSubmitting ||
+                                (body.trim() === "" && photos.length === 0)
+                            }
                             className="self-start"
                         >
-                            Post comment
+                            {isSubmitting ? "Uploading..." : "Post comment"}
                         </Button>
                     </div>
                 )}

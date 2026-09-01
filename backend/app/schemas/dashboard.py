@@ -5,6 +5,7 @@ class StatCard(BaseModel):
     label: str
     value: float
     unit: str | None = None
+    badge: str
 
 
 class PatrolCoverage(BaseModel):

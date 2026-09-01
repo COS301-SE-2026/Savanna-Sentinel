@@ -1,22 +1,28 @@
 from datetime import datetime
-from typing import Annotated, Literal, Optional
+from typing import Annotated, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.user import User
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.report_repository import ReportRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.report import (
+    PostCommentRequest,
+    ReportCommentResponse,
     ReportCreate,
     ReportListResponse,
     ReportResponse,
     ReportSubmitResponse,
     ReportUpdate,
     SpeciesResponse,
+    StatusUpdateRequest,
     UserResponse,
 )
+from app.services.comment_service import CommentService
+from app.services.notification_service import NotificationService
 from app.services.report_service import ReportService
 
 router = APIRouter(tags=["reports"])
@@ -42,7 +48,14 @@ async def submit_report(
             detail=_ROLE_DENIED,
         )
 
-    service = ReportService(ReportRepository(db), UserRepository(db))
+    service = ReportService(
+        ReportRepository(db),
+        UserRepository(db),
+        notification_service=NotificationService(
+            NotificationRepository(db),
+            UserRepository(db),
+        ),
+    )
     result = await service.create_report(current_user, body)
     return ReportSubmitResponse(**result)
 
@@ -237,3 +250,61 @@ async def get_report(
         )
 
     return ReportResponse(**report)
+
+
+@router.post(
+    "/reports/{report_id}/comment",
+    status_code=status.HTTP_201_CREATED,
+    summary="Post a comment on the specified report",
+)
+async def post_comment(
+    report_id: str,
+    authenticated: Annotated[User, Depends(require_roles(["admin", "ranger"]))],
+    comment: PostCommentRequest,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    service = CommentService(db)
+
+    return await service.post_comment(
+        report_id=report_id,
+        user=authenticated,
+        payload=comment,
+    )
+
+
+@router.get(
+    "/reports/{report_id}/comment",
+    status_code=status.HTTP_200_OK,
+    summary="Retrieve all posted comments",
+    response_model=List[ReportCommentResponse],
+)
+async def get_comments(
+    report_id: str,
+    authenticated: Annotated[User, Depends(require_roles(["admin", "ranger"]))],
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    service = CommentService(db)
+
+    result = await service.get_comments(report_id)
+
+    return result
+
+
+@router.post(
+    "/reports/{report_id}/status/update",
+    status_code=status.HTTP_200_OK,
+    summary="Update a reports currently reported status",
+)
+async def update_report_status(
+    report_id: str,
+    payload: StatusUpdateRequest,
+    authenticated: Annotated[User, Depends(require_roles(["admin", "ranger"]))],
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    service = ReportService(ReportRepository(db), UserRepository(db))
+
+    return await service.update_report(
+        report_id=report_id,
+        current_user=authenticated,
+        data=ReportUpdate(status=payload.status),
+    )

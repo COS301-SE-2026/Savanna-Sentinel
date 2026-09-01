@@ -7,9 +7,12 @@ from app.core.dependencies import get_db, require_roles
 from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.ingestion_repository import IngestionRepository
+from app.repositories.notification_repository import NotificationRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.ingestion import IngestionRequest, IngestionUploadResponse
 from app.services.audit_service import AuditService
 from app.services.ingestion_service import IngestionService
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
 
@@ -31,6 +34,13 @@ async def upload_file(
     ],
 ):
     repo = IngestionRepository(db)
-    service = IngestionService(repo, AuditService(AuditRepository(db)))
+    service = IngestionService(
+        repo,
+        AuditService(AuditRepository(db)),
+        notification_service=NotificationService(
+            NotificationRepository(db),
+            UserRepository(db),
+        ),
+    )
 
     return await service.upload(body, actor_id=current_user.id)
