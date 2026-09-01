@@ -18,6 +18,7 @@ function baseProps() {
         onMaxFuelChange: vi.fn(),
         onGenerate: vi.fn(),
         isGenerating: false,
+        heatmapHasNoData: false,
         hasRoutes: false,
         onClearRoutes: vi.fn(),
     };

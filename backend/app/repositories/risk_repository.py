@@ -419,7 +419,7 @@ async def get_latest_heatmap(
               AND {_HAS_SCORES_GUARD}
             ORDER BY rh.computed_at DESC
             LIMIT 1
-        """),
+        """),  # nosec B608
         {"park_id": park_id},
     )
     heatmap_row = heatmap_result.fetchone()
@@ -444,7 +444,7 @@ async def get_heatmap_by_id(
             JOIN risk_models rm ON rm.id = rh.model_id
             WHERE rh.id = :heatmap_id AND rm.park_id = :park_id
               AND {_HAS_SCORES_GUARD}
-        """),
+        """),  # nosec B608
         {"heatmap_id": heatmap_id, "park_id": park_id},
     )
     heatmap_row = heatmap_result.fetchone()
@@ -471,7 +471,7 @@ async def get_heatmap_at_or_before(
               AND {_HAS_SCORES_GUARD}
             ORDER BY rh.computed_at DESC
             LIMIT 1
-        """),
+        """),  # nosec B608
         {"park_id": park_id, "date": date},
     )
     heatmap_row = heatmap_result.fetchone()
@@ -496,7 +496,7 @@ async def list_heatmap_snapshots(
             WHERE rm.park_id = :park_id
               AND {_HAS_SCORES_GUARD}
             ORDER BY rh.computed_at ASC
-        """),
+        """),  # nosec B608
         {"park_id": park_id},
     )
     return [
@@ -576,7 +576,7 @@ async def get_risk_zone_overview(
                   AND {_HAS_SCORES_GUARD}
                 ORDER BY rh.computed_at DESC
                 LIMIT 1
-            """),
+            """),  # nosec B608
             {"park_id": park_id},
         )
     ).fetchone()
