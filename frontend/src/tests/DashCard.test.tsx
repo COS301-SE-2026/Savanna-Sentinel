@@ -4,22 +4,16 @@ import { Shield } from "lucide-react";
 import { DashCard } from "@/components/dashboard/DashCard";
 
 describe("DashCard", () => {
-    it("renders title, value, and subtext", () => {
+    it("renders title, value, and icon", () => {
         render(
-            <DashCard
-                title="Total Field Reports"
-                value={124}
-                subtext="+12 this week"
-                icon={Shield}
-            />,
+            <DashCard label="Total Field Reports" value={124} badge={Shield} />,
         );
         expect(screen.getByText("Total Field Reports")).toBeInTheDocument();
         expect(screen.getByText("124")).toBeInTheDocument();
-        expect(screen.getByText("+12 this week")).toBeInTheDocument();
     });
 
     it("renders without an icon or subtext", () => {
-        render(<DashCard title="Open Incidents" value={12} />);
+        render(<DashCard label="Open Incidents" value={12} />);
         expect(screen.getByText("Open Incidents")).toBeInTheDocument();
         expect(screen.getByText("12")).toBeInTheDocument();
     });

@@ -16,9 +16,9 @@ export default defineConfig({
         setupFiles: "./src/tests/setup.ts",
         exclude: [
             ...configDefaults.exclude,
-            'src/tests/e2e/**/*',
-            'src/tests/NFR/**/*'
-        ]
+            "src/tests/e2e/**/*",
+            "src/tests/NFR/**/*",
+        ],
     },
     build: {
         outDir: "web-build",
