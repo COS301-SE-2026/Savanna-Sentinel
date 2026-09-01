@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 
 import {
     parseGridCells,
-    assignRandomRisk,
     buildRowColIndex,
     computeCellOpacity,
     buildGridFeatureCollection,
@@ -20,41 +19,6 @@ describe("parseGridCells", () => {
             col: 0,
             corners: TEST_GRID.features[0].geometry.coordinates[0],
         });
-    });
-});
-
-describe("assignRandomRisk", () => {
-    it("gives every cell a score between 0 and 1", () => {
-        const cells = parseGridCells(TEST_GRID);
-        const scores = assignRandomRisk(cells);
-        expect(scores.size).toBe(4);
-        for (const score of scores.values()) {
-            expect(score).toBeGreaterThanOrEqual(0);
-            expect(score).toBeLessThan(1);
-        }
-    });
-
-    it("clusters risk around hotspots instead of scoring cells independently", () => {
-        const cells: GridCell[] = [];
-        for (let row = 0; row < 20; row++) {
-            for (let col = 0; col < 20; col++) {
-                cells.push({ cellId: `${row},${col}`, row, col, corners: [] });
-            }
-        }
-        const scores = assignRandomRisk(cells);
-        const at = (row: number, col: number) => scores.get(`${row},${col}`)!;
-
-        let neighborDiffSum = 0;
-        let neighborPairs = 0;
-        for (let row = 0; row < 20; row++) {
-            for (let col = 0; col < 19; col++) {
-                neighborDiffSum += Math.abs(at(row, col) - at(row, col + 1));
-                neighborPairs++;
-            }
-        }
-        const avgNeighborDiff = neighborDiffSum / neighborPairs;
-
-        expect(avgNeighborDiff).toBeLessThan(0.15);
     });
 });
 
@@ -148,5 +112,22 @@ describe("buildGridFeatureCollection", () => {
         for (const feature of fc.features) {
             expect(feature.properties?.fillOpacity).toBe(0.05);
         }
+    });
+
+    it("uses a neutral fill for a cell missing from riskByCell", () => {
+        const cells = parseGridCells(TEST_GRID);
+        const riskByCell = new Map([[cells[0].cellId, 0.1]]);
+        const fc = buildGridFeatureCollection(cells, riskByCell);
+
+        const missingFeature = fc.features.find(
+            (f) => f.properties?.cellId === cells[1].cellId,
+        )!;
+        expect(missingFeature.properties?.fillColor).toBe("#4f7392");
+        expect(missingFeature.properties?.fillOpacity).toBe(0.15);
+
+        const presentFeature = fc.features.find(
+            (f) => f.properties?.cellId === cells[0].cellId,
+        )!;
+        expect(presentFeature.properties?.fillColor).toBe("#06b050");
     });
 });

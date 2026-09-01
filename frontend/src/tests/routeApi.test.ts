@@ -21,7 +21,6 @@ afterAll(() => server.close());
 describe("routeApi", () => {
     it("generateRoute posts the request and returns the queued job", async () => {
         const result = await routeApi.generateRoute({
-            park_id: "klaserie",
             start_point: { type: "Point", coordinates: [31.05, -24.3] },
             end_point: { type: "Point", coordinates: [31.08, -24.32] },
             max_time: 120,
