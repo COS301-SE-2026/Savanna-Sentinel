@@ -43,7 +43,6 @@ class PlannedRoute:
 
 
 class RouteRequest(BaseModel):
-    park_id: str
     start_point: GeoPoint
     end_point: GeoPoint
     max_time: float | None = None
@@ -83,6 +82,7 @@ class RouteListResponse(BaseModel):
     page: int
     page_size: int
     results: list[PlannedRoute]
+
 
 class SaveRouteRequest(BaseModel):
     model_config = ConfigDict(revalidate_instances="always")

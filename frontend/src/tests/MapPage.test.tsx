@@ -21,6 +21,7 @@ import maplibregl from "maplibre-gl";
 import MapPage from "@/pages/MapPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers } from "./mocks/riskHandlers";
+import { useMapStore, initialMapState } from "@/store/mapStore";
 import type { FakeMap } from "./mocks/maplibreMock";
 
 const server = setupServer(...riskHandlers);
@@ -28,6 +29,7 @@ beforeAll(() => server.listen());
 afterEach(() => {
     server.resetHandlers();
     vi.restoreAllMocks();
+    useMapStore.setState(initialMapState, true);
 });
 afterAll(() => server.close());
 
@@ -72,6 +74,42 @@ describe("MapPage", () => {
         expect(
             await screen.findByText("Could not load risk grid"),
         ).toBeInTheDocument();
+    });
+
+    it("shows a no-data banner and still renders the grid when no heatmap has been computed", async () => {
+        server.use(
+            http.get("http://localhost:8000/v1/risk/heatmap/snapshots", () =>
+                HttpResponse.json({ snapshots: [] }),
+            ),
+        );
+        const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
+        renderPage();
+
+        expect(
+            await screen.findByText(/no risk scores available yet/i),
+        ).toBeInTheDocument();
+        await waitFor(() => {
+            const ids = addLayerSpy.mock.calls.map(
+                ([layer]) => (layer as { id: string }).id,
+            );
+            expect(ids).toContain("patrol-risk-grid-fill");
+        });
+    });
+
+    it("dismisses the no-data banner when its close button is clicked", async () => {
+        server.use(
+            http.get("http://localhost:8000/v1/risk/heatmap/snapshots", () =>
+                HttpResponse.json({ snapshots: [] }),
+            ),
+        );
+        renderPage();
+
+        await screen.findByText(/no risk scores available yet/i);
+        await userEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+
+        expect(
+            screen.queryByText(/no risk scores available yet/i),
+        ).not.toBeInTheDocument();
     });
 
     it("shows the full risk legend expanded by default on desktop", async () => {

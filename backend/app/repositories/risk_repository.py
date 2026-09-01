@@ -5,18 +5,20 @@ from functools import lru_cache
 from pathlib import Path
 
 from pyproj import Transformer
-from sqlalchemy import column, insert, select, table, text, update
+from sqlalchemy import column, func, insert, select, table, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.risk_job import RiskJob
 from app.models.risk_model import RiskModel
 
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
-# hardcoded for now
-_PARK_GRID_FILES = {
-    "klaserie": _DATA_DIR / "reserve-grid.geojson",
-    "reserve": _DATA_DIR / "reserve-grid.geojson",
-}
+GRID_FILE_PATH = _DATA_DIR / "reserve-grid.geojson"
+
+_HAS_SCORES_GUARD = """EXISTS (
+                  SELECT 1 FROM cell_risk_scores crs
+                  WHERE crs.heatmap_id = rh.id
+              )"""
 
 _cell_risk_scores_table = table(
     "cell_risk_scores",
@@ -40,18 +42,17 @@ _explainability_metrics_table = table(
 
 
 @lru_cache(maxsize=None)
-def load_grid_geometry(park_id: str) -> list[dict]:
-    """Cell polygons for a reserve, reprojected to WGS84.
+def load_grid_geometry() -> list[dict]:
+    """Cell polygons for the park, reprojected to WGS84.
 
     Reads the grid file, returns each cell's 4 corners (for rendering) rather
     than just its center. The grid file itself is assumed to already exist in
     the park's local UTM zone.
     """
-    grid_path = _PARK_GRID_FILES.get(park_id)
-    if grid_path is None:
-        raise ValueError(f"No grid data available for park_id={park_id!r}")
+    if not GRID_FILE_PATH.is_file():
+        raise FileNotFoundError("No park grid has been uploaded yet")
 
-    with open(grid_path) as f:
+    with open(GRID_FILE_PATH) as f:
         geojson = json.load(f)
 
     epsg_code = geojson["crs"]["properties"]["name"].rsplit(":", 1)[-1]
@@ -91,6 +92,8 @@ def load_grid_geometry(park_id: str) -> list[dict]:
 
 def invalidate_grid_cache() -> None:
     load_grid_geometry.cache_clear()
+
+
 async def save_model_version(
     session: AsyncSession,
     park_id: str,
@@ -111,8 +114,14 @@ async def save_model_version(
         .where(RiskModel.park_id == park_id, RiskModel.is_active.is_(True))
         .values(is_active=False),
     )
+    highest_version = await session.scalar(
+        select(func.max(RiskModel.version)).where(
+            RiskModel.park_id == park_id,
+        ),
+    )
     new_model = RiskModel(
         park_id=park_id,
+        version=(highest_version or 0) + 1,
         object_storage_key=object_storage_key,
         is_active=True,
         trained_by=trained_by,
@@ -139,28 +148,70 @@ async def get_active_model(
     return result.scalar_one_or_none()
 
 
+async def create_risk_job(
+    session: AsyncSession,
+    job_id: str,
+    job_type: str,
+    park_id: str,
+    triggered_by: str,
+) -> None:
+    session.add(
+        RiskJob(
+            id=job_id,
+            job_type=job_type,
+            park_id=park_id,
+            triggered_by=triggered_by,
+        ),
+    )
+    await session.commit()
+
+
+async def risk_job_exists(
+    session: AsyncSession,
+    job_id: str,
+    job_type: str,
+) -> bool:
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        return False
+
+    result = await session.execute(
+        select(RiskJob.id).where(
+            RiskJob.id == job_id,
+            RiskJob.job_type == job_type,
+        ),
+    )
+    return result.scalar_one_or_none() is not None
+
+
 async def persist_grid_cells(session: AsyncSession, park_id: str) -> None:
-    cells = load_grid_geometry(park_id)
-    for cell in cells:
-        ring_wkt = ", ".join(f"{lon} {lat}" for lon, lat in cell["corners"])
-        polygon_wkt = f"POLYGON(({ring_wkt}))"
-        await session.execute(
-            text("""
-                INSERT INTO grid_cells
-                    (park_id, cell_ref, row_index, col_index, polygon_bounds)
-                VALUES
-                    (:park_id, :cell_ref, :row_index, :col_index,
-                     ST_GeogFromText(:wkt))
-                ON CONFLICT (park_id, cell_ref) DO NOTHING
-            """),
-            {
-                "park_id": park_id,
-                "cell_ref": cell["cell_id"],
-                "row_index": cell["row"],
-                "col_index": cell["col"],
-                "wkt": polygon_wkt,
-            },
-        )
+    cells = load_grid_geometry()
+    if not cells:
+        return
+    rows = [
+        {
+            "park_id": park_id,
+            "cell_ref": cell["cell_id"],
+            "row_index": cell["row"],
+            "col_index": cell["col"],
+            "wkt": "POLYGON(({}))".format(
+                ", ".join(f"{lon} {lat}" for lon, lat in cell["corners"]),
+            ),
+        }
+        for cell in cells
+    ]
+    await session.execute(
+        text("""
+            INSERT INTO grid_cells
+                (park_id, cell_ref, row_index, col_index, polygon_bounds)
+            VALUES
+                (:park_id, :cell_ref, :row_index, :col_index,
+                 ST_GeogFromText(:wkt))
+            ON CONFLICT (park_id, cell_ref) DO NOTHING
+        """),
+        rows,
+    )
 
 
 async def get_grid_cells(session: AsyncSession, park_id: str) -> list[dict]:
@@ -326,7 +377,7 @@ async def _assemble_heatmap(
 ) -> dict:
     cells_result = await session.execute(
         text("""
-            SELECT gc.id AS cell_id, crs.risk_score,
+            SELECT gc.id AS cell_id, gc.cell_ref, crs.risk_score,
                 ST_AsGeoJSON(gc.polygon_bounds) AS geojson
             FROM cell_risk_scores crs
             JOIN grid_cells gc ON gc.id = crs.grid_cell_id
@@ -340,6 +391,7 @@ async def _assemble_heatmap(
         cells.append(
             {
                 "cell_id": str(row.cell_id),
+                "cell_ref": row.cell_ref,
                 "risk_score": row.risk_score,
                 "corners": [
                     tuple(coord) for coord in geometry["coordinates"][0]
@@ -359,14 +411,15 @@ async def get_latest_heatmap(
     park_id: str,
 ) -> dict | None:
     heatmap_result = await session.execute(
-        text("""
+        text(f"""
             SELECT rh.id, rh.computed_at
             FROM risk_heatmaps rh
             JOIN risk_models rm ON rm.id = rh.model_id
             WHERE rm.park_id = :park_id
+              AND {_HAS_SCORES_GUARD}
             ORDER BY rh.computed_at DESC
             LIMIT 1
-        """),
+        """),  # nosec B608
         {"park_id": park_id},
     )
     heatmap_row = heatmap_result.fetchone()
@@ -385,12 +438,13 @@ async def get_heatmap_by_id(
     park_id: str,
 ) -> dict | None:
     heatmap_result = await session.execute(
-        text("""
+        text(f"""
             SELECT rh.id, rh.computed_at
             FROM risk_heatmaps rh
             JOIN risk_models rm ON rm.id = rh.model_id
             WHERE rh.id = :heatmap_id AND rm.park_id = :park_id
-        """),
+              AND {_HAS_SCORES_GUARD}
+        """),  # nosec B608
         {"heatmap_id": heatmap_id, "park_id": park_id},
     )
     heatmap_row = heatmap_result.fetchone()
@@ -409,14 +463,15 @@ async def get_heatmap_at_or_before(
     date: datetime,
 ) -> dict | None:
     heatmap_result = await session.execute(
-        text("""
+        text(f"""
             SELECT rh.id, rh.computed_at
             FROM risk_heatmaps rh
             JOIN risk_models rm ON rm.id = rh.model_id
             WHERE rm.park_id = :park_id AND rh.computed_at <= :date
+              AND {_HAS_SCORES_GUARD}
             ORDER BY rh.computed_at DESC
             LIMIT 1
-        """),
+        """),  # nosec B608
         {"park_id": park_id, "date": date},
     )
     heatmap_row = heatmap_result.fetchone()
@@ -427,6 +482,27 @@ async def get_heatmap_at_or_before(
         heatmap_row.id,
         heatmap_row.computed_at,
     )
+
+
+async def list_heatmap_snapshots(
+    session: AsyncSession,
+    park_id: str,
+) -> list[dict]:
+    result = await session.execute(
+        text(f"""
+            SELECT rh.id, rh.computed_at
+            FROM risk_heatmaps rh
+            JOIN risk_models rm ON rm.id = rh.model_id
+            WHERE rm.park_id = :park_id
+              AND {_HAS_SCORES_GUARD}
+            ORDER BY rh.computed_at ASC
+        """),  # nosec B608
+        {"park_id": park_id},
+    )
+    return [
+        {"heatmap_id": str(row.id), "computed_at": row.computed_at.isoformat()}
+        for row in result.fetchall()
+    ]
 
 
 async def get_cell_explanation(
@@ -466,6 +542,7 @@ async def get_active_model_details(
         return None
     return {
         "model_id": model.id,
+        "version": model.version,
         "trained_at": model.trained_at.isoformat(),
         "training_window_start": model.training_window_start.isoformat(),
         "training_window_end": model.training_window_end.isoformat(),
@@ -491,14 +568,15 @@ async def get_risk_zone_overview(
 ) -> list[dict]:
     heatmap_row = (
         await session.execute(
-            text("""
+            text(f"""
                 SELECT rh.id
                 FROM risk_heatmaps rh
                 JOIN risk_models rm ON rm.id = rh.model_id
                 WHERE rm.park_id = :park_id
+                  AND {_HAS_SCORES_GUARD}
                 ORDER BY rh.computed_at DESC
                 LIMIT 1
-            """),
+            """),  # nosec B608
             {"park_id": park_id},
         )
     ).fetchone()

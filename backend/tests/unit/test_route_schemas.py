@@ -4,12 +4,9 @@ from pydantic import ValidationError
 from app.schemas.geo import GeoPoint
 from app.schemas.route import MAX_NUM_ALTERNATIVES, RouteRequest
 
-# will be hardcoded since we use klaserie for our purposes
-
 
 def _make_request(**overrides):
     fields = {
-        "park_id": "klaserie",
         "start_point": GeoPoint(coordinates=(31.05, -24.3)),
         "end_point": GeoPoint(coordinates=(31.1, -24.2)),
         "max_time": 120.0,
@@ -31,7 +28,6 @@ def test_max_fuel_defaults_to_none_when_omitted():
 
 def test_max_time_and_max_fuel_are_not_required():
     fields = {
-        "park_id": "klaserie",
         "start_point": GeoPoint(coordinates=(31.05, -24.3)),
         "end_point": GeoPoint(coordinates=(31.1, -24.2)),
     }

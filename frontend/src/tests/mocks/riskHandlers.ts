@@ -1,6 +1,12 @@
 import { http, HttpResponse } from "msw";
 
-import type { ParkGridResponse } from "@/services/riskApi";
+import type {
+    ParkGridResponse,
+    HeatmapResponse,
+    HeatmapSnapshotListResponse,
+    CellExplainResponse,
+    ActiveModelResponse,
+} from "@/services/riskApi";
 
 const BASE = "http://localhost:8000/v1";
 
@@ -74,6 +80,54 @@ export const TEST_GRID: ParkGridResponse = {
     ],
 };
 
+export const TEST_HEATMAP_ID = "heatmap-test-1";
+
+export const TEST_HEATMAP_SNAPSHOTS: HeatmapSnapshotListResponse = {
+    snapshots: [
+        { heatmap_id: TEST_HEATMAP_ID, computed_at: "2026-08-20T06:00:00Z" },
+    ],
+};
+
+export const TEST_HEATMAP: HeatmapResponse = {
+    heatmap_id: TEST_HEATMAP_ID,
+    computed_at: "2026-08-20T06:00:00Z",
+    cells: TEST_GRID.features.map((feature, i) => ({
+        cell_id: `${feature.properties.cell_id}-uuid`,
+        cell_ref: feature.properties.cell_id,
+        risk_score: [0.1, 0.4, 0.6, 0.9][i],
+        geometry: feature.geometry,
+    })),
+};
+
+export const TEST_CELL_EXPLAIN: CellExplainResponse = {
+    cell_id: "cell-1-uuid",
+    heatmap_id: TEST_HEATMAP_ID,
+    top_features: [
+        { feature_name: "incident_density_self", contribution: 0.6 },
+        { feature_name: "patrol_recency_days", contribution: 0.4 },
+    ],
+};
+
+export const TEST_ACTIVE_MODEL: ActiveModelResponse = {
+    model_id: "model-test-1",
+    version: 3,
+    trained_at: "2026-08-01T00:00:00Z",
+    training_window_start: "2026-07-01T00:00:00Z",
+    training_window_end: "2026-08-01T00:00:00Z",
+    n_training_examples: 500,
+    metrics: { precision: 0.7, recall: 0.6, auc: 0.8 },
+};
+
 export const riskHandlers = [
     http.get(`${BASE}/risk/grid`, () => HttpResponse.json(TEST_GRID)),
+    http.get(`${BASE}/risk/heatmap/snapshots`, () =>
+        HttpResponse.json(TEST_HEATMAP_SNAPSHOTS),
+    ),
+    http.get(`${BASE}/risk/heatmap`, () => HttpResponse.json(TEST_HEATMAP)),
+    http.get(`${BASE}/risk/heatmap/cells/:cellId/explain`, () =>
+        HttpResponse.json(TEST_CELL_EXPLAIN),
+    ),
+    http.get(`${BASE}/risk/models/active`, () =>
+        HttpResponse.json(TEST_ACTIVE_MODEL),
+    ),
 ];

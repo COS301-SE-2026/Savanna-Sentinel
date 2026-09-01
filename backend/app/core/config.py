@@ -68,5 +68,8 @@ class Settings:
     # CORS - deployed frontend origin
     FRONTEND_ORIGIN: str | None = os.getenv("FRONTEND_ORIGIN")
 
+    # One park per deployment, id is this constant
+    PARK_ID: str = os.getenv("PARK_ID", "klaserie")
+
 
 settings = Settings()

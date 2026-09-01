@@ -23,6 +23,7 @@ _FEATURE_LOOKBACK_DAYS = 90
 _MIN_TRAINING_EXAMPLES = 20
 _engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 _TaskSessionLocal = async_sessionmaker(_engine, expire_on_commit=False)
+_storage = RiskModelStorage()
 
 
 async def _train(
@@ -64,8 +65,7 @@ async def _train(
 
         model_bytes, metrics = train_model(examples)
 
-        storage = RiskModelStorage()
-        object_key = storage.upload_model(park_id, model_bytes)
+        object_key = _storage.upload_model(park_id, model_bytes)
 
         try:
             model_id = await risk_repository.save_model_version(
@@ -112,9 +112,8 @@ async def _score(park_id: str, triggered_manually: bool = False) -> dict:
         if active_model is None:
             return {"status": "skipped", "reason": "no_active_model"}
 
-        storage = RiskModelStorage()
         try:
-            model_bytes = storage.download_model(
+            model_bytes = _storage.download_model(
                 active_model.object_storage_key,
             )
         except ClientError as exc:

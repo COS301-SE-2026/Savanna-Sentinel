@@ -1,30 +1,40 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 import { ExplainabilityPanel } from "@/components/map/ExplainabilityPanel";
-import { SNAPSHOTS, TIME_OF_DAY_SLOTS } from "@/lib/mapSnapshots";
+import { useMapStore, initialMapState } from "@/store/mapStore";
+import type { HeatmapCell } from "@/services/riskApi";
 
-function makeRiskByCell(): Map<string, number> {
+function makeCell(ref: string, riskScore: number): HeatmapCell {
+    return {
+        cell_id: `${ref}-uuid`,
+        cell_ref: ref,
+        risk_score: riskScore,
+        geometry: { type: "Polygon", coordinates: [[[0, 0]]] },
+    };
+}
+
+function makeCellsByRef(): Map<string, HeatmapCell> {
     // a, b: critical. c: high. d: medium. e: safe.
     return new Map([
-        ["a", 0.9],
-        ["b", 0.85],
-        ["c", 0.6],
-        ["d", 0.4],
-        ["e", 0.1],
+        ["a", makeCell("a", 0.9)],
+        ["b", makeCell("b", 0.85)],
+        ["c", makeCell("c", 0.6)],
+        ["d", makeCell("d", 0.4)],
+        ["e", makeCell("e", 0.1)],
     ]);
 }
+
+afterEach(() => {
+    useMapStore.setState(initialMapState, true);
+});
 
 function renderPanel(
     overrides: Partial<Parameters<typeof ExplainabilityPanel>[0]> = {},
 ) {
+    useMapStore.setState({ cellsByRef: makeCellsByRef() });
     const props = {
-        riskByCell: makeRiskByCell(),
-        dayIndex: SNAPSHOTS.length - 1,
-        onDayIndexChange: vi.fn(),
-        timeIndex: TIME_OF_DAY_SLOTS.length - 1,
-        onTimeIndexChange: vi.fn(),
         heatmapVisible: true,
         onHeatmapVisibleChange: vi.fn(),
         opacity: 55,
@@ -36,13 +46,6 @@ function renderPanel(
 }
 
 describe("ExplainabilityPanel", () => {
-    it("shows the combined day/time snapshot hint from TimeRangeSlider", () => {
-        renderPanel({ dayIndex: 0, timeIndex: 0 });
-        expect(
-            screen.getByText(`Snapshot: ${SNAPSHOTS[0].label}, 00:00`),
-        ).toBeInTheDocument();
-    });
-
     it("only renders a Risk Heatmap layer checkbox, no other layers", () => {
         renderPanel();
         expect(

@@ -25,6 +25,11 @@ CREATE TYPE event_type AS ENUM (
     'patrol_track'
 );
 
+CREATE TYPE risk_job_type AS ENUM (
+    'train',
+    'score'
+);
+
 CREATE TYPE notification_type AS ENUM (
     'tipoff_submitted',
     'field_report_submitted',
@@ -61,6 +66,7 @@ CREATE TABLE users (
 CREATE TABLE risk_models (
     id                     UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     park_id                TEXT        NOT NULL,
+    version                INT         NOT NULL,
     object_storage_key     TEXT        NOT NULL,
     is_active              BOOLEAN     NOT NULL DEFAULT FALSE,
     trained_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -68,7 +74,8 @@ CREATE TABLE risk_models (
     training_window_start  TIMESTAMPTZ NOT NULL,
     training_window_end    TIMESTAMPTZ NOT NULL,
     n_training_examples    INT         NOT NULL,
-    metrics                JSONB       NOT NULL
+    metrics                JSONB       NOT NULL,
+    UNIQUE (park_id, version)
 );
 
 CREATE UNIQUE INDEX risk_models_one_active_per_park
@@ -162,6 +169,21 @@ CREATE TABLE patrol_routes (
     risk_coverage  FLOAT                      NOT NULL,
     risk_heatmap   JSONB                      NOT NULL,
     created_at     TIMESTAMPTZ                NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE risk_jobs (
+    id           UUID          PRIMARY KEY,
+    job_type     risk_job_type NOT NULL,
+    park_id      TEXT          NOT NULL,
+    triggered_by UUID          NOT NULL REFERENCES users(id),
+    created_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE route_jobs (
+    id           UUID        PRIMARY KEY,
+    park_id      TEXT        NOT NULL,
+    requested_by UUID        NOT NULL REFERENCES users(id),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE field_reports (

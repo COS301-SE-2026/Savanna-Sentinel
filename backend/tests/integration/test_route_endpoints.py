@@ -52,6 +52,12 @@ def cleanup(engine):
             )
             await conn.execute(
                 text(
+                    "DELETE FROM route_jobs WHERE requested_by IN "
+                    "(SELECT id FROM users WHERE username LIKE 'test_route_%')",
+                ),
+            )
+            await conn.execute(
+                text(
                     "DELETE FROM refresh_tokens WHERE user_id IN "
                     "(SELECT id FROM users WHERE username LIKE 'test_route_%')",
                 ),
@@ -102,6 +108,7 @@ def _valid_save_payload(**overrides) -> dict:
     }
     body.update(overrides)
     return body
+
 
 @pytest.mark.asyncio
 async def test_save_route_requires_authentication(client):
@@ -174,7 +181,8 @@ async def test_get_saved_route_id_does_not_collide_with_get_route_by_id(
 
 @pytest.mark.asyncio
 async def test_delete_saved_route_returns_404_when_not_found(
-    client, ranger_token,
+    client,
+    ranger_token,
 ):
     r = await client.delete(
         f"/v1/routes/saved/{uuid.uuid4()}",
@@ -204,3 +212,64 @@ async def test_delete_saved_route_removes_it(client, ranger_token):
         headers={"Authorization": f"Bearer {ranger_token}"},
     )
     assert list_resp.json()["total"] == 0
+
+
+def _valid_route_request() -> dict:
+    return {
+        "start_point": {"type": "Point", "coordinates": [31.05, -24.3]},
+        "end_point": {"type": "Point", "coordinates": [31.1, -24.2]},
+        "max_time": 120.0,
+        "max_fuel": 10.0,
+        "num_alternatives": 2,
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_route_by_id_returns_404_for_unknown_job(
+    client,
+    ranger_token,
+):
+    r = await client.get(
+        f"/v1/routes/{uuid.uuid4()}",
+        headers={"Authorization": f"Bearer {ranger_token}"},
+    )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_route_by_id_returns_404_for_another_users_job(
+    client,
+    ranger_token,
+    other_ranger_token,
+):
+    generate_resp = await client.post(
+        "/v1/routes",
+        json=_valid_route_request(),
+        headers={"Authorization": f"Bearer {ranger_token}"},
+    )
+    job_id = generate_resp.json()["job_id"]
+
+    r = await client.get(
+        f"/v1/routes/{job_id}",
+        headers={"Authorization": f"Bearer {other_ranger_token}"},
+    )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_route_by_id_returns_200_for_the_owner(
+    client,
+    ranger_token,
+):
+    generate_resp = await client.post(
+        "/v1/routes",
+        json=_valid_route_request(),
+        headers={"Authorization": f"Bearer {ranger_token}"},
+    )
+    job_id = generate_resp.json()["job_id"]
+
+    r = await client.get(
+        f"/v1/routes/{job_id}",
+        headers={"Authorization": f"Bearer {ranger_token}"},
+    )
+    assert r.status_code == 200
