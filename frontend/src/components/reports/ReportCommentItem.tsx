@@ -14,15 +14,19 @@ const AVATAR_COLORS = [
     "bg-brand-muted",
 ];
 
-function avatarColorFor(username: string): string {
+function avatarColorFor(username?: string): string {
+    const safeUsername = username ?? "";
     let hash = 0;
-    for (let i = 0; i < username.length; i++) {
-        hash = (hash + username.charCodeAt(i)) % AVATAR_COLORS.length;
+    for (let i = 0; i < safeUsername.length; i++) {
+        hash = (hash + safeUsername.charCodeAt(i)) % AVATAR_COLORS.length;
     }
-    return AVATAR_COLORS[hash];
+    return AVATAR_COLORS[hash] ?? AVATAR_COLORS[0];
 }
 
-function initialsFor(username: string): string {
+function initialsFor(username?: string): string {
+    if (!username) {
+        return "??";
+    }
     return username.slice(0, 2).toUpperCase();
 }
 

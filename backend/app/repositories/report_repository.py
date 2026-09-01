@@ -106,6 +106,7 @@ class ReportRepository:
                 fr.created_at,
                 fr.updated_at,
                 fr.deleted_at,
+                fr.status,
                 (
                     SELECT COALESCE(array_agg(p.image_url), ARRAY[]::text[])
                     FROM photos p
@@ -303,6 +304,9 @@ class ReportRepository:
         if "occurred_at" in fields:
             fr_sets.append("occurred_at = :occurred_at")
             fr_params["occurred_at"] = fields["occurred_at"]
+        if "status" in fields:
+            fr_sets.append("status = :status")
+            fr_params["status"] = fields["status"]
         fr_sets.append("updated_at = NOW()")
 
         return (
@@ -349,11 +353,12 @@ class ReportRepository:
             return
 
         await self.db.execute(
-            text(f"""
+            text(
+                f"""
                 UPDATE geospatial_events
                 SET {", ".join(ev_sets)}
                 WHERE id = :eid
-            """, # nosec B608
+            """,  # nosec B608
             ),
             ev_params,
         )
@@ -382,11 +387,12 @@ class ReportRepository:
             return
 
         await self.db.execute(
-            text(f"""
+            text(
+                f"""
                 UPDATE incidents
                 SET {", ".join(inc_sets)}
                 WHERE id = :eid
-            """, # nosec B608
+            """,  # nosec B608
             ),
             inc_params,
         )
@@ -404,11 +410,12 @@ class ReportRepository:
             return
 
         await self.db.execute(
-            text(f"""
+            text(
+                f"""
                 UPDATE sightings
                 SET {", ".join(sig_sets)}
                 WHERE id = :eid
-            """, # nosec B608
+            """,  # nosec B608
             ),
             sig_params,
         )
@@ -456,6 +463,7 @@ class ReportRepository:
             FieldReport.occurred_at,
             FieldReport.created_at,
             FieldReport.updated_at,
+            FieldReport.status,
         ).where(
             FieldReport.id == report_id,
             FieldReport.deleted_at.is_(None),

@@ -174,7 +174,18 @@ CREATE TABLE field_reports (
     occurred_at  TIMESTAMPTZ    NOT NULL,
     created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
-    deleted_at   TIMESTAMPTZ
+    deleted_at   TIMESTAMPTZ,
+    status       TEXT           NOT NULL DEFAULT 'none'
+);
+
+CREATE TABLE comments (
+    id UUID PRIMARY KEY,
+    report_id UUID NOT NULL REFERENCES field_reports(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT,
+    photo_urls VARCHAR[],
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    status_change VARCHAR
 );
 
 CREATE TABLE tipoffs (
