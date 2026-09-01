@@ -1,106 +1,139 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 
 import { TimeRangeSlider } from "@/components/map/TimeRangeSlider";
-import { SNAPSHOTS, TIME_OF_DAY_SLOTS } from "@/lib/mapSnapshots";
+import { useMapStore, initialMapState } from "@/store/mapStore";
+import { groupSnapshotsByDay } from "@/lib/heatmapSnapshots";
+
+const SNAPSHOTS = [
+    { heatmap_id: "a", computed_at: "2026-08-20T06:00:00Z" },
+    { heatmap_id: "b", computed_at: "2026-08-20T18:00:00Z" },
+    { heatmap_id: "c", computed_at: "2026-08-21T06:00:00Z" },
+];
+
+const DAY_GROUPS = groupSnapshotsByDay(SNAPSHOTS);
+
+function seedStore(selectedSnapshotId: string | null = "c") {
+    useMapStore.setState({
+        ...initialMapState,
+        snapshots: SNAPSHOTS,
+        selectedSnapshotId,
+        selectSnapshot: async (heatmapId: string) => {
+            useMapStore.setState({ selectedSnapshotId: heatmapId });
+        },
+    });
+}
+
+afterEach(() => {
+    useMapStore.setState(initialMapState, true);
+});
 
 describe("TimeRangeSlider", () => {
-    it("shows the first and last snapshot dates as boundary labels", () => {
-        render(
-            <TimeRangeSlider
-                dayIndex={0}
-                onDayIndexChange={vi.fn()}
-                timeIndex={0}
-                onTimeIndexChange={vi.fn()}
-            />,
-        );
-        const firstLabelSpans = screen
-            .getAllByText(SNAPSHOTS[0].label)
-            .filter((el) => el.tagName === "SPAN");
-        const lastLabelSpans = screen
-            .getAllByText(SNAPSHOTS[SNAPSHOTS.length - 1].label)
-            .filter((el) => el.tagName === "SPAN");
-        expect(firstLabelSpans.length).toBeGreaterThan(0);
-        expect(lastLabelSpans.length).toBeGreaterThan(0);
+    it("shows a message when there are no snapshots yet", () => {
+        seedStore(null);
+        useMapStore.setState({ snapshots: [], selectedSnapshotId: null });
+        render(<TimeRangeSlider />);
+        expect(screen.getByText(/no snapshots available/i)).toBeInTheDocument();
     });
 
-    it("reports a new day index when the date slider changes", () => {
-        const onDayIndexChange = vi.fn();
-        render(
-            <TimeRangeSlider
-                dayIndex={0}
-                onDayIndexChange={onDayIndexChange}
-                timeIndex={0}
-                onTimeIndexChange={vi.fn()}
-            />,
+    it("shows the first and last day labels as boundary labels", () => {
+        seedStore();
+        render(<TimeRangeSlider />);
+        expect(screen.getAllByText(DAY_GROUPS[0].label).length).toBeGreaterThan(
+            0,
         );
+        expect(screen.getAllByText(DAY_GROUPS[1].label).length).toBeGreaterThan(
+            0,
+        );
+    });
+
+    it("selects the latest snapshot of a newly picked day when the day slider changes", () => {
+        seedStore();
+        render(<TimeRangeSlider />);
         fireEvent.change(screen.getByLabelText(/^snapshot date$/i), {
-            target: { value: "3" },
+            target: { value: "0" },
         });
-        expect(onDayIndexChange).toHaveBeenCalledWith(3);
+        expect(useMapStore.getState().selectedSnapshotId).toBe("b");
+    });
+
+    it("selects a specific snapshot when the time-of-day slider changes", () => {
+        seedStore("b");
+        render(<TimeRangeSlider />);
+        fireEvent.change(screen.getByLabelText(/snapshot time of day/i), {
+            target: { value: "0" },
+        });
+        expect(useMapStore.getState().selectedSnapshotId).toBe("a");
     });
 
     it("gives the date select an id so browsers can autofill/associate it", () => {
-        render(
-            <TimeRangeSlider
-                dayIndex={0}
-                onDayIndexChange={vi.fn()}
-                timeIndex={0}
-                onTimeIndexChange={vi.fn()}
-            />,
-        );
+        seedStore();
+        render(<TimeRangeSlider />);
         expect(screen.getByLabelText(/select snapshot date/i)).toHaveAttribute(
             "id",
         );
     });
 
-    it("reports a new day index when a date is picked from the select", async () => {
-        const onDayIndexChange = vi.fn();
-        render(
-            <TimeRangeSlider
-                dayIndex={0}
-                onDayIndexChange={onDayIndexChange}
-                timeIndex={0}
-                onTimeIndexChange={vi.fn()}
-            />,
-        );
+    it("reports a new day when a date is picked from the select", async () => {
+        seedStore();
+        render(<TimeRangeSlider />);
         await userEvent.selectOptions(
             screen.getByLabelText(/select snapshot date/i),
-            String(2),
+            String(0),
         );
-        expect(onDayIndexChange).toHaveBeenCalledWith(2);
-    });
-
-    it("reports a new time-of-day index from the second slider", () => {
-        const onTimeIndexChange = vi.fn();
-        render(
-            <TimeRangeSlider
-                dayIndex={0}
-                onDayIndexChange={vi.fn()}
-                timeIndex={0}
-                onTimeIndexChange={onTimeIndexChange}
-            />,
-        );
-        fireEvent.change(screen.getByLabelText(/snapshot time of day/i), {
-            target: { value: "2" },
-        });
-        expect(onTimeIndexChange).toHaveBeenCalledWith(2);
+        expect(useMapStore.getState().selectedSnapshotId).toBe("b");
     });
 
     it("shows a combined hint with the selected day and time", () => {
-        render(
-            <TimeRangeSlider
-                dayIndex={1}
-                onDayIndexChange={vi.fn()}
-                timeIndex={2}
-                onTimeIndexChange={vi.fn()}
-            />,
-        );
+        seedStore("a");
+        render(<TimeRangeSlider />);
         expect(
-            screen.getByText(
-                `Snapshot: ${SNAPSHOTS[1].label}, ${TIME_OF_DAY_SLOTS[2]}`,
-            ),
+            screen.getByText(new RegExp(`^Snapshot: ${DAY_GROUPS[0].label},`)),
         ).toBeInTheDocument();
+    });
+
+    it("disables the time-of-day slider when the selected day has only one snapshot", () => {
+        seedStore("c");
+        render(<TimeRangeSlider />);
+        expect(screen.getByLabelText(/snapshot time of day/i)).toBeDisabled();
+    });
+
+    it("does not disable the time-of-day slider when the day has multiple snapshots", () => {
+        seedStore("b");
+        render(<TimeRangeSlider />);
+        expect(
+            screen.getByLabelText(/snapshot time of day/i),
+        ).not.toBeDisabled();
+    });
+
+    it("disables the date slider when there is only one day of snapshots", () => {
+        useMapStore.setState({
+            ...initialMapState,
+            snapshots: [SNAPSHOTS[0]],
+            selectedSnapshotId: "a",
+            selectSnapshot: async (heatmapId: string) => {
+                useMapStore.setState({ selectedSnapshotId: heatmapId });
+            },
+        });
+        render(<TimeRangeSlider />);
+        expect(screen.getByLabelText(/^snapshot date$/i)).toBeDisabled();
+    });
+
+    it("gives the time select an id so browsers can autofill/associate it", () => {
+        seedStore("b");
+        render(<TimeRangeSlider />);
+        expect(screen.getByLabelText(/select snapshot time/i)).toHaveAttribute(
+            "id",
+        );
+    });
+
+    it("selects a specific snapshot when a time is picked from the time select", async () => {
+        seedStore("b");
+        render(<TimeRangeSlider />);
+        await userEvent.selectOptions(
+            screen.getByLabelText(/select snapshot time/i),
+            String(0),
+        );
+        expect(useMapStore.getState().selectedSnapshotId).toBe("a");
     });
 });

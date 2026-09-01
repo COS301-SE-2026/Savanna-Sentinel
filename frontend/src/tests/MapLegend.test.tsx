@@ -71,6 +71,15 @@ describe("MapLegend", () => {
         expect(screen.getByText("Critical")).toBeInTheDocument();
     });
 
+    it("renders a no-data legend entry alongside the risk levels", async () => {
+        render(<MapLegend />);
+        await userEvent.click(
+            screen.getByRole("button", { name: /expand risk legend/i }),
+        );
+
+        expect(screen.getByText("No score yet")).toBeInTheDocument();
+    });
+
     it("does not render a close glyph in the expanded panel", async () => {
         render(<MapLegend />);
         await userEvent.click(
