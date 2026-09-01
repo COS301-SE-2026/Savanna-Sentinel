@@ -113,6 +113,18 @@ class UserRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_ids_by_roles(self, roles: list[str]) -> list[str]:
+        """Return ids of active, non-deleted users with any of these roles."""
+        if not roles:
+            return []
+        stmt = select(User.id).where(
+            User.role.in_(roles),
+            User.is_active.is_(True),
+            User.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return [str(user_id) for user_id in result.scalars().all()]
+
     async def get_by_email(self, email: str) -> Optional[User]:
         stmt = select(User).where(User.email == email)
         result = await self.db.execute(stmt)

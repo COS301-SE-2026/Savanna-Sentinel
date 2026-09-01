@@ -431,3 +431,99 @@ async def test_tipoff_list_filters_by_from_and_to_query_aliases():
     ids = [item["tipoff_id"] for item in body["results"]]
     assert recent["tipoff_id"] in ids
     assert old["tipoff_id"] not in ids
+
+
+# notifications
+
+
+@pytest.mark.asyncio
+async def test_submitting_tipoff_notifies_ranger_analyst_and_admin():
+    liaison_id = await _create_user("test_liaison_notif_1")
+    ranger_id = await _create_user("test_ranger_notif_1", role="ranger")
+    analyst_id = await _create_user("test_analyst_notif_1", role="analyst")
+    admin_id = await _create_user("test_admin_notif_1", role="admin")
+
+    async with _client() as client:
+        post_response = await client.post(
+            "/v1/tipoffs",
+            json=_tipoff_payload(severity="medium"),
+            headers=_auth_header(liaison_id),
+        )
+        assert post_response.status_code == 201
+        tipoff_id = post_response.json()["tipoff_id"]
+
+        recipients = {
+            "ranger": ranger_id,
+            "analyst": analyst_id,
+            "admin": admin_id,
+        }
+        for role, user_id in recipients.items():
+            notif_response = await client.get(
+                "/v1/notifications",
+                headers=_auth_header(user_id),
+            )
+            items = notif_response.json()["results"]
+            matching = [
+                n for n in items
+                if n["type"] == "tipoff_submitted"
+                and n["related_id"] == tipoff_id
+            ]
+            assert len(matching) == 1, f"expected a notification for {role}"
+            assert matching[0]["read"] is False
+
+        liaison_notifs = await client.get(
+            "/v1/notifications",
+            headers=_auth_header(liaison_id),
+        )
+        liaison_items = liaison_notifs.json()["results"]
+        assert not any(n["related_id"] == tipoff_id for n in liaison_items)
+
+
+@pytest.mark.asyncio
+async def test_high_severity_incident_tipoff_sends_extra_alert():
+    liaison_id = await _create_user("test_liaison_notif_2")
+    admin_id = await _create_user("test_admin_notif_2", role="admin")
+
+    async with _client() as client:
+        post_response = await client.post(
+            "/v1/tipoffs",
+            json=_tipoff_payload(severity="high"),
+            headers=_auth_header(liaison_id),
+        )
+        assert post_response.status_code == 201
+        tipoff_id = post_response.json()["tipoff_id"]
+
+        notif_response = await client.get(
+            "/v1/notifications",
+            headers=_auth_header(admin_id),
+        )
+
+    items = notif_response.json()["results"]
+    matching = [n for n in items if n["related_id"] == tipoff_id]
+    types = {n["type"] for n in matching}
+    assert types == {"tipoff_submitted", "high_severity_incident"}
+
+
+@pytest.mark.asyncio
+async def test_low_severity_incident_tipoff_sends_no_extra_alert():
+    liaison_id = await _create_user("test_liaison_notif_3")
+    admin_id = await _create_user("test_admin_notif_3", role="admin")
+
+    async with _client() as client:
+        post_response = await client.post(
+            "/v1/tipoffs",
+            json=_tipoff_payload(severity="low"),
+            headers=_auth_header(liaison_id),
+        )
+        assert post_response.status_code == 201
+        tipoff_id = post_response.json()["tipoff_id"]
+
+        notif_response = await client.get(
+            "/v1/notifications",
+            headers=_auth_header(admin_id),
+        )
+
+    items = notif_response.json()["results"]
+    matching = [n for n in items if n["related_id"] == tipoff_id]
+    types = {n["type"] for n in matching}
+    assert types == {"tipoff_submitted"}
