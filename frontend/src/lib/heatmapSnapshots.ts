@@ -35,5 +35,6 @@ export function formatSnapshotTime(computedAt: string): string {
     return new Date(computedAt).toLocaleTimeString(undefined, {
         hour: "2-digit",
         minute: "2-digit",
+        hour12: false,
     });
 }
