@@ -13,6 +13,13 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { getRiskCoverageColorClass } from "@/lib/mapTokens";
 import { cn } from "@/lib/utils";
 import { routeApi, type SavedRoute } from "@/services/routeApi";
+import {
+    forgetCachedRoute,
+    loadSavedRoutes,
+    MAX_CACHED_ROUTES,
+} from "@/offline/routesCache";
+import { useAuthStore } from "@/store/authStore";
+import { formatRelativeTime } from "@/lib/utils";
 
 interface LoadPreviousRoutesDialogProps {
     open: boolean;
@@ -25,9 +32,11 @@ export function LoadPreviousRoutesDialog({
     onOpenChange,
     onLoad,
 }: LoadPreviousRoutesDialogProps) {
+    const user = useAuthStore((s) => s.user);
     const [routes, setRoutes] = useState<SavedRoute[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [cachedAt, setCachedAt] = useState<number | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
     const [isPreviouslyOpen, setPrevOpen] = useState(open);
@@ -44,8 +53,9 @@ export function LoadPreviousRoutesDialog({
             setIsLoading(true);
             setError(null);
             try {
-                const res = await routeApi.listSavedRoutes();
-                setRoutes(res.results);
+                const res = await loadSavedRoutes(user?.id ?? null);
+                setRoutes(res.routes);
+                setCachedAt(res.isFromCache ? res.fetchedAt : null);
             } catch {
                 setError("Failed to load saved routes.");
             } finally {
@@ -53,13 +63,14 @@ export function LoadPreviousRoutesDialog({
             }
         }
         fetchSavedRoutes();
-    }, [open]);
+    }, [open, user?.id]);
 
     async function handleDelete(routeId: string) {
         setDeletingId(routeId);
         setError(null);
         try {
             await routeApi.deleteSavedRoute(routeId);
+            await forgetCachedRoute(routeId).catch(() => {});
             setRoutes((prev) => prev.filter((r) => r.id !== routeId));
         } catch {
             setError("Failed to delete saved route.");
@@ -123,6 +134,16 @@ export function LoadPreviousRoutesDialog({
                     {!isLoading && !error && routes.length === 0 && (
                         <p className="text-sm text-color-text-secondary">
                             No saved routes yet.
+                        </p>
+                    )}
+                    {cachedAt !== null && (
+                        <p className="text-sm text-status-caution-text">
+                            Saved copy from{" "}
+                            {formatRelativeTime(
+                                new Date(cachedAt).toISOString(),
+                            )}
+                            . Your last {MAX_CACHED_ROUTES} routes are kept on
+                            this device. Deleting needs a connection.
                         </p>
                     )}
                     <ul className="flex flex-col gap-2">
@@ -205,7 +226,8 @@ export function LoadPreviousRoutesDialog({
                                                 className="border-status-critical hover:bg-status-critical/5"
                                                 aria-label="Delete saved route"
                                                 disabled={
-                                                    deletingId === route.id
+                                                    deletingId === route.id ||
+                                                    cachedAt !== null
                                                 }
                                                 onClick={(e) => {
                                                     e.stopPropagation();

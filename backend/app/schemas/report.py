@@ -72,6 +72,7 @@ class ReportCreate(BaseModel):
     images: list[str] = []
     route_id: Optional[str] = None
     sync_status: Optional[Literal["offline", "pending", "synced"]] = None
+    client_id: Optional[str] = None
 
 
 class ReportSubmitResponse(BaseModel):

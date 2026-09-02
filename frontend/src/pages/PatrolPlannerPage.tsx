@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { routeApi } from "@/services/routeApi";
+import { cacheSavedRoute } from "@/offline/routesCache";
+import { useAuthStore } from "@/store/authStore";
 import type { SavedRoute, PlannedRoute } from "@/services/routeApi";
 import { usePollRouteJob } from "@/hooks/usePollRouteJob";
 import { parseGridCells, scoresByCell } from "@/lib/riskGrid";
@@ -170,6 +172,7 @@ const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
 };
 
 export default function PatrolPlannerPage() {
+    const user = useAuthStore((s) => s.user);
     const isMobile = useIsMobile();
     const [map, setMap] = useState<maplibregl.Map | null>(null);
     const [mapCenter, setMapCenter] = useState<[number, number]>([
@@ -330,7 +333,7 @@ export default function PatrolPlannerPage() {
         if (!requestId || !startPoint || !endPoint) return;
         setSavingIndex(index);
         try {
-            await routeApi.saveRoute({
+            const saved = await routeApi.saveRoute({
                 request_id: requestId,
                 start_point: {
                     type: "Point",
@@ -345,6 +348,7 @@ export default function PatrolPlannerPage() {
                 risk_by_cell: Object.fromEntries(riskByCell),
                 route: routes[index],
             });
+            await cacheSavedRoute(user?.id ?? null, saved).catch(() => {});
             setSavedIndices((prev) => new Set(prev).add(index));
             notifySafe("Route saved");
         } catch {

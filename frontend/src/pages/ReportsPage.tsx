@@ -4,7 +4,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/store/authStore";
 import { NewReportTab } from "@/components/reports/NewReportTab";
 import { ReportList } from "@/components/reports/ReportList";
-import { notifySafe, notifyCritical } from "@/components/ui/toast";
+import {
+    notifySafe,
+    notifyCaution,
+    notifyCritical,
+} from "@/components/ui/toast";
 import { toDatetimeLocalValue, formatToUTC } from "@/lib/utils";
 import { PLACEHOLDER_PHOTO_TYPE, resolvePhotoUrls } from "@/lib/media";
 import type {
@@ -21,6 +25,13 @@ import type {
     ListReportsQueryParams,
 } from "@/services/reportsApi";
 import { useDebounce } from "@/hooks/useDebounce";
+import {
+    deleteDraft,
+    enqueue,
+    listDrafts,
+    saveDraft,
+} from "@/offline/draftsStore";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
 
 // Helper functions
 function mapToDraft(item: ReportListItem): DraftReport {
@@ -48,9 +59,6 @@ function mapToDraft(item: ReportListItem): DraftReport {
 }
 // Helper functions end
 
-// todo
-// this array should live in a Dexie table so drafts carry on reload
-// and so that this page works offline
 export default function ReportsPage() {
     const user = useAuthStore((s) => s.user);
     const [reports, setReports] = React.useState<DraftReport[]>([]);
@@ -65,6 +73,12 @@ export default function ReportsPage() {
     const [usernameFilter, setUsernameFilter] = React.useState<string[]>([]);
 
     const debouncedSearch = useDebounce(search, 300);
+    const [refreshKey, setRefreshKey] = useState(0);
+    const bumpRefresh = React.useCallback(
+        () => setRefreshKey((key) => key + 1),
+        [],
+    );
+    useOfflineSync(bumpRefresh);
 
     useEffect(() => {
         async function fetchReports() {
@@ -76,10 +90,18 @@ export default function ReportsPage() {
                 species: speciesFilter || null,
                 users: usernameFilter || null,
             };
+            const localDrafts = user
+                ? await listDrafts(user.id).catch(() => [])
+                : [];
+            const unsynced = localDrafts.filter(
+                (draft) => draft.syncStatus !== "synced",
+            );
+
             try {
                 const res = await reportsApi.listReports(temp);
-                setReports(res.results.map(mapToDraft));
+                setReports([...res.results.map(mapToDraft), ...unsynced]);
             } catch (err) {
+                setReports(unsynced);
                 notifyCritical("Error", "Failed to fetch reports");
                 console.error(err);
             } finally {
@@ -94,6 +116,8 @@ export default function ReportsPage() {
         severityFilter,
         speciesFilter,
         usernameFilter,
+        user,
+        refreshKey,
     ]);
 
     const myDrafts = useMemo(
@@ -113,6 +137,29 @@ export default function ReportsPage() {
             return;
         }
 
+        const localId = crypto.randomUUID();
+        let isPersisted = true;
+        try {
+            await saveDraft(user.id, localId, input, "offline");
+            await enqueue(user.id, localId, "create");
+        } catch (err) {
+            isPersisted = false;
+            console.error(err);
+        }
+
+        setReports((prev) => [
+            ...prev,
+            {
+                ...input,
+                localId,
+                submittedBy: user.id,
+                submittedByUsername: user.username,
+                createdAt: new Date().toISOString(),
+                syncStatus: "offline",
+            },
+        ]);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+
         try {
             const images = await resolvePhotoUrls(input.photos);
             const payload: ReportCreate = {
@@ -126,35 +173,71 @@ export default function ReportsPage() {
                 count: input.count ?? undefined,
                 images,
                 sync_status: "pending",
+                client_id: localId,
             };
 
             const res = await reportsApi.submitReport(payload);
 
-            const newReport: DraftReport = {
-                ...input,
-                localId: res.report_id,
-                submittedBy: res.submitted_by,
-                submittedByUsername: res.submitted_by_username,
-                createdAt: res.created_at,
-                syncStatus: "pending",
-                status: "none",
-            };
-            setReports((prev) => [...prev, newReport]);
+            await deleteDraft(localId).catch(() => {});
+            setReports((prev) =>
+                prev.map((r) =>
+                    r.localId === localId
+                        ? {
+                              ...r,
+                              localId: res.report_id,
+                              submittedBy: res.submitted_by,
+                              submittedByUsername: res.submitted_by_username,
+                              createdAt: res.created_at,
+                              syncStatus: "pending",
+                              status: "none",
+                          }
+                        : r,
+                ),
+            );
             notifySafe(
                 "Report submitted",
                 "Your report has been queued to sync.",
             );
-            window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (err) {
-            notifyCritical(
-                "Submission failed",
-                "Could not send report to the server",
-            );
+            if (isPersisted) {
+                notifyCaution(
+                    "Saved to this device",
+                    "No connection. It will be sent when you are back online.",
+                );
+            } else {
+                notifyCritical(
+                    "Submission failed",
+                    "Could not send report to the server",
+                );
+            }
             console.error(err);
         }
     };
 
     const handleSave = async (localId: string, input: DraftReportInput) => {
+        const existing = reports.find((r) => r.localId === localId);
+
+        if (user && existing?.syncStatus === "offline") {
+            try {
+                await saveDraft(user.id, localId, input, "offline");
+                await enqueue(user.id, localId, "create");
+                setReports((prev) =>
+                    prev.map((r) =>
+                        r.localId === localId ? { ...r, ...input } : r,
+                    ),
+                );
+                notifySafe(
+                    "Draft saved",
+                    "Kept on this device until you sync.",
+                );
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            } catch (err) {
+                notifyCritical("Save failed", "Could not update this device");
+                console.error(err);
+            }
+            return;
+        }
+
         try {
             const images = await resolvePhotoUrls(input.photos);
             const payload: ReportUpdate = {
@@ -187,6 +270,14 @@ export default function ReportsPage() {
     };
 
     const handleDelete = async (localId: string) => {
+        const existing = reports.find((r) => r.localId === localId);
+        if (existing?.syncStatus === "offline") {
+            await deleteDraft(localId).catch(() => {});
+            setReports((prev) => prev.filter((r) => r.localId !== localId));
+            notifySafe("Draft discarded");
+            return;
+        }
+
         try {
             await reportsApi.deleteReport(localId);
             setReports((prev) => prev.filter((r) => r.localId !== localId));

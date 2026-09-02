@@ -9,6 +9,15 @@ export function formatRole(role: string) {
     return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export function homePathForRole(role: string | undefined): string {
+    switch (role) {
+        case "community_liaison":
+            return "/tipoffs";
+        default:
+            return "/profile";
+    }
+}
+
 export function toDatetimeLocalValue(date: Date): string {
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;

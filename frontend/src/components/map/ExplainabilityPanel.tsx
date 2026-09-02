@@ -3,6 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { TimeRangeSlider } from "@/components/map/TimeRangeSlider";
 import { getRiskLevel } from "@/lib/mapTokens";
+import { formatRelativeTime } from "@/lib/utils";
 import { useMapStore } from "@/store/mapStore";
 
 function SectionHeader({ children }: { children: string }) {
@@ -18,6 +19,8 @@ export interface ExplainabilityPanelProps {
     onHeatmapVisibleChange: (visible: boolean) => void;
     opacity: number;
     onOpacityChange: (opacity: number) => void;
+    gridFetchedAt?: number | null;
+    gridStale?: boolean;
 }
 
 export function ExplainabilityPanel({
@@ -25,6 +28,8 @@ export function ExplainabilityPanel({
     onHeatmapVisibleChange,
     opacity,
     onOpacityChange,
+    gridFetchedAt = null,
+    gridStale = false,
 }: ExplainabilityPanelProps) {
     const cellsByRef = useMapStore((s) => s.cellsByRef);
 
@@ -110,8 +115,18 @@ export function ExplainabilityPanel({
                         <dt className="text-color-text-secondary">
                             Last updated
                         </dt>
-                        <dd className="font-semibold text-color-text-primary">
-                            Not available yet
+                        <dd
+                            className={
+                                gridStale
+                                    ? "font-semibold text-status-caution-text"
+                                    : "font-semibold text-color-text-primary"
+                            }
+                        >
+                            {gridFetchedAt === null
+                                ? "Not available yet"
+                                : formatRelativeTime(
+                                      new Date(gridFetchedAt).toISOString(),
+                                  )}
                         </dd>
                     </div>
                 </dl>

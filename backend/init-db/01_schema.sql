@@ -194,6 +194,7 @@ CREATE TABLE field_reports (
     description  TEXT           NOT NULL,
     location     GEOGRAPHY(Point, 4326) NOT NULL,
     occurred_at  TIMESTAMPTZ    NOT NULL,
+    client_id    UUID,
     created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     deleted_at   TIMESTAMPTZ,
@@ -209,6 +210,10 @@ CREATE TABLE comments (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     status_change VARCHAR
 );
+
+CREATE UNIQUE INDEX field_reports_client_id_uniq
+    ON field_reports (submitted_by, client_id)
+    WHERE client_id IS NOT NULL;
 
 CREATE TABLE tipoffs (
     id           UUID           PRIMARY KEY DEFAULT uuid_generate_v4(),
