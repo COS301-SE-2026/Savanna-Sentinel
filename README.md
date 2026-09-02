@@ -51,6 +51,18 @@ The SRS contains an abridged version of the use cases, full use case documentati
 
 </details>
 
+<details>
+<summary><h3>Demo 3</h3></summary>
+
+- [Software Requirements Specification (SRS)](./docs/demo3/PDF/SRS.pdf)
+- [Software Archiecture Specification (SAS)](./docs/demo3/PDF/SAS.pdf)
+- [Use Case Diagrams](./docs/demo3/PDF/Use%20Case%20Diagram%20&%20Scope.pdf)
+- [Deployment Diagrams](./docs/demo3/PDF/Production%20Deployment%20Diagram.png)
+- [Service Contracts](<https://savannasentinel.co.za/v1/openapi.json>)
+- [NFR Traceability Matrix](./docs/demo3/PDF/Non%20Functional%20Requirements%20Matrix.pdf)
+
+</details>
+
 ## Team
 
 <div align="left">

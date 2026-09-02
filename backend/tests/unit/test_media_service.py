@@ -80,6 +80,7 @@ def test_ensure_bucket_creates_missing_bucket(monkeypatch):
         "HeadBucket",
     )
     service, client = _make_service(monkeypatch, client=fake_client)
+    service._ensure_bucket()
 
     service.generate_upload_url("snare.jpg", "image/jpeg")
 

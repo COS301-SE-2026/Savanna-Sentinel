@@ -77,8 +77,6 @@ class MediaService:
                 detail="content_type must be a valid image MIME type",
             )
 
-        self._ensure_bucket()
-
         object_key = f"reports/{uuid.uuid4()}{_object_extension(content_type)}"
 
         upload_url = self._public_client.generate_presigned_url(

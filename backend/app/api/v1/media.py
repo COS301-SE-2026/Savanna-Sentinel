@@ -18,7 +18,7 @@ _service = MediaService()
     status_code=status.HTTP_200_OK,
     summary="Request a pre-signed MinIO upload URL",
 )
-async def request_upload_url(
+def request_upload_url(
     body: MediaUploadUrlRequest,
     current_user: Annotated[
         User,
