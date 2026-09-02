@@ -52,9 +52,7 @@ The SRS contains an abridged version of the use cases, full use case documentati
 </details>
 
 <details>
-<summary><h3>Demo 2</h3></summary>
-
-The SRS contains an abridged version of the use cases, full use case documentation can be found [here](<./docs/demo2/DevDocs(Not-For-Review)/use-cases/Use%20Case%20Diagram%20%26%20Scope.pdf>)
+<summary><h3>Demo 3</h3></summary>
 
 - [Software Requirements Specification (SRS)](./docs/demo3/PDF/SRS.pdf)
 - [Software Archiecture Specification (SAS)](./docs/demo3/PDF/SAS.pdf)
