@@ -31,6 +31,31 @@ def _client() -> AsyncClient:
     )
 
 
+@pytest.fixture(autouse=True)
+async def _clean_klaserie_risk_state():
+    """Give every test in this file an empty klaserie risk-model/heatmap.
+
+    These tests share a Postgres instance and assert on "latest" /
+    "at or before <date>" / snapshot list resolution, which is only
+    deterministic when no risk_heatmaps rows remains from an earlier test.
+
+    Deleting the heatmaps also removes their cell_risk_scores and
+    explainability_metrics. The models are deleted as well to prevent a
+    leftover active model from affecting active-model tests.
+    """
+    async with _engine.begin() as conn:
+        await conn.execute(
+            text(
+                "DELETE FROM risk_heatmaps WHERE model_id IN "
+                "(SELECT id FROM risk_models WHERE park_id = 'klaserie')",
+            ),
+        )
+        await conn.execute(
+            text("DELETE FROM risk_models WHERE park_id = 'klaserie'"),
+        )
+    yield
+
+
 async def _create_user(username: str, role: str) -> str:
     async with _Session() as session:
         async with session.begin():
@@ -70,11 +95,14 @@ async def _seed_heatmap_snapshot(trained_by: str) -> tuple[str, str]:
         model_result = await conn.execute(
             text("""
                 INSERT INTO risk_models
-                    (park_id, object_storage_key, is_active, trained_by,
-                     training_window_start, training_window_end,
+                    (park_id, version, object_storage_key, is_active,
+                     trained_by, training_window_start, training_window_end,
                      n_training_examples, metrics)
                 VALUES
-                    ('klaserie', 'risk-models/klaserie/test.json', TRUE,
+                    ('klaserie',
+                     COALESCE((SELECT MAX(version) FROM risk_models
+                               WHERE park_id = 'klaserie'), 0) + 1,
+                     'risk-models/klaserie/test.json', TRUE,
                      :trained_by, NOW() - INTERVAL '30 days',
                      NOW() - INTERVAL '1 day', 100,
                      '{"precision": 0.7, "recall": 0.6, "auc": 0.8}')
@@ -156,6 +184,29 @@ async def test_get_heatmap_returns_latest_snapshot_for_ranger():
     assert any(
         cell["risk_score"] == pytest.approx(0.65) for cell in body["cells"]
     )
+
+
+@pytest.mark.asyncio
+async def test_get_heatmap_cell_ref_matches_grid_endpoint_cell_id():
+    # Heatmap cell_ref must match /risk/grid's cell_ref so a client can join
+    # risk scores onto grid geometry.
+    user_id = await _create_user("risk_ranger_heatmap_ref", "ranger")
+    _, grid_cell_id = await _seed_heatmap_snapshot(user_id)
+    token = create_access_token(user_id)
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/risk/heatmap",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    matching = [
+        cell for cell in body["cells"] if cell["cell_id"] == grid_cell_id
+    ]
+    assert len(matching) == 1
+    assert matching[0]["cell_ref"] == "cell-test-1"
 
 
 @pytest.mark.asyncio
@@ -280,11 +331,14 @@ async def _seed_two_heatmaps_for_same_cell(
         model_result = await conn.execute(
             text("""
                 INSERT INTO risk_models
-                    (park_id, object_storage_key, is_active, trained_by,
-                     training_window_start, training_window_end,
+                    (park_id, version, object_storage_key, is_active,
+                     trained_by, training_window_start, training_window_end,
                      n_training_examples, metrics)
                 VALUES
-                    ('klaserie', 'risk-models/klaserie/test.json', TRUE,
+                    ('klaserie',
+                     COALESCE((SELECT MAX(version) FROM risk_models
+                               WHERE park_id = 'klaserie'), 0) + 1,
+                     'risk-models/klaserie/test.json', TRUE,
                      :trained_by, NOW() - INTERVAL '30 days',
                      NOW() - INTERVAL '1 day', 100,
                      '{"precision": 0.7, "recall": 0.6, "auc": 0.8}')
@@ -468,11 +522,14 @@ async def test_get_heatmap_snapshot_param_404_when_heatmap_belongs_to_different_
         model_result = await conn.execute(
             text("""
                 INSERT INTO risk_models
-                    (park_id, object_storage_key, is_active, trained_by,
-                     training_window_start, training_window_end,
+                    (park_id, version, object_storage_key, is_active,
+                     trained_by, training_window_start, training_window_end,
                      n_training_examples, metrics)
                 VALUES
-                    ('other-park', 'risk-models/other-park/test.json', TRUE,
+                    ('other-park',
+                     COALESCE((SELECT MAX(version) FROM risk_models
+                               WHERE park_id = 'other-park'), 0) + 1,
+                     'risk-models/other-park/test.json', TRUE,
                      :trained_by, NOW() - INTERVAL '30 days',
                      NOW() - INTERVAL '1 day', 100,
                      '{"precision": 0.7, "recall": 0.6, "auc": 0.8}')
@@ -520,3 +577,73 @@ async def test_get_heatmap_rejects_both_date_and_snapshot():
         )
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_heatmap_snapshots_returns_sorted_list():
+    user_id = await _create_user("risk_ranger_snapshots_list", "ranger")
+    (
+        newer_heatmap_id,
+        older_heatmap_id,
+        _cell_id,
+    ) = await _seed_two_heatmaps_for_same_cell(user_id)
+    token = create_access_token(user_id)
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/risk/heatmap/snapshots",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    ids = [s["heatmap_id"] for s in response.json()["snapshots"]]
+    assert older_heatmap_id in ids
+    assert newer_heatmap_id in ids
+    assert ids.index(older_heatmap_id) < ids.index(newer_heatmap_id)
+
+
+@pytest.mark.asyncio
+async def test_get_heatmap_snapshots_empty_list_when_none_computed():
+    user_id = await _create_user("risk_ranger_snapshots_empty", "ranger")
+    token = create_access_token(user_id)
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/risk/heatmap/snapshots",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["snapshots"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_heatmap_snapshots_forbidden_for_community_liaison():
+    user_id = await _create_user(
+        "risk_liaison_snapshots",
+        "community_liaison",
+    )
+    token = create_access_token(user_id)
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/risk/heatmap/snapshots",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_heatmap_snapshots_returns_ok_for_analyst():
+    user_id = await _create_user("risk_analyst_snapshots", "analyst")
+    await _seed_heatmap_snapshot(user_id)
+    token = create_access_token(user_id)
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/risk/heatmap/snapshots",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200

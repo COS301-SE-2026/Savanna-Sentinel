@@ -16,7 +16,7 @@ describe("riskApi.getParkGrid", () => {
     });
 
     it("returns 4 features with cell_id/row/col properties", async () => {
-        const result = await riskApi.getParkGrid("klaserie");
+        const result = await riskApi.getParkGrid();
         expect(result.features).toHaveLength(4);
         expect(result.features[0].properties).toEqual({
             cell_id: "cell-1",

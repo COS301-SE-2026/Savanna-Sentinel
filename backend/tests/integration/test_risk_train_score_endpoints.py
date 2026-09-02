@@ -22,7 +22,10 @@ app.dependency_overrides[get_db] = _override_get_db
 
 
 def _client() -> AsyncClient:
-    return AsyncClient(transport=ASGITransport(app=app), base_url="https://test")
+    return AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="https://test",
+    )
 
 
 async def _create_user(username: str, role: str) -> str:
@@ -43,8 +46,10 @@ async def _create_user(username: str, role: str) -> str:
                     RETURNING id
                 """),
                 {
-                    "email": f"{username}@savanna.test", "username": username,
-                    "pw_hash": get_password_hash("SecurePass1!"), "role": role,
+                    "email": f"{username}@savanna.test",
+                    "username": username,
+                    "pw_hash": get_password_hash("SecurePass1!"),
+                    "role": role,
                 },
             )
             return str(result.fetchone()[0])
@@ -108,7 +113,7 @@ async def test_train_rejects_invalid_window():
 
 
 @pytest.mark.asyncio
-async def test_get_train_job_status_for_unknown_job_is_queued_shaped():
+async def test_get_train_job_status_for_unknown_job_is_404():
     analyst_id = await _create_user("risk_analyst_train3", "analyst")
     token = create_access_token(analyst_id)
 
@@ -118,8 +123,7 @@ async def test_get_train_job_status_for_unknown_job_is_queued_shaped():
             headers={"Authorization": f"Bearer {token}"},
         )
 
-    assert response.status_code == 200
-    assert response.json()["job_id"] == "nonexistent-job-id"
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -151,3 +155,17 @@ async def test_score_returns_202_with_job_id_for_admin():
 
     assert response.status_code == 202
     assert "job_id" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_get_score_job_status_for_unknown_job_is_404():
+    admin_id = await _create_user("risk_admin_score2", "admin")
+    token = create_access_token(admin_id)
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/risk/score/nonexistent-job-id",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 404

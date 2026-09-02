@@ -27,6 +27,7 @@ export interface DraftReport extends DraftReportInput {
     submittedByUsername?: string | null;
     createdAt: string;
     syncStatus: "offline" | "pending" | "synced";
+    status?: string;
 }
 
 export const INCIDENT_TYPE_OPTIONS = [

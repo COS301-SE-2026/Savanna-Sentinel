@@ -106,6 +106,7 @@ class ReportRepository:
                 fr.created_at,
                 fr.updated_at,
                 fr.deleted_at,
+                fr.status,
                 (
                     SELECT COALESCE(array_agg(p.image_url), ARRAY[]::text[])
                     FROM photos p
@@ -362,6 +363,9 @@ class ReportRepository:
         if "occurred_at" in fields:
             fr_sets.append("occurred_at = :occurred_at")
             fr_params["occurred_at"] = fields["occurred_at"]
+        if "status" in fields:
+            fr_sets.append("status = :status")
+            fr_params["status"] = fields["status"]
         fr_sets.append("updated_at = NOW()")
 
         return (
@@ -518,6 +522,7 @@ class ReportRepository:
             FieldReport.occurred_at,
             FieldReport.created_at,
             FieldReport.updated_at,
+            FieldReport.status,
         ).where(
             FieldReport.id == report_id,
             FieldReport.deleted_at.is_(None),

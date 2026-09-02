@@ -4,6 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { TimeRangeSlider } from "@/components/map/TimeRangeSlider";
 import { getRiskLevel } from "@/lib/mapTokens";
 import { formatRelativeTime } from "@/lib/utils";
+import { useMapStore } from "@/store/mapStore";
 
 function SectionHeader({ children }: { children: string }) {
     return (
@@ -14,11 +15,6 @@ function SectionHeader({ children }: { children: string }) {
 }
 
 export interface ExplainabilityPanelProps {
-    riskByCell: Map<string, number>;
-    dayIndex: number;
-    onDayIndexChange: (index: number) => void;
-    timeIndex: number;
-    onTimeIndexChange: (index: number) => void;
     heatmapVisible: boolean;
     onHeatmapVisibleChange: (visible: boolean) => void;
     opacity: number;
@@ -28,11 +24,6 @@ export interface ExplainabilityPanelProps {
 }
 
 export function ExplainabilityPanel({
-    riskByCell,
-    dayIndex,
-    onDayIndexChange,
-    timeIndex,
-    onTimeIndexChange,
     heatmapVisible,
     onHeatmapVisibleChange,
     opacity,
@@ -40,27 +31,24 @@ export function ExplainabilityPanel({
     gridFetchedAt = null,
     gridStale = false,
 }: ExplainabilityPanelProps) {
+    const cellsByRef = useMapStore((s) => s.cellsByRef);
+
     const { criticalCount, highCount } = useMemo(() => {
         let criticalCount = 0;
         let highCount = 0;
-        for (const score of riskByCell.values()) {
-            const level = getRiskLevel(score);
+        for (const cell of cellsByRef.values()) {
+            const level = getRiskLevel(cell.risk_score);
             if (level === "critical") criticalCount++;
             else if (level === "alert") highCount++;
         }
         return { criticalCount, highCount };
-    }, [riskByCell]);
+    }, [cellsByRef]);
 
     return (
         <div className="flex flex-col gap-5 p-4">
             <div>
                 <SectionHeader>Time Range</SectionHeader>
-                <TimeRangeSlider
-                    dayIndex={dayIndex}
-                    onDayIndexChange={onDayIndexChange}
-                    timeIndex={timeIndex}
-                    onTimeIndexChange={onTimeIndexChange}
-                />
+                <TimeRangeSlider />
             </div>
 
             <div>

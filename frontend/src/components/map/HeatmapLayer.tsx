@@ -10,9 +10,9 @@ import {
     type GridCell,
 } from "@/lib/riskGrid";
 import { getRiskLevel, type RiskLevel } from "@/lib/mapTokens";
-import { getCellFactors } from "@/lib/cellFactors";
 import { CellPopupContent } from "@/components/map/CellPopupContent";
 import { CellAnalysisPanel } from "@/components/map/CellAnalysisPanel";
+import { useAuthStore } from "@/store/authStore";
 
 const SOURCE_ID = "patrol-risk-grid";
 const LAYER_ID = "patrol-risk-grid-fill";
@@ -51,6 +51,9 @@ export function HeatmapLayer({
     useEffect(() => {
         pickingActiveRef.current = pickingActive;
     }, [pickingActive]);
+
+    const role = useAuthStore((s) => s.user?.role);
+    const canViewAnalysis = role === "analyst" || role === "admin";
 
     const riskByCellRef = useRef(riskByCell);
     useEffect(() => {
@@ -130,6 +133,11 @@ export function HeatmapLayer({
             const cellId = feature.properties?.cellId as string;
             const cell = cellIndexRef.current.get(cellId);
             if (!cell) return;
+            if (!riskByCellRef.current.has(cellId)) {
+                setSelected(null);
+                if (analysisCellRef.current) closeAnalysis();
+                return;
+            }
             const score = riskByCellRef.current.get(cellId) ?? 0;
             setSelected({ cell, level: getRiskLevel(score), score });
             if (analysisCellRef.current) closeAnalysis();
@@ -192,7 +200,7 @@ export function HeatmapLayer({
                 level={selected.level}
                 row={selected.cell.row}
                 col={selected.cell.col}
-                factors={getCellFactors(selected.cell.cellId)}
+                canViewAnalysis={canViewAnalysis}
                 onClose={() => setSelected(null)}
                 onViewAnalysis={() => openAnalysis(selected)}
             />,
@@ -213,7 +221,7 @@ export function HeatmapLayer({
             popup.remove();
             setTimeout(() => root.unmount(), 0);
         };
-    }, [map, selected, isMobile]);
+    }, [map, selected, isMobile, canViewAnalysis]);
 
     // Mobile: anchored to the top of the canvas rather than the cell.
     const mobilePopup =
@@ -224,7 +232,7 @@ export function HeatmapLayer({
                         level={selected.level}
                         row={selected.cell.row}
                         col={selected.cell.col}
-                        factors={getCellFactors(selected.cell.cellId)}
+                        canViewAnalysis={canViewAnalysis}
                         onClose={() => setSelected(null)}
                         onViewAnalysis={() => openAnalysis(selected)}
                     />
@@ -243,7 +251,7 @@ export function HeatmapLayer({
                     row={analysisCell.cell.row}
                     col={analysisCell.cell.col}
                     score={analysisCell.score}
-                    factors={getCellFactors(analysisCell.cell.cellId)}
+                    cellRef={analysisCell.cell.cellId}
                     isClosing={isPanelClosing}
                     onClose={closeAnalysis}
                     onClosed={() => {

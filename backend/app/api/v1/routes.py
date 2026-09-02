@@ -25,6 +25,7 @@ _SAVED_ROUTE_NOT_FOUND = "Saved route not found"
 
 router = APIRouter(prefix="/routes", tags=["routes"])
 
+
 @router.post(
     "",
     response_model=RouteJobResponse,
@@ -32,10 +33,12 @@ router = APIRouter(prefix="/routes", tags=["routes"])
     summary="Queue a new route planning job",
 )
 async def generate_route(
-        request: RouteRequest,
-        current_user: Annotated[User, Depends(get_current_user)],
-    ):
-    return generate_route_job(request)
+    request: RouteRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await generate_route_job(db, current_user, request)
+
 
 @router.get(
     "",
@@ -43,13 +46,22 @@ async def generate_route(
     summary="List planned routes / route job status",
 )
 async def list_routes(
-        current_user: Annotated[User, Depends(get_current_user)],
-        request_id: str | None = None,
-        park_id: str | None = None,
-        page: int = 1,
-        page_size: int = 20,
-    ):
-    return get_routes(request_id, park_id, page, page_size)
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    request_id: str | None = None,
+    park_id: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+):
+    return await get_routes(
+        db,
+        current_user,
+        request_id,
+        park_id,
+        page,
+        page_size,
+    )
+
 
 @router.post(
     "/save",
@@ -58,11 +70,12 @@ async def list_routes(
     summary="Save a planned route",
 )
 async def save_route_endpoint(
-        request: SaveRouteRequest,
-        current_user: Annotated[User, Depends(get_current_user)],
-        db: Annotated[AsyncSession, Depends(get_db)],
-    ):
+    request: SaveRouteRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     return await save_route(db, current_user, request)
+
 
 @router.get(
     "/saved",
@@ -70,12 +83,13 @@ async def save_route_endpoint(
     summary="List saved patrol routes",
 )
 async def list_saved_routes_endpoint(
-        current_user: Annotated[User, Depends(get_current_user)],
-        db: Annotated[AsyncSession, Depends(get_db)],
-        page: int = 1,
-        page_size: int = 20,
-    ):
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    page: int = 1,
+    page_size: int = 20,
+):
     return await list_saved_routes(db, current_user, page, page_size)
+
 
 @router.delete(
     "/saved/{route_id}",
@@ -83,10 +97,10 @@ async def list_saved_routes_endpoint(
     summary="Delete a saved patrol route",
 )
 async def delete_saved_route_endpoint(
-        route_id: str,
-        current_user: Annotated[User, Depends(get_current_user)],
-        db: Annotated[AsyncSession, Depends(get_db)],
-    ):
+    route_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     deleted = await delete_saved_route(db, current_user, route_id)
     if not deleted:
         raise HTTPException(
@@ -94,13 +108,15 @@ async def delete_saved_route_endpoint(
             detail=_SAVED_ROUTE_NOT_FOUND,
         )
 
+
 @router.get(
     "/{route_id}",
     response_model=RouteListResponse,
     summary="Get a single route job by id",
 )
 async def get_route(
-        route_id: str,
-        current_user: Annotated[User, Depends(get_current_user)],
-    ):
-    return get_routes(request_id=route_id)
+    route_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await get_routes(db, current_user, request_id=route_id)

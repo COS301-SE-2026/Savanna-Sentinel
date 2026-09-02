@@ -1,44 +1,92 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { CellFactor } from "@/lib/cellFactors";
 import {
     RISK_LEVEL_FILL_CLASS,
     RISK_LEVEL_LABELS,
     type RiskLevel,
 } from "@/lib/mapTokens";
+import { useMapStore } from "@/store/mapStore";
 
 export interface CellAnalysisPanelProps {
     level: RiskLevel;
     row: number;
     col: number;
     score: number;
-    factors: CellFactor[];
+    cellRef: string;
     isClosing: boolean;
     onClose: () => void;
     onClosed: () => void;
 }
 
-// stub for now
-const MODEL_META: [string, string][] = [
+const MODEL_META_FALLBACK: [string, string][] = [
     ["Model", "Not available yet"],
-    ["F1 Score", "Not available yet"],
     ["Last trained", "Not available yet"],
 ];
+
+const FEATURE_LABELS: Record<string, string> = {
+    incident_density_self: "Nearby incidents",
+    incident_density_neighbors: "Neighboring cell incidents",
+    patrol_recency_days: "Days since last patrol",
+    patrol_frequency: "Patrol frequency",
+};
+
+function getFeatureLabel(featureName: string): string {
+    if (FEATURE_LABELS[featureName]) return FEATURE_LABELS[featureName];
+    return featureName
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+}
 
 export function CellAnalysisPanel({
     level,
     row,
     col,
     score,
-    factors,
+    cellRef,
     isClosing,
     onClose,
     onClosed,
 }: CellAnalysisPanelProps) {
     const closeRef = useRef<HTMLButtonElement>(null);
+
+    const explanation = useMapStore((s) => s.explainByCellRef.get(cellRef));
+    const activeModel = useMapStore((s) => s.activeModel);
+    const selectedSnapshotId = useMapStore((s) => s.selectedSnapshotId);
+    const loadCellExplain = useMapStore((s) => s.loadCellExplain);
+    const loadActiveModel = useMapStore((s) => s.loadActiveModel);
+    const [explainStatus, setExplainStatus] = useState<
+        "loading" | "loaded" | "unavailable"
+    >(explanation ? "loaded" : "loading");
+
+    const isExplanationStale =
+        explainStatus === "loaded" &&
+        !!explanation &&
+        explanation.heatmap_id !== selectedSnapshotId;
+
+    useEffect(() => {
+        loadActiveModel();
+    }, [loadActiveModel]);
+
+    useEffect(() => {
+        if (explanation) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing status from a cached store value
+            setExplainStatus("loaded");
+            return;
+        }
+        let isCancelled = false;
+        setExplainStatus("loading");
+        loadCellExplain(cellRef).then((result) => {
+            if (isCancelled) return;
+            setExplainStatus(result ? "loaded" : "unavailable");
+        });
+        return () => {
+            isCancelled = true;
+        };
+    }, [cellRef, explanation, loadCellExplain]);
 
     useEffect(() => {
         closeRef.current?.focus({ preventScroll: true });
@@ -98,43 +146,105 @@ export function CellAnalysisPanel({
                 <div className="mb-2 text-xs font-semibold tracking-wider text-color-text-primary uppercase">
                     Contributing Factors
                 </div>
-                {factors.map((factor) => (
-                    <div
-                        key={factor.label}
-                        className="mb-2 flex items-center gap-2"
-                    >
-                        <span className="min-w-[130px] text-sm text-color-text-primary">
-                            {factor.label}
-                        </span>
-                        <div
-                            className="h-1.5 flex-1 overflow-hidden rounded-xs bg-color-border"
-                            role="progressbar"
-                            aria-valuenow={factor.pct}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-label={`${factor.label} confidence`}
-                        >
+                {explainStatus === "loading" && (
+                    <p className="text-sm text-color-text-secondary">
+                        Loading analysis...
+                    </p>
+                )}
+                {explainStatus === "unavailable" && (
+                    <p className="text-sm text-color-text-secondary">
+                        No explanation available for this cell.
+                    </p>
+                )}
+                {explainStatus === "loaded" && isExplanationStale && (
+                    <p className="text-sm text-color-text-secondary">
+                        Explanation available for the latest snapshot only.
+                    </p>
+                )}
+                {explainStatus === "loaded" &&
+                    !isExplanationStale &&
+                    explanation?.top_features.map((factor) => {
+                        const pct = Math.round(factor.contribution * 100);
+                        const label = getFeatureLabel(factor.feature_name);
+                        return (
                             <div
-                                className={`h-full rounded-xs ${RISK_LEVEL_FILL_CLASS[level]}`}
-                                style={{ width: `${factor.pct}%` }}
-                            />
-                        </div>
-                        <span className="text-sm text-color-text-secondary">
-                            {factor.pct}%
-                        </span>
-                    </div>
-                ))}
+                                key={factor.feature_name}
+                                className="mb-2 flex items-center gap-2"
+                            >
+                                <span className="min-w-[130px] text-sm text-color-text-primary">
+                                    {label}
+                                </span>
+                                <div
+                                    className="h-1.5 flex-1 overflow-hidden rounded-xs bg-color-border"
+                                    role="progressbar"
+                                    aria-valuenow={pct}
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                    aria-label={`${label} confidence`}
+                                >
+                                    <div
+                                        className={`h-full rounded-xs ${RISK_LEVEL_FILL_CLASS[level]}`}
+                                        style={{ width: `${pct}%` }}
+                                    />
+                                </div>
+                                <span className="text-sm text-color-text-secondary">
+                                    {pct}%
+                                </span>
+                            </div>
+                        );
+                    })}
             </div>
 
             <hr className="border-color-border" />
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-color-text-secondary">
-                {MODEL_META.map(([label, value]) => (
-                    <span key={label} className="contents">
-                        <span>{label}</span>
-                        <span>{value}</span>
-                    </span>
-                ))}
+                {activeModel ? (
+                    <>
+                        <span className="contents">
+                            <span>Model</span>
+                            <span>#{activeModel.version}</span>
+                        </span>
+                        <span className="contents">
+                            <span>Last trained</span>
+                            <span>
+                                {new Date(
+                                    activeModel.trained_at,
+                                ).toLocaleDateString()}
+                            </span>
+                        </span>
+                        {activeModel.metrics.precision !== undefined && (
+                            <span className="contents">
+                                <span>Precision</span>
+                                <span>
+                                    {activeModel.metrics.precision.toFixed(2)}
+                                </span>
+                            </span>
+                        )}
+                        {activeModel.metrics.recall !== undefined && (
+                            <span className="contents">
+                                <span>Recall</span>
+                                <span>
+                                    {activeModel.metrics.recall.toFixed(2)}
+                                </span>
+                            </span>
+                        )}
+                        {activeModel.metrics.auc !== undefined && (
+                            <span className="contents">
+                                <span>AUC</span>
+                                <span>
+                                    {activeModel.metrics.auc.toFixed(2)}
+                                </span>
+                            </span>
+                        )}
+                    </>
+                ) : (
+                    MODEL_META_FALLBACK.map(([label, value]) => (
+                        <span key={label} className="contents">
+                            <span>{label}</span>
+                            <span>{value}</span>
+                        </span>
+                    ))
+                )}
             </div>
 
             <Button

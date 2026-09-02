@@ -63,6 +63,7 @@ class RiskScoreJobStatus(BaseModel):
 
 class HeatmapCell(BaseModel):
     cell_id: str
+    cell_ref: str
     risk_score: float
     geometry: GeoPolygon
 
@@ -71,6 +72,15 @@ class HeatmapResponse(BaseModel):
     heatmap_id: str
     computed_at: str
     cells: list[HeatmapCell]
+
+
+class HeatmapSnapshot(BaseModel):
+    heatmap_id: str
+    computed_at: str
+
+
+class HeatmapSnapshotListResponse(BaseModel):
+    snapshots: list[HeatmapSnapshot]
 
 
 class ExplainFeature(BaseModel):
@@ -86,6 +96,7 @@ class CellExplainResponse(BaseModel):
 
 class ActiveModelResponse(BaseModel):
     model_id: str
+    version: int
     trained_at: str
     training_window_start: str
     training_window_end: str

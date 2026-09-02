@@ -33,6 +33,8 @@ import { riskHandlers, TEST_GRID } from "./mocks/riskHandlers";
 import { routeHandlers, ROUTE_REQUEST_ID } from "./mocks/routeHandlers";
 import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
 import type { FakeMap } from "./mocks/maplibreMock";
+import { useMapStore, initialMapState } from "@/store/mapStore";
+import { RISK_LEVEL_COLORS } from "@/lib/mapTokens";
 
 const server = setupServer(
     ...riskHandlers,
@@ -44,6 +46,7 @@ afterEach(() => {
     server.resetHandlers();
     mapRegistry.instances.length = 0;
     vi.restoreAllMocks();
+    useMapStore.setState(initialMapState, true);
 });
 afterAll(() => server.close());
 
@@ -63,28 +66,6 @@ async function enterBothPoints() {
         screen.getByLabelText(/^end point$/i),
         "-24.32, 31.08",
     );
-}
-
-function acceptedRoutePost(onBody: (body: RoutePostBody) => void) {
-    return http.post("http://localhost:8000/v1/routes", async ({ request }) => {
-        onBody((await request.json()) as RoutePostBody);
-        return HttpResponse.json(
-            {
-                job_id: ROUTE_REQUEST_ID,
-                request_id: ROUTE_REQUEST_ID,
-                park_id: "klaserie",
-                status: "queued",
-                queued_at: new Date().toISOString(),
-            },
-            { status: 202 },
-        );
-    });
-}
-
-interface RoutePostBody {
-    risk_by_cell?: Record<string, number>;
-    max_time?: number;
-    max_fuel?: number;
 }
 
 function renderPage() {
@@ -333,9 +314,25 @@ describe("PatrolPlannerPage", () => {
         expect(
             await screen.findByText("Could not load risk grid"),
         ).toBeInTheDocument();
+    });
+
+    it("shows a dismissible no-data banner when no heatmap has been computed", async () => {
+        server.use(
+            http.get("http://localhost:8000/v1/risk/heatmap/snapshots", () =>
+                HttpResponse.json({ snapshots: [] }),
+            ),
+        );
+
+        renderPage();
+
         expect(
-            screen.getByRole("button", { name: /randomise risk/i }),
-        ).toBeDisabled();
+            await screen.findByText(/no risk scores available yet/i),
+        ).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+        expect(
+            screen.queryByText(/no risk scores available yet/i),
+        ).not.toBeInTheDocument();
     });
 
     it("warns when route planning cannot be started", async () => {
@@ -354,34 +351,6 @@ describe("PatrolPlannerPage", () => {
         expect(
             await screen.findByText("Could not start route planning"),
         ).toBeInTheDocument();
-    });
-
-    it("sends different risk scores after re-randomising", async () => {
-        const bodies: RoutePostBody[] = [];
-        server.use(acceptedRoutePost((body) => bodies.push(body)));
-
-        renderPage();
-        await enterBothPoints();
-        await userEvent.click(
-            screen.getByRole("button", { name: /generate routes/i }),
-        );
-        await waitFor(() => expect(bodies).toHaveLength(1));
-
-        const randomise = screen.getByRole("button", {
-            name: /randomise risk/i,
-        });
-        await waitFor(() => expect(randomise).toBeEnabled());
-        await userEvent.click(randomise);
-
-        await userEvent.click(
-            screen.getByRole("button", { name: /generate routes/i }),
-        );
-        await waitFor(() => expect(bodies).toHaveLength(2));
-
-        expect(Object.keys(bodies[1].risk_by_cell!).sort()).toEqual(
-            TEST_GRID.features.map((f) => f.properties.cell_id).sort(),
-        );
-        expect(bodies[1].risk_by_cell).not.toEqual(bodies[0].risk_by_cell);
     });
 
     it("drops the generated routes once clearing is confirmed", async () => {
@@ -542,6 +511,41 @@ describe("PatrolPlannerPage", () => {
         expect(data.geometry.coordinates).toEqual(
             SAVED_ROUTE.path_geometry.coordinates,
         );
+    });
+
+    it("loading a saved route shows its historical risk_by_cell on the heatmap, not the live data", async () => {
+        renderPage();
+        const map = await currentMap();
+
+        await waitFor(() => {
+            expect(map.sources["patrol-risk-grid"]).toBeDefined();
+        });
+        await waitFor(() => {
+            const liveData = map.sources["patrol-risk-grid"]
+                .data as GeoJSON.FeatureCollection;
+            const cell1 = liveData.features.find(
+                (f) => (f.properties as { cellId: string }).cellId === "cell-1",
+            );
+
+            expect(cell1?.properties?.fillColor).toBe(RISK_LEVEL_COLORS.safe);
+        });
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        const savedRouteButton = await screen.findByRole("button", {
+            name: /55 min/i,
+        });
+        await userEvent.click(savedRouteButton);
+
+        await waitFor(() => {
+            const data = map.sources["patrol-risk-grid"]
+                .data as GeoJSON.FeatureCollection;
+            const cell1 = data.features.find(
+                (f) => (f.properties as { cellId: string }).cellId === "cell-1",
+            );
+            expect(cell1?.properties?.fillColor).toBe(RISK_LEVEL_COLORS.alert);
+        });
     });
 
     it("generating new routes clears a previously loaded route", async () => {

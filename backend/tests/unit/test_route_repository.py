@@ -61,10 +61,9 @@ def grid_2x2(tmp_path, monkeypatch):
         _cell(4, row=1, col=1),
     ]
     path = _write_grid(tmp_path, cells)
-    park_id = "unit-test-2x2"
-    monkeypatch.setitem(route_repository._PARK_GRID_FILES, park_id, path)
+    monkeypatch.setattr(route_repository, "GRID_FILE_PATH", path)
     route_repository._load_grid.cache_clear()
-    yield park_id
+    yield "unit-test-2x2"
     route_repository._load_grid.cache_clear()
 
 
@@ -72,7 +71,7 @@ def grid_2x2(tmp_path, monkeypatch):
 
 
 def test_load_grid_builds_one_node_per_feature(grid_2x2):
-    graph = route_repository._load_grid(grid_2x2)
+    graph = route_repository._load_grid()
     assert len(graph.nodes) == 4
     assert {n.node_id for n in graph.nodes} == {
         "cell-1",
@@ -84,7 +83,7 @@ def test_load_grid_builds_one_node_per_feature(grid_2x2):
 
 def test_load_grid_converts_projected_coords_to_lon_lat(grid_2x2):
     """Reproduce the transform independently and compare exact output."""
-    graph = route_repository._load_grid(grid_2x2)
+    graph = route_repository._load_grid()
     to_wgs84 = Transformer.from_crs(
         f"EPSG:{_EPSG}",
         "EPSG:4326",
@@ -102,7 +101,7 @@ def test_load_grid_converts_projected_coords_to_lon_lat(grid_2x2):
 
 def test_load_grid_nodes_have_neutral_risk_score(grid_2x2):
     """No risk heatmap exists yet - every node must be a neutral 0.0."""
-    graph = route_repository._load_grid(grid_2x2)
+    graph = route_repository._load_grid()
     assert all(n.risk_score == 0.0 for n in graph.nodes)
 
 
@@ -111,7 +110,7 @@ def test_load_grid_builds_8_connected_edges_with_diagonals(grid_2x2):
 
     Diagonal edges let a route angle directly toward its target.
     """
-    graph = route_repository._load_grid(grid_2x2)
+    graph = route_repository._load_grid()
     pairs = {(e.from_node_id, e.to_node_id) for e in graph.edges}
 
     assert pairs == {
@@ -131,7 +130,7 @@ def test_load_grid_builds_8_connected_edges_with_diagonals(grid_2x2):
 
 
 def test_load_grid_edge_costs_derived_from_cell_width(grid_2x2):
-    graph = route_repository._load_grid(grid_2x2)
+    graph = route_repository._load_grid()
     distance_km = _CELL_M / 1000
     diagonal_km = distance_km * (2**0.5)
 
@@ -157,15 +156,22 @@ def test_load_grid_edge_costs_derived_from_cell_width(grid_2x2):
         assert edge.est_fuel_l == pytest.approx(expected_km * FUEL_L_PER_KM)
 
 
-def test_load_grid_unknown_park_id_raises_value_error():
-    with pytest.raises(ValueError, match="unknown-park"):
-        route_repository._load_grid("unknown-park")
+def test_load_grid_raises_when_no_grid_uploaded_yet(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        route_repository,
+        "GRID_FILE_PATH",
+        tmp_path / "never-uploaded.geojson",
+    )
+    route_repository._load_grid.cache_clear()
+    with pytest.raises(FileNotFoundError):
+        route_repository._load_grid()
+    route_repository._load_grid.cache_clear()
 
 
 def test_load_grid_is_cached_across_calls(grid_2x2):
-    """@lru_cache means repeated calls for the same park_id are free."""
-    first = route_repository._load_grid(grid_2x2)
-    second = route_repository._load_grid(grid_2x2)
+    """@lru_cache means repeated calls are free."""
+    first = route_repository._load_grid()
+    second = route_repository._load_grid()
     assert first is second
 
 
@@ -208,7 +214,7 @@ def test_build_park_graph_does_not_mutate_cached_load_grid_result(grid_2x2):
     the same park_id, including ones that didnt supply risk data
     """
     build_park_graph(grid_2x2, risk_by_cell={"cell-1": 0.9})
-    cached = route_repository._load_grid(grid_2x2)
+    cached = route_repository._load_grid()
     assert all(n.risk_score == 0.0 for n in cached.nodes)
 
 

@@ -1,6 +1,11 @@
 import { useState } from "react";
 
-import { RISK_LEVEL_COLORS, type RiskLevel } from "@/lib/mapTokens";
+import {
+    RISK_LEVEL_COLORS,
+    NO_DATA_CELL_COLOR,
+    NO_DATA_CELL_OPACITY,
+    type RiskLevel,
+} from "@/lib/mapTokens";
 
 const LEGEND_ROWS: { level: RiskLevel; label: string; short: string }[] = [
     { level: "critical", label: "Critical", short: "C" },
@@ -57,21 +62,43 @@ export function MapLegend({
                                 {label}
                             </div>
                         ))}
+                        <div className="flex items-center gap-2 text-sm">
+                            <span
+                                className="size-4 shrink-0 rounded-[2px] border border-color-border/50"
+                                style={{
+                                    background: NO_DATA_CELL_COLOR,
+                                    opacity: NO_DATA_CELL_OPACITY,
+                                }}
+                            />
+                            No score yet
+                        </div>
                     </div>
                 </>
             ) : (
-                LEGEND_ROWS.map(({ level, short }) => (
-                    <span
-                        key={level}
-                        className="inline-flex items-center gap-1"
-                    >
+                <>
+                    {LEGEND_ROWS.map(({ level, short }) => (
+                        <span
+                            key={level}
+                            className="inline-flex items-center gap-1"
+                        >
+                            <span
+                                className="size-2 shrink-0 rounded-full"
+                                style={{ background: RISK_LEVEL_COLORS[level] }}
+                            />
+                            <span className="text-xs">{short}</span>
+                        </span>
+                    ))}
+                    <span className="inline-flex items-center gap-1">
                         <span
                             className="size-2 shrink-0 rounded-full"
-                            style={{ background: RISK_LEVEL_COLORS[level] }}
+                            style={{
+                                background: NO_DATA_CELL_COLOR,
+                                opacity: NO_DATA_CELL_OPACITY,
+                            }}
                         />
-                        <span className="text-xs">{short}</span>
+                        <span className="text-xs">N/A</span>
                     </span>
-                ))
+                </>
             )}
         </button>
     );

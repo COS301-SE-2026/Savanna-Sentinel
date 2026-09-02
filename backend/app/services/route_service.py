@@ -2,6 +2,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from fastapi import HTTPException, status
+
+from app.core.config import settings
+from app.repositories import route_job_repository
 from app.repositories.patrol_route_repository import PatrolRouteRepository
 from app.schemas.geo import GeoLineString
 from app.schemas.route import (
@@ -12,7 +16,7 @@ from app.schemas.route import (
     SavedRouteListResponse,
     SavedRouteResponse,
 )
-from app.workers.celery_app import celery_app
+from app.workers.celery_app import CELERY_STATUS_MAP, celery_app
 from app.workers.tasks.route_tasks import run_route_planning_job
 
 if TYPE_CHECKING:
@@ -21,33 +25,31 @@ if TYPE_CHECKING:
     from app.models.user import User
     from app.schemas.route import SaveRouteRequest
 
-_CELERY_STATUS_MAP = {
-    "PENDING": "queued",
-    "RECEIVED": "queued",
-    "STARTED": "processing",
-    "RETRY": "processing",
-    "SUCCESS": "completed",
-    "FAILURE": "failed",
-}
 
+async def generate_route_job(
+    db: "AsyncSession",
+    current_user: "User",
+    request: RouteRequest,
+) -> RouteJobResponse:
+    """Enqueue the route-planning job and persist its identity.
 
-def generate_route_job(request: RouteRequest) -> RouteJobResponse:
-    """Enqueue the background job and return its 202 payload.
-
-    There is no persisted RouteJob record - the Celery task_id (== job_id ==
-    request_id here, since nothing else exists to distinguish them) doubles
-    as the job's identity, and its status/result live in the Celery result
-    backend (Redis), read back out in get_routes().
-
-    TODO: no ownership is recorded against the requesting user - once a
-    RouteJob table exists, tie job_id to user.id so get_routes() can
-    reject requests for another user's job.
+    Returns the 202 payload. job_id is both the Celery task_id
+    and the route_jobs primary key (see
+    route_job_repository.create_route_job). Identifies
+    queued jobs vs "not existing" jobs.
     """
     job_id = str(uuid.uuid4())
 
+    await route_job_repository.create_route_job(
+        db,
+        job_id=job_id,
+        park_id=settings.PARK_ID,
+        requested_by=current_user.id,
+    )
+
     run_route_planning_job.apply_async(
         kwargs={
-            "park_id": request.park_id,
+            "park_id": settings.PARK_ID,
             "start": request.start_point.coordinates,
             "end": request.end_point.coordinates,
             "max_time_min": request.max_time,
@@ -61,7 +63,7 @@ def generate_route_job(request: RouteRequest) -> RouteJobResponse:
     return RouteJobResponse(
         job_id=job_id,
         request_id=job_id,
-        park_id=request.park_id,
+        park_id=settings.PARK_ID,
         status="queued",
         queued_at=datetime.now(timezone.utc).isoformat(),
     )
@@ -77,16 +79,26 @@ def _deserialize_route(data: dict) -> PlannedRoute:
     )
 
 
-def get_routes(request_id=None, park_id=None, page=1, page_size=20):
+async def get_routes(
+    db: "AsyncSession",
+    current_user: "User",
+    request_id=None,
+    park_id=None,
+    page=1,
+    page_size=20,
+):
     """Return job status and (paginated) results for a route request.
 
-    When request_id is provided, loads the job's status and
-    requested/found counts from the Celery result backend and returns its
-    (paginated) results.
+    If the job exists, get its status and requested/found counts from the Celery
+    result backend, then return the job's results with pagination.
 
-    Without request_id there is nothing to list: with no persisted RouteJob
-    table, this service has no record of past jobs beyond their individual
-    task ids, so browsing/filtering by park_id alone always returns empty.
+    If request_id is provided, it must match a route_jobs row owned by the
+    current user. Otherwise, return a 404 (see
+    route_job_repository.route_job_exists_for_user).
+
+    If request_id is not provided, return an empty result. route_jobs only
+    supports looking up a single job by ID; it does not support browsing or
+    filtering by park_id.
     """
     if request_id is None:
         return RouteListResponse(
@@ -96,8 +108,18 @@ def get_routes(request_id=None, park_id=None, page=1, page_size=20):
             results=[],
         )
 
+    if not await route_job_repository.route_job_exists_for_user(
+        db,
+        request_id,
+        current_user.id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Route job not found",
+        )
+
     result = celery_app.AsyncResult(request_id)
-    status = _CELERY_STATUS_MAP.get(result.state, result.state.lower())
+    status_value = CELERY_STATUS_MAP.get(result.state, result.state.lower())
 
     routes: list[PlannedRoute] = []
     num_requested = None
@@ -114,7 +136,7 @@ def get_routes(request_id=None, park_id=None, page=1, page_size=20):
 
     return RouteListResponse(
         request_id=request_id,
-        status=status,
+        status=status_value,
         num_alternatives_requested=num_requested,
         num_alternatives_found=num_found,
         total=len(routes),

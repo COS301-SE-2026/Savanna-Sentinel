@@ -2,15 +2,17 @@ import io
 import math
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 
 import geopandas
 import numpy
 from fastapi import HTTPException, status
 from shapely.geometry import box
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.repositories import risk_repository
 from app.repositories.risk_repository import (
+    GRID_FILE_PATH,
     invalidate_grid_cache,
     load_grid_geometry,
 )
@@ -23,37 +25,25 @@ from app.schemas.risk import (
     GridCellProperties,
     HeatmapCell,
     HeatmapResponse,
+    HeatmapSnapshot,
+    HeatmapSnapshotListResponse,
     ParkGridResponse,
     RiskJobResponse,
     RiskScoreJobStatus,
     RiskTrainJobStatus,
     RiskTrainRequest,
 )
-from app.workers.celery_app import celery_app
+from app.workers.celery_app import CELERY_STATUS_MAP, celery_app
 from app.workers.tasks.risk_tasks import (
     run_risk_scoring_job,
     run_risk_training_job,
 )
 
-_CELERY_STATUS_MAP = {
-    "PENDING": "queued",
-    "RECEIVED": "queued",
-    "STARTED": "processing",
-    "RETRY": "processing",
-    "SUCCESS": "completed",
-    "FAILURE": "failed",
-}
-
-GRID_FILE_PATH = (
-    Path(__file__).resolve().parent.parent.parent
-    / "app"
-    / "data"
-    / "reserve-grid.geojson"
-)
+_PARK_ID = settings.PARK_ID
 
 
-def get_park_grid(park_id: str) -> ParkGridResponse:
-    cells = load_grid_geometry(park_id)
+def get_park_grid() -> ParkGridResponse:
+    cells = load_grid_geometry()
     features = [
         GridCellFeature(
             properties=GridCellProperties(
@@ -155,11 +145,8 @@ def validate_boundaries(file: bytes):
     full_blocks["id"] = [f"cell-{i}" for i in range(len(full_blocks))]
 
     # Save to file
-    base_dir = Path(__file__).resolve().parent.parent
-    output_file = base_dir / "data" / "reserve-grid.geojson"
-
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    full_blocks.to_file(output_file, driver="GeoJSON")
+    GRID_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    full_blocks.to_file(GRID_FILE_PATH, driver="GeoJSON")
 
     # Dev thing, clears the cache if the file is deleted and
     # recreated in the same session, should not be relevant in prod
@@ -184,11 +171,22 @@ def delete_geojson_file():
     return True
 
 
-def trigger_training_job(request: RiskTrainRequest, user) -> RiskJobResponse:
+async def trigger_training_job(
+    db: AsyncSession,
+    request: RiskTrainRequest,
+    user,
+) -> RiskJobResponse:
     job_id = str(uuid.uuid4())
+    await risk_repository.create_risk_job(
+        db,
+        job_id=job_id,
+        job_type="train",
+        park_id=_PARK_ID,
+        triggered_by=user.id,
+    )
     run_risk_training_job.apply_async(
         kwargs={
-            "park_id": "klaserie",
+            "park_id": _PARK_ID,
             "window_start": request.window_start.isoformat(),
             "window_end": request.window_end.isoformat(),
             "triggered_by": user.id,
@@ -202,14 +200,25 @@ def trigger_training_job(request: RiskTrainRequest, user) -> RiskJobResponse:
     )
 
 
-def get_training_job(job_id: str) -> RiskTrainJobStatus:
+async def get_training_job(db: AsyncSession, job_id: str) -> RiskTrainJobStatus:
+    if not await risk_repository.risk_job_exists(db, job_id, "train"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Training job not found",
+        )
+
     result = celery_app.AsyncResult(job_id)
-    status = _CELERY_STATUS_MAP.get(result.state, result.state.lower())
+    status_value = CELERY_STATUS_MAP.get(result.state, result.state.lower())
 
     payload = result.result if result.state == "SUCCESS" else None
     return RiskTrainJobStatus(
         job_id=job_id,
-        status=status if payload is None else payload.get("status", status),
+        status=status_value
+        if payload is None
+        else payload.get(
+            "status",
+            status_value,
+        ),
         model_id=payload.get("model_id") if payload else None,
         metrics=payload.get("metrics") if payload else None,
         n_training_examples=(
@@ -218,10 +227,17 @@ def get_training_job(job_id: str) -> RiskTrainJobStatus:
     )
 
 
-def trigger_scoring_job(user) -> RiskJobResponse:
+async def trigger_scoring_job(db: AsyncSession, user) -> RiskJobResponse:
     job_id = str(uuid.uuid4())
+    await risk_repository.create_risk_job(
+        db,
+        job_id=job_id,
+        job_type="score",
+        park_id=_PARK_ID,
+        triggered_by=user.id,
+    )
     run_risk_scoring_job.apply_async(
-        kwargs={"park_id": "klaserie", "triggered_manually": True},
+        kwargs={"park_id": _PARK_ID, "triggered_manually": True},
         task_id=job_id,
     )
     return RiskJobResponse(
@@ -231,21 +247,29 @@ def trigger_scoring_job(user) -> RiskJobResponse:
     )
 
 
-def get_scoring_job(job_id: str) -> RiskScoreJobStatus:
+async def get_scoring_job(db: AsyncSession, job_id: str) -> RiskScoreJobStatus:
+    if not await risk_repository.risk_job_exists(db, job_id, "score"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Scoring job not found",
+        )
+
     result = celery_app.AsyncResult(job_id)
-    status = _CELERY_STATUS_MAP.get(result.state, result.state.lower())
+    status_value = CELERY_STATUS_MAP.get(result.state, result.state.lower())
 
     payload = result.result if result.state == "SUCCESS" else None
     return RiskScoreJobStatus(
         job_id=job_id,
-        status=status if payload is None else payload.get("status", status),
+        status=status_value
+        if payload is None
+        else payload.get(
+            "status",
+            status_value,
+        ),
         heatmap_id=payload.get("heatmap_id") if payload else None,
         computed_at=payload.get("computed_at") if payload else None,
         n_cells_scored=payload.get("n_cells_scored") if payload else None,
     )
-
-
-_PARK_ID = "klaserie"
 
 
 async def get_heatmap(
@@ -288,11 +312,19 @@ async def get_heatmap(
         cells=[
             HeatmapCell(
                 cell_id=cell["cell_id"],
+                cell_ref=cell["cell_ref"],
                 risk_score=cell["risk_score"],
                 geometry=GeoPolygon(coordinates=[cell["corners"]]),
             )
             for cell in data["cells"]
         ],
+    )
+
+
+async def get_heatmap_snapshots(session) -> HeatmapSnapshotListResponse:
+    data = await risk_repository.list_heatmap_snapshots(session, _PARK_ID)
+    return HeatmapSnapshotListResponse(
+        snapshots=[HeatmapSnapshot(**item) for item in data],
     )
 
 

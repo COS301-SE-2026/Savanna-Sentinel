@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type maplibregl from "maplibre-gl";
 
 import { MapView } from "@/components/map/MapView";
@@ -9,6 +9,7 @@ import { PatrolRouteLayer } from "@/components/map/PatrolRouteLayer";
 import { LoadingPill } from "@/components/map/LoadingPill";
 import { History } from "lucide-react";
 import { PatrolPlannerForm } from "@/components/patrol/PatrolPlannerForm";
+import { NoDataBanner } from "@/components/map/NoDataBanner";
 import { RouteComparisonView } from "@/components/patrol/RouteComparisonView";
 import { LoadPreviousRoutesDialog } from "@/components/patrol/LoadPreviousRoutesDialog";
 import {
@@ -19,19 +20,17 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { routeApi } from "@/services/routeApi";
-import type { ParkGridResponse } from "@/services/riskApi";
-import { loadRiskGrid } from "@/offline/riskGridCache";
 import { cacheSavedRoute } from "@/offline/routesCache";
 import { useAuthStore } from "@/store/authStore";
 import type { SavedRoute, PlannedRoute } from "@/services/routeApi";
 import { usePollRouteJob } from "@/hooks/usePollRouteJob";
-import { assignRandomRisk, parseGridCells } from "@/lib/riskGrid";
+import { parseGridCells, scoresByCell } from "@/lib/riskGrid";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { ArmedField, LatLon } from "@/types/patrol";
 import { getSnapHeightPx } from "@/lib/utils";
+import { useMapStore } from "@/store/mapStore";
 
-const PARK_ID = "reserve";
 const DEFAULT_ZOOM = 10;
 
 const COLLAPSED_SNAP = "24px";
@@ -51,6 +50,7 @@ interface SidebarContentProps {
     onMaxFuelChange: (v: string) => void;
     onGenerate: () => void;
     isGenerating: boolean;
+    heatmapHasNoData: boolean;
     jobStatus: ReturnType<typeof usePollRouteJob>["status"];
     routes: ReturnType<typeof usePollRouteJob>["routes"];
     selectedIndex: number;
@@ -78,6 +78,7 @@ function SidebarContent({
     onMaxFuelChange,
     onGenerate,
     isGenerating,
+    heatmapHasNoData,
     jobStatus,
     routes,
     selectedIndex,
@@ -120,6 +121,7 @@ function SidebarContent({
                 onMaxFuelChange={onMaxFuelChange}
                 onGenerate={onGenerate}
                 isGenerating={isGenerating}
+                heatmapHasNoData={heatmapHasNoData}
                 hasRoutes={routes.length > 0}
                 onClearRoutes={onClearRoutes}
             />
@@ -209,45 +211,47 @@ export default function PatrolPlannerPage() {
 
     const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
     const [loadedRoute, setLoadedRoute] = useState<PlannedRoute | null>(null);
+    const [savedRiskByCell, setSavedRiskByCell] = useState<Map<
+        string,
+        number
+    > | null>(null);
 
     const displayRoutes = loadedRoute ? [loadedRoute] : routes;
     const displayStatus = loadedRoute ? "completed" : jobStatus;
 
-    const [grid, setGrid] = useState<ParkGridResponse | null>(null);
-    const [isGridLoading, setIsGridLoading] = useState(true);
-    const [riskByCell, setRiskByCell] = useState<Map<string, number>>(
-        new Map(),
-    );
+    const grid = useMapStore((s) => s.grid);
+    const gridStatus = useMapStore((s) => s.gridStatus);
+    const cellsByRef = useMapStore((s) => s.cellsByRef);
+    const riskByCell = useMemo(() => scoresByCell(cellsByRef), [cellsByRef]);
+    const heatmapStatus = useMapStore((s) => s.heatmapStatus);
+    const hasNoRiskData = riskByCell.size === 0;
+    const loadGrid = useMapStore((s) => s.loadGrid);
+    const loadSnapshots = useMapStore((s) => s.loadSnapshots);
+    const isGridLoading = gridStatus !== "error" && grid === null;
+    const [isNoDataBannerDismissed, setIsNoDataBannerDismissed] =
+        useState(false);
 
     useEffect(() => {
-        let isCancelled = false;
-        loadRiskGrid(PARK_ID, user?.id ?? null)
-            .then((result) => {
-                if (isCancelled) return;
-                setGrid(result.grid);
-                setRiskByCell(result.riskByCell);
+        loadGrid();
+        loadSnapshots();
+    }, [loadGrid, loadSnapshots]);
 
-                const cells = parseGridCells(result.grid);
+    useEffect(() => {
+        if (heatmapStatus === "no-data") {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- re-arms the dismissal flag on a new no-data state
+            setIsNoDataBannerDismissed(false);
+        }
+    }, [heatmapStatus]);
 
-                if (cells.length > 0) {
-                    const { center, bounds } = getGridCenterAndBounds(cells);
-                    setMapCenter(center);
-
-                    if (map) {
-                        map.fitBounds(bounds, { padding: 40, animate: false });
-                    }
-                }
-            })
-            .catch(() => {
-                if (!isCancelled) notifyCritical("Could not load risk grid");
-            })
-            .finally(() => {
-                if (!isCancelled) setIsGridLoading(false);
-            });
-        return () => {
-            isCancelled = true;
-        };
-    }, [user?.id, map]);
+    useEffect(() => {
+        if (!grid || !map) return;
+        const cells = parseGridCells(grid);
+        if (cells.length === 0) return;
+        const { center, bounds } = getGridCenterAndBounds(cells);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- recentering on a new grid is an effect sync
+        setMapCenter(center);
+        map.fitBounds(bounds, { padding: 40, animate: false });
+    }, [grid, map]);
 
     function handleMapClick(lngLat: { lng: number; lat: number }) {
         if (!armedField) return;
@@ -268,17 +272,12 @@ export default function PatrolPlannerPage() {
         if (isMobile) setDrawerSnap(COLLAPSED_SNAP);
     }
 
-    function handleRandomizeRisk() {
-        if (!grid) return;
-        setRiskByCell(assignRandomRisk(parseGridCells(grid)));
-    }
-
     async function handleGenerate() {
-        if (!startPoint || !endPoint) return;
+        if (!startPoint || !endPoint || hasNoRiskData) return;
         setLoadedRoute(null);
+        setSavedRiskByCell(null);
         try {
             const job = await routeApi.generateRoute({
-                park_id: PARK_ID,
                 start_point: {
                     type: "Point",
                     coordinates: [startPoint.lon, startPoint.lat],
@@ -301,6 +300,7 @@ export default function PatrolPlannerPage() {
     function handleClearRoutes() {
         setRequestId(null);
         setLoadedRoute(null);
+        setSavedRiskByCell(null);
         setSelectedIndex(0);
     }
 
@@ -313,6 +313,7 @@ export default function PatrolPlannerPage() {
             estimated_fuel_l: saved.estimated_fuel_l,
             risk_coverage: saved.risk_coverage,
         });
+        setSavedRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
         setSelectedIndex(0);
         setStartPoint({
             lat: saved.start_point.coordinates[1],
@@ -324,7 +325,6 @@ export default function PatrolPlannerPage() {
         });
         setMaxTime(saved.max_time === null ? "" : String(saved.max_time));
         setMaxFuel(saved.max_fuel === null ? "" : String(saved.max_fuel));
-        setRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
     }
 
     const canSave = requestId !== null;
@@ -374,6 +374,7 @@ export default function PatrolPlannerPage() {
         onMaxFuelChange: setMaxFuel,
         onGenerate: handleGenerate,
         isGenerating,
+        heatmapHasNoData: hasNoRiskData,
         onClearRoutes: handleClearRoutes,
         jobStatus: displayStatus,
         routes: displayRoutes,
@@ -434,7 +435,11 @@ export default function PatrolPlannerPage() {
                 <HeatmapLayer
                     map={map}
                     grid={grid}
-                    riskByCell={riskByCell}
+                    riskByCell={
+                        loadedRoute
+                            ? (savedRiskByCell ?? new Map())
+                            : riskByCell
+                    }
                     pickingActive={isPickingActive}
                     isMobile={isMobile}
                 />
@@ -447,32 +452,12 @@ export default function PatrolPlannerPage() {
                 />
                 {isGridLoading && <LoadingPill label="Loading..." />}
                 {isGenerating && <LoadingPill label="Planning route..." />}
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRandomizeRisk}
-                    disabled={!grid}
-                    className={
-                        isMobile
-                            ? "absolute right-2 z-[var(--z-sticky)] bg-color-surface-raised shadow-sm"
-                            : "absolute right-2 bottom-10 z-[var(--z-sticky)] bg-color-surface-raised shadow-sm"
+                <NoDataBanner
+                    visible={
+                        heatmapStatus === "no-data" && !isNoDataBannerDismissed
                     }
-                    style={
-                        isMobile
-                            ? {
-                                  bottom: `calc(${Math.min(
-                                      getSnapHeightPx(
-                                          drawerSnap ?? COLLAPSED_SNAP,
-                                      ),
-                                      getSnapHeightPx(EXPANDED_SNAP),
-                                  )}px + 2.5rem)`,
-                              }
-                            : undefined
-                    }
-                >
-                    Randomise risk
-                </Button>
+                    onDismiss={() => setIsNoDataBannerDismissed(true)}
+                />
             </div>
 
             {isMobile && (

@@ -1,7 +1,6 @@
 import asyncio
 import json
 import shutil
-from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -13,18 +12,13 @@ from app.core.config import settings
 from app.core.dependencies import get_db
 from app.core.security import create_access_token, get_password_hash
 from app.main import app
-from app.repositories.risk_repository import invalidate_grid_cache
+from app.repositories.risk_repository import (
+    GRID_FILE_PATH,
+    invalidate_grid_cache,
+)
 
 _engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 _Session = async_sessionmaker(_engine, expire_on_commit=False)
-GRID_FILE_PATH = (
-    Path(__file__)
-    .resolve()
-    .parent.parent.parent
-    / "app"
-    / "data"
-    / "reserve-grid.geojson"
-)
 
 
 async def _override_get_db():
@@ -171,16 +165,12 @@ async def test_get_grid_feature_shape():
 
 
 @pytest.mark.asyncio
-async def test_get_grid_with_unknown_park_returns_404():
+async def test_get_grid_with_no_grid_uploaded_returns_404(backup_grid_file):
     uid = await _create_user("test_ranger_grid3")
     async with _client() as c:
-        r = await c.get(
-            "/v1/risk/grid",
-            params={"park_id": "nope"},
-            headers=_auth_header(uid),
-        )
+        r = await c.get("/v1/risk/grid", headers=_auth_header(uid))
     assert r.status_code == 404
-    assert r.json()["detail"] == "Park not found"
+    assert r.json()["detail"] == "No park grid has been uploaded yet"
 
 
 @pytest.mark.asyncio

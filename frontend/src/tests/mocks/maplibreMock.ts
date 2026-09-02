@@ -104,6 +104,7 @@ export class FakeMap {
     zoomIn = vi.fn();
     zoomOut = vi.fn();
     resetNorthPitch = vi.fn();
+    fitBounds = vi.fn();
 
     queryRenderedFeaturesResult: unknown[] = [];
     queryRenderedFeatures = vi.fn(() => this.queryRenderedFeaturesResult);

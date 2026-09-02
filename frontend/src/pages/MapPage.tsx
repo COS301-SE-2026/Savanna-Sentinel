@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type maplibregl from "maplibre-gl";
 
 import { MapView } from "@/components/map/MapView";
@@ -7,21 +7,18 @@ import { MapLegend } from "@/components/map/MapLegend";
 import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { LoadingPill } from "@/components/map/LoadingPill";
 import { ExplainabilityPanel } from "@/components/map/ExplainabilityPanel";
-import { SNAPSHOTS, TIME_OF_DAY_SLOTS } from "@/lib/mapSnapshots";
+import { NoDataBanner } from "@/components/map/NoDataBanner";
 import {
     Drawer,
     DrawerContent,
     DrawerDescription,
     DrawerTitle,
 } from "@/components/ui/drawer";
-import type { ParkGridResponse } from "@/services/riskApi";
-import { loadRiskGrid } from "@/offline/riskGridCache";
-import { useAuthStore } from "@/store/authStore";
-import { notifyCaution, notifyCritical } from "@/components/ui/toast";
+import { useMapStore } from "@/store/mapStore";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getSnapHeightPx } from "@/lib/utils";
+import { scoresByCell } from "@/lib/riskGrid";
 
-const PARK_ID = "klaserie";
 const PARK_CENTER: [number, number] = [31.18, -24.2];
 const DEFAULT_ZOOM = 10;
 
@@ -35,58 +32,36 @@ export default function MapPage() {
     const isMobile = useIsMobile();
     const [map, setMap] = useState<maplibregl.Map | null>(null);
 
-    const user = useAuthStore((s) => s.user);
+    const grid = useMapStore((s) => s.grid);
+    const gridStatus = useMapStore((s) => s.gridStatus);
+    const cellsByRef = useMapStore((s) => s.cellsByRef);
+    const riskByCell = useMemo(() => scoresByCell(cellsByRef), [cellsByRef]);
+    const heatmapStatus = useMapStore((s) => s.heatmapStatus);
+    const loadGrid = useMapStore((s) => s.loadGrid);
+    const loadSnapshots = useMapStore((s) => s.loadSnapshots);
 
-    const [grid, setGrid] = useState<ParkGridResponse | null>(null);
-    const [isGridLoading, setIsGridLoading] = useState(true);
-    const [riskByCell, setRiskByCell] = useState<Map<string, number>>(
-        new Map(),
-    );
-    const [gridFetchedAt, setGridFetchedAt] = useState<number | null>(null);
-    const [isGridStale, setGridStale] = useState(false);
-
-    const [dayIndex, setDayIndex] = useState(SNAPSHOTS.length - 1);
-    const [timeIndex, setTimeIndex] = useState(TIME_OF_DAY_SLOTS.length - 1);
     const [isHeatmapVisible, setHeatmapVisible] = useState(true);
     const [opacity, setOpacity] = useState(DEFAULT_OPACITY_PERCENT);
+    const [isNoDataBannerDismissed, setIsNoDataBannerDismissed] =
+        useState(false);
 
     const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
         COLLAPSED_SNAP,
     );
 
     useEffect(() => {
-        let isCancelled = false;
-        loadRiskGrid(PARK_ID, user?.id ?? null)
-            .then((result) => {
-                if (isCancelled) return;
-                setGrid(result.grid);
-                setRiskByCell(result.riskByCell);
-                setGridFetchedAt(result.fetchedAt);
-                setGridStale(result.isStale);
-                if (result.isFromCache) {
-                    notifyCaution(
-                        "Showing saved risk map",
-                        "No connection, this is the last version downloaded.",
-                    );
-                }
-            })
-            .catch(() => {
-                if (!isCancelled) notifyCritical("Could not load risk grid");
-            })
-            .finally(() => {
-                if (!isCancelled) setIsGridLoading(false);
-            });
-        return () => {
-            isCancelled = true;
-        };
-    }, [user?.id]);
+        loadGrid();
+        loadSnapshots();
+    }, [loadGrid, loadSnapshots]);
+
+    useEffect(() => {
+        if (heatmapStatus === "no-data") {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- re-arms the dismissal flag on a new no-data state
+            setIsNoDataBannerDismissed(false);
+        }
+    }, [heatmapStatus]);
 
     const panelProps = {
-        riskByCell,
-        dayIndex,
-        onDayIndexChange: setDayIndex,
-        timeIndex,
-        onTimeIndexChange: setTimeIndex,
         heatmapVisible: isHeatmapVisible,
         onHeatmapVisibleChange: setHeatmapVisible,
         opacity,
@@ -142,7 +117,13 @@ export default function MapPage() {
                         opacityOverride={opacity / 100}
                     />
                 )}
-                {isGridLoading && <LoadingPill label="Loading..." />}
+                <NoDataBanner
+                    visible={
+                        heatmapStatus === "no-data" && !isNoDataBannerDismissed
+                    }
+                    onDismiss={() => setIsNoDataBannerDismissed(true)}
+                />
+                {gridStatus === "loading" && <LoadingPill label="Loading..." />}
             </div>
 
             {isMobile && (
