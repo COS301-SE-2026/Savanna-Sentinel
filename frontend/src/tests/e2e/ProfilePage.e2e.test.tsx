@@ -93,7 +93,9 @@ test.describe("User profile update logic", () => {
         await dialog.getByRole("button", { name: /Confirm Changes/i }).click();
 
         await expect(dialog).not.toBeVisible();
-        await expect(page.locator("output")).toHaveText("Profile updated");
+        await expect(
+            page.getByRole("status").filter({ hasText: "Profile updated" }),
+        ).toBeVisible();
         await expect(page.locator("#first_name")).toHaveValue("AnotherName");
         await expect(page.locator("#last_name")).toHaveValue("ALastName");
 

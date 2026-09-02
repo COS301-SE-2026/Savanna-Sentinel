@@ -104,6 +104,7 @@ export class FakeMap {
     zoomIn = vi.fn();
     zoomOut = vi.fn();
     resetNorthPitch = vi.fn();
+    fitBounds = vi.fn();
 
     queryRenderedFeaturesResult: unknown[] = [];
     queryRenderedFeatures = vi.fn(() => this.queryRenderedFeaturesResult);
@@ -131,6 +132,7 @@ export class FakeMap {
 export class FakeMarker {
     private lngLat = { lng: 0, lat: 0 };
     private map: FakeMap | null = null;
+    private handlers: Record<string, Handler[]> = {};
     element: HTMLElement;
     constructor(options: { element: HTMLElement }) {
         this.element = options.element;
@@ -138,6 +140,13 @@ export class FakeMarker {
     setLngLat(coords: [number, number]) {
         this.lngLat = { lng: coords[0], lat: coords[1] };
         return this;
+    }
+    on(event: string, handler: Handler) {
+        (this.handlers[event] ??= []).push(handler);
+        return this;
+    }
+    fire(event: string) {
+        this.handlers[event]?.forEach((h) => h());
     }
     getLngLat() {
         return this.lngLat;

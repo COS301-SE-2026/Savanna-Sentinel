@@ -1,10 +1,19 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 import NotificationBell from "@/components/layout/NotificationBell";
+import { notificationsApi } from "@/services/notificationsApi";
 import { useNotificationStore } from "@/store/notificationStore";
 import type { Notification } from "@/store/notificationStore";
+
+vi.mock("@/services/notificationsApi", () => ({
+    notificationsApi: {
+        list: vi.fn(),
+        markRead: vi.fn().mockResolvedValue(undefined),
+        markAllRead: vi.fn().mockResolvedValue(undefined),
+    },
+}));
 
 function setNotifications(notifications: Notification[]) {
     useNotificationStore.setState({ notifications });
@@ -18,6 +27,7 @@ function setViewport(width: number) {
 const sample: Notification[] = [
     {
         id: "1",
+        type: "field_report_submitted",
         title: "Reports uploaded successfully",
         body: "3 field reports queued offline were sent to the server.",
         timestamp: new Date(Date.now() - 2 * 60_000).toISOString(),
@@ -25,6 +35,7 @@ const sample: Notification[] = [
     },
     {
         id: "2",
+        type: "ingestion_complete",
         title: "CSV ingestion complete",
         body: "patrol_data_may.csv processed.",
         timestamp: new Date(Date.now() - 60 * 60_000).toISOString(),
@@ -46,6 +57,7 @@ describe("NotificationBell", () => {
 
     afterEach(() => {
         useNotificationStore.setState({ notifications: [] });
+        vi.clearAllMocks();
     });
 
     it("renders the trigger without a dot when there are no unread notifications", () => {
@@ -83,6 +95,26 @@ describe("NotificationBell", () => {
         expect(screen.getAllByText("New")).toHaveLength(1);
     });
 
+    it("shows a tinted alert icon only for high-severity incident notifications", async () => {
+        setNotifications([
+            ...sample,
+            {
+                id: "3",
+                type: "high_severity_incident",
+                title: "High-severity incident reported",
+                body: "poaching reported by liaison1 - needs attention.",
+                timestamp: new Date(Date.now() - 5 * 60_000).toISOString(),
+                read: false,
+            },
+        ]);
+        render(<NotificationBell />);
+        await openPanel();
+
+        expect(
+            document.body.querySelectorAll(".lucide-triangle-alert"),
+        ).toHaveLength(1);
+    });
+
     it("marks a single notification as read", async () => {
         setNotifications(sample);
         render(<NotificationBell />);
@@ -100,6 +132,28 @@ describe("NotificationBell", () => {
                 .getState()
                 .notifications.find((n) => n.id === "1")?.read,
         ).toBe(true);
+        expect(notificationsApi.markRead).toHaveBeenCalledWith("1");
+    });
+
+    it("reverts the read state if marking as read fails on the server", async () => {
+        vi.mocked(notificationsApi.markRead).mockRejectedValueOnce(
+            new Error("network error"),
+        );
+        setNotifications(sample);
+        render(<NotificationBell />);
+        await openPanel();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /mark as read/i }),
+        );
+
+        await waitFor(() => {
+            expect(
+                useNotificationStore
+                    .getState()
+                    .notifications.find((n) => n.id === "1")?.read,
+            ).toBe(false);
+        });
     });
 
     it("marks all notifications as read and disables the action", async () => {
@@ -120,6 +174,7 @@ describe("NotificationBell", () => {
         expect(
             useNotificationStore.getState().notifications.every((n) => n.read),
         ).toBe(true);
+        expect(notificationsApi.markAllRead).toHaveBeenCalledTimes(1);
     });
 
     it("disables the mark all read action when nothing is unread", async () => {

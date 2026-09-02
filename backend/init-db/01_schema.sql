@@ -25,6 +25,18 @@ CREATE TYPE event_type AS ENUM (
     'patrol_track'
 );
 
+CREATE TYPE risk_job_type AS ENUM (
+    'train',
+    'score'
+);
+
+CREATE TYPE notification_type AS ENUM (
+    'tipoff_submitted',
+    'field_report_submitted',
+    'high_severity_incident',
+    'ingestion_complete'
+);
+
 CREATE TABLE file_ingestion_staging (
     record_id           BIGINT,
     ingestion_timestamp TIMESTAMPTZ,
@@ -51,8 +63,27 @@ CREATE TABLE users (
     deleted_at    TIMESTAMPTZ
 );
 
+CREATE TABLE risk_models (
+    id                     UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    park_id                TEXT        NOT NULL,
+    version                INT         NOT NULL,
+    object_storage_key     TEXT        NOT NULL,
+    is_active              BOOLEAN     NOT NULL DEFAULT FALSE,
+    trained_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    trained_by             UUID        NOT NULL REFERENCES users(id),
+    training_window_start  TIMESTAMPTZ NOT NULL,
+    training_window_end    TIMESTAMPTZ NOT NULL,
+    n_training_examples    INT         NOT NULL,
+    metrics                JSONB       NOT NULL,
+    UNIQUE (park_id, version)
+);
+
+CREATE UNIQUE INDEX risk_models_one_active_per_park
+    ON risk_models (park_id) WHERE is_active;
+
 CREATE TABLE risk_heatmaps (
     id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    model_id        UUID        NOT NULL REFERENCES risk_models(id),
     grid_resolution TEXT        NOT NULL,
     time_interval   TEXT        NOT NULL,
     computed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -129,13 +160,30 @@ CREATE TABLE patrol_routes (
     request_id     UUID                       NOT NULL,
     requested_by   UUID                       NOT NULL REFERENCES users(id),
     start_point    GEOGRAPHY(Point, 4326)     NOT NULL,
-    max_time       FLOAT                      NOT NULL,
-    max_fuel       FLOAT                      NOT NULL,
+    end_point      GEOGRAPHY(Point, 4326)     NOT NULL,
+    max_time       FLOAT,
+    max_fuel       FLOAT,
     suggested_path GEOGRAPHY(LineString, 4326) NOT NULL,
     estimated_time FLOAT                      NOT NULL,
     estimated_fuel FLOAT                      NOT NULL,
     risk_coverage  FLOAT                      NOT NULL,
+    risk_heatmap   JSONB                      NOT NULL,
     created_at     TIMESTAMPTZ                NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE risk_jobs (
+    id           UUID          PRIMARY KEY,
+    job_type     risk_job_type NOT NULL,
+    park_id      TEXT          NOT NULL,
+    triggered_by UUID          NOT NULL REFERENCES users(id),
+    created_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE route_jobs (
+    id           UUID        PRIMARY KEY,
+    park_id      TEXT        NOT NULL,
+    requested_by UUID        NOT NULL REFERENCES users(id),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE field_reports (
@@ -146,10 +194,26 @@ CREATE TABLE field_reports (
     description  TEXT           NOT NULL,
     location     GEOGRAPHY(Point, 4326) NOT NULL,
     occurred_at  TIMESTAMPTZ    NOT NULL,
+    client_id    UUID,
     created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
-    deleted_at   TIMESTAMPTZ
+    deleted_at   TIMESTAMPTZ,
+    status       TEXT           NOT NULL DEFAULT 'none'
 );
+
+CREATE TABLE comments (
+    id UUID PRIMARY KEY,
+    report_id UUID NOT NULL REFERENCES field_reports(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT,
+    photo_urls VARCHAR[],
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    status_change VARCHAR
+);
+
+CREATE UNIQUE INDEX field_reports_client_id_uniq
+    ON field_reports (submitted_by, client_id)
+    WHERE client_id IS NOT NULL;
 
 CREATE TABLE tipoffs (
     id           UUID           PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -196,14 +260,47 @@ CREATE TABLE photos (
 
 CREATE TABLE grid_cells (
     id             UUID                     PRIMARY KEY DEFAULT uuid_generate_v4(),
-    heatmap_id     UUID                     NOT NULL REFERENCES risk_heatmaps(id) ON DELETE CASCADE,
+    park_id        TEXT                     NOT NULL,
+    cell_ref       TEXT                     NOT NULL,
+    row_index      INT                      NOT NULL,
+    col_index      INT                      NOT NULL,
     polygon_bounds GEOGRAPHY(Polygon, 4326) NOT NULL,
-    risk_score     FLOAT                    NOT NULL
+    UNIQUE (park_id, cell_ref)
+);
+
+CREATE TABLE cell_risk_scores (
+    id            UUID  PRIMARY KEY DEFAULT uuid_generate_v4(),
+    heatmap_id    UUID  NOT NULL REFERENCES risk_heatmaps(id) ON DELETE CASCADE,
+    grid_cell_id  UUID  NOT NULL REFERENCES grid_cells(id) ON DELETE CASCADE,
+    risk_score    FLOAT NOT NULL
+);
+
+CREATE TABLE grid_cell_features (
+    id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    heatmap_id    UUID        NOT NULL REFERENCES risk_heatmaps(id) ON DELETE CASCADE,
+    grid_cell_id  UUID        NOT NULL REFERENCES grid_cells(id) ON DELETE CASCADE,
+    features      JSONB       NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE explainability_metrics (
     id               UUID  PRIMARY KEY DEFAULT uuid_generate_v4(),
-    cell_id          UUID  NOT NULL REFERENCES grid_cells(id) ON DELETE CASCADE,
+    cell_id          UUID  NOT NULL REFERENCES cell_risk_scores(id) ON DELETE CASCADE,
     key_reason       TEXT  NOT NULL,
     confidence_level FLOAT NOT NULL
 );
+
+CREATE TABLE notifications (
+    id           UUID               PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id      UUID               NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type         notification_type  NOT NULL,
+    title        TEXT               NOT NULL,
+    body         TEXT               NOT NULL,
+    related_type TEXT,
+    related_id   TEXT,
+    read_at      TIMESTAMPTZ,
+    created_at   TIMESTAMPTZ        NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX notifications_user_unread_idx ON notifications (user_id, read_at);
+CREATE INDEX notifications_user_created_idx ON notifications (user_id, created_at DESC);

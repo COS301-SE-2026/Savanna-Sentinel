@@ -75,11 +75,10 @@ describe("TopBar", () => {
         expect(helpButton).toHaveAttribute("href", "/help");
     });
 
-    it("renders the avatar with initials derived from the username, linking to /profile", () => {
+    it("renders the avatar button with initials derived from the username", () => {
         setUser("janedoe");
         renderTopBar();
-        const avatar = screen.getByRole("link", { name: "Account" });
-        expect(avatar).toHaveAttribute("href", "/profile");
+        const avatar = screen.getByRole("button", { name: "Account" });
         expect(avatar).toHaveTextContent("J");
     });
 

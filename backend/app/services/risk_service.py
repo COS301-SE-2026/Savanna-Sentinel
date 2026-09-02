@@ -1,14 +1,49 @@
-from app.repositories.risk_repository import load_grid_geometry
+import io
+import math
+import uuid
+from datetime import datetime, timezone
+
+import geopandas
+import numpy
+from fastapi import HTTPException, status
+from shapely.geometry import box
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.repositories import risk_repository
+from app.repositories.risk_repository import (
+    GRID_FILE_PATH,
+    invalidate_grid_cache,
+    load_grid_geometry,
+)
 from app.schemas.geo import GeoPolygon
 from app.schemas.risk import (
+    ActiveModelResponse,
+    CellExplainResponse,
+    ExplainFeature,
     GridCellFeature,
     GridCellProperties,
+    HeatmapCell,
+    HeatmapResponse,
+    HeatmapSnapshot,
+    HeatmapSnapshotListResponse,
     ParkGridResponse,
+    RiskJobResponse,
+    RiskScoreJobStatus,
+    RiskTrainJobStatus,
+    RiskTrainRequest,
+)
+from app.workers.celery_app import CELERY_STATUS_MAP, celery_app
+from app.workers.tasks.risk_tasks import (
+    run_risk_scoring_job,
+    run_risk_training_job,
 )
 
+_PARK_ID = settings.PARK_ID
 
-def get_park_grid(park_id: str) -> ParkGridResponse:
-    cells = load_grid_geometry(park_id)
+
+def get_park_grid() -> ParkGridResponse:
+    cells = load_grid_geometry()
     features = [
         GridCellFeature(
             properties=GridCellProperties(
@@ -21,3 +56,301 @@ def get_park_grid(park_id: str) -> ParkGridResponse:
         for cell in cells
     ]
     return ParkGridResponse(features=features)
+
+
+def validate_boundaries(file: bytes):
+    try:
+        parsed = geopandas.read_file(io.BytesIO(file))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file format: {str(exc)}",
+        ) from Exception
+
+    minx, miny, maxx, maxy = parsed.total_bounds
+
+    # Verify file is within bounds
+    if not (
+        -180 <= minx <= 180
+        and -180 <= maxx <= 180
+        and -90 <= miny <= 90
+        and -90 <= maxy <= 90
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Boundary coordinates must follow WGS 84 standard "
+            "(Otherwise known as Latitude, Longitude)",
+        )
+
+    if parsed.crs is None:
+        parsed.set_crs(epsg=4326, inplace=True)
+
+    center = parsed.geometry.union_all().centroid
+
+    # Determine UTM Zone
+    utm_zone = math.floor((center.x + 180) / 6) + 1
+    if center.y >= 0:
+        epsg_utm_zone = 32600 + utm_zone
+    else:
+        epsg_utm_zone = 32700 + utm_zone
+
+    parsed_utm = parsed.to_crs(epsg=epsg_utm_zone)
+
+    # Generate the grid to be used for the overlay later for intersection
+    cell_size = 1000
+    u_minx, u_miny, u_maxx, u_maxy = parsed_utm.total_bounds
+
+    grid_minx = numpy.floor(u_minx / cell_size) * cell_size
+    grid_miny = numpy.floor(u_miny / cell_size) * cell_size
+    grid_maxx = numpy.ceil(u_maxx / cell_size) * cell_size
+    grid_maxy = numpy.ceil(u_maxy / cell_size) * cell_size
+
+    x_coords = numpy.arange(grid_minx, grid_maxx, cell_size)
+    y_coords = numpy.arange(grid_miny, grid_maxy, cell_size)
+
+    cells = []
+    rows = []
+    cols = []
+    lefts, rights = [], []
+    tops, bottoms = [], []
+
+    for y_idx, y in enumerate(y_coords):
+        for x_idx, x in enumerate(x_coords):
+            cells.append(box(x, y, x + cell_size, y + cell_size))
+            lefts.append(float(x))
+            rights.append(float(x + cell_size))
+            bottoms.append(float(y))
+            tops.append(float(y + cell_size))
+            rows.append(float(y_idx))
+            cols.append(float(x_idx))
+
+    grid = geopandas.GeoDataFrame(
+        {
+            "geometry": cells,
+            "left": lefts,
+            "right": rights,
+            "top": tops,
+            "bottom": bottoms,
+            "row_index": rows,
+            "col_index": cols,
+        },
+        crs=parsed_utm.crs,
+    )
+
+    # Generate the boundary
+    boundary_outline = parsed_utm.union_all()
+    full_blocks = grid[grid.intersects(boundary_outline)].copy()
+
+    # Attach metadata for maplibre
+    full_blocks["id"] = [f"cell-{i}" for i in range(len(full_blocks))]
+
+    # Save to file
+    GRID_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    full_blocks.to_file(GRID_FILE_PATH, driver="GeoJSON")
+
+    # Dev thing, clears the cache if the file is deleted and
+    # recreated in the same session, should not be relevant in prod
+    invalidate_grid_cache()
+
+    return {
+        "total_cells": len(full_blocks),
+    }
+
+
+def check_if_uploaded():
+    return GRID_FILE_PATH.is_file()
+
+
+def delete_geojson_file():
+    try:
+        GRID_FILE_PATH.unlink(missing_ok=True)
+        invalidate_grid_cache()
+    except Exception:
+        return False
+
+    return True
+
+
+async def trigger_training_job(
+    db: AsyncSession,
+    request: RiskTrainRequest,
+    user,
+) -> RiskJobResponse:
+    job_id = str(uuid.uuid4())
+    await risk_repository.create_risk_job(
+        db,
+        job_id=job_id,
+        job_type="train",
+        park_id=_PARK_ID,
+        triggered_by=user.id,
+    )
+    run_risk_training_job.apply_async(
+        kwargs={
+            "park_id": _PARK_ID,
+            "window_start": request.window_start.isoformat(),
+            "window_end": request.window_end.isoformat(),
+            "triggered_by": user.id,
+        },
+        task_id=job_id,
+    )
+    return RiskJobResponse(
+        job_id=job_id,
+        status="queued",
+        queued_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+async def get_training_job(db: AsyncSession, job_id: str) -> RiskTrainJobStatus:
+    if not await risk_repository.risk_job_exists(db, job_id, "train"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Training job not found",
+        )
+
+    result = celery_app.AsyncResult(job_id)
+    status_value = CELERY_STATUS_MAP.get(result.state, result.state.lower())
+
+    payload = result.result if result.state == "SUCCESS" else None
+    return RiskTrainJobStatus(
+        job_id=job_id,
+        status=status_value
+        if payload is None
+        else payload.get(
+            "status",
+            status_value,
+        ),
+        model_id=payload.get("model_id") if payload else None,
+        metrics=payload.get("metrics") if payload else None,
+        n_training_examples=(
+            payload.get("n_training_examples") if payload else None
+        ),
+    )
+
+
+async def trigger_scoring_job(db: AsyncSession, user) -> RiskJobResponse:
+    job_id = str(uuid.uuid4())
+    await risk_repository.create_risk_job(
+        db,
+        job_id=job_id,
+        job_type="score",
+        park_id=_PARK_ID,
+        triggered_by=user.id,
+    )
+    run_risk_scoring_job.apply_async(
+        kwargs={"park_id": _PARK_ID, "triggered_manually": True},
+        task_id=job_id,
+    )
+    return RiskJobResponse(
+        job_id=job_id,
+        status="queued",
+        queued_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+async def get_scoring_job(db: AsyncSession, job_id: str) -> RiskScoreJobStatus:
+    if not await risk_repository.risk_job_exists(db, job_id, "score"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Scoring job not found",
+        )
+
+    result = celery_app.AsyncResult(job_id)
+    status_value = CELERY_STATUS_MAP.get(result.state, result.state.lower())
+
+    payload = result.result if result.state == "SUCCESS" else None
+    return RiskScoreJobStatus(
+        job_id=job_id,
+        status=status_value
+        if payload is None
+        else payload.get(
+            "status",
+            status_value,
+        ),
+        heatmap_id=payload.get("heatmap_id") if payload else None,
+        computed_at=payload.get("computed_at") if payload else None,
+        n_cells_scored=payload.get("n_cells_scored") if payload else None,
+    )
+
+
+async def get_heatmap(
+    session,
+    date: datetime | None = None,
+    snapshot: str | None = None,
+) -> HeatmapResponse:
+    if date is not None and snapshot is not None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="provide at most one of date or snapshot",
+        )
+
+    if snapshot is not None:
+        data = await risk_repository.get_heatmap_by_id(
+            session,
+            snapshot,
+            _PARK_ID,
+        )
+    elif date is not None:
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=timezone.utc)
+        data = await risk_repository.get_heatmap_at_or_before(
+            session,
+            _PARK_ID,
+            date,
+        )
+    else:
+        data = await risk_repository.get_latest_heatmap(session, _PARK_ID)
+
+    if data is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No heatmap has been computed yet",
+        )
+
+    return HeatmapResponse(
+        heatmap_id=data["heatmap_id"],
+        computed_at=data["computed_at"],
+        cells=[
+            HeatmapCell(
+                cell_id=cell["cell_id"],
+                cell_ref=cell["cell_ref"],
+                risk_score=cell["risk_score"],
+                geometry=GeoPolygon(coordinates=[cell["corners"]]),
+            )
+            for cell in data["cells"]
+        ],
+    )
+
+
+async def get_heatmap_snapshots(session) -> HeatmapSnapshotListResponse:
+    data = await risk_repository.list_heatmap_snapshots(session, _PARK_ID)
+    return HeatmapSnapshotListResponse(
+        snapshots=[HeatmapSnapshot(**item) for item in data],
+    )
+
+
+async def get_cell_explanation(session, cell_id: str) -> CellExplainResponse:
+    data = await risk_repository.get_cell_explanation(session, cell_id)
+    if data is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No explanation available for this cell",
+        )
+
+    return CellExplainResponse(
+        cell_id=cell_id,
+        heatmap_id=data["heatmap_id"],
+        top_features=[
+            ExplainFeature(**feature) for feature in data["top_features"]
+        ],
+    )
+
+
+async def get_active_model_metrics(session) -> ActiveModelResponse:
+    data = await risk_repository.get_active_model_details(session, _PARK_ID)
+    if data is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No trained model exists yet",
+        )
+
+    return ActiveModelResponse(**data)

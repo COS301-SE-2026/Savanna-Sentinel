@@ -1,4 +1,4 @@
-import { BellOffIcon, CheckIcon } from "lucide-react";
+import { BellOffIcon, CheckIcon, TriangleAlertIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,12 @@ export default function NotificationPanel() {
                             className="border-b border-color-border px-4 py-3 last:border-b-0"
                         >
                             <div className="mb-1 flex flex-wrap items-center gap-2">
+                                {n.type === "high_severity_incident" && (
+                                    <TriangleAlertIcon
+                                        aria-hidden="true"
+                                        className="size-4 shrink-0 text-status-alert"
+                                    />
+                                )}
                                 <span className="font-sans text-sm font-semibold text-color-text-primary">
                                     {n.title}
                                 </span>

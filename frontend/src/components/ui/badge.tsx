@@ -4,6 +4,17 @@ import { Slot } from "radix-ui";
 
 import { cn } from "@/lib/utils";
 
+export const statusVariantClasses = {
+    neutral:
+        "border-[1.5px] border-brand-muted bg-color-surface-bg text-color-text-primary",
+    safe: "border-[1.5px] border-status-safe bg-[color-mix(in_srgb,var(--color-status-safe)_20%,white)] text-color-text-primary",
+    caution:
+        "border-[1.5px] border-status-caution bg-[color-mix(in_srgb,var(--color-status-caution)_30%,white)] text-color-text-primary",
+    alert: "border-[1.5px] border-status-alert bg-[color-mix(in_srgb,var(--color-status-alert)_25%,white)] text-color-text-primary",
+    critical:
+        "border-[1.5px] border-status-critical bg-[color-mix(in_srgb,var(--color-status-critical)_16%,white)] text-color-text-primary",
+} as const;
+
 const badgeVariants = cva(
     "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
     {
@@ -19,14 +30,11 @@ const badgeVariants = cva(
                     "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
                 ghost: "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
                 link: "text-primary underline-offset-4 hover:underline",
-                neutral:
-                    "border-[1.5px] border-brand-muted bg-color-surface-bg text-color-text-primary",
-                safe: "border-[1.5px] border-status-safe bg-[color-mix(in_srgb,var(--color-status-safe)_20%,white)] text-color-text-primary",
-                caution:
-                    "border-[1.5px] border-status-caution bg-[color-mix(in_srgb,var(--color-status-caution)_30%,white)] text-color-text-primary",
-                alert: "border-[1.5px] border-status-alert bg-[color-mix(in_srgb,var(--color-status-alert)_25%,white)] text-color-text-primary",
-                critical:
-                    "border-[1.5px] border-status-critical bg-[color-mix(in_srgb,var(--color-status-critical)_16%,white)] text-color-text-primary",
+                neutral: statusVariantClasses.neutral,
+                safe: statusVariantClasses.safe,
+                caution: statusVariantClasses.caution,
+                alert: statusVariantClasses.alert,
+                critical: statusVariantClasses.critical,
             },
         },
         defaultVariants: {

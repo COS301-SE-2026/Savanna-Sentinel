@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     Table,
     TableBody,
@@ -18,6 +18,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { cn, formatRole } from "@/lib/utils";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { usersApi, type UserResponse } from "@/services/usersApi";
 import { useManagedUsers } from "@/hooks/useManagedUsers";
 import { UserSearchFilterBar } from "@/components/admin/UserSearchFilterBar";
@@ -34,6 +35,7 @@ import {
     STANDARD_USER_COLUMNS as USER_COLUMNS,
 } from "@/components/admin/standardUserColumns";
 import { theadClass, cellClass, rowClass } from "@/components/ui/table-styles";
+import { Pagination } from "../ui/pagination";
 
 const ASSIGNABLE_ROLES = [
     { value: "ranger", label: "Ranger" },
@@ -49,18 +51,10 @@ interface UserRowProps {
 export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
     const [selectedRole, setSelectedRole] = useState(user.role);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [isSuccessful, setSuccessful] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
     const isDirty = selectedRole !== user.role;
     const fullName = `${user.first_name} ${user.last_name}`;
-
-    useEffect(() => {
-        if (!isSuccessful) return;
-        const t = setTimeout(() => setSuccessful(false), 5000);
-        return () => clearTimeout(t);
-    }, [isSuccessful]);
 
     const handleApply = () => {
         if (!isDirty || isProcessing) return;
@@ -70,15 +64,16 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
     const handleConfirm = async () => {
         setIsConfirmOpen(false);
         setIsProcessing(true);
-        setError(null);
-        setSuccessful(false);
 
         try {
             await usersApi.changeUserRole(user.id, selectedRole);
-            setSuccessful(true);
+            notifySafe(
+                "Role updated",
+                `${fullName} is now ${formatRole(selectedRole)}.`,
+            );
             onRoleChanged();
         } catch {
-            setError("Failed to update role.");
+            notifyCritical("Failed to update role.");
             setSelectedRole(user.role);
         } finally {
             setIsProcessing(false);
@@ -153,23 +148,6 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-            {(error || isSuccessful) && (
-                <TableRow className={rowClass}>
-                    <TableCell
-                        colSpan={6}
-                        className={cn(
-                            "px-4 py-1.5 text-xs italic",
-                            error
-                                ? "text-status-critical-text bg-status-critical/5"
-                                : "text-status-safe-text bg-status-safe/10",
-                        )}
-                    >
-                        {error ??
-                            `Role updated to ${formatRole(selectedRole)}.`}
-                    </TableCell>
-                </TableRow>
-            )}
         </>
     );
 };
@@ -177,7 +155,6 @@ export const UserRow = ({ user, onRoleChanged }: UserRowProps) => {
 export const RoleSwap = () => {
     const {
         users,
-        setUsers,
         isLoading,
         pageError,
         search,
@@ -189,26 +166,13 @@ export const RoleSwap = () => {
         sortKey,
         direction,
         requestSort,
+        refetch,
+        page,
+        setPage,
+        totalPages,
     } = useManagedUsers(usersApi.getActiveUsers, sortAccessors);
 
-    const fetchUsers = async () => {
-        try {
-            const data = await usersApi.getActiveUsers();
-            setUsers(data.results);
-        } catch {
-            // silent on refresh
-        }
-    };
-
-    if (isLoading || pageError) {
-        return (
-            <UserTableStatus
-                isLoading={isLoading}
-                pageError={pageError}
-                loadingText="Loading users..."
-            />
-        );
-    }
+    const isInitialLoading = isLoading && users.length === 0;
 
     return (
         <div className="space-y-4">
@@ -224,45 +188,57 @@ export const RoleSwap = () => {
                 selectedRoles={roleFilter}
                 onRolesChange={setRoleFilter}
             />
-
-            <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
-                <Table>
-                    <TableHeader className="bg-brand-primary">
-                        <TableRow className="hover:bg-transparent">
-                            <SortableColumns
-                                columns={USER_COLUMNS}
-                                sortKey={sortKey}
-                                direction={direction}
-                                requestSort={requestSort}
-                            />
-                            <TableHead className={theadClass}>
-                                Assign Role
-                            </TableHead>
-                            <TableHead className={theadClass} />
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedUsers.length === 0 ? (
-                            <EmptyTableRow
-                                colSpan={6}
-                                message={
-                                    users.length === 0
-                                        ? "No active users found."
-                                        : "No users match your search or filters."
-                                }
-                            />
-                        ) : (
-                            sortedUsers.map((user) => (
-                                <UserRow
-                                    key={user.id}
-                                    user={user}
-                                    onRoleChanged={fetchUsers}
+            {isInitialLoading || pageError ? (
+                <UserTableStatus
+                    isLoading={isInitialLoading}
+                    pageError={pageError}
+                    loadingText="Loading users..."
+                />
+            ) : (
+                <div className="overflow-hidden rounded-lg border border-color-border bg-color-surface-raised shadow-sm">
+                    <Table>
+                        <TableHeader className="bg-brand-primary">
+                            <TableRow className="hover:bg-transparent">
+                                <SortableColumns
+                                    columns={USER_COLUMNS}
+                                    sortKey={sortKey}
+                                    direction={direction}
+                                    requestSort={requestSort}
                                 />
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                                <TableHead className={theadClass}>
+                                    Assign Role
+                                </TableHead>
+                                <TableHead className={theadClass} />
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedUsers.length === 0 ? (
+                                <EmptyTableRow
+                                    colSpan={6}
+                                    message={
+                                        users.length === 0
+                                            ? "No active users found."
+                                            : "No users match your search or filters."
+                                    }
+                                />
+                            ) : (
+                                sortedUsers.map((user) => (
+                                    <UserRow
+                                        key={user.id}
+                                        user={user}
+                                        onRoleChanged={refetch}
+                                    />
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={(page) => setPage(page)}
+            />
         </div>
     );
 };

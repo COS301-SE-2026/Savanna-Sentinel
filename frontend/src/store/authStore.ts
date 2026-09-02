@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { authApi, type TokenResponse } from "../services/authApi";
+import { clearOfflineData } from "../offline/db";
 
 export interface AuthUser {
     id: string;
@@ -80,6 +81,7 @@ export const useAuthStore = create<AuthState>()(
                     if (refreshToken) {
                         authApi.logout(refreshToken).catch(() => {});
                     }
+                    clearOfflineData().catch(() => {});
                     set({ accessToken: null, refreshToken: null, user: null });
                 },
 

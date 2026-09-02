@@ -12,8 +12,6 @@ services:
       MINIO_PUBLIC_ENDPOINT: localhost:9000
 
   worker:
-    build:
-      context: ./backend
     volumes:
       - ./backend:/app
 

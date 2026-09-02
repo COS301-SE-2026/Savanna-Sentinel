@@ -62,4 +62,29 @@ describe("MapLegend", () => {
         expect(document.activeElement).toBe(toggleButton);
         expect(toggleButton).toHaveAttribute("aria-expanded", "false");
     });
+
+    it("renders expanded by default when defaultExpanded is true", () => {
+        render(<MapLegend defaultExpanded />);
+        expect(
+            screen.getByRole("button", { name: /collapse risk legend/i }),
+        ).toBeInTheDocument();
+        expect(screen.getByText("Critical")).toBeInTheDocument();
+    });
+
+    it("renders a no-data legend entry alongside the risk levels", async () => {
+        render(<MapLegend />);
+        await userEvent.click(
+            screen.getByRole("button", { name: /expand risk legend/i }),
+        );
+
+        expect(screen.getByText("No score yet")).toBeInTheDocument();
+    });
+
+    it("does not render a close glyph in the expanded panel", async () => {
+        render(<MapLegend />);
+        await userEvent.click(
+            screen.getByRole("button", { name: /expand risk legend/i }),
+        );
+        expect(screen.queryByText("×")).not.toBeInTheDocument();
+    });
 });

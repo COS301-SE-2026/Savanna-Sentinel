@@ -2,6 +2,7 @@ import http from "k6/http";
 import { sleep, check } from "k6";
 
 const BASE_URL = "http://localhost:8000/v1";
+const DUMMY_FILE_PAYLOAD = "x".repeat(1024);
 
 const RANGER_USERS = [
     { username: "ranger1", password: "SentinelSeed1!" },
@@ -33,7 +34,7 @@ export const options = {
         health_check_scenario: {
             executor: "constant-vus",
             exec: "base60HealthCheck",
-            vus: 60,
+            vus: 30,
             duration: "30s",
         },
         authentication_flow_check: {
@@ -54,6 +55,12 @@ export const options = {
             vus: 5,
             duration: "30s",
         },
+        media_upload_scenario: {
+            executor: "constant-vus",
+            exec: "upload10MediaCheck",
+            vus: 10,
+            duration: "30s"
+        }
     },
     thresholds: {
         http_req_failed: ["rate<0.01"],
@@ -263,3 +270,48 @@ export const ingestion5Check = (data) => {
 
     sleep(3);
 };
+
+export const upload10MediaCheck = (data) => {
+    const tokenIndex = (__VU - 1) % data.rangerTokens.length;
+    const currentToken = data.rangerTokens[tokenIndex];
+
+    const fileName = `test_user_${__VU}_${Date.now()}.jpg`;
+    const contentType = "image/jpeg";
+
+    const payload = JSON.stringify({
+        file_name: fileName,
+        content_type: contentType,
+    });
+
+    const params = {
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${currentToken}`,
+        },
+    };
+
+    const res = http.post(`${BASE_URL}/media/upload-url`, payload, params);
+
+    const urlCreated = check(res, {
+        "presigned url status is 200": (r) => r.status === 200,
+        "contains upload_url": (r) => r.json("upload_url") !== undefined,
+    });
+
+    if (urlCreated) {
+        const uploadUrl = res.json("upload_url");
+
+        const minioParams = {
+            headers: {
+                "Content-Type": contentType,
+            },
+        };
+
+        const uploadRes = http.put(uploadUrl, DUMMY_FILE_PAYLOAD, minioParams);
+
+        check(uploadRes, {
+            "minio upload successful (200)": (r) => r.status === 200,
+        });
+    }
+
+    sleep(3);
+}

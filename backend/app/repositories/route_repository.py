@@ -1,10 +1,10 @@
 import json
 import math
 from functools import lru_cache
-from pathlib import Path
 
 from pyproj import Transformer
 
+from app.repositories.risk_repository import GRID_FILE_PATH
 from app.schemas.geo import GeoPoint
 from app.schemas.route import GraphEdge, GraphNode, ParkGraph
 
@@ -13,22 +13,13 @@ from app.schemas.route import GraphEdge, GraphNode, ParkGraph
 AVG_SPEED_KMH = 20.0
 FUEL_L_PER_KM = 0.15
 
-_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-
-# Maps a park_id to its pre-generated grid file. Only one park is available
-# today; add entries here as more parks get their own grid exports.
-_PARK_GRID_FILES = {
-    "klaserie": _DATA_DIR / "klaserie_grid.geojson",
-}
-
 
 @lru_cache(maxsize=None)
-def _load_grid(park_id: str) -> ParkGraph:
-    grid_path = _PARK_GRID_FILES.get(park_id)
-    if grid_path is None:
-        raise ValueError(f"No grid data available for park_id={park_id!r}")
+def _load_grid() -> ParkGraph:
+    if not GRID_FILE_PATH.is_file():
+        raise FileNotFoundError("No park grid has been uploaded yet")
 
-    with open(grid_path) as f:
+    with open(GRID_FILE_PATH) as f:
         geojson = json.load(f)
 
     epsg_code = geojson["crs"]["properties"]["name"].rsplit(":", 1)[-1]
@@ -97,14 +88,16 @@ def _load_grid(park_id: str) -> ParkGraph:
                     ),
                 )
 
-    return ParkGraph(park_id=park_id, nodes=nodes, edges=edges)
+    # _load_grid has no park_id (only one grid file),
+    # build_park_graph stamps the real one onto its returned copy.
+    return ParkGraph(park_id="", nodes=nodes, edges=edges)
 
 
 def build_park_graph(
     park_id: str,
     risk_by_cell: dict[str, float] | None = None,
 ) -> ParkGraph:
-    """Assemble ParkGraph from park_id's grid, with risk scores applied.
+    """Assemble ParkGraph from the park's grid, with risk scores applied.
 
     _load_grid's result is lru_cache'd and shared across every caller, so
     its nodes are never mutated here. A fresh GraphNode list is built on
@@ -113,7 +106,7 @@ def build_park_graph(
     risk_by_cell (or no risk_by_cell at all) gets a neutral 0.0.
     """
     risk_by_cell = risk_by_cell or {}
-    base = _load_grid(park_id)
+    base = _load_grid()
     nodes = [
         GraphNode(
             node_id=n.node_id,
@@ -122,7 +115,7 @@ def build_park_graph(
         )
         for n in base.nodes
     ]
-    return ParkGraph(park_id=base.park_id, nodes=nodes, edges=base.edges)
+    return ParkGraph(park_id=park_id, nodes=nodes, edges=base.edges)
 
 
 def find_nearest_node(graph: ParkGraph, point: tuple[float, float]) -> str:

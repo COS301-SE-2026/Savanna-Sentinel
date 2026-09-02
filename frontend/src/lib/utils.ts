@@ -9,6 +9,15 @@ export function formatRole(role: string) {
     return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export function homePathForRole(role: string | undefined): string {
+    switch (role) {
+        case "community_liaison":
+            return "/tipoffs";
+        default:
+            return "/profile";
+    }
+}
+
 export function toDatetimeLocalValue(date: Date): string {
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -16,6 +25,25 @@ export function toDatetimeLocalValue(date: Date): string {
 
 export function currentLocalDatetime(): string {
     return toDatetimeLocalValue(new Date());
+}
+
+export function formatToUTC(dateString: string): string {
+    const parsed = new Date(dateString);
+    if (isNaN(parsed.getTime())) {
+        return new Date().toISOString();
+    }
+
+    const now = new Date();
+    if (parsed > now) {
+        return now.toISOString();
+    }
+
+    return parsed.toISOString();
+}
+
+export function getSnapHeightPx(snap: string | number): number {
+    if (typeof snap === "string") return parseInt(snap, 10);
+    return snap * window.innerHeight;
 }
 
 export function formatRelativeTime(timestamp: string) {

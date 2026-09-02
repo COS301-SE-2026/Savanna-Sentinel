@@ -3,7 +3,7 @@ import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { FILE_SCHEMA } from "@/lib/ingestionSchema";
 
 interface UploadWizardProps {
-    onFileAccepted: (lines: string[]) => void;
+    onFileAccepted: (lines: string[], filename: string) => void;
 }
 
 export function UploadWizard({ onFileAccepted }: UploadWizardProps) {
@@ -46,7 +46,7 @@ export function UploadWizard({ onFileAccepted }: UploadWizardProps) {
             }
 
             setError(null);
-            onFileAccepted(lines);
+            onFileAccepted(lines, file.name);
         } catch {
             setError("Couldn't read that file. Please try again.");
         }

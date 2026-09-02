@@ -1,5 +1,12 @@
 import "@testing-library/jest-dom";
-import { beforeAll, afterAll } from "vitest";
+import "fake-indexeddb/auto";
+import { beforeAll, afterAll, beforeEach } from "vitest";
+
+beforeEach(async () => {
+    const { db } = await import("@/offline/db");
+    if (!db.isOpen()) await db.open();
+    await Promise.all(db.tables.map((table) => table.clear()));
+});
 
 const jsdomWindow = (globalThis as unknown as { jsdom?: { window: Window } })
     .jsdom?.window;

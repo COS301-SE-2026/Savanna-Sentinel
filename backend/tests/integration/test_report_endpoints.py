@@ -385,6 +385,18 @@ async def test_submit_with_severity_and_count():
 
 
 @pytest.mark.asyncio
+async def test_submitted_report_includes_submitted_by_username():
+    uid = await _create_user("test_profile_user")
+    async with _client() as c:
+        r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(),
+            headers=_auth_header(uid),
+        )
+    assert r.json()["submitted_by_username"] == "test_profile_user"
+
+
+@pytest.mark.asyncio
 async def test_submitted_report_appears_in_list():
     uid = await _create_user("test_ranger_sc11h")
     async with _client() as c:
@@ -398,6 +410,35 @@ async def test_submitted_report_appears_in_list():
         list_r = await c.get("/v1/reports", headers=_auth_header(uid))
     ids = [item["report_id"] for item in list_r.json()["results"]]
     assert report_id in ids
+
+
+@pytest.mark.asyncio
+async def test_submitting_report_notifies_analysts_and_admins():
+    ranger_id = await _create_user("test_ranger_notif_1")
+    analyst_id = await _create_user("test_analyst_notif_1", role="analyst")
+
+    async with _client() as c:
+        post_r = await c.post(
+            "/v1/reports",
+            json=_incident_payload(),
+            headers=_auth_header(ranger_id),
+        )
+        assert post_r.status_code == 201
+        report_id = post_r.json()["report_id"]
+
+        notif_r = await c.get(
+            "/v1/notifications",
+            headers=_auth_header(analyst_id),
+        )
+
+    items = notif_r.json()["results"]
+    matching = [
+        n for n in items
+        if n["type"] == "field_report_submitted"
+        and n["related_id"] == report_id
+    ]
+    assert len(matching) == 1
+    assert matching[0]["read"] is False
 
 
 # PATCH /v1/reports/{report_id}
@@ -418,6 +459,19 @@ async def test_ranger_updates_own_report_returns_200():
     assert body["report_id"] == rid
     assert body["status"] == "updated"
     assert body["submitted_by"] == uid
+
+
+@pytest.mark.asyncio
+async def test_update_response_includes_submitted_by_username():
+    uid = await _create_user("test_ranger_sc12username")
+    rid = await _create_report(uid)
+    async with _client() as c:
+        r = await c.patch(
+            f"/v1/reports/{rid}",
+            json={"description": "Updated after follow-up"},
+            headers=_auth_header(uid),
+        )
+    assert r.json()["submitted_by_username"] == "test_ranger_sc12username"
 
 
 @pytest.mark.asyncio
@@ -682,13 +736,14 @@ async def test_ranger_gets_own_report_returns_200():
 
 
 @pytest.mark.asyncio
-async def test_ranger_blocked_from_other_rangers_report_returns_403():
+async def test_ranger_gets_other_rangers_report_returns_200():
     owner_id = await _create_user("test_owner_sc21")
     other_id = await _create_user("test_other_sc21")
     rid = await _create_report(owner_id)
     async with _client() as c:
         r = await c.get(f"/v1/reports/{rid}", headers=_auth_header(other_id))
-    assert r.status_code == 403
+    assert r.status_code == 200
+    assert r.json()["submitted_by"] == owner_id
 
 
 @pytest.mark.asyncio
@@ -781,7 +836,7 @@ async def test_list_returns_200_with_pagination_envelope():
 
 
 @pytest.mark.asyncio
-async def test_list_ranger_sees_only_own_reports():
+async def test_list_ranger_sees_other_rangers_reports():
     uid = await _create_user("test_ranger_sc20b")
     other_id = await _create_user("test_other_sc20b")
     await _create_report(uid)
@@ -789,7 +844,8 @@ async def test_list_ranger_sees_only_own_reports():
     async with _client() as c:
         r = await c.get("/v1/reports", headers=_auth_header(uid))
     body = r.json()
-    assert all(item["submitted_by"] == uid for item in body["results"])
+    submitters = {item["submitted_by"] for item in body["results"]}
+    assert {uid, other_id} <= submitters
 
 
 @pytest.mark.asyncio
@@ -855,6 +911,64 @@ async def test_list_filter_by_report_type():
 
 
 @pytest.mark.asyncio
+async def test_list_filter_by_search():
+    uid = await _create_user("test_ranger_search")
+    payload = _incident_payload()
+    payload["description"] = "Unique Search Term Elephant Alpha"
+    async with _client() as c:
+        await c.post("/v1/reports", json=payload, headers=_auth_header(uid))
+        r = await c.get(
+            "/v1/reports?search=Elephant Alpha",
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) >= 1
+    assert any("Elephant Alpha" in item["description"] for item in results)
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_species():
+    uid = await _create_user("test_ranger_species")
+    payload = _sighting_payload()
+    async with _client() as c:
+        await c.post(
+            "/v1/reports",
+            json=payload,
+            headers=_auth_header(uid),
+        )
+        r = await c.get(
+            "/v1/reports?species=African Elephant",
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) >= 1
+    assert all(item["species"] == "African Elephant" for item in results)
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_users():
+    username = "test_ranger_user"
+    uid = await _create_user(username)
+    admin_id = await _create_user("test_admin_user", role="admin")
+    await _create_report(uid)
+    async with _client() as c:
+        r = await c.get(
+            f"/v1/reports?users={username}",
+            headers=_auth_header(admin_id),
+        )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) >= 1
+    assert all(
+        item.get("submitted_by_username") == username
+        or item["submitted_by"] == uid
+        for item in results
+    )
+
+
+@pytest.mark.asyncio
 async def test_list_pagination():
     uid = await _create_user("test_ranger_sc20f")
     for _ in range(3):
@@ -900,3 +1014,44 @@ async def test_list_sync_status_offline_returns_empty():
     body = r.json()
     assert body["total"] == 0
     assert body["results"] == []
+
+
+# GET /v1/reports/species
+
+
+@pytest.mark.asyncio
+async def test_get_species_returns_200_and_list():
+    uid = await _create_user("test_ranger_get_species")
+    payload = _sighting_payload()
+    async with _client() as c:
+        await c.post(
+            "/v1/reports",
+            json=payload,
+            headers=_auth_header(uid),
+        )
+        r = await c.get(
+            "/v1/reports/species",
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+    body = r.json()
+    assert "species" in body
+    assert isinstance(body["species"], list)
+    assert "African Elephant" in body["species"]
+
+
+# GET /v1/reports/users
+@pytest.mark.asyncio
+async def test_get_usernames_returns_200_and_list():
+    username = "test_ranger_get_users"
+    uid = await _create_user(username)
+    await _create_report(uid)
+
+    async with _client() as c:
+        r = await c.get("/v1/reports/users", headers=_auth_header(uid))
+
+    assert r.status_code == 200
+    body = r.json()
+    assert "usernames" in body
+    assert isinstance(body["usernames"], list)
+    assert username in body["usernames"]

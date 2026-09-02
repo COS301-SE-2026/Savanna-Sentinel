@@ -2,6 +2,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.models.audit_log import AuditLog
+from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
 from tests.schema_helpers import audit_filter_req as _filter_req
 
@@ -88,3 +90,48 @@ async def test_count_logs_returns_scalar_one_from_execute_result():
 def test_repository_exposes_no_update_or_delete_method():
     assert not hasattr(AuditRepository, "update")
     assert not hasattr(AuditRepository, "delete")
+
+
+@pytest.mark.asyncio
+async def test_list_all_logs_returns_every_matching_row_unpaginated(db_session):
+    actor = User(
+        username="export_admin", role="admin", is_active=True,
+        email="ea@test.com", first_name="E", last_name="A",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(actor)
+    await db_session.commit()
+    await db_session.refresh(actor)
+
+    for i in range(25):
+        db_session.add(AuditLog(actor_id=actor.id, action=f"action_{i}"))
+    await db_session.commit()
+
+    repo = AuditRepository(db_session)
+    req = _filter_req(page=1, page_size=20)
+    results = await repo.list_all_logs(req)
+
+    assert len(results) == 25
+
+
+@pytest.mark.asyncio
+async def test_list_all_logs_respects_action_filter(db_session):
+    actor = User(
+        username="export_admin2", role="admin", is_active=True,
+        email="ea2@test.com", first_name="E", last_name="A",
+        hashed_password="hash",  # NOSONAR
+    )
+    db_session.add(actor)
+    await db_session.commit()
+    await db_session.refresh(actor)
+
+    db_session.add(AuditLog(actor_id=actor.id, action="user.deleted"))
+    db_session.add(AuditLog(actor_id=actor.id, action="user.role_changed"))
+    await db_session.commit()
+
+    repo = AuditRepository(db_session)
+    req = _filter_req(action="user.deleted", page=1, page_size=20)
+    results = await repo.list_all_logs(req)
+
+    assert len(results) == 1
+    assert results[0].action == "user.deleted"

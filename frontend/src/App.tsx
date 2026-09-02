@@ -5,15 +5,20 @@ import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
+import GuestRoute from "@/components/layout/GuestRoute";
 import AppLayout from "@/components/layout/AppLayout";
 
+import DashboardPage from "@/pages/DashboardPage";
 import ReportsPage from "@/pages/ReportsPage";
+import MapPage from "@/pages/MapPage";
 import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
+import TipoffPage from "@/pages/TipoffPage";
 import IngestionPage from "@/pages/IngestionPage";
 import AdminPage from "@/pages/AdminPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import HelpPage from "@/pages/HelpPage";
+import ParkZoneUploadPage from "./pages/ParkZoneUploadPage";
 
 const App = () => {
     return (
@@ -21,20 +26,26 @@ const App = () => {
             <Toaster />
             <Routes>
                 {/* Public routes */}
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
+                <Route element={<GuestRoute />}>
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                </Route>
 
                 {/* Protected routes - AppLayout renders TopBar + BurgerMenu for all children */}
                 <Route element={<ProtectedRoute />}>
                     <Route element={<AppLayout />}>
+                        <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/admin" element={<AdminPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
+                        <Route path="/map" element={<MapPage />} />
                         <Route path="/patrol" element={<PatrolPlannerPage />} />
+                        <Route path="/tipoffs" element={<TipoffPage />} />
                         <Route path="/ingestion" element={<IngestionPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/help" element={<HelpPage />} />
                     </Route>
+                    <Route path="/upload" element={<ParkZoneUploadPage />} />
                 </Route>
 
                 {/* authed users see 404, non logged in are redirected to login page */}

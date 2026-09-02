@@ -4,40 +4,41 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/store/authStore";
 import { NewReportTab } from "@/components/reports/NewReportTab";
 import { ReportList } from "@/components/reports/ReportList";
-import { notifySafe } from "@/components/ui/toast";
-import { toDatetimeLocalValue } from "@/lib/utils";
+import {
+    notifySafe,
+    notifyCaution,
+    notifyCritical,
+} from "@/components/ui/toast";
+import { toDatetimeLocalValue, formatToUTC } from "@/lib/utils";
+import { PLACEHOLDER_PHOTO_TYPE, resolvePhotoUrls } from "@/lib/media";
 import type {
     DraftReport,
     DraftReportInput,
-    PhotoAttachment,
+    ReportType,
+    Severity,
 } from "@/types/reports";
 import { reportsApi } from "@/services/reportsApi";
 import type {
     ReportListItem,
     ReportCreate,
     ReportUpdate,
+    ListReportsQueryParams,
 } from "@/services/reportsApi";
-import { mediaApi } from "@/services/mediaApi";
-
-const PLACEHOLDER_PHOTO_TYPE = "image/placeholder";
-
-async function resolvePhotoUrls(photos: PhotoAttachment[]): Promise<string[]> {
-    const urls: string[] = [];
-    for (const photo of photos) {
-        if (photo.file.type === PLACEHOLDER_PHOTO_TYPE) {
-            urls.push(photo.previewUrl);
-            continue;
-        }
-        urls.push(await mediaApi.uploadPhoto(photo.file));
-    }
-    return urls;
-}
+import { useDebounce } from "@/hooks/useDebounce";
+import {
+    deleteDraft,
+    enqueue,
+    listDrafts,
+    saveDraft,
+} from "@/offline/draftsStore";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
 
 // Helper functions
 function mapToDraft(item: ReportListItem): DraftReport {
     return {
         localId: item.report_id,
         submittedBy: item.submitted_by,
+        submittedByUsername: item.submitted_by_username,
         reportType: item.report_type as "incident" | "sighting",
         description: item.description,
         incidentType: item.incident_type || "",
@@ -53,49 +54,71 @@ function mapToDraft(item: ReportListItem): DraftReport {
         })),
         createdAt: item.created_at,
         syncStatus: item.sync_status as DraftReport["syncStatus"],
+        status: item.status ?? "none",
     };
-}
-
-function formatToUTC(dateString: string): string {
-    const parsed = new Date(dateString);
-    if (isNaN(parsed.getTime())) {
-        return new Date().toISOString();
-    }
-
-    const now = new Date();
-    if (parsed > now) {
-        return now.toISOString();
-    }
-
-    return parsed.toISOString();
 }
 // Helper functions end
 
-// todo
-// this array should live in a Dexie table so drafts carry on reload
-// and so that this page works offline
 export default function ReportsPage() {
     const user = useAuthStore((s) => s.user);
     const [reports, setReports] = React.useState<DraftReport[]>([]);
     const canSubmit = user?.role === "ranger" || user?.role === "admin";
     const [activeTab, setActiveTab] = React.useState(canSubmit ? "new" : "all");
     const [isLoading, setIsLoading] = useState(false);
+    const [search, setSearch] = React.useState("");
+    const [isInitialLoad, setInitialLoad] = React.useState(true);
+    const [typeFilter, setTypeFilter] = React.useState<ReportType[]>([]);
+    const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
+    const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
+    const [usernameFilter, setUsernameFilter] = React.useState<string[]>([]);
+
+    const debouncedSearch = useDebounce(search, 300);
+    const [refreshKey, setRefreshKey] = useState(0);
+    const bumpRefresh = React.useCallback(
+        () => setRefreshKey((key) => key + 1),
+        [],
+    );
+    useOfflineSync(bumpRefresh);
 
     useEffect(() => {
         async function fetchReports() {
             setIsLoading(true);
+            const temp: ListReportsQueryParams = {
+                search: debouncedSearch || undefined,
+                report_type: typeFilter || null,
+                severity: severityFilter || null,
+                species: speciesFilter || null,
+                users: usernameFilter || null,
+            };
+            const localDrafts = user
+                ? await listDrafts(user.id).catch(() => [])
+                : [];
+            const unsynced = localDrafts.filter(
+                (draft) => draft.syncStatus !== "synced",
+            );
+
             try {
-                const res = await reportsApi.listReports();
-                setReports(res.results.map(mapToDraft));
+                const res = await reportsApi.listReports(temp);
+                setReports([...res.results.map(mapToDraft), ...unsynced]);
             } catch (err) {
-                notifySafe("Error", "Failed to fetch reports");
+                setReports(unsynced);
+                notifyCritical("Error", "Failed to fetch reports");
                 console.error(err);
             } finally {
                 setIsLoading(false);
+                setInitialLoad(false);
             }
         }
         fetchReports();
-    }, []);
+    }, [
+        debouncedSearch,
+        typeFilter,
+        severityFilter,
+        speciesFilter,
+        usernameFilter,
+        user,
+        refreshKey,
+    ]);
 
     const myDrafts = useMemo(
         () =>
@@ -110,9 +133,32 @@ export default function ReportsPage() {
 
         // Validate coords
         if (input.lat === null || input.lon === null) {
-            notifySafe("Error", "Locational coordinates are required");
+            notifyCritical("Error", "Locational coordinates are required");
             return;
         }
+
+        const localId = crypto.randomUUID();
+        let isPersisted = true;
+        try {
+            await saveDraft(user.id, localId, input, "offline");
+            await enqueue(user.id, localId, "create");
+        } catch (err) {
+            isPersisted = false;
+            console.error(err);
+        }
+
+        setReports((prev) => [
+            ...prev,
+            {
+                ...input,
+                localId,
+                submittedBy: user.id,
+                submittedByUsername: user.username,
+                createdAt: new Date().toISOString(),
+                syncStatus: "offline",
+            },
+        ]);
+        window.scrollTo({ top: 0, behavior: "smooth" });
 
         try {
             const images = await resolvePhotoUrls(input.photos);
@@ -127,33 +173,71 @@ export default function ReportsPage() {
                 count: input.count ?? undefined,
                 images,
                 sync_status: "pending",
+                client_id: localId,
             };
 
             const res = await reportsApi.submitReport(payload);
 
-            const newReport: DraftReport = {
-                ...input,
-                localId: res.report_id,
-                submittedBy: res.submitted_by,
-                createdAt: res.created_at,
-                syncStatus: "pending",
-            };
-            setReports((prev) => [...prev, newReport]);
+            await deleteDraft(localId).catch(() => {});
+            setReports((prev) =>
+                prev.map((r) =>
+                    r.localId === localId
+                        ? {
+                              ...r,
+                              localId: res.report_id,
+                              submittedBy: res.submitted_by,
+                              submittedByUsername: res.submitted_by_username,
+                              createdAt: res.created_at,
+                              syncStatus: "pending",
+                              status: "none",
+                          }
+                        : r,
+                ),
+            );
             notifySafe(
                 "Report submitted",
                 "Your report has been queued to sync.",
             );
-            window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (err) {
-            notifySafe(
-                "Submission failed",
-                "Could not send report to the server",
-            );
+            if (isPersisted) {
+                notifyCaution(
+                    "Saved to this device",
+                    "No connection. It will be sent when you are back online.",
+                );
+            } else {
+                notifyCritical(
+                    "Submission failed",
+                    "Could not send report to the server",
+                );
+            }
             console.error(err);
         }
     };
 
     const handleSave = async (localId: string, input: DraftReportInput) => {
+        const existing = reports.find((r) => r.localId === localId);
+
+        if (user && existing?.syncStatus === "offline") {
+            try {
+                await saveDraft(user.id, localId, input, "offline");
+                await enqueue(user.id, localId, "create");
+                setReports((prev) =>
+                    prev.map((r) =>
+                        r.localId === localId ? { ...r, ...input } : r,
+                    ),
+                );
+                notifySafe(
+                    "Draft saved",
+                    "Kept on this device until you sync.",
+                );
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            } catch (err) {
+                notifyCritical("Save failed", "Could not update this device");
+                console.error(err);
+            }
+            return;
+        }
+
         try {
             const images = await resolvePhotoUrls(input.photos);
             const payload: ReportUpdate = {
@@ -180,18 +264,26 @@ export default function ReportsPage() {
             notifySafe("Draft saved", "Your report has been updated.");
             window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (err) {
-            notifySafe("Upate failed", "Unable to update report");
+            notifyCritical("Upate failed", "Unable to update report");
             console.error(err);
         }
     };
 
     const handleDelete = async (localId: string) => {
+        const existing = reports.find((r) => r.localId === localId);
+        if (existing?.syncStatus === "offline") {
+            await deleteDraft(localId).catch(() => {});
+            setReports((prev) => prev.filter((r) => r.localId !== localId));
+            notifySafe("Draft discarded");
+            return;
+        }
+
         try {
             await reportsApi.deleteReport(localId);
             setReports((prev) => prev.filter((r) => r.localId !== localId));
             notifySafe("Report deleted");
         } catch (err) {
-            notifySafe("Delete failed");
+            notifyCritical("Delete failed");
             console.error(err);
         }
     };
@@ -222,15 +314,47 @@ export default function ReportsPage() {
                 )}
 
                 <TabsContent value="all" className="mt-6">
-                    {isLoading ? (
+                    {isInitialLoad ? (
                         //replace with a better loading state, like the skeleton loading
                         <p>Loading reports...</p>
                     ) : (
-                        <ReportList
-                            reports={reports}
-                            canSubmit={canSubmit}
-                            onGoToNewReport={() => setActiveTab("new")}
-                        />
+                        <div
+                            className={
+                                isLoading ? "opacity-60 transition-opacity" : ""
+                            }
+                        >
+                            <ReportList
+                                reports={reports}
+                                canSubmit={canSubmit}
+                                onGoToNewReport={() => setActiveTab("new")}
+                                search={search}
+                                setSearch={(value) => {
+                                    setIsLoading(true);
+                                    setSearch(value);
+                                }}
+                                typeFilter={typeFilter}
+                                setTypeFilter={(value) => {
+                                    setIsLoading(true);
+                                    setTypeFilter(value);
+                                }}
+                                severityFilter={severityFilter}
+                                setSeverityFilter={(value) => {
+                                    setIsLoading(true);
+                                    setSeverityFilter(value);
+                                }}
+                                speciesFilter={speciesFilter}
+                                setSpeciesFilter={(value) => {
+                                    setIsLoading(true);
+                                    setSpeciesFilter(value);
+                                }}
+                                usernameFilter={usernameFilter}
+                                setUsernameFilter={(value) => {
+                                    setIsLoading(true);
+                                    setUsernameFilter(value);
+                                }}
+                                isLoading={isLoading}
+                            />
+                        </div>
                     )}
                 </TabsContent>
             </Tabs>

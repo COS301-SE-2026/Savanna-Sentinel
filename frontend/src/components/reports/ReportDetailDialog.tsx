@@ -1,20 +1,21 @@
 import * as React from "react";
-import { ChevronLeft, ChevronRight, ImageOff, XIcon } from "lucide-react";
+import { ImageOff } from "lucide-react";
 
 import {
     Dialog,
-    DialogClose,
     DialogContent,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
     SEVERITY_OPTIONS,
     type DraftReport,
     type Severity,
 } from "@/types/reports";
+import { PhotoLightbox } from "@/components/reports/PhotoLightbox";
+import { ReportCommentThread } from "@/components/reports/ReportCommentThread";
+import type { ReportStatus } from "@/types/reportComments";
 
 const severityBadgeVariant: Record<Severity, "caution" | "alert" | "critical"> =
     {
@@ -132,7 +133,8 @@ export function ReportDetailDialog({
                                             : "Not recorded"}
                                     </DetailField>
                                     <DetailField label="Submitted By">
-                                        {report.submittedBy}
+                                        {report.submittedByUsername ??
+                                            report.submittedBy}
                                     </DetailField>
                                     <DetailField label="Sync Status">
                                         {report.syncStatus === "synced" ? (
@@ -180,91 +182,25 @@ export function ReportDetailDialog({
                                         </div>
                                     )}
                                 </div>
+
+                                <ReportCommentThread
+                                    reportId={report.localId}
+                                    initialStatus={
+                                        report.status as ReportStatus
+                                    }
+                                />
                             </div>
                         </>
                     )}
                 </DialogContent>
             </Dialog>
 
-            <Dialog
-                open={zoomIndex !== null}
-                onOpenChange={(open) => !open && setZoomIndex(null)}
-            >
-                <DialogContent className="max-w-[95vw] border-0 bg-transparent p-0 shadow-none sm:max-w-3xl">
-                    <DialogTitle className="sr-only">
-                        Photo {zoomIndex !== null ? zoomIndex + 1 : ""}
-                    </DialogTitle>
-                    {zoomIndex !== null && photos[zoomIndex] && (
-                        <div className="relative">
-                            <img
-                                src={photos[zoomIndex].previewUrl}
-                                alt={`Attached photo ${zoomIndex + 1} of ${photos.length}, enlarged`}
-                                className="max-h-[85vh] w-full rounded-lg object-contain"
-                            />
-                            <DialogClose asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute top-2 right-2 bg-black/50 text-color-text-inverse hover:bg-black/70 hover:text-color-text-inverse"
-                                >
-                                    <XIcon
-                                        className="size-5"
-                                        aria-hidden="true"
-                                    />
-                                    <span className="sr-only">
-                                        Close photo preview
-                                    </span>
-                                </Button>
-                            </DialogClose>
-                            {photos.length > 1 && (
-                                <>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() =>
-                                            setZoomIndex(
-                                                (zoomIndex -
-                                                    1 +
-                                                    photos.length) %
-                                                    photos.length,
-                                            )
-                                        }
-                                        className="absolute top-1/2 left-2 -translate-y-1/2 bg-black/50 text-color-text-inverse hover:bg-black/70 hover:text-color-text-inverse"
-                                    >
-                                        <ChevronLeft
-                                            className="size-5"
-                                            aria-hidden="true"
-                                        />
-                                        <span className="sr-only">
-                                            Previous photo
-                                        </span>
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() =>
-                                            setZoomIndex(
-                                                (zoomIndex + 1) % photos.length,
-                                            )
-                                        }
-                                        className="absolute top-1/2 right-2 -translate-y-1/2 bg-black/50 text-color-text-inverse hover:bg-black/70 hover:text-color-text-inverse"
-                                    >
-                                        <ChevronRight
-                                            className="size-5"
-                                            aria-hidden="true"
-                                        />
-                                        <span className="sr-only">
-                                            Next photo
-                                        </span>
-                                    </Button>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            <PhotoLightbox
+                photos={photos.map((photo) => photo.previewUrl)}
+                index={zoomIndex}
+                onIndexChange={setZoomIndex}
+                altPrefix="Attached photo"
+            />
         </>
     );
 }

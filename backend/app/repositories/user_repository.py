@@ -78,25 +78,52 @@ class UserRepository:
             payload = decode_token(token)
         except JWTError:
             return
-        stmt = update(
+        stmt = (
+            update(
                 RefreshToken,
-            ).where(
+            )
+            .where(
                 RefreshToken.jti == uuid.UUID(payload["jti"]),
-            ).values(
+            )
+            .values(
                 revoked_at=datetime.now(timezone.utc),
             )
+        )
         await self.db.execute(stmt)
         await self.db.commit()
 
     async def revoke_all_refresh_tokens(self, user_id: str) -> None:
         """Revoke every refresh token for a given user."""
-        stmt = update(RefreshToken).where(
-            RefreshToken.user_id == uuid.UUID(str(user_id)),
-            ).values(
+        stmt = (
+            update(RefreshToken)
+            .where(
+                RefreshToken.user_id == uuid.UUID(str(user_id)),
+            )
+            .values(
                 revoked_at=datetime.now(timezone.utc),
             )
+        )
         await self.db.execute(stmt)
         await self.db.commit()
+
+    async def get_username_by_id(self, user_id: str | None) -> str | None:
+        if not user_id:
+            return None
+        stmt = select(User.username).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_ids_by_roles(self, roles: list[str]) -> list[str]:
+        """Return ids of active, non-deleted users with any of these roles."""
+        if not roles:
+            return []
+        stmt = select(User.id).where(
+            User.role.in_(roles),
+            User.is_active.is_(True),
+            User.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return [str(user_id) for user_id in result.scalars().all()]
 
     async def get_by_email(self, email: str) -> Optional[User]:
         stmt = select(User).where(User.email == email)
@@ -124,9 +151,10 @@ class UserRepository:
         await self.db.refresh(user)
         return user
 
-    async def get_users(self, req: UsersRequest ) -> list[UsersResponse]:
+    async def get_users(self, req: UsersRequest) -> list[UsersResponse]:
         stmt = select(User).where(
-            User.role != "admin", User.deleted_at.is_(None),
+            User.role != "admin",
+            User.deleted_at.is_(None),
         )
 
         if req.is_active is not None:
@@ -134,6 +162,9 @@ class UserRepository:
 
         if req.role is not None:
             stmt = stmt.where(User.role == req.role.value)
+
+        if req.search is not None:
+            stmt = stmt.where(User.username.ilike(f"%{req.search}%"))
 
         offset = (req.page - 1) * req.page_size
 
@@ -156,14 +187,17 @@ class UserRepository:
         if req.role is not None:
             stmt = stmt.where(User.role == req.role.value)
 
+        if req.search is not None:
+            stmt = stmt.where(User.username.ilike(f"%{req.search}%"))
+
         result = await self.db.execute(stmt)
         return result.scalar()
 
     async def switch_status(
-            self,
-            is_active: bool,
-            user_id: str,
-            ) -> UsersResponse:
+        self,
+        is_active: bool,
+        user_id: str,
+    ) -> UsersResponse:
         stmt = select(User).where(User.id == user_id)
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()

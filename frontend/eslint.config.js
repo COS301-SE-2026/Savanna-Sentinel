@@ -10,7 +10,11 @@ import { defineConfig, globalIgnores } from "eslint/config";
 export default defineConfig([
     globalIgnores(["dist", "coverage", "web-build"]),
     {
-        ignores: ["src/components/ui", "vite.config.ts"],
+        ignores: [
+            "src/components/ui",
+            "vite.config.ts",
+            "pwa-assets.config.ts",
+        ],
     },
     {
         files: ["**/*.{ts,tsx}"],
@@ -28,7 +32,7 @@ export default defineConfig([
             globals: globals.browser,
             parser: tseslint.parser,
             parserOptions: {
-                project: ["./tsconfig.app.json"],
+                project: ["./tsconfig.app.json", "./tsconfig.worker.json"],
                 tsconfigRootDir: import.meta.dirname,
                 ecmaFeatures: {
                     jsx: true,

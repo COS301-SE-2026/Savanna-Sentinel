@@ -22,8 +22,11 @@ class ReportRepository:
     async def get_list(
         self,
         owner_id: Optional[str],
-        report_type: Optional[str] = None,
-        severity: Optional[str] = None,
+        search: Optional[str] = None,
+        report_types: Optional[list[str]] = None,
+        severities: Optional[list[str]] = None,
+        species: Optional[list[str]] = None,
+        users: Optional[list[str]] = None,
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
         sync_status: Optional[str] = None,
@@ -36,17 +39,31 @@ class ReportRepository:
         conditions = ["fr.deleted_at IS NULL"]
         params: dict = {}
 
+        if search and search.strip():
+            conditions.append(
+                "(fr.description ILIKE :search OR s.species ILIKE :search)",
+            )
+            params["search"] = f"%{search.strip()}%"
+
         if owner_id is not None:
             conditions.append("fr.submitted_by::text = :owner_id")
             params["owner_id"] = owner_id
 
-        if report_type:
-            conditions.append("fr.report_type::text = :report_type")
-            params["report_type"] = report_type
+        if report_types:
+            conditions.append("fr.report_type::text = ANY(:report_type)")
+            params["report_type"] = report_types
 
-        if severity:
-            conditions.append("i.severity::text = :severity")
-            params["severity"] = severity
+        if severities:
+            conditions.append("i.severity::text = ANY(:severities)")
+            params["severity"] = severities
+
+        if species:
+            conditions.append("s.species = ANY(:species)")
+            params["species"] = species
+
+        if users:
+            conditions.append("u.username = ANY(:users)")
+            params["users"] = users
 
         if from_dt:
             conditions.append("fr.occurred_at >= :from_dt")
@@ -58,15 +75,19 @@ class ReportRepository:
 
         where = " AND ".join(conditions)
 
-        count_sql = text(f"""
+        count_sql = text(
+            f"""
             SELECT COUNT(DISTINCT fr.id)
             FROM field_reports fr
             LEFT JOIN incidents i ON i.field_report_id = fr.id
             LEFT JOIN sightings s ON s.field_report_id = fr.id
+            LEFT JOIN users u ON u.id = fr.submitted_by
             WHERE {where}
-        """)
+        """,  # nosec B608
+        )
 
-        data_sql = text(f"""
+        data_sql = text(
+            f"""
             SELECT
                 fr.id::text AS report_id,
                 fr.report_type::text AS report_type,
@@ -81,22 +102,26 @@ class ReportRepository:
                 fr.route_id::text AS route_id,
                 'synced' AS sync_status,
                 fr.submitted_by::text AS submitted_by,
+                u.username AS submitted_by_username,
                 fr.created_at,
                 fr.updated_at,
                 fr.deleted_at,
+                fr.status,
                 (
                     SELECT COALESCE(array_agg(p.image_url), ARRAY[]::text[])
                     FROM photos p
                     WHERE p.geospatial_event_id = i.id
-                       OR p.geospatial_event_id = s.id
+                    OR p.geospatial_event_id = s.id
                 ) AS images
             FROM field_reports fr
             LEFT JOIN incidents i ON i.field_report_id = fr.id
             LEFT JOIN sightings s ON s.field_report_id = fr.id
+            LEFT JOIN users u ON u.id = fr.submitted_by
             WHERE {where}
             ORDER BY fr.created_at DESC
             LIMIT :limit OFFSET :offset
-        """)
+        """,  # nosec B608
+        )
 
         data_params = {
             **params,
@@ -116,6 +141,62 @@ class ReportRepository:
 
         return results, total
 
+    async def find_by_client_id(
+        self,
+        user_id: str,
+        client_id: str,
+    ) -> Optional[dict]:
+        row = (
+            await self.db.execute(
+                text("""
+                    SELECT id, report_type, created_at
+                    FROM field_reports
+                    WHERE submitted_by = :uid
+                      AND client_id = :cid
+                      AND deleted_at IS NULL
+                """),
+                {"uid": user_id, "cid": client_id},
+            )
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return {
+            "report_id": str(row[0]),
+            "report_type": row[1],
+            "status": "submitted",
+            "submitted_by": user_id,
+            "created_at": row[2],
+        }
+
+    async def find_sync_target(
+        self,
+        user_id: str,
+        client_id: str,
+    ) -> Optional[dict]:
+        """Look up a synced report, soft-deleted ones included."""
+        row = (
+            await self.db.execute(
+                text("""
+                    SELECT id, report_type, occurred_at, deleted_at
+                    FROM field_reports
+                    WHERE submitted_by = :uid AND client_id = :cid
+                """),
+                {"uid": user_id, "cid": client_id},
+            )
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return {
+            "report_id": str(row[0]),
+            "report_type": row[1],
+            "occurred_at": row[2],
+            "deleted_at": row[3],
+        }
+
     async def create(
         self,
         user_id: str,
@@ -129,6 +210,7 @@ class ReportRepository:
         species: Optional[str] = None,
         count: Optional[int] = None,
         images: Optional[list] = None,
+        client_id: Optional[str] = None,
     ) -> dict:
         if route_id is not None:
             exists = (
@@ -149,10 +231,11 @@ class ReportRepository:
                 text("""
                 INSERT INTO field_reports
                     (submitted_by, report_type, description, location,
-                     occurred_at, route_id)
+                     occurred_at, route_id, client_id)
                 VALUES
                     (:uid, CAST(:rtype AS report_type), :desc,
-                     ST_GeogFromText(:wkt), :occurred_at, :route_id)
+                     ST_GeogFromText(:wkt), :occurred_at, :route_id,
+                     CAST(:client_id AS UUID))
                 RETURNING id, created_at
             """),
                 {
@@ -162,6 +245,7 @@ class ReportRepository:
                     "wkt": location_wkt,
                     "occurred_at": occurred_at,
                     "route_id": route_id,
+                    "client_id": client_id,
                 },
             )
         ).fetchone()
@@ -279,16 +363,21 @@ class ReportRepository:
         if "occurred_at" in fields:
             fr_sets.append("occurred_at = :occurred_at")
             fr_params["occurred_at"] = fields["occurred_at"]
+        if "status" in fields:
+            fr_sets.append("status = :status")
+            fr_params["status"] = fields["status"]
         fr_sets.append("updated_at = NOW()")
 
         return (
             await self.db.execute(
-                text(f"""
+                text(
+                    f"""
                     UPDATE field_reports
                     SET {", ".join(fr_sets)}
                     WHERE id = :rid
                     RETURNING id, report_type, submitted_by, created_at
-                """),
+                """,  # nosec B608
+                ),
                 fr_params,
             )
         ).fetchone()
@@ -323,11 +412,13 @@ class ReportRepository:
             return
 
         await self.db.execute(
-            text(f"""
+            text(
+                f"""
                 UPDATE geospatial_events
                 SET {", ".join(ev_sets)}
                 WHERE id = :eid
-            """),
+            """,  # nosec B608
+            ),
             ev_params,
         )
 
@@ -355,11 +446,13 @@ class ReportRepository:
             return
 
         await self.db.execute(
-            text(f"""
+            text(
+                f"""
                 UPDATE incidents
                 SET {", ".join(inc_sets)}
                 WHERE id = :eid
-            """),
+            """,  # nosec B608
+            ),
             inc_params,
         )
 
@@ -376,11 +469,13 @@ class ReportRepository:
             return
 
         await self.db.execute(
-            text(f"""
+            text(
+                f"""
                 UPDATE sightings
                 SET {", ".join(sig_sets)}
                 WHERE id = :eid
-            """),
+            """,  # nosec B608
+            ),
             sig_params,
         )
 
@@ -427,6 +522,7 @@ class ReportRepository:
             FieldReport.occurred_at,
             FieldReport.created_at,
             FieldReport.updated_at,
+            FieldReport.status,
         ).where(
             FieldReport.id == report_id,
             FieldReport.deleted_at.is_(None),
@@ -455,3 +551,28 @@ class ReportRepository:
             )
         ).fetchall()
         return [row[0] for row in rows]
+
+    async def get_species(self) -> list[str]:
+        sql = text("""
+            SELECT DISTINCT species
+            FROM sightings
+            WHERE species IS NOT NULL AND TRIM(species) != ''
+            ORDER BY species ASC
+        """)
+
+        result = await self.db.execute(sql)
+        return list(result.scalars().all())
+
+    async def get_usernames(self) -> list[str]:
+        sql = text("""
+            SELECT DISTINCT u.username
+            FROM field_reports fr
+            JOIN users u ON u.id = fr.submitted_by
+            WHERE fr.deleted_at IS NULL
+            AND u.username IS NOT NULL
+            AND TRIM(u.username) != ''
+            ORDER BY u.username ASC
+        """)
+
+        result = await self.db.execute(sql)
+        return list(result.scalars().all())

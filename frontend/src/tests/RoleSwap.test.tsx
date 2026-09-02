@@ -1,13 +1,27 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
+import {
+    describe,
+    beforeAll,
+    afterAll,
+    afterEach,
+    it,
+    expect,
+    vi,
+} from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RoleSwap from "@/components/admin/RoleSwap";
+import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import {
     roleSwapHandlers,
     resetMockActiveUsers,
 } from "./mocks/roleSwapHandlers";
+
+vi.mock("@/components/ui/toast", () => ({
+    notifySafe: vi.fn(),
+    notifyCritical: vi.fn(),
+}));
 
 const server = setupServer(...roleSwapHandlers);
 
@@ -15,6 +29,8 @@ beforeAll(() => server.listen());
 afterEach(() => {
     server.resetHandlers();
     resetMockActiveUsers();
+    vi.mocked(notifySafe).mockClear();
+    vi.mocked(notifyCritical).mockClear();
 });
 afterAll(() => server.close());
 
@@ -120,7 +136,7 @@ describe("RoleSwap - Role Management", () => {
         ).toBeInTheDocument();
     });
 
-    it("shows success message after confirming a role change", async () => {
+    it("shows a success toast after confirming a role change", async () => {
         const user = userEvent.setup();
         renderRoleSwap();
 
@@ -142,9 +158,12 @@ describe("RoleSwap - Role Management", () => {
             within(dialog).getByRole("button", { name: /confirm/i }),
         );
 
-        expect(
-            await screen.findByText(/role updated to analyst/i),
-        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(notifySafe).toHaveBeenCalledWith(
+                "Role updated",
+                expect.stringMatching(/analyst/i),
+            ),
+        );
     });
 
     it("does not change the role when the dialog is cancelled", async () => {
@@ -170,12 +189,10 @@ describe("RoleSwap - Role Management", () => {
         );
 
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-        expect(
-            screen.queryByText(/role updated to analyst/i),
-        ).not.toBeInTheDocument();
+        expect(notifySafe).not.toHaveBeenCalled();
     });
 
-    it("shows error message when role change fails", async () => {
+    it("shows an error toast when role change fails", async () => {
         server.use(
             http.patch(
                 "**/v1/users/:id/role",
@@ -204,45 +221,12 @@ describe("RoleSwap - Role Management", () => {
             within(dialog).getByRole("button", { name: /confirm/i }),
         );
 
-        expect(
-            await screen.findByText(/failed to update role/i),
-        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Failed to update role.",
+            ),
+        );
     });
-
-    it("success message disappears after 5 seconds", async () => {
-        const user = userEvent.setup();
-        renderRoleSwap();
-
-        await screen.findByText("ranger1");
-
-        const triggers = screen.getAllByRole("combobox");
-        const analystOption = await within(triggers[0]).findByRole("option", {
-            name: /analyst/i,
-        });
-        await user.selectOptions(triggers[0], [analystOption]);
-
-        const applyButtons = screen.getAllByRole("button", {
-            name: /apply/i,
-        });
-        await user.click(applyButtons[0]);
-
-        const dialog = await screen.findByRole("dialog");
-        await user.click(
-            within(dialog).getByRole("button", { name: /confirm/i }),
-        );
-
-        expect(
-            await screen.findByText(/role updated to analyst/i),
-        ).toBeInTheDocument();
-
-        await waitFor(
-            () =>
-                expect(
-                    screen.queryByText(/role updated to analyst/i),
-                ).not.toBeInTheDocument(),
-            { timeout: 6000 },
-        );
-    }, 10000);
 
     it("sorts users by each column when its header is clicked", async () => {
         const user = userEvent.setup();
@@ -297,8 +281,6 @@ describe("RoleSwap - Role Management", () => {
         );
 
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-        expect(
-            screen.queryByText(/role updated to analyst/i),
-        ).not.toBeInTheDocument();
+        expect(notifySafe).not.toHaveBeenCalled();
     });
 });

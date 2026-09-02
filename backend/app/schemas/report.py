@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 
 class LocationResponse(BaseModel):
@@ -14,6 +15,7 @@ class ReportResponse(BaseModel):
 
     id: str
     submitted_by: str
+    submitted_by_username: str | None = None
     route_id: Optional[str] = None
     report_type: str
     description: str
@@ -22,6 +24,7 @@ class ReportResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     images: list[str] = []
+    status: str
 
 
 class LocationLatLon(BaseModel):
@@ -43,9 +46,11 @@ class ReportListItem(BaseModel):
     route_id: Optional[str] = None
     sync_status: str
     submitted_by: str
+    submitted_by_username: str | None = None
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
+    status: Optional[str] = None
 
 
 class ReportListResponse(BaseModel):
@@ -67,6 +72,7 @@ class ReportCreate(BaseModel):
     images: list[str] = []
     route_id: Optional[str] = None
     sync_status: Optional[Literal["offline", "pending", "synced"]] = None
+    client_id: Optional[str] = None
 
 
 class ReportSubmitResponse(BaseModel):
@@ -74,6 +80,7 @@ class ReportSubmitResponse(BaseModel):
     report_type: str
     status: str
     submitted_by: str
+    submitted_by_username: str | None = None
     created_at: datetime
 
 
@@ -86,3 +93,45 @@ class ReportUpdate(BaseModel):
     severity: Optional[Literal["low", "medium", "high"]] = None
     species: Optional[str] = None
     count: Optional[int] = None
+    status: Optional[str] = None
+
+
+class SpeciesResponse(BaseModel):
+    species: list[str]
+
+
+class UserResponse(BaseModel):
+    usernames: list[str]
+
+
+class PostCommentRequest(BaseModel):
+    body: str
+    photo_urls: List[str] = []
+    created_at: datetime
+    status: Optional[str] = "None"
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+
+class ReportCommentResponse(BaseModel):
+    id: str
+    report_id: str
+    author_id: str
+    author_username: str
+    body: str
+    photo_urls: List[str] = []
+    status_change: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+
+class StatusUpdateRequest(BaseModel):
+    status: str

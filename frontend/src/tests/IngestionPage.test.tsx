@@ -1,6 +1,6 @@
 import IngestionPage from "@/pages/IngestionPage";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ingestionApi, type IngestionResponse } from "@/services/ingestionApi";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
@@ -255,6 +255,11 @@ describe("Rendering tests - File validation tests, test various files that succe
         await submitAll(user);
 
         expect(uploadSpy).toHaveBeenCalledTimes(1);
+        expect(uploadSpy).toHaveBeenCalledWith(
+            expect.any(Array),
+            1,
+            "test.csv",
+        );
         expect(notifySafe).toHaveBeenCalledWith(
             "Upload complete",
             "The entire file has been ingested.",
@@ -647,12 +652,13 @@ describe("Logic tests - Server error parsing", () => {
 
         expect(uploadSpy).toHaveBeenCalledTimes(1);
 
-        const summary = await screen.findByText(
-            /Validation failed for some records/i,
+        await waitFor(() =>
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Validation failed for some records in this file, please correct and reupload",
+            ),
         );
-        expect(summary).toBeInTheDocument();
         expect(
-            screen.getByText("Input should be a valid string"),
+            await screen.findByText("Input should be a valid string"),
         ).toBeInTheDocument();
 
         const badStatus = screen.getByDisplayValue("12345");
@@ -723,11 +729,11 @@ describe("Logic tests - Server error parsing", () => {
 
         await submitAll(user);
 
-        expect(
-            await screen.findByText(
-                /a network issue occured while submitting this file/i,
+        await waitFor(() =>
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "A network issue occured while submitting this file",
             ),
-        ).toBeInTheDocument();
+        );
 
         uploadSpy.mockRestore();
     });

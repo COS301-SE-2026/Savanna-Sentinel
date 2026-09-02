@@ -1,12 +1,15 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosError } from "axios";
 import { useAuthStore } from "@/store/authStore";
+import qs from "qs";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/v1";
 
 export const api: AxiosInstance = axios.create({
     baseURL: BASE_URL,
     headers: { "Content-Type": "application/json" },
+    paramsSerializer: (params) =>
+        qs.stringify(params, { arrayFormat: "repeat" }),
 });
 
 // Request interceptor

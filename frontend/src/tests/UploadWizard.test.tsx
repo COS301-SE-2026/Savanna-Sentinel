@@ -48,7 +48,7 @@ describe("UploadWizard", () => {
         expect(onFileAccepted).not.toHaveBeenCalled();
     });
 
-    it("accepts a valid file and reports parsed lines", async () => {
+    it("accepts a valid file and reports parsed lines with the filename", async () => {
         const onFileAccepted = vi.fn();
         const user = userEvent.setup();
         render(<UploadWizard onFileAccepted={onFileAccepted} />);
@@ -58,6 +58,9 @@ describe("UploadWizard", () => {
         });
         await user.upload(input, makeCsvFile(`${header}\nrow1data`));
 
-        expect(onFileAccepted).toHaveBeenCalledWith([header, "row1data"]);
+        expect(onFileAccepted).toHaveBeenCalledWith(
+            [header, "row1data"],
+            "data.csv",
+        );
     });
 });
