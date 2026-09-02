@@ -1,3 +1,8 @@
+# V3 (2026-09-02)
+
+* Added updated use cases
+* Added use case scope directly to document, instead of a reference
+
 # V2.2 (2026-07-28)
 
 * Added NFR Quantifications
