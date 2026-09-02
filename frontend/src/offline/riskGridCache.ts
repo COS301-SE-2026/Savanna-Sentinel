@@ -1,41 +1,42 @@
-import { riskApi, type ParkGridResponse } from "@/services/riskApi";
-import { assignRandomRisk, parseGridCells } from "@/lib/riskGrid";
+import {
+    riskApi,
+    type HeatmapResponse,
+    type HeatmapSnapshot,
+    type ParkGridResponse,
+} from "@/services/riskApi";
 import { cacheKeys, readCache, writeCache } from "@/offline/db";
-
-interface RiskGridSnapshot {
-    grid: ParkGridResponse;
-    risk: [string, number][];
-}
 
 export interface RiskGridResult {
     grid: ParkGridResponse;
-    riskByCell: Map<string, number>;
     fetchedAt: number;
     isFromCache: boolean;
     isStale: boolean;
 }
 
+export interface SnapshotListResult {
+    snapshots: HeatmapSnapshot[];
+    isFromCache: boolean;
+}
+
+export interface HeatmapResult {
+    heatmap: HeatmapResponse;
+    isFromCache: boolean;
+}
+
 export async function loadRiskGrid(
-    parkId: string,
     userId: string | null,
 ): Promise<RiskGridResult> {
-    const key = cacheKeys.riskGrid(parkId);
+    const key = cacheKeys.riskGrid();
 
     try {
-        const grid = await riskApi.getParkGrid(parkId);
-        const riskByCell = assignRandomRisk(parseGridCells(grid));
+        const grid = await riskApi.getParkGrid();
 
         if (userId) {
-            const snapshot: RiskGridSnapshot = {
-                grid,
-                risk: [...riskByCell.entries()],
-            };
-            await writeCache(key, userId, snapshot).catch(() => {});
+            await writeCache(key, userId, grid).catch(() => {});
         }
 
         return {
             grid,
-            riskByCell,
             fetchedAt: Date.now(),
             isFromCache: false,
             isStale: false,
@@ -43,17 +44,67 @@ export async function loadRiskGrid(
     } catch (networkError) {
         if (!userId) throw networkError;
 
-        const cached = await readCache<RiskGridSnapshot>(key, userId).catch(
+        const cached = await readCache<ParkGridResponse>(key, userId).catch(
             () => null,
         );
         if (!cached) throw networkError;
 
         return {
-            grid: cached.payload.grid,
-            riskByCell: new Map(cached.payload.risk),
+            grid: cached.payload,
             fetchedAt: cached.fetchedAt,
             isFromCache: true,
             isStale: cached.isStale,
         };
+    }
+}
+
+export async function loadHeatmapSnapshots(
+    userId: string | null,
+): Promise<SnapshotListResult> {
+    const key = cacheKeys.heatmapSnapshots();
+
+    try {
+        const { snapshots } = await riskApi.getHeatmapSnapshots();
+
+        if (userId) {
+            await writeCache(key, userId, snapshots).catch(() => {});
+        }
+
+        return { snapshots, isFromCache: false };
+    } catch (networkError) {
+        if (!userId) throw networkError;
+
+        const cached = await readCache<HeatmapSnapshot[]>(key, userId).catch(
+            () => null,
+        );
+        if (!cached) throw networkError;
+
+        return { snapshots: cached.payload, isFromCache: true };
+    }
+}
+
+export async function loadHeatmap(
+    heatmapId: string,
+    userId: string | null,
+): Promise<HeatmapResult> {
+    const key = cacheKeys.heatmap(heatmapId);
+
+    try {
+        const heatmap = await riskApi.getHeatmap({ snapshot: heatmapId });
+
+        if (userId) {
+            await writeCache(key, userId, heatmap).catch(() => {});
+        }
+
+        return { heatmap, isFromCache: false };
+    } catch (networkError) {
+        if (!userId) throw networkError;
+
+        const cached = await readCache<HeatmapResponse>(key, userId).catch(
+            () => null,
+        );
+        if (!cached) throw networkError;
+
+        return { heatmap: cached.payload, isFromCache: true };
     }
 }

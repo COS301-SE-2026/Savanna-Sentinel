@@ -70,7 +70,9 @@ db.version(2).stores({
 });
 
 export const cacheKeys = {
-    riskGrid: (parkId: string) => `risk-grid:${parkId}`,
+    riskGrid: () => "risk-grid",
+    heatmapSnapshots: () => "heatmap:snapshots",
+    heatmap: (heatmapId: string) => `heatmap:${heatmapId}`,
     reports: (query: string) => `reports:${query}`,
     savedRoutes: () => "saved-routes:list",
     profile: () => "profile:me",
