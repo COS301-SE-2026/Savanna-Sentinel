@@ -30,10 +30,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Savana Sentinel API",
+    title="Savanna Sentinel API",
     version="0.1.0",
-    description="Wildlife operations backend Savana Sentinel",
+    description="Wildlife operations backend Savanna Sentinel",
     lifespan=lifespan,
+    openapi_url="/v1/openapi.json",
+    docs_url="/v1/docs",
 )
 
 # CORS
