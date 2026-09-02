@@ -9,7 +9,13 @@ import type {
     ActiveModelResponse,
     CellExplainResponse,
 } from "@/services/riskApi";
-import { notifyCritical } from "@/components/ui/toast";
+import { notifyCaution, notifyCritical } from "@/components/ui/toast";
+import {
+    loadHeatmap,
+    loadHeatmapSnapshots,
+    loadRiskGrid,
+} from "@/offline/riskGridCache";
+import { useAuthStore } from "@/store/authStore";
 
 type GridStatus = "idle" | "loading" | "error";
 type HeatmapStatus = "idle" | "loading" | "error" | "no-data";
@@ -18,6 +24,8 @@ type SnapshotsStatus = "idle" | "loading" | "error";
 interface MapDataState {
     grid: ParkGridResponse | null;
     gridStatus: GridStatus;
+    gridFetchedAt: number | null;
+    gridStale: boolean;
 
     heatmapStatus: HeatmapStatus;
     cellsByRef: Map<string, HeatmapCell>;
@@ -38,6 +46,10 @@ interface MapState extends MapDataState {
     loadActiveModel: () => Promise<void>;
 }
 
+function currentUserId(): string | null {
+    return useAuthStore.getState().user?.id ?? null;
+}
+
 function noDataReset() {
     return {
         heatmapStatus: "no-data" as const,
@@ -48,6 +60,8 @@ function noDataReset() {
 const initialData: MapDataState = {
     grid: null,
     gridStatus: "idle",
+    gridFetchedAt: null,
+    gridStale: false,
 
     heatmapStatus: "idle",
     cellsByRef: new Map(),
@@ -69,8 +83,19 @@ export const useMapStore = create<MapState>()((set, get) => {
         loadGrid: async () => {
             set({ gridStatus: "loading" });
             try {
-                const grid = await riskApi.getParkGrid();
-                set({ grid, gridStatus: "idle" });
+                const result = await loadRiskGrid(currentUserId());
+                set({
+                    grid: result.grid,
+                    gridStatus: "idle",
+                    gridFetchedAt: result.fetchedAt,
+                    gridStale: result.isStale,
+                });
+                if (result.isFromCache) {
+                    notifyCaution(
+                        "Showing saved risk map",
+                        "No connection, this is the last version downloaded.",
+                    );
+                }
             } catch {
                 set({ gridStatus: "error" });
                 notifyCritical("Could not load risk grid");
@@ -80,7 +105,8 @@ export const useMapStore = create<MapState>()((set, get) => {
         loadSnapshots: async () => {
             set({ snapshotsStatus: "loading" });
             try {
-                const { snapshots } = await riskApi.getHeatmapSnapshots();
+                const { snapshots } =
+                    await loadHeatmapSnapshots(currentUserId());
                 set({ snapshots, snapshotsStatus: "idle" });
                 if (snapshots.length === 0) {
                     set(noDataReset());
@@ -99,9 +125,10 @@ export const useMapStore = create<MapState>()((set, get) => {
         selectSnapshot: async (heatmapId: string) => {
             set({ selectedSnapshotId: heatmapId, heatmapStatus: "loading" });
             try {
-                const heatmap = await riskApi.getHeatmap({
-                    snapshot: heatmapId,
-                });
+                const { heatmap } = await loadHeatmap(
+                    heatmapId,
+                    currentUserId(),
+                );
                 if (get().selectedSnapshotId !== heatmapId) return;
                 const cellsByRef = new Map<string, HeatmapCell>();
                 for (const cell of heatmap.cells) {
