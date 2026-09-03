@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { PhotoPicker } from "@/components/reports/PhotoPicker";
 import { LocationPickerMap } from "@/components/map/LocationPickerMap";
 import { notifyCritical } from "@/components/ui/toast";
+import { useParkCenter } from "@/hooks/useParkCenter";
 import {
     validateReportInput,
     isReportValid,
@@ -32,7 +33,6 @@ const REPORT_TYPE_OPTIONS: { value: ReportType; label: string }[] = [
     { value: "sighting", label: "Sighting" },
 ];
 
-const PARK_CENTER: [number, number] = [31.18, -24.2];
 const DEFAULT_ZOOM = 10;
 
 export interface TipoffFormProps {
@@ -57,6 +57,7 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
     const [location, setLocation] = React.useState<LatLon | null>(null);
     const [photos, setPhotos] = React.useState<PhotoAttachment[]>([]);
     const [errors, setErrors] = React.useState<ReportValidationErrors>({});
+    const parkCenter = useParkCenter();
 
     const resolvedIncidentType =
         incidentTypeSelect === OTHER ? incidentTypeOther : incidentTypeSelect;
@@ -240,7 +241,7 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
                         )}
                         {errors.species && (
                             <span className="text-xs text-status-critical">
-                                {errors.species}
+                                {errors.species}z{" "}
                             </span>
                         )}
                     </div>
@@ -305,7 +306,7 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
                 <LocationPickerMap
                     value={location}
                     onChange={setLocation}
-                    center={PARK_CENTER}
+                    center={parkCenter}
                     zoom={DEFAULT_ZOOM}
                 />
                 <p className="text-xs text-color-text-secondary">

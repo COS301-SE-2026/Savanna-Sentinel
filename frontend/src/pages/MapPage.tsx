@@ -17,9 +17,12 @@ import {
 import { useMapStore } from "@/store/mapStore";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getSnapHeightPx } from "@/lib/utils";
-import { parseGridCells, scoresByCell } from "@/lib/riskGrid";
-
-const PARK_CENTER_FALLBACK: [number, number] = [31.18, -24.2];
+import {
+    PARK_CENTER_FALLBACK,
+    getGridCenterAndBounds,
+    parseGridCells,
+    scoresByCell,
+} from "@/lib/riskGrid";
 
 const DEFAULT_ZOOM = 10;
 
@@ -28,33 +31,6 @@ const EXPANDED_SNAP = 0.6;
 const FULL_SNAP = 1;
 
 const DEFAULT_OPACITY_PERCENT = 55;
-
-const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
-    let minLng = Infinity,
-        maxLng = -Infinity;
-    let minLat = Infinity,
-        maxLat = -Infinity;
-
-    for (const cell of cells) {
-        for (const [lng, lat] of cell.corners) {
-            if (lng < minLng) minLng = lng;
-            if (lng > maxLng) maxLng = lng;
-            if (lat < minLat) minLat = lat;
-            if (lat > maxLat) maxLat = lat;
-        }
-    }
-
-    const center: [number, number] = [
-        (minLng + maxLng) / 2,
-        (minLat + maxLat) / 2,
-    ];
-    const bounds: [[number, number], [number, number]] = [
-        [minLng, minLat],
-        [maxLng, maxLat],
-    ];
-
-    return { center, bounds };
-};
 
 export default function MapPage() {
     const isMobile = useIsMobile();

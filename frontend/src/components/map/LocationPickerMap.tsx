@@ -56,6 +56,17 @@ export function LocationPickerMap({
         }
     }, [map, value]);
 
+    const appliedCenterRef = useRef(center);
+    useEffect(() => {
+        if (!map) return;
+        const [lng, lat] = center;
+        const [appliedLng, appliedLat] = appliedCenterRef.current;
+        if (lng === appliedLng && lat === appliedLat) return;
+        appliedCenterRef.current = center;
+        if (value) return;
+        map.jumpTo({ center });
+    }, [map, center, value]);
+
     useEffect(() => {
         return () => {
             markerRef.current?.remove();
