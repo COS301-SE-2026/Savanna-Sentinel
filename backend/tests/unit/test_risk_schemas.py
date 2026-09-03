@@ -75,3 +75,19 @@ def test_train_request_accepts_naive_datetimes_as_utc():
     assert req.window_start.tzinfo is not None
     assert req.window_end.tzinfo is not None
     assert req.window_end > req.window_start
+
+
+def test_train_request_allows_missing_window_start():
+    now = datetime.now(timezone.utc)
+    req = RiskTrainRequest(window_end=now - timedelta(days=1))
+
+    assert req.window_start is None
+    assert req.window_end == now - timedelta(days=1)
+
+
+def test_train_request_defaults_window_end_to_now_when_omitted():
+    req = RiskTrainRequest()
+
+    assert req.window_start is None
+    assert req.window_end is not None
+    assert req.window_end <= datetime.now(timezone.utc)

@@ -119,3 +119,41 @@ async def test_get_training_job_maps_pending_state(mock_celery_app, db_session):
 
     assert result.status == "queued"
     assert result.model_id is None
+
+
+@pytest.mark.asyncio
+@patch("app.services.risk_service.run_risk_training_job")
+@patch("app.services.risk_service.risk_repository.get_earliest_event_time")
+async def test_trigger_training_job_resolves_window_start_from_earliest_event(
+    mock_earliest,
+    mock_task,
+    db_session,
+):
+    earliest = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    mock_earliest.return_value = earliest
+    request = RiskTrainRequest(
+        window_end=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+
+    await trigger_training_job(db_session, request, _FakeUser())
+
+    call_kwargs = mock_task.apply_async.call_args.kwargs["kwargs"]
+    assert call_kwargs["window_start"] == earliest.isoformat()
+
+
+@pytest.mark.asyncio
+@patch("app.services.risk_service.run_risk_training_job")
+@patch("app.services.risk_service.risk_repository.get_earliest_event_time")
+async def test_trigger_training_job_falls_back_to_window_end_no_events(
+    mock_earliest,
+    mock_task,
+    db_session,
+):
+    mock_earliest.return_value = None
+    window_end = datetime.now(timezone.utc) - timedelta(days=1)
+    request = RiskTrainRequest(window_end=window_end)
+
+    await trigger_training_job(db_session, request, _FakeUser())
+
+    call_kwargs = mock_task.apply_async.call_args.kwargs["kwargs"]
+    assert call_kwargs["window_start"] == window_end.isoformat()

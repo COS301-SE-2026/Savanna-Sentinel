@@ -16,6 +16,9 @@ from app.repositories.risk_repository import (
     invalidate_grid_cache,
     load_grid_geometry,
 )
+from app.repositories.route_repository import (
+    invalidate_grid_cache as invalidate_route_grid_cache,
+)
 from app.schemas.geo import GeoPolygon
 from app.schemas.risk import (
     ActiveModelResponse,
@@ -27,11 +30,13 @@ from app.schemas.risk import (
     HeatmapResponse,
     HeatmapSnapshot,
     HeatmapSnapshotListResponse,
+    IncidentDetail,
     ParkGridResponse,
     RiskJobResponse,
     RiskScoreJobStatus,
     RiskTrainJobStatus,
     RiskTrainRequest,
+    SightingDetail,
 )
 from app.workers.celery_app import CELERY_STATUS_MAP, celery_app
 from app.workers.tasks.risk_tasks import (
@@ -151,6 +156,7 @@ def validate_boundaries(file: bytes):
     # Dev thing, clears the cache if the file is deleted and
     # recreated in the same session, should not be relevant in prod
     invalidate_grid_cache()
+    invalidate_route_grid_cache()
 
     return {
         "total_cells": len(full_blocks),
@@ -165,6 +171,7 @@ def delete_geojson_file():
     try:
         GRID_FILE_PATH.unlink(missing_ok=True)
         invalidate_grid_cache()
+        invalidate_route_grid_cache()
     except Exception:
         return False
 
@@ -176,6 +183,15 @@ async def trigger_training_job(
     request: RiskTrainRequest,
     user,
 ) -> RiskJobResponse:
+    window_start = request.window_start
+    if window_start is None:
+        window_start = await risk_repository.get_earliest_event_time(
+            db,
+            _PARK_ID,
+        )
+        if window_start is None:
+            window_start = request.window_end
+
     job_id = str(uuid.uuid4())
     await risk_repository.create_risk_job(
         db,
@@ -187,7 +203,7 @@ async def trigger_training_job(
     run_risk_training_job.apply_async(
         kwargs={
             "park_id": _PARK_ID,
-            "window_start": request.window_start.isoformat(),
+            "window_start": window_start.isoformat(),
             "window_end": request.window_end.isoformat(),
             "triggered_by": user.id,
         },
@@ -341,6 +357,20 @@ async def get_cell_explanation(session, cell_id: str) -> CellExplainResponse:
         heatmap_id=data["heatmap_id"],
         top_features=[
             ExplainFeature(**feature) for feature in data["top_features"]
+        ],
+        self_incidents=[
+            IncidentDetail(**incident) for incident in data["self_incidents"]
+        ],
+        neighbor_incidents=[
+            IncidentDetail(**incident)
+            for incident in data["neighbor_incidents"]
+        ],
+        self_sightings=[
+            SightingDetail(**sighting) for sighting in data["self_sightings"]
+        ],
+        neighbor_sightings=[
+            SightingDetail(**sighting)
+            for sighting in data["neighbor_sightings"]
         ],
     )
 
