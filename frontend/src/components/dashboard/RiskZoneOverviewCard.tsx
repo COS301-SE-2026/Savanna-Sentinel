@@ -27,13 +27,13 @@ export function RiskZoneOverviewCard({ riskData }: Data) {
                     aria-hidden="true"
                 />
                 <h2 className="font-heading text-xl font-bold text-brand-primary">
-                    Risk Zone Overview
+                    Risk Cell Overview
                 </h2>
             </div>
             <div className="space-y-3">
                 {riskData.length === 0 ? (
                     <p className="text-sm text-color-text-secondary">
-                        No risk zone data available
+                        No risk cell data available
                     </p>
                 ) : (
                     riskData.map((zone) => (

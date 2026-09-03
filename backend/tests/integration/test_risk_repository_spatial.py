@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.repositories.risk_repository import (
     fetch_incidents_by_cell,
     fetch_patrol_tracks_by_cell,
+    fetch_sightings_by_cell,
     get_grid_cells,
     persist_grid_cells,
 )
@@ -19,6 +20,7 @@ _Session = async_sessionmaker(_engine, expire_on_commit=False)
 
 _PARK = "klaserie"
 _TEST_USER_ID = None
+_CREATED_EVENT_IDS: list[str] = []
 
 
 async def _ensure_test_user():
@@ -60,13 +62,12 @@ async def _clean_park_data():
             text("DELETE FROM tipoffs WHERE submitted_by = :uid"),
             {"uid": _TEST_USER_ID} if _TEST_USER_ID else {"uid": None},
         )
-        await conn.execute(
-            text(
-                "DELETE FROM geospatial_events WHERE id IN "
-                "(SELECT id FROM incidents) OR id IN "
-                "(SELECT id FROM patrol_tracks)",
-            ),
-        )
+        if _CREATED_EVENT_IDS:
+            await conn.execute(
+                text("DELETE FROM geospatial_events WHERE id = ANY(:ids)"),
+                {"ids": _CREATED_EVENT_IDS},
+            )
+            _CREATED_EVENT_IDS.clear()
         await conn.execute(
             text("DELETE FROM grid_cells WHERE park_id = :p"),
             {"p": _PARK},
@@ -106,6 +107,7 @@ async def _insert_incident(
             {"wkt": wkt, "occurred_at": occurred_at},
         )
         event_id = ev.fetchone()[0]
+        _CREATED_EVENT_IDS.append(event_id)
 
         tipoff_id = None
         field_report_id = None
@@ -159,12 +161,36 @@ async def _insert_patrol_track(wkt_linestring, occurred_at):
             {"center_wkt": center_wkt, "occurred_at": occurred_at},
         )
         event_id = ev.fetchone()[0]
+        _CREATED_EVENT_IDS.append(event_id)
         await conn.execute(
             text("""
                 INSERT INTO patrol_tracks (id, route_line)
                 VALUES (:id, ST_GeogFromText(:wkt))
             """),
             {"id": event_id, "wkt": wkt_linestring},
+        )
+
+
+async def _insert_sighting(lng, lat, occurred_at, species="Elephant", count=1):
+    wkt = f"POINT({lng} {lat})"
+    async with _engine.begin() as conn:
+        ev = await conn.execute(
+            text("""
+                INSERT INTO geospatial_events
+                    (event_type, location, occurred_at)
+                VALUES ('sighting', ST_GeogFromText(:wkt), :occurred_at)
+                RETURNING id
+            """),
+            {"wkt": wkt, "occurred_at": occurred_at},
+        )
+        event_id = ev.fetchone()[0]
+        _CREATED_EVENT_IDS.append(event_id)
+        await conn.execute(
+            text("""
+                INSERT INTO sightings (id, species, count)
+                VALUES (:id, :species, :count)
+            """),
+            {"id": event_id, "species": species, "count": count},
         )
 
 
@@ -181,6 +207,17 @@ async def test_persist_grid_cells_is_idempotent():
 
     assert len(first_cells) > 0
     assert len(first_cells) == len(second_cells)
+
+
+@pytest.mark.asyncio
+async def test_persist_grid_cells_commits_without_caller_commit():
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+
+    async with _Session() as other_session:
+        cells = await get_grid_cells(other_session, _PARK)
+
+    assert len(cells) > 0
 
 
 @pytest.mark.asyncio
@@ -274,3 +311,61 @@ async def test_fetch_patrol_tracks_by_cell_uses_intersects():
 
     assert target["cell_id"] in result
     assert len(result[target["cell_id"]]) == 1
+
+
+@pytest.mark.asyncio
+async def test_fetch_sightings_by_cell_groups_by_containing_cell():
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+        await session.commit()
+        cells = await get_grid_cells(session, _PARK)
+
+    target = cells[0]
+    lon, lat = target["corners"][0]
+    inside_lon = lon + (target["corners"][2][0] - lon) / 2
+    inside_lat = lat + (target["corners"][2][1] - lat) / 2
+
+    now = datetime.now(timezone.utc)
+    await _insert_sighting(
+        inside_lon,
+        inside_lat,
+        now - timedelta(days=5),
+        "Lion",
+        3,
+    )
+
+    async with _Session() as session:
+        result = await fetch_sightings_by_cell(
+            session,
+            _PARK,
+            now - timedelta(days=90),
+        )
+
+    assert target["cell_id"] in result
+    assert len(result[target["cell_id"]]) == 1
+    assert result[target["cell_id"]][0]["count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_fetch_sightings_by_cell_excludes_events_before_since():
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+        await session.commit()
+        cells = await get_grid_cells(session, _PARK)
+
+    target = cells[0]
+    lon, lat = target["corners"][0]
+    inside_lon = lon + (target["corners"][2][0] - lon) / 2
+    inside_lat = lat + (target["corners"][2][1] - lat) / 2
+
+    now = datetime.now(timezone.utc)
+    await _insert_sighting(inside_lon, inside_lat, now - timedelta(days=200))
+
+    async with _Session() as session:
+        result = await fetch_sightings_by_cell(
+            session,
+            _PARK,
+            now - timedelta(days=90),
+        )
+
+    assert result.get(target["cell_id"], []) == []

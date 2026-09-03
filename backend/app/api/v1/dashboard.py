@@ -18,6 +18,17 @@ router = APIRouter(tags=["dashboard"])
 )
 async def get_dashboard_endpoint(
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_roles(["analyst", "admin"]))],
+    current_user: Annotated[
+        User,
+        Depends(
+            require_roles(
+                [
+                    "analyst",
+                    "admin",
+                    "ranger",
+                ],
+            ),
+        ),
+    ],
 ):
     return await get_dashboard(db)

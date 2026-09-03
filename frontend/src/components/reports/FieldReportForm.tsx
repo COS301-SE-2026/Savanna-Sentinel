@@ -15,7 +15,9 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { PhotoPicker } from "@/components/reports/PhotoPicker";
+import { LocationPickerMap } from "@/components/map/LocationPickerMap";
 import { notifyCritical } from "@/components/ui/toast";
+import { useParkCenter } from "@/hooks/useParkCenter";
 import {
     validateReportInput,
     isReportValid,
@@ -30,6 +32,7 @@ import {
     type PhotoAttachment,
     type ReportType,
 } from "@/types/reports";
+import type { LatLon } from "@/types/patrol";
 import { cn } from "@/lib/utils";
 
 const OTHER = "Other";
@@ -38,6 +41,13 @@ const REPORT_TYPE_OPTIONS: { value: ReportType; label: string }[] = [
     { value: "incident", label: "Incident" },
     { value: "sighting", label: "Sighting" },
 ];
+
+const DEFAULT_ZOOM = 10;
+const PIN_PRECISION = 6;
+
+function toCoordString(value: number) {
+    return String(Number(value.toFixed(PIN_PRECISION)));
+}
 
 function resolveSelectAndOther(value: string, options: readonly string[]) {
     if (value === "") return { select: "", other: "" };
@@ -103,6 +113,29 @@ export function FieldReportForm({
     const resolvedSpecies =
         speciesSelect === OTHER ? speciesOther : speciesSelect;
 
+    const pinLocation = React.useMemo<LatLon | null>(() => {
+        if (lat.trim() === "" || lon.trim() === "") return null;
+        const latValue = Number(lat);
+        const lonValue = Number(lon);
+        if (!Number.isFinite(latValue) || !Number.isFinite(lonValue)) {
+            return null;
+        }
+        if (latValue < -90 || latValue > 90) return null;
+        if (lonValue < -180 || lonValue > 180) return null;
+        return { lat: latValue, lon: lonValue };
+    }, [lat, lon]);
+
+    const handlePinChange = React.useCallback((point: LatLon) => {
+        setLat(toCoordString(point.lat));
+        setLon(toCoordString(point.lon));
+    }, []);
+
+    const parkCenter = useParkCenter();
+    const [initialPin] = React.useState<[number, number] | null>(() =>
+        base.lat !== null && base.lon !== null ? [base.lon, base.lat] : null,
+    );
+    const mapCenter = initialPin ?? parkCenter;
+
     const buildInput = (): DraftReportInput => ({
         reportType,
         description,
@@ -128,8 +161,8 @@ export function FieldReportForm({
         }
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                setLat(String(position.coords.latitude));
-                setLon(String(position.coords.longitude));
+                setLat(toCoordString(position.coords.latitude));
+                setLon(toCoordString(position.coords.longitude));
             },
             () => {
                 notifyCritical(
@@ -340,6 +373,16 @@ export function FieldReportForm({
                 >
                     Use current location
                 </Button>
+                <LocationPickerMap
+                    value={pinLocation}
+                    onChange={handlePinChange}
+                    center={mapCenter}
+                    zoom={DEFAULT_ZOOM}
+                />
+                <p className="text-xs text-color-text-secondary">
+                    Click the map to drop a pin, drag it to fine tune, or type
+                    the coordinates below.
+                </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="flex flex-col gap-1">
                         <label

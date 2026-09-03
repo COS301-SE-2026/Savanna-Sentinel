@@ -12,14 +12,16 @@ from app.services.risk_model_storage import RiskModelStorage
 from app.workers.celery_app import celery_app
 from app.workers.ml.explainability import explain_cells
 from app.workers.ml.risk_engine import (
+    _SIGHTING_LOOKBACK_DAYS,
     build_training_examples,
     compute_cell_features,
+    compute_incident_floors,
     load_model,
     score_cells,
     train_model,
 )
 
-_FEATURE_LOOKBACK_DAYS = 90
+_FEATURE_LOOKBACK_DAYS = 365
 _MIN_TRAINING_EXAMPLES = 20
 _engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 _TaskSessionLocal = async_sessionmaker(_engine, expire_on_commit=False)
@@ -37,6 +39,9 @@ async def _train(
         cells = await risk_repository.get_grid_cells(session, park_id)
 
         fetch_since = window_start - timedelta(days=_FEATURE_LOOKBACK_DAYS)
+        sighting_fetch_since = window_start - timedelta(
+            days=_SIGHTING_LOOKBACK_DAYS,
+        )
         incidents_by_cell = await risk_repository.fetch_incidents_by_cell(
             session,
             park_id,
@@ -47,6 +52,11 @@ async def _train(
             park_id,
             fetch_since,
         )
+        sightings_by_cell = await risk_repository.fetch_sightings_by_cell(
+            session,
+            park_id,
+            sighting_fetch_since,
+        )
 
         examples = build_training_examples(
             cells,
@@ -55,6 +65,7 @@ async def _train(
             window_start,
             window_end,
             feature_lookback_days=_FEATURE_LOOKBACK_DAYS,
+            sightings_by_cell=sightings_by_cell,
         )
         if len(examples) < _MIN_TRAINING_EXAMPLES:
             return {
@@ -81,6 +92,10 @@ async def _train(
             await session.commit()
         except IntegrityError:
             await session.rollback()
+            try:
+                _storage.delete_model(object_key)
+            except ClientError:
+                pass
             return {
                 "status": "failed",
                 "reason": "concurrent_training_conflict",
@@ -127,6 +142,9 @@ async def _score(park_id: str, triggered_manually: bool = False) -> dict:
 
         reference_time = datetime.now(timezone.utc)
         fetch_since = reference_time - timedelta(days=_FEATURE_LOOKBACK_DAYS)
+        sighting_fetch_since = reference_time - timedelta(
+            days=_SIGHTING_LOOKBACK_DAYS,
+        )
         incidents_by_cell = await risk_repository.fetch_incidents_by_cell(
             session,
             park_id,
@@ -137,6 +155,11 @@ async def _score(park_id: str, triggered_manually: bool = False) -> dict:
             park_id,
             fetch_since,
         )
+        sightings_by_cell = await risk_repository.fetch_sightings_by_cell(
+            session,
+            park_id,
+            sighting_fetch_since,
+        )
 
         features_per_cell = compute_cell_features(
             cells,
@@ -144,9 +167,21 @@ async def _score(park_id: str, triggered_manually: bool = False) -> dict:
             patrol_by_cell,
             reference_time,
             lookback_days=_FEATURE_LOOKBACK_DAYS,
+            sightings_by_cell=sightings_by_cell,
         )
         scores = score_cells(model, features_per_cell)
         explanations = explain_cells(model, features_per_cell)
+
+        floors = compute_incident_floors(
+            cells,
+            incidents_by_cell,
+            reference_time,
+        )
+        for cell_id, model_score in list(scores.items()):
+            floor = floors.get(cell_id, 0.0)
+            if floor > model_score:
+                scores[cell_id] = floor
+                explanations[cell_id] = [("recent_incident", 1.0)]
 
         heatmap_id, computed_at = await risk_repository.save_heatmap_snapshot(
             session,

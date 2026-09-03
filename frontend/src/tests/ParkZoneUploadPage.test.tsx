@@ -7,6 +7,7 @@ import {
     it,
     expect,
     vi,
+    beforeEach,
 } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import ParkZoneUploadPage from "@/pages/ParkZoneUploadPage";
@@ -18,6 +19,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { useEffect } from "react";
 import { notifyCritical } from "@/components/ui/toast";
+import { useAuthStore } from "@/store/authStore";
 
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
@@ -26,6 +28,17 @@ vi.mock("react-router-dom", async () => {
         ...actual,
         useNavigate: () => mockNavigate,
     };
+});
+
+beforeEach(() => {
+    useAuthStore.setState({
+        user: {
+            id: "test-admin-id",
+            username: "admin",
+            role: "admin",
+        },
+        accessToken: "mock-token",
+    });
 });
 
 vi.mock("@/components/map/MapView", () => ({
@@ -145,7 +158,7 @@ describe("ParkZoneUploadPage", () => {
         });
         await user.click(confirmButton);
 
-        expect(mockNavigate).toHaveBeenCalledWith("/profile");
+        expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
     });
     it("deletes the upload and closes the modal when clicking reject", async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -202,5 +215,35 @@ describe("ParkZoneUploadPage", () => {
                 "Failed to delete park zone file",
             );
         });
+    });
+    it("renders empty state when user is not an admin and navigates to login on button click", async () => {
+        const user = userEvent.setup();
+
+        useAuthStore.setState({
+            user: {
+                id: "2",
+                username: "regularUser",
+                role: "user",
+            },
+            accessToken: "mock-valid-token",
+        });
+
+        render(<ParkZoneUploadPage />);
+
+        expect(screen.getByText("Not authorised")).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                /the system is currently in an uninitalised state/i,
+            ),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.queryByText(/upload wgs84 boundary file/i),
+        ).not.toBeInTheDocument();
+
+        const button = screen.getByRole("button", { name: /return to login/i });
+        await user.click(button);
+
+        expect(mockNavigate).toHaveBeenCalledWith("/login");
     });
 });

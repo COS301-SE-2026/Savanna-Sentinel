@@ -6,6 +6,9 @@ import type {
     HeatmapSnapshotListResponse,
     CellExplainResponse,
     ActiveModelResponse,
+    RiskJobResponse,
+    RiskTrainJobStatus,
+    RiskScoreJobStatus,
 } from "@/services/riskApi";
 
 const BASE = "http://localhost:8000/v1";
@@ -106,6 +109,39 @@ export const TEST_CELL_EXPLAIN: CellExplainResponse = {
         { feature_name: "incident_density_self", contribution: 0.6 },
         { feature_name: "patrol_recency_days", contribution: 0.4 },
     ],
+    self_incidents: [
+        {
+            incident_type: "snare",
+            occurred_at: "2026-08-18T09:00:00Z",
+            severity: "high",
+        },
+    ],
+    neighbor_incidents: [
+        {
+            incident_type: "poaching_sign",
+            occurred_at: "2026-08-10T09:00:00Z",
+            severity: "medium",
+        },
+        {
+            incident_type: "poaching_sign",
+            occurred_at: "2026-08-05T09:00:00Z",
+            severity: "low",
+        },
+    ],
+    self_sightings: [
+        {
+            species: "lion",
+            count: 3,
+            occurred_at: "2026-08-17T09:00:00Z",
+        },
+    ],
+    neighbor_sightings: [
+        {
+            species: "elephant",
+            count: 1,
+            occurred_at: "2026-08-12T09:00:00Z",
+        },
+    ],
 };
 
 export const TEST_ACTIVE_MODEL: ActiveModelResponse = {
@@ -116,6 +152,34 @@ export const TEST_ACTIVE_MODEL: ActiveModelResponse = {
     training_window_end: "2026-08-01T00:00:00Z",
     n_training_examples: 500,
     metrics: { precision: 0.7, recall: 0.6, auc: 0.8 },
+};
+
+export const TEST_TRAIN_JOB: RiskJobResponse = {
+    job_id: "train-job-1",
+    status: "queued",
+    queued_at: "2026-08-20T06:00:00Z",
+};
+
+export const TEST_TRAIN_JOB_STATUS: RiskTrainJobStatus = {
+    job_id: "train-job-1",
+    status: "completed",
+    model_id: "model-test-1",
+    metrics: { precision: 0.7, recall: 0.6, auc: 0.8 },
+    n_training_examples: 500,
+};
+
+export const TEST_SCORE_JOB: RiskJobResponse = {
+    job_id: "score-job-1",
+    status: "queued",
+    queued_at: "2026-08-20T06:00:00Z",
+};
+
+export const TEST_SCORE_JOB_STATUS: RiskScoreJobStatus = {
+    job_id: "score-job-1",
+    status: "completed",
+    heatmap_id: TEST_HEATMAP_ID,
+    computed_at: "2026-08-20T06:00:00Z",
+    n_cells_scored: 4,
 };
 
 export const riskHandlers = [
@@ -129,5 +193,13 @@ export const riskHandlers = [
     ),
     http.get(`${BASE}/risk/models/active`, () =>
         HttpResponse.json(TEST_ACTIVE_MODEL),
+    ),
+    http.post(`${BASE}/risk/train`, () => HttpResponse.json(TEST_TRAIN_JOB)),
+    http.get(`${BASE}/risk/train/:jobId`, () =>
+        HttpResponse.json(TEST_TRAIN_JOB_STATUS),
+    ),
+    http.post(`${BASE}/risk/score`, () => HttpResponse.json(TEST_SCORE_JOB)),
+    http.get(`${BASE}/risk/score/:jobId`, () =>
+        HttpResponse.json(TEST_SCORE_JOB_STATUS),
     ),
 ];

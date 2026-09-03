@@ -44,6 +44,7 @@ async def test_train_can_run_twice_in_the_same_process(
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
+    mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.persist_grid_cells = AsyncMock()
 
     kwargs = dict(

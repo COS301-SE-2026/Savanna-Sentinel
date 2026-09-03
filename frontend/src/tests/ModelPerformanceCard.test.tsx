@@ -33,4 +33,14 @@ describe("ModelPerformanceCard", () => {
         expect(screen.getByText("78%")).toBeInTheDocument();
         expect(screen.getAllByRole("progressbar")).toHaveLength(2);
     });
+
+    it("rounds percentages to at most 2 decimal places", () => {
+        render(
+            <ModelPerformanceCard
+                metrics={[{ label: "Auc", value: 0.6527331470485505 }]}
+            />,
+        );
+
+        expect(screen.getByText("65.27%")).toBeInTheDocument();
+    });
 });

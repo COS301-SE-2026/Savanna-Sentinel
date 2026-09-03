@@ -3,7 +3,10 @@ from typing import TYPE_CHECKING
 from fastapi import HTTPException, status
 from pydantic import ValidationError
 
-from app.repositories.ingestion_repository import IngestionRepository
+from app.repositories.ingestion_repository import (
+    _ROLE_TARGET,
+    IngestionRepository,
+)
 from app.schemas.ingestion import CSVSchema, IngestionRequest
 from app.services.audit_service import AuditService
 
@@ -24,7 +27,7 @@ class IngestionService:
 
     async def upload(self, body: IngestionRequest, actor_id: str | None = None):
         # Raises an exception if there is an error during validation
-        response_data = self.validate(body)
+        response_data = await self.validate(body)
 
         records = [
             record.model_dump() if hasattr(record, "model_dump") else record
@@ -52,6 +55,30 @@ class IngestionService:
 
         return response_data
 
+    async def _check_submitter(self, record_data: dict) -> list[dict]:
+        """Catch a bad submitted_by up front, before any row gets inserted."""
+        username = record_data["submitted_by"]
+        user = await self.repo.users.get_by_username(username)
+        if user is None:
+            return [
+                {
+                    "column": "submitted_by",
+                    "error_type": "value_error",
+                    "message": f"No user found with username '{username}'",
+                },
+            ]
+        if user.role not in _ROLE_TARGET:
+            return [
+                {
+                    "column": "submitted_by",
+                    "error_type": "value_error",
+                    "message": f"User '{username}' has role '{user.role}', "
+                    "which cannot submit reports (must be ranger or "
+                    "community_liaison)",
+                },
+            ]
+        return []
+
     def _audit_details(self, body: IngestionRequest, record_count: int) -> dict:
         details = {
             "record_count": record_count,
@@ -62,28 +89,28 @@ class IngestionService:
             details["filename"] = body.filename
         return details
 
-    def validate(self, body: IngestionRequest):
+    async def _validate_row(self, record) -> list[dict]:
+        record_data = (
+            record.model_dump() if hasattr(record, "model_dump") else record
+        )
+        try:
+            CSVSchema(**record_data)
+        except ValidationError as e:
+            return [
+                {
+                    "column": error["loc"][0] if error["loc"] else "unknown",
+                    "error_type": error["type"],
+                    "message": error["msg"],
+                }
+                for error in e.errors()
+            ]
+        return await self._check_submitter(record_data)
+
+    async def validate(self, body: IngestionRequest):
         validation_errors = {}
         for index, record in enumerate(body.records):
-            try:
-                record_data = (
-                    record.model_dump()
-                    if hasattr(record, "model_dump")
-                    else record
-                )
-                CSVSchema(**record_data)
-            except ValidationError as e:
-                row_failures = []
-                for error in e.errors():
-                    column = error["loc"][0] if error["loc"] else "unknown"
-
-                    row_failures.append(
-                        {
-                            "column": column,
-                            "error_type": error["type"],
-                            "message": error["msg"],
-                        },
-                    )
+            row_failures = await self._validate_row(record)
+            if row_failures:
                 validation_errors[f"row_{index + 1}"] = row_failures
         if validation_errors:
             raise HTTPException(

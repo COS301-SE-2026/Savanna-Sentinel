@@ -26,7 +26,8 @@ app.dependency_overrides[get_db] = _override_get_db
 
 def _client() -> AsyncClient:
     return AsyncClient(
-        transport=ASGITransport(app=app), base_url="https://test",
+        transport=ASGITransport(app=app),
+        base_url="https://test",
     )
 
 
@@ -98,16 +99,6 @@ async def test_dashboard_requires_authentication():
     async with _client() as c:
         r = await c.get("/v1/dashboard")
     assert r.status_code in (401, 403)
-
-
-@pytest.mark.asyncio
-async def test_dashboard_rejects_ranger(ranger_token):
-    async with _client() as c:
-        r = await c.get(
-            "/v1/dashboard",
-            headers={"Authorization": f"Bearer {ranger_token}"},
-        )
-    assert r.status_code == 403
 
 
 @pytest.mark.asyncio

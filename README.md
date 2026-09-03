@@ -27,6 +27,10 @@
 
 [https://savannasentinel.co.za](https://savannasentinel.co.za)
 
+## Demo videos
+
+[https://www.youtube.com/playlist?list=PLCNwBKrzOUyo](https://www.youtube.com/playlist?list=PLCNwBKrzOUyo)
+
 ## Documentation
 
 <details>

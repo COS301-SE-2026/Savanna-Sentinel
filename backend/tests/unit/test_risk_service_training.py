@@ -119,3 +119,94 @@ async def test_get_training_job_maps_pending_state(mock_celery_app, db_session):
 
     assert result.status == "queued"
     assert result.model_id is None
+
+
+@pytest.mark.asyncio
+@patch("app.services.risk_service.run_risk_training_job")
+@patch("app.services.risk_service.risk_repository.persist_grid_cells")
+@patch("app.services.risk_service.risk_repository.get_earliest_event_time")
+async def test_trigger_training_job_resolves_window_start_from_earliest_event(
+    mock_earliest,
+    mock_persist,
+    mock_task,
+    db_session,
+):
+    earliest = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    mock_earliest.return_value = earliest
+    request = RiskTrainRequest(
+        window_end=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+
+    await trigger_training_job(db_session, request, _FakeUser())
+
+    call_kwargs = mock_task.apply_async.call_args.kwargs["kwargs"]
+    assert call_kwargs["window_start"] == earliest.isoformat()
+
+
+@pytest.mark.asyncio
+@patch("app.services.risk_service.run_risk_training_job")
+@patch("app.services.risk_service.risk_repository.persist_grid_cells")
+@patch("app.services.risk_service.risk_repository.get_earliest_event_time")
+async def test_trigger_training_job_falls_back_to_window_end_no_events(
+    mock_earliest,
+    mock_persist,
+    mock_task,
+    db_session,
+):
+    mock_earliest.return_value = None
+    window_end = datetime.now(timezone.utc) - timedelta(days=1)
+    request = RiskTrainRequest(window_end=window_end)
+
+    await trigger_training_job(db_session, request, _FakeUser())
+
+    call_kwargs = mock_task.apply_async.call_args.kwargs["kwargs"]
+    assert call_kwargs["window_start"] == window_end.isoformat()
+
+
+@pytest.mark.asyncio
+@patch("app.services.risk_service.run_risk_training_job")
+@patch("app.services.risk_service.risk_repository.persist_grid_cells")
+@patch("app.services.risk_service.risk_repository.get_earliest_event_time")
+async def test_trigger_training_job_persists_grid_before_window_lookup(
+    mock_earliest,
+    mock_persist,
+    mock_task,
+    db_session,
+):
+    calls = []
+    mock_persist.side_effect = lambda *a, **kw: calls.append("persist")
+
+    async def _earliest(*args, **kwargs):
+        calls.append("earliest")
+        return datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    mock_earliest.side_effect = _earliest
+
+    await trigger_training_job(
+        db_session,
+        RiskTrainRequest(window_end=datetime.now(timezone.utc)),
+        _FakeUser(),
+    )
+
+    assert calls == ["persist", "earliest"]
+
+
+@pytest.mark.asyncio
+@patch("app.services.risk_service.run_risk_training_job")
+@patch("app.services.risk_service.risk_repository.persist_grid_cells")
+@patch("app.services.risk_service.risk_repository.get_earliest_event_time")
+async def test_trigger_training_job_skips_grid_persist_for_explicit_window(
+    mock_earliest,
+    mock_persist,
+    mock_task,
+    db_session,
+):
+    request = RiskTrainRequest(
+        window_start=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        window_end=datetime.now(timezone.utc),
+    )
+
+    await trigger_training_job(db_session, request, _FakeUser())
+
+    mock_persist.assert_not_called()
+    mock_earliest.assert_not_called()

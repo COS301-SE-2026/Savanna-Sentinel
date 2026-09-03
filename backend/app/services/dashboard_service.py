@@ -16,6 +16,8 @@ from app.schemas.dashboard import (
 _PARK_ID = settings.PARK_ID
 _TREND_WINDOW_DAYS = 7
 
+_SAMPLE_COUNT_METRIC_KEYS = {"n_train", "n_holdout"}
+
 
 async def get_dashboard(session) -> DashboardResponse:
     since = datetime.now(timezone.utc) - timedelta(days=_TREND_WINDOW_DAYS)
@@ -75,6 +77,7 @@ async def get_dashboard(session) -> DashboardResponse:
                 [
                     ModelMetric(label=k.replace("_", " ").title(), value=v)
                     for k, v in active_model["metrics"].items()
+                    if k not in _SAMPLE_COUNT_METRIC_KEYS
                 ]
                 if active_model
                 else []

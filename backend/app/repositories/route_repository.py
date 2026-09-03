@@ -93,6 +93,10 @@ def _load_grid() -> ParkGraph:
     return ParkGraph(park_id="", nodes=nodes, edges=edges)
 
 
+def invalidate_grid_cache() -> None:
+    _load_grid.cache_clear()
+
+
 def build_park_graph(
     park_id: str,
     risk_by_cell: dict[str, float] | None = None,

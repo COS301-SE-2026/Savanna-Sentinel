@@ -41,3 +41,14 @@ def test_download_model_gets_object_by_key(monkeypatch):
         Bucket=risk_model_storage.settings.MINIO_BUCKET,
         Key="risk-models/klaserie/abc.json",
     )
+
+
+def test_delete_model_deletes_object_by_key(monkeypatch):
+    service, client = _make_service(monkeypatch)
+
+    service.delete_model("risk-models/klaserie/abc.json")
+
+    client.delete_object.assert_called_once_with(
+        Bucket=risk_model_storage.settings.MINIO_BUCKET,
+        Key="risk-models/klaserie/abc.json",
+    )

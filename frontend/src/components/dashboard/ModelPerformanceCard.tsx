@@ -3,6 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { ModelPerformance } from "@/services/dashboardApi";
 
+function toPercent(value: number): number {
+    return Math.round(value * 10000) / 100;
+}
+
 export function ModelPerformanceCard({ metrics }: ModelPerformance) {
     return (
         <div className="rounded-md border border-color-border bg-color-surface-bg p-4">
@@ -32,10 +36,10 @@ export function ModelPerformanceCard({ metrics }: ModelPerformance) {
                                     {metric.label}
                                 </span>
                                 <span className="font-semibold text-brand-primary">
-                                    {metric.value * 100}%
+                                    {toPercent(metric.value)}%
                                 </span>
                             </div>
-                            <Progress value={metric.value * 100} />
+                            <Progress value={toPercent(metric.value)} />
                         </div>
                     ))
                 )}

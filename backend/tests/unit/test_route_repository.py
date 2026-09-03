@@ -175,6 +175,15 @@ def test_load_grid_is_cached_across_calls(grid_2x2):
     assert first is second
 
 
+def test_invalidate_grid_cache_forces_a_reload(grid_2x2):
+    first = route_repository._load_grid()
+
+    route_repository.invalidate_grid_cache()
+
+    second = route_repository._load_grid()
+    assert first is not second
+
+
 # build_park_graph
 
 

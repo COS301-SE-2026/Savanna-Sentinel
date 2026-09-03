@@ -69,6 +69,7 @@ def sample_geojson():
 
 
 # Various things need to be intercepted here
+@patch("app.services.risk_service.invalidate_route_grid_cache")
 @patch("app.services.risk_service.invalidate_grid_cache")
 @patch("pathlib.Path.mkdir")
 @patch("geopandas.GeoDataFrame.to_file", autospec=True)
@@ -76,6 +77,7 @@ def test_validate_boundaries_success(
     mock_to_file,
     mock_mkdir,
     mock_invalidate,
+    mock_invalidate_route,
     sample_geojson,
 ):
     result = validate_boundaries(sample_geojson)
@@ -106,6 +108,8 @@ def test_validate_boundaries_success(
     assert written_gdf["id"].iloc[0] == "cell-0"
 
     assert result["total_cells"] == len(written_gdf)
+    mock_invalidate.assert_called_once()
+    mock_invalidate_route.assert_called_once()
 
 
 def test_validate_boundaries_invalid_file():
@@ -174,19 +178,30 @@ def test_check_if_uploaded_returns_false_when_file_does_not_exist(
     assert result is False
 
 
+@patch("app.services.risk_service.invalidate_route_grid_cache")
 @patch("app.services.risk_service.invalidate_grid_cache")
 @patch("pathlib.Path.unlink")
-def test_delete_geojson_file_success(mock_unlink, mock_invalidate):
+def test_delete_geojson_file_success(
+    mock_unlink,
+    mock_invalidate,
+    mock_invalidate_route,
+):
     result = delete_geojson_file()
 
     assert result is True
     mock_unlink.assert_called_once_with(missing_ok=True)
     mock_invalidate.assert_called_once()
+    mock_invalidate_route.assert_called_once()
 
 
+@patch("app.services.risk_service.invalidate_route_grid_cache")
 @patch("app.services.risk_service.invalidate_grid_cache")
 @patch("pathlib.Path.unlink")
-def test_delete_geojson_file_failure(mock_unlink, mock_invalidate):
+def test_delete_geojson_file_failure(
+    mock_unlink,
+    mock_invalidate,
+    mock_invalidate_route,
+):
     mock_unlink.side_effect = PermissionError("Permission denied")
 
     result = delete_geojson_file()
@@ -194,3 +209,4 @@ def test_delete_geojson_file_failure(mock_unlink, mock_invalidate):
     assert result is False
     mock_unlink.assert_called_once_with(missing_ok=True)
     mock_invalidate.assert_not_called()
+    mock_invalidate_route.assert_not_called()
