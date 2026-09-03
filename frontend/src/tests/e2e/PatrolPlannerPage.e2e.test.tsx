@@ -63,7 +63,7 @@ test.describe("Patrol Planner golden path", () => {
         await page.getByPlaceholder("Username").fill(userCleanup!.username);
         await page.getByPlaceholder("Password").fill(userCleanup!.password);
         await page.getByRole("button", { name: /log in/i }).click();
-        await expect(page).toHaveURL("/profile");
+        await expect(page).toHaveURL("/dashboard");
         await page.goto("/patrol");
     });
 
