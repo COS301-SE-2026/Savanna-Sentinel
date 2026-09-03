@@ -11,7 +11,11 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { SectionHeader } from "@/components/map/ExplainabilityPanel";
-import { notifySafe, notifyCritical } from "@/components/ui/toast";
+import {
+    notifySafe,
+    notifyCaution,
+    notifyCritical,
+} from "@/components/ui/toast";
 import { useAuthStore } from "@/store/authStore";
 import { useMapStore } from "@/store/mapStore";
 import { riskApi } from "@/services/riskApi";
@@ -24,6 +28,16 @@ import type {
 const IN_FLIGHT_STATUSES = new Set(["queued", "processing"]);
 
 type PendingAction = "train" | "score" | null;
+
+const SKIP_REASONS: Record<string, string> = {
+    insufficient_training_examples: "Not enough history to train on.",
+    model_artifact_missing: "The active model file is missing from storage.",
+};
+
+function skipText(reason: string | null | undefined): string {
+    if (!reason) return "Skipped.";
+    return SKIP_REASONS[reason] ?? `Skipped (${reason}).`;
+}
 
 function trainStatusText(
     status: string,
@@ -39,6 +53,7 @@ function trainStatusText(
             : "Model trained.";
     }
     if (status === "failed") return "Training failed.";
+    if (status === "skipped") return skipText(result?.reason);
     return `Status: ${status}`;
 }
 
@@ -56,6 +71,7 @@ function scoreStatusText(
             : "Heatmap updated.";
     }
     if (status === "failed") return "Heatmap calculation failed.";
+    if (status === "skipped") return skipText(result?.reason);
     return `Status: ${status}`;
 }
 
@@ -83,6 +99,8 @@ export function RiskModelControls() {
                 "Training failed",
                 "Could not train the risk model.",
             );
+        } else if (train.status === "skipped") {
+            notifyCaution("Training skipped", skipText(train.result?.reason));
         }
     }, [train.status, train.result]);
 
@@ -99,6 +117,8 @@ export function RiskModelControls() {
                 "Heatmap calculation failed",
                 "Could not calculate the risk heatmap.",
             );
+        } else if (score.status === "skipped") {
+            notifyCaution("Heatmap skipped", skipText(score.result?.reason));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps -- loadSnapshots/selectSnapshot are stable store actions
     }, [score.status, score.result]);

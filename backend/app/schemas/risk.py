@@ -58,6 +58,7 @@ class RiskTrainJobStatus(BaseModel):
     model_id: str | None = None
     metrics: dict | None = None
     n_training_examples: int | None = None
+    reason: str | None = None
 
 
 class RiskScoreJobStatus(BaseModel):
@@ -66,6 +67,7 @@ class RiskScoreJobStatus(BaseModel):
     heatmap_id: str | None = None
     computed_at: str | None = None
     n_cells_scored: int | None = None
+    reason: str | None = None
 
 
 class HeatmapCell(BaseModel):

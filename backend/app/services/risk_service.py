@@ -185,6 +185,7 @@ async def trigger_training_job(
 ) -> RiskJobResponse:
     window_start = request.window_start
     if window_start is None:
+        await risk_repository.persist_grid_cells(db, _PARK_ID)
         window_start = await risk_repository.get_earliest_event_time(
             db,
             _PARK_ID,
@@ -240,6 +241,7 @@ async def get_training_job(db: AsyncSession, job_id: str) -> RiskTrainJobStatus:
         n_training_examples=(
             payload.get("n_training_examples") if payload else None
         ),
+        reason=payload.get("reason") if payload else None,
     )
 
 
@@ -285,6 +287,7 @@ async def get_scoring_job(db: AsyncSession, job_id: str) -> RiskScoreJobStatus:
         heatmap_id=payload.get("heatmap_id") if payload else None,
         computed_at=payload.get("computed_at") if payload else None,
         n_cells_scored=payload.get("n_cells_scored") if payload else None,
+        reason=payload.get("reason") if payload else None,
     )
 
 

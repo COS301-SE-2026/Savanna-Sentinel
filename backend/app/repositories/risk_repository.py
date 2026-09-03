@@ -213,6 +213,8 @@ async def persist_grid_cells(session: AsyncSession, park_id: str) -> None:
         rows,
     )
 
+    await session.commit()
+
 
 async def get_grid_cells(session: AsyncSession, park_id: str) -> list[dict]:
     result = await session.execute(

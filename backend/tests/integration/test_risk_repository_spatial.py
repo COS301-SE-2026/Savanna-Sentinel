@@ -210,6 +210,17 @@ async def test_persist_grid_cells_is_idempotent():
 
 
 @pytest.mark.asyncio
+async def test_persist_grid_cells_commits_without_caller_commit():
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+
+    async with _Session() as other_session:
+        cells = await get_grid_cells(other_session, _PARK)
+
+    assert len(cells) > 0
+
+
+@pytest.mark.asyncio
 async def test_persist_grid_cells_survives_concurrent_calls():
     async def _persist():
         async with _Session() as session:

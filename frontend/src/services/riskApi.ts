@@ -106,6 +106,7 @@ export interface RiskTrainJobStatus {
     model_id: string | null;
     metrics: Record<string, number> | null;
     n_training_examples: number | null;
+    reason?: string | null;
 }
 
 export interface RiskScoreJobStatus {
@@ -114,6 +115,7 @@ export interface RiskScoreJobStatus {
     heatmap_id: string | null;
     computed_at: string | null;
     n_cells_scored: number | null;
+    reason?: string | null;
 }
 
 export const riskApi = {
