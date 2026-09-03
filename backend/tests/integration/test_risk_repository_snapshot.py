@@ -496,7 +496,7 @@ async def test_get_risk_zone_overview_returns_highest_scoring_cells_first():
         zones = await get_risk_zone_overview(session, _PARK, limit=5)
 
     assert zones[0]["level"] == "Critical"
-    expected_zone = f"Zone {high_cell['row'] + 1}-{high_cell['col'] + 1}"
+    expected_zone = f"Cell {high_cell['row'] + 1}-{high_cell['col'] + 1}"
     assert zones[0]["zone"] == expected_zone
     assert zones[0]["risk_score"] == pytest.approx(0.9)
     assert any(z["level"] == "Low" for z in zones)

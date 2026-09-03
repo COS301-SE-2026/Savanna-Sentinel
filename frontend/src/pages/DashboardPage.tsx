@@ -38,15 +38,6 @@ export function DashboardPage() {
         return () => clearInterval(tenMinTimer);
     }, []);
 
-    const covPercent =
-        dashboardData.patrol_coverage.total_area_km2 > 0
-            ? Math.round(
-                  (dashboardData.patrol_coverage.area_covered_km2 /
-                      dashboardData.patrol_coverage.total_area_km2) *
-                      100,
-              )
-            : "-";
-
     return (
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
             <h1 className="font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
@@ -60,12 +51,6 @@ export function DashboardPage() {
                 {dashboardData.stats.map((stat) => (
                     <DashCard key={stat.label} {...stat} />
                 ))}
-
-                <DashCard
-                    label="Patrol Coverage"
-                    value={`${covPercent}%`}
-                    badge="Map"
-                />
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">

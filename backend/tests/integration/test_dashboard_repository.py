@@ -81,7 +81,9 @@ async def _create_tipoff(session, user_id, lng=28.1, lat=-25.7) -> str:
 
 
 async def _create_patrol_track(
-    session, wkt_linestring, occurred_at=None,
+    session,
+    wkt_linestring,
+    occurred_at=None,
 ) -> str:
     occurred_at = occurred_at or datetime.now(timezone.utc)
     center = await session.execute(
@@ -116,7 +118,8 @@ async def test_get_operational_stats_counts_correctly(db_session, engine):
     await _create_field_report(db_session, uid)
     await _create_tipoff(db_session, uid)
     await _create_patrol_track(
-        db_session, "LINESTRING(28.10 -25.70, 28.11 -25.71)",
+        db_session,
+        "LINESTRING(28.10 -25.70, 28.11 -25.71)",
     )
 
     stats = await get_operational_stats(db_session, _PARK, since)
@@ -162,13 +165,22 @@ async def test_get_report_trends_groups_by_day_and_type(db_session):
     uid = await _create_user(db_session, "test_dashboard_trends_ranger")
 
     await _create_field_report(
-        db_session, uid, report_type="incident", occurred_at=day1,
+        db_session,
+        uid,
+        report_type="incident",
+        occurred_at=day1,
     )
     await _create_field_report(
-        db_session, uid, report_type="incident", occurred_at=day1,
+        db_session,
+        uid,
+        report_type="incident",
+        occurred_at=day1,
     )
     await _create_field_report(
-        db_session, uid, report_type="sighting", occurred_at=day2,
+        db_session,
+        uid,
+        report_type="sighting",
+        occurred_at=day2,
     )
 
     counts_by_type, trend = await get_report_trends(db_session, since)
@@ -177,7 +189,10 @@ async def test_get_report_trends_groups_by_day_and_type(db_session):
         r["count"] for r in counts_by_type if r["report_type"] == "incident"
     )
     assert incident_count >= 2
-    assert len(trend) == 2
+
+    trend_by_date = {r["date"]: r["count"] for r in trend}
+    assert trend_by_date.get(day1.date().isoformat(), 0) >= 2
+    assert trend_by_date.get(day2.date().isoformat(), 0) >= 1
 
 
 @pytest.mark.asyncio
@@ -205,7 +220,7 @@ async def test_get_recent_field_reports_includes_ranger_and_zone(db_session):
     latest = reports[0]
     assert latest["ranger"] == "test_dashboard_recent_ranger"
     assert latest["report_type"] == "incident"
-    assert latest["zone"] == f"Zone {target['row'] + 1}-{target['col'] + 1}"
+    assert latest["zone"] == f"Cell {target['row'] + 1}-{target['col'] + 1}"
 
 
 @pytest.mark.asyncio

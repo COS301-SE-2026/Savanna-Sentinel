@@ -59,7 +59,9 @@ async def get_operational_stats(session, park_id: str, since: datetime) -> dict:
 
 
 async def get_patrol_coverage(
-    session, park_id: str, since: datetime,
+    session,
+    park_id: str,
+    since: datetime,
 ) -> tuple[float, float]:
     row = (
         await session.execute(
@@ -89,7 +91,8 @@ async def get_patrol_coverage(
 
 
 async def get_report_trends(
-    session, since: datetime,
+    session,
+    since: datetime,
 ) -> tuple[list[dict], list[dict]]:
     counts_by_type = (
         (
@@ -172,7 +175,7 @@ async def get_recent_field_reports(
             "report_type": r["report_type"],
             "severity": r["severity"],
             "zone": (
-                f"Zone {r['row_index'] + 1}-{r['col_index'] + 1}"
+                f"Cell {r['row_index'] + 1}-{r['col_index'] + 1}"
                 if r["row_index"] is not None
                 else None
             ),
