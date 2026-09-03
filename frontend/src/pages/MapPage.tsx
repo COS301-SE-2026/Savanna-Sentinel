@@ -17,9 +17,10 @@ import {
 import { useMapStore } from "@/store/mapStore";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getSnapHeightPx } from "@/lib/utils";
-import { scoresByCell } from "@/lib/riskGrid";
+import { parseGridCells, scoresByCell } from "@/lib/riskGrid";
 
-const PARK_CENTER: [number, number] = [31.18, -24.2];
+const PARK_CENTER_FALLBACK: [number, number] = [31.18, -24.2];
+
 const DEFAULT_ZOOM = 10;
 
 const COLLAPSED_SNAP = "24px";
@@ -28,9 +29,38 @@ const FULL_SNAP = 1;
 
 const DEFAULT_OPACITY_PERCENT = 55;
 
+const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
+    let minLng = Infinity,
+        maxLng = -Infinity;
+    let minLat = Infinity,
+        maxLat = -Infinity;
+
+    for (const cell of cells) {
+        for (const [lng, lat] of cell.corners) {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+        }
+    }
+
+    const center: [number, number] = [
+        (minLng + maxLng) / 2,
+        (minLat + maxLat) / 2,
+    ];
+    const bounds: [[number, number], [number, number]] = [
+        [minLng, minLat],
+        [maxLng, maxLat],
+    ];
+
+    return { center, bounds };
+};
+
 export default function MapPage() {
     const isMobile = useIsMobile();
     const [map, setMap] = useState<maplibregl.Map | null>(null);
+    const [mapCenter, setMapCenter] =
+        useState<[number, number]>(PARK_CENTER_FALLBACK);
 
     const grid = useMapStore((s) => s.grid);
     const gridStatus = useMapStore((s) => s.gridStatus);
@@ -53,6 +83,16 @@ export default function MapPage() {
         loadGrid();
         loadSnapshots();
     }, [loadGrid, loadSnapshots]);
+
+    useEffect(() => {
+        if (!grid || !map) return;
+        const cells = parseGridCells(grid);
+        if (cells.length === 0) return;
+        const { center, bounds } = getGridCenterAndBounds(cells);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- recentering on a new grid is an effect sync
+        setMapCenter(center);
+        map.fitBounds(bounds, { padding: 40, animate: false });
+    }, [grid, map]);
 
     useEffect(() => {
         if (heatmapStatus === "no-data") {
@@ -78,7 +118,7 @@ export default function MapPage() {
 
             <div className="relative min-h-0 flex-1 overflow-hidden">
                 <MapView
-                    center={PARK_CENTER}
+                    center={mapCenter}
                     zoom={DEFAULT_ZOOM}
                     onMapReady={setMap}
                     onMapRemove={() => setMap(null)}
@@ -86,7 +126,7 @@ export default function MapPage() {
                 />
                 <MapControls
                     map={map}
-                    defaultCenter={PARK_CENTER}
+                    defaultCenter={mapCenter}
                     defaultZoom={DEFAULT_ZOOM}
                 />
                 <MapLegend

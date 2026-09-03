@@ -2,10 +2,11 @@ import { useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { TimeRangeSlider } from "@/components/map/TimeRangeSlider";
+import { RiskModelControls } from "@/components/map/RiskModelControls";
 import { getRiskLevel } from "@/lib/mapTokens";
 import { useMapStore } from "@/store/mapStore";
 
-function SectionHeader({ children }: { children: string }) {
+export function SectionHeader({ children }: { children: string }) {
     return (
         <div className="mb-2 text-xs font-semibold tracking-wider text-color-text-primary uppercase">
             {children}
@@ -116,6 +117,8 @@ export function ExplainabilityPanel({
                     </div>
                 </dl>
             </div>
+
+            <RiskModelControls />
         </div>
     );
 }
