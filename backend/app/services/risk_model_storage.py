@@ -22,7 +22,7 @@ class RiskModelStorage:
 
     @staticmethod
     def _build_client():
-        scheme = "https" if settings.MINIO_USE_SSL else "http"
+        scheme = "https" if settings.MINIO_INTERNAL_USE_SSL else "http"
         return boto3.client(
             "s3",
             endpoint_url=f"{scheme}://{settings.MINIO_ENDPOINT}",

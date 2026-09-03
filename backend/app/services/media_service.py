@@ -29,12 +29,18 @@ def _object_extension(content_type: str) -> str:
 
 class MediaService:
     def __init__(self) -> None:
-        self._internal_client = self._build_client(settings.MINIO_ENDPOINT)
-        self._public_client = self._build_client(settings.MINIO_PUBLIC_ENDPOINT)
+        self._internal_client = self._build_client(
+            settings.MINIO_ENDPOINT,
+            settings.MINIO_INTERNAL_USE_SSL,
+        )
+        self._public_client = self._build_client(
+            settings.MINIO_PUBLIC_ENDPOINT,
+            settings.MINIO_USE_SSL,
+        )
 
     @staticmethod
-    def _build_client(endpoint: str):
-        scheme = "https" if settings.MINIO_USE_SSL else "http"
+    def _build_client(endpoint: str, use_ssl: bool):
+        scheme = "https" if use_ssl else "http"
         return boto3.client(
             "s3",
             endpoint_url=f"{scheme}://{endpoint}",
