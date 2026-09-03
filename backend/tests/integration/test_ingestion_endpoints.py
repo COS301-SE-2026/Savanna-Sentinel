@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 from sqlalchemy import text
 
 
@@ -26,6 +27,20 @@ async def _activate_user(db_session, username: str, target_role: str) -> None:
     await db_session.commit()
 
 
+async def _ensure_user(
+    client,
+    db_session,
+    username: str,
+    email: str,
+    role: str,
+) -> None:
+    await client.post(
+        "/v1/auth/register",
+        json=_register_user(username, email, role),
+    )
+    await _activate_user(db_session, username, role)
+
+
 async def _get_auth_headers(
     client,
     db_session,
@@ -33,12 +48,7 @@ async def _get_auth_headers(
     email: str,
     role: str,
 ) -> dict[str, str]:
-    await client.post(
-        "/v1/auth/register",
-        json=_register_user(username, email, role),
-    )
-
-    await _activate_user(db_session, username, role)
+    await _ensure_user(client, db_session, username, email, role)
     login_response = await client.post(
         "/v1/auth/login",
         json={"username": username, "password": "SecurePass1!"},
@@ -50,44 +60,59 @@ async def _get_auth_headers(
 
 # FIXTURES
 
+CSV_RANGER_USERNAME = "csv_ranger1"
+CSV_RANGER_EMAIL = "csv_ranger1@example.com"
 
-@pytest.fixture
-def valid_body():
+
+@pytest_asyncio.fixture
+async def csv_submitter(client, db_session) -> str:
+    """Register a ranger CSV rows can be attributed to.
+
+    Distinct from the analyst/admin account uploading the file.
+    """
+    await _ensure_user(
+        client,
+        db_session,
+        CSV_RANGER_USERNAME,
+        CSV_RANGER_EMAIL,
+        "ranger",
+    )
+    return CSV_RANGER_USERNAME
+
+
+@pytest_asyncio.fixture
+async def valid_body(csv_submitter):
     return {
         "start_row": 1,
         "records": [
             {
-                "record_id": 1,
-                "ingestion_timestamp": "2026-03-15T08:30:00Z",
-                "source_system": "ERP",
-                "data_domain": "Finance",
-                "event_type": "Invoice",
-                "payload_size_kb": 100,
-                "priority_level": "HIGH",
-                "retry_count": 0,
-                "is_encrypted": True,
-                "status": "PENDING",
+                "submitted_by": csv_submitter,
+                "report_type": "incident",
+                "description": "Snare found near the river bend.",
+                "lat": -24.1,
+                "lon": 31.05,
+                "occurred_at": "2026-03-15T08:30:00Z",
+                "incident_type": "Snare Found",
+                "severity": "high",
             },
         ],
     }
 
 
-@pytest.fixture
-def invalid_body():
+@pytest_asyncio.fixture
+async def invalid_body(csv_submitter):
     return {
         "start_row": 1,
         "records": [
             {
-                "record_id": 1,
-                "ingestion_timestamp": "2026-03-15T08:30:00Z",
-                "source_system": "ERP",
-                "data_domain": "Finance",
-                "event_type": "Invoice",
-                "payload_size_kb": "not-an-int",
-                "priority_level": "HIGH",
-                "retry_count": 0,
-                "is_encrypted": True,
-                "status": "PENDING",
+                "submitted_by": csv_submitter,
+                "report_type": "incident",
+                "description": "Snare found near the river bend.",
+                "lat": "not-a-number",
+                "lon": 31.05,
+                "occurred_at": "2026-03-15T08:30:00Z",
+                "incident_type": "Snare Found",
+                "severity": "high",
             },
         ],
     }
@@ -203,6 +228,38 @@ async def test_upload_invalid_body(client, db_session, invalid_body):
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_row_with_unknown_submitter(
+    client,
+    db_session,
+    valid_body,
+):
+    headers = await _get_auth_headers(
+        client,
+        db_session,
+        username="test_analyst",
+        email="analyst@example.com",
+        role="analyst",
+    )
+
+    body = {
+        **valid_body,
+        "records": [
+            {**valid_body["records"][0], "submitted_by": "no_such_user"},
+        ],
+    }
+
+    response = await client.post(
+        "/v1/ingestion/upload",
+        json=body,
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+    errors = response.json()["detail"]["errors"]["row_1"]
+    assert errors[0]["column"] == "submitted_by"
 
 
 # Right now this is a successful operation, since it shouldnt modify

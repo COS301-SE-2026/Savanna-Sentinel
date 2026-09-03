@@ -108,34 +108,53 @@ export function setup() {
     };
 }
 
-function generateStagingBatch(batchSize = 10) {
-    const sourceSystems = [
-        "sensor_network_alpha",
-        "patrol_unit_beta",
-        "satellite_feed",
+function generateIngestionBatch(batchSize = 10) {
+    const incidentTypes = [
+        "Snare Found",
+        "Gunshot Heard",
+        "Suspicious Tracks",
+        "Suspicious Person",
+        "Carcass Found",
+        "Vehicle Tracks",
     ];
-    const dataDomains = ["telemetry", "geospatial", "surveillance"];
-    const eventTypes = ["sighting", "incident", "patrol_track"];
-    const priorities = ["low", "medium", "high"];
+    const severities = ["low", "medium", "high"];
+    const speciesList = ["Elephant", "Rhino", "Lion", "Leopard", "Buffalo"];
 
     const records = [];
     for (let i = 0; i < batchSize; i++) {
-        records.push({
-            record_id: Math.floor(Math.random() * 1000000) + 1,
-            ingestion_timestamp: new Date().toISOString(),
-            source_system:
-                sourceSystems[Math.floor(Math.random() * sourceSystems.length)],
-            data_domain:
-                dataDomains[Math.floor(Math.random() * dataDomains.length)],
-            event_type:
-                eventTypes[Math.floor(Math.random() * eventTypes.length)],
-            payload_size_kb: Math.floor(Math.random() * 50) + 1,
-            priority_level:
-                priorities[Math.floor(Math.random() * priorities.length)],
-            retry_count: Math.floor(Math.random() * 3),
-            is_encrypted: Math.random() < 0.5,
-            status: "pending",
-        });
+        const submitter =
+            RANGER_USERS[Math.floor(Math.random() * RANGER_USERS.length)];
+        const isIncident = Math.random() < 0.5;
+        const nowISO = new Date().toISOString();
+
+        const base = {
+            submitted_by: submitter.username,
+            description: `Automated k6 CSV ${isIncident ? "incident" : "sighting"} row submitted at ${nowISO}`,
+            lat: -25.7 + Math.random() * 0.1,
+            lon: 28.1 + Math.random() * 0.1,
+            occurred_at: nowISO,
+        };
+
+        if (isIncident) {
+            records.push({
+                ...base,
+                report_type: "incident",
+                incident_type:
+                    incidentTypes[
+                        Math.floor(Math.random() * incidentTypes.length)
+                    ],
+                severity:
+                    severities[Math.floor(Math.random() * severities.length)],
+            });
+        } else {
+            records.push({
+                ...base,
+                report_type: "sighting",
+                species:
+                    speciesList[Math.floor(Math.random() * speciesList.length)],
+                count: Math.floor(Math.random() * 5) + 1,
+            });
+        }
     }
 
     return records;
@@ -247,7 +266,7 @@ export const ingestion5Check = (data) => {
     const currentToken = data.analystTokens[tokenIndex];
 
     const payload = JSON.stringify({
-        records: generateStagingBatch(10),
+        records: generateIngestionBatch(10),
         start_row: 1,
     });
 
