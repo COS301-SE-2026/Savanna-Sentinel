@@ -37,19 +37,6 @@ CREATE TYPE notification_type AS ENUM (
     'ingestion_complete'
 );
 
-CREATE TABLE file_ingestion_staging (
-    record_id           BIGINT,
-    ingestion_timestamp TIMESTAMPTZ,
-    source_system       TEXT,
-    data_domain         TEXT,
-    event_type          TEXT,
-    payload_size_kb     NUMERIC,
-    priority_level      TEXT,
-    retry_count         INT,
-    is_encrypted        BOOLEAN,
-    status              TEXT
-);
-
 CREATE TABLE users (
     id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     username      TEXT        NOT NULL UNIQUE,
@@ -226,7 +213,8 @@ CREATE TABLE tipoffs (
     deleted_at   TIMESTAMPTZ
 );
 
--- Exactly one of field_report_id / tipoff_id is set; both null means CSV ingestion.
+-- Exactly one of field_report_id / tipoff_id is set, including for CSV-ingested
+-- rows, which are attributed to the submitting users field_reports/tipoffs entry
 CREATE TABLE incidents (
     id              UUID           PRIMARY KEY REFERENCES geospatial_events(id) ON DELETE CASCADE,
     field_report_id UUID           UNIQUE REFERENCES field_reports(id) ON DELETE SET NULL,
