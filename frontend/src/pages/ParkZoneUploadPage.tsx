@@ -14,6 +14,9 @@ import { parseGridCells } from "@/lib/riskGrid";
 import { riskApi, type ParkGridResponse } from "@/services/riskApi";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/store/authStore";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CircleX } from "lucide-react";
 
 const DEFAULT_ZOOM = 10;
 const DEFAULT_RISK_SCORE = 0.5;
@@ -60,6 +63,7 @@ const ParkZoneUploadPage = () => {
     );
 
     const navigate = useNavigate();
+    const user = useAuthStore((s) => s.user);
 
     const handleFilesSelected = async (files: FileList | null) => {
         const file = files?.[0];
@@ -89,7 +93,7 @@ const ParkZoneUploadPage = () => {
 
     const handleConfirm = async () => {
         setIsConfirmOpen(false);
-        navigate("/profile");
+        navigate("/dashboard");
     };
     const handleReject = async () => {
         try {
@@ -107,58 +111,81 @@ const ParkZoneUploadPage = () => {
         }
     }, [map, mapBounds]);
 
-    return (
-        <div>
-            <FileUploadDropzone
-                inputId="park-geojson-file"
-                //Expand later with testing
-                accept=".geojson,.json"
-                title="Upload WGS84 Boundary File here (.geojson, .json)"
-                hint="Upload the shape file of the game reserve."
-                onFilesSelected={handleFilesSelected}
-            />
+    const returnToLogin = async () => {
+        navigate("/login");
+    }
 
-            <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-                <DialogContent preventBackdropClose>
-                    <DialogHeader>
-                        <DialogTitle>Confirm Map Layout</DialogTitle>
-                    </DialogHeader>
-                    <div className="relative my-4 h-64 w-full overflow-hidden rounded-md border border-color-border">
-                        <MapView
-                            center={mapCenter}
-                            zoom={DEFAULT_ZOOM}
-                            onMapReady={setMap}
-                            onMapRemove={() => setMap(null)}
-                            onMapClick={() => {}}
-                            className="absolute inset-0"
-                        />
-                        <HeatmapLayer
-                            map={map}
-                            grid={grid}
-                            riskByCell={riskByCell}
-                            pickingActive={false}
-                            isMobile={false}
-                        />
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleReject}
-                        >
-                            Reject
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="default"
-                            onClick={handleConfirm}
-                        >
-                            Confirm
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+    return (
+        <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
+            <h1 className="mb-6 font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
+                Park GeoJson Upload
+            </h1>
+            {(!user || user?.role !== "admin") ? (
+                <EmptyState
+                    className="mb-4"
+                    icon={CircleX}
+                    title="Not authorised"
+                    body="The system is currently in an uninitalised state, please contact an admin to finish setup by uploading the park boundaries"
+                    action={
+                        <button onClick={returnToLogin}>
+                            Return to Login
+                        </button>
+                    }
+                />
+            ) : (
+                <div>
+                    <FileUploadDropzone
+                        inputId="park-geojson-file"
+                        accept=".geojson,.json"
+                        title="Upload WGS84 Boundary File here (.geojson, .json)"
+                        hint="Upload the shape file of the game reserve."
+                        onFilesSelected={handleFilesSelected}
+                    />
+
+                    <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+                        <DialogContent preventBackdropClose>
+                            <DialogHeader>
+                                <DialogTitle>Confirm Map Layout</DialogTitle>
+                            </DialogHeader>
+                            <div className="relative my-4 h-64 w-full overflow-hidden rounded-md border border-color-border">
+                                <MapView
+                                    center={mapCenter}
+                                    zoom={DEFAULT_ZOOM}
+                                    onMapReady={setMap}
+                                    onMapRemove={() => setMap(null)}
+                                    onMapClick={() => {}}
+                                    className="absolute inset-0"
+                                />
+                                <HeatmapLayer
+                                    map={map}
+                                    grid={grid}
+                                    riskByCell={riskByCell}
+                                    pickingActive={false}
+                                    isMobile={false}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleReject}
+                                >
+                                    Reject
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="default"
+                                    onClick={handleConfirm}
+                                >
+                                    Confirm
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            )}
         </div>
+        
     );
 };
 

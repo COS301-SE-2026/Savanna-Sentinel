@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { useEffect, useState } from "react";
 import { riskApi } from "@/services/riskApi";
+import { isAxiosError } from "axios";
 
 /**
  * Wraps any route that requires authentication.
@@ -16,6 +17,7 @@ import { riskApi } from "@/services/riskApi";
 export default function ProtectedRoute() {
     const accessToken = useAuthStore((s) => s.accessToken);
     const location = useLocation();
+    const logout = useAuthStore((s) => s.logout);
 
     const [isChecking, setIsChecking] = useState(true);
     const [isUploaded, setIsUploaded] = useState<boolean | null>(null);
@@ -25,19 +27,33 @@ export default function ProtectedRoute() {
             return;
         }
 
+        let isMounted = true;
+
         const verifyUpload = async () => {
             try {
                 const response = await riskApi.checkUploaded();
-                setIsUploaded(response.uploaded);
-            } catch {
-                setIsUploaded(false);
-            } finally {
-                setIsChecking(false);
+                if (isMounted) {
+                    setIsUploaded(response.uploaded);
+                    setIsChecking(false);
+                }
+            } catch(error: unknown) {
+                if (isAxiosError(error) && error.response?.status === 401) {
+                    logout();
+                    return;
+                }
+
+                if (isMounted) {
+                    setIsUploaded(false);
+                    setIsChecking(false);
+                }
             }
         };
 
         verifyUpload();
-    }, [accessToken]);
+        return () => {
+            isMounted = false;
+        };
+    }, [accessToken, logout]);
 
     if (!accessToken) {
         return <Navigate to="/login" state={{ from: location }} replace />;
@@ -49,6 +65,9 @@ export default function ProtectedRoute() {
 
     if (!isUploaded && location.pathname !== "/upload") {
         return <Navigate to="/upload" replace />;
+    }
+    if (isUploaded && location.pathname === "/upload") {
+        return <Navigate to="/dashboard" replace />;
     }
 
     return <Outlet />;
