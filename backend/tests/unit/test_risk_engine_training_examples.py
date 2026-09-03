@@ -8,6 +8,7 @@ _END = datetime(2026, 3, 1, tzinfo=timezone.utc)
 
 
 def test_generates_one_example_per_cell_per_step():
+    label_window_days = 14
     examples = build_training_examples(
         _CELLS,
         {},
@@ -15,9 +16,11 @@ def test_generates_one_example_per_cell_per_step():
         _START,
         _END,
         step_days=7,
+        label_window_days=label_window_days,
     )
 
-    expected_steps = ((_END - _START).days // 7) + 1
+    last_reference = _END - timedelta(days=label_window_days)
+    expected_steps = ((last_reference - _START).days // 7) + 1
     assert len(examples) == expected_steps
 
 
@@ -29,8 +32,10 @@ def test_every_example_has_a_feature_vector_and_label():
         _START,
         _END,
         step_days=30,
+        label_window_days=14,
     )
 
+    assert examples
     for example in examples:
         assert example["cell_id"] == "c00"
         assert set(example["features"].keys()) == {
@@ -38,6 +43,8 @@ def test_every_example_has_a_feature_vector_and_label():
             "incident_density_neighbors",
             "patrol_recency_days",
             "patrol_frequency",
+            "sighting_density_self",
+            "sighting_density_neighbors",
         }
         assert example["label"] in (0, 1)
 

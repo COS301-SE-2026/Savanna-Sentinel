@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 
@@ -240,6 +240,25 @@ async def get_grid_cells(session: AsyncSession, park_id: str) -> list[dict]:
     return cells
 
 
+async def get_earliest_event_time(
+    session: AsyncSession,
+    park_id: str,
+) -> datetime | None:
+    result = await session.execute(
+        text("""
+            SELECT MIN(ge.occurred_at) AS earliest
+            FROM geospatial_events ge
+            JOIN grid_cells gc
+                ON gc.park_id = :park_id
+                AND ST_Contains(
+                    gc.polygon_bounds::geometry, ge.location::geometry
+                )
+        """),
+        {"park_id": park_id},
+    )
+    return result.scalar_one_or_none()
+
+
 async def fetch_incidents_by_cell(
     session: AsyncSession,
     park_id: str,
@@ -300,6 +319,39 @@ async def fetch_patrol_tracks_by_cell(
     by_cell: dict[str, list[datetime]] = {}
     for row in result.fetchall():
         by_cell.setdefault(str(row.cell_id), []).append(row.occurred_at)
+    return by_cell
+
+
+async def fetch_sightings_by_cell(
+    session: AsyncSession,
+    park_id: str,
+    since: datetime,
+) -> dict[str, list[dict]]:
+    result = await session.execute(
+        text("""
+            SELECT
+                gc.id AS cell_id,
+                ge.occurred_at,
+                s.count
+            FROM sightings s
+            JOIN geospatial_events ge ON ge.id = s.id
+            JOIN grid_cells gc
+                ON gc.park_id = :park_id
+                AND ST_Contains(
+                    gc.polygon_bounds::geometry, ge.location::geometry
+                )
+            WHERE ge.occurred_at >= :since
+        """),
+        {"park_id": park_id, "since": since},
+    )
+    by_cell: dict[str, list[dict]] = {}
+    for row in result.fetchall():
+        by_cell.setdefault(str(row.cell_id), []).append(
+            {
+                "occurred_at": row.occurred_at,
+                "count": row.count,
+            },
+        )
     return by_cell
 
 
@@ -505,13 +557,135 @@ async def list_heatmap_snapshots(
     ]
 
 
+_INCIDENT_LOOKBACK_DAYS = 90
+_SIGHTING_LOOKBACK_DAYS = 7
+_NEIGHBOR_RADIUS_CELLS = 2
+_MAX_INCIDENTS_PER_GROUP = 20
+
+
+async def _fetch_grid_cell_row(session: AsyncSession, cell_id: str):
+    cell_result = await session.execute(
+        text("""
+            SELECT park_id, row_index, col_index
+            FROM grid_cells
+            WHERE id = :cell_id
+        """),
+        {"cell_id": cell_id},
+    )
+    return cell_result.fetchone()
+
+
+async def fetch_nearby_incident_and_sighting_details(
+    session: AsyncSession,
+    cell_row,
+    incident_since: datetime,
+    sighting_since: datetime,
+    neighbor_radius: int = _NEIGHBOR_RADIUS_CELLS,
+    max_per_group: int = _MAX_INCIDENTS_PER_GROUP,
+) -> dict[str, list[dict]]:
+    result = await session.execute(
+        text("""
+            SELECT
+                'incident' AS kind,
+                gc.row_index,
+                gc.col_index,
+                ge.occurred_at,
+                i.incident_type AS label,
+                i.severity AS severity,
+                NULL::int AS count
+            FROM incidents i
+            JOIN geospatial_events ge ON ge.id = i.id
+            JOIN grid_cells gc
+                ON gc.park_id = :park_id
+                AND ST_Contains(
+                    gc.polygon_bounds::geometry, ge.location::geometry
+                )
+            WHERE ge.occurred_at >= :incident_since
+              AND gc.row_index BETWEEN :min_row AND :max_row
+              AND gc.col_index BETWEEN :min_col AND :max_col
+
+            UNION ALL
+
+            SELECT
+                'sighting' AS kind,
+                gc.row_index,
+                gc.col_index,
+                ge.occurred_at,
+                s.species AS label,
+                NULL::severity_level AS severity,
+                s.count AS count
+            FROM sightings s
+            JOIN geospatial_events ge ON ge.id = s.id
+            JOIN grid_cells gc
+                ON gc.park_id = :park_id
+                AND ST_Contains(
+                    gc.polygon_bounds::geometry, ge.location::geometry
+                )
+            WHERE ge.occurred_at >= :sighting_since
+              AND gc.row_index BETWEEN :min_row AND :max_row
+              AND gc.col_index BETWEEN :min_col AND :max_col
+        """),
+        {
+            "park_id": cell_row.park_id,
+            "incident_since": incident_since,
+            "sighting_since": sighting_since,
+            "min_row": cell_row.row_index - neighbor_radius,
+            "max_row": cell_row.row_index + neighbor_radius,
+            "min_col": cell_row.col_index - neighbor_radius,
+            "max_col": cell_row.col_index + neighbor_radius,
+        },
+    )
+
+    self_incidents, neighbor_incidents = [], []
+    self_sightings, neighbor_sightings = [], []
+    for row in result.fetchall():
+        is_self = (
+            row.row_index == cell_row.row_index
+            and row.col_index == cell_row.col_index
+        )
+        if row.kind == "incident":
+            detail = {
+                "incident_type": row.label,
+                "occurred_at": row.occurred_at,
+                "severity": row.severity,
+            }
+            (self_incidents if is_self else neighbor_incidents).append(
+                detail,
+            )
+        else:
+            detail = {
+                "species": row.label,
+                "count": row.count,
+                "occurred_at": row.occurred_at,
+            }
+            (self_sightings if is_self else neighbor_sightings).append(
+                detail,
+            )
+
+    for group in (
+        self_incidents,
+        neighbor_incidents,
+        self_sightings,
+        neighbor_sightings,
+    ):
+        group.sort(key=lambda d: d["occurred_at"], reverse=True)
+
+    return {
+        "self_incidents": self_incidents[:max_per_group],
+        "neighbor_incidents": neighbor_incidents[:max_per_group],
+        "self_sightings": self_sightings[:max_per_group],
+        "neighbor_sightings": neighbor_sightings[:max_per_group],
+    }
+
+
 async def get_cell_explanation(
     session: AsyncSession,
     cell_id: str,
 ) -> dict | None:
     result = await session.execute(
         text("""
-            SELECT crs.heatmap_id, em.key_reason, em.confidence_level
+            SELECT crs.heatmap_id, rh.computed_at, em.key_reason,
+                em.confidence_level
             FROM cell_risk_scores crs
             JOIN risk_heatmaps rh ON rh.id = crs.heatmap_id
             JOIN explainability_metrics em ON em.cell_id = crs.id
@@ -525,12 +699,36 @@ async def get_cell_explanation(
         return None
 
     latest_heatmap_id = str(rows[0].heatmap_id)
+    latest_computed_at = rows[0].computed_at
     top_features = [
         {"feature_name": row.key_reason, "contribution": row.confidence_level}
         for row in rows
         if str(row.heatmap_id) == latest_heatmap_id
     ]
-    return {"heatmap_id": latest_heatmap_id, "top_features": top_features}
+
+    cell_row = await _fetch_grid_cell_row(session, cell_id)
+    if cell_row is None:
+        details = {
+            "self_incidents": [],
+            "neighbor_incidents": [],
+            "self_sightings": [],
+            "neighbor_sightings": [],
+        }
+    else:
+        details = await fetch_nearby_incident_and_sighting_details(
+            session,
+            cell_row,
+            incident_since=latest_computed_at
+            - timedelta(days=_INCIDENT_LOOKBACK_DAYS),
+            sighting_since=latest_computed_at
+            - timedelta(days=_SIGHTING_LOOKBACK_DAYS),
+        )
+
+    return {
+        "heatmap_id": latest_heatmap_id,
+        "top_features": top_features,
+        **details,
+    }
 
 
 async def get_active_model_details(
@@ -600,7 +798,7 @@ async def get_risk_zone_overview(
 
     return [
         {
-            "zone": f"Zone {row.row_index + 1}-{row.col_index + 1}",
+            "zone": f"Cell {row.row_index + 1}-{row.col_index + 1}",
             "level": risk_level_for_score(row.risk_score),
             "risk_score": row.risk_score,
         }
