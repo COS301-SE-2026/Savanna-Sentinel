@@ -1,0 +1,11 @@
+submitted_by,report_type,description,lat,lon,occurred_at,incident_type,severity,species,count
+ranger1,incident,Wire snare located and removed near the eastern boundary.,-24.16716,31.051696,2026-08-20T07:15:00Z,Snare Found,high,,
+ranger4,incident,Unidentified person seen acting suspiciously near the fence line.,-24.16723,31.041616,2026-08-22T14:40:00Z,Suspicious Person,medium,,
+liaison1,incident,Community tip-off reporting gunfire heard overnight.,-24.16716,31.051696,2026-08-24T21:05:00Z,Gunshot Heard,high,,
+ranger7,sighting,Elephant herd observed grazing near the river bend.,-24.19749,31.267913,2026-08-25T09:30:00Z,,,Elephant,6
+ranger9,sighting,Lone lion sighted resting under acacia cover.,-24.31247,31.138516,2026-08-26T06:50:00Z,,,Lion,1
+ranger11,incident,Unauthorized vehicle tracks found crossing a closed patrol road.,-24.28567,31.128288,2026-08-27T11:20:00Z,Vehicle Tracks,medium,,
+ranger2,sighting,Rhino mother and calf seen near the waterhole.,-24.24096,31.099873,2026-08-27T16:05:00Z,,,Rhino,2
+liaison1,incident,Community tip-off reporting a carcass with signs of poaching.,-24.17706,31.041517,2026-08-28T08:10:00Z,Carcass Found,high,,
+ranger13,sighting,Small buffalo herd observed crossing the main road.,-24.31485,31.255741,2026-08-28T13:45:00Z,,,Buffalo,4
+ranger5,incident,Unusual human tracks found during routine patrol.,-24.07901,31.121260,2026-08-29T05:55:00Z,Suspicious Tracks,low,,

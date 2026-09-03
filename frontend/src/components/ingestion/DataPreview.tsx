@@ -62,8 +62,10 @@ export function DataPreview({
                                     const isTypeValid = validateData(
                                         value,
                                         col.type,
+                                        col.optional,
                                     );
-                                    const isEmpty = value === "";
+                                    const isEmpty =
+                                        value === "" && !col.optional;
                                     const serverError = rowErrors?.find(
                                         (e) => e.column === col.name,
                                     );

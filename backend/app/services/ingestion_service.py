@@ -3,7 +3,10 @@ from typing import TYPE_CHECKING
 from fastapi import HTTPException, status
 from pydantic import ValidationError
 
-from app.repositories.ingestion_repository import _ROLE_TARGET, IngestionRepository
+from app.repositories.ingestion_repository import (
+    _ROLE_TARGET,
+    IngestionRepository,
+)
 from app.schemas.ingestion import CSVSchema, IngestionRequest
 from app.services.audit_service import AuditService
 
@@ -86,31 +89,27 @@ class IngestionService:
             details["filename"] = body.filename
         return details
 
+    async def _validate_row(self, record) -> list[dict]:
+        record_data = (
+            record.model_dump() if hasattr(record, "model_dump") else record
+        )
+        try:
+            CSVSchema(**record_data)
+        except ValidationError as e:
+            return [
+                {
+                    "column": error["loc"][0] if error["loc"] else "unknown",
+                    "error_type": error["type"],
+                    "message": error["msg"],
+                }
+                for error in e.errors()
+            ]
+        return await self._check_submitter(record_data)
+
     async def validate(self, body: IngestionRequest):
         validation_errors = {}
         for index, record in enumerate(body.records):
-            row_failures = []
-            record_data = (
-                record.model_dump()
-                if hasattr(record, "model_dump")
-                else record
-            )
-            try:
-                CSVSchema(**record_data)
-            except ValidationError as e:
-                for error in e.errors():
-                    column = error["loc"][0] if error["loc"] else "unknown"
-
-                    row_failures.append(
-                        {
-                            "column": column,
-                            "error_type": error["type"],
-                            "message": error["msg"],
-                        },
-                    )
-            else:
-                row_failures.extend(await self._check_submitter(record_data))
-
+            row_failures = await self._validate_row(record)
             if row_failures:
                 validation_errors[f"row_{index + 1}"] = row_failures
         if validation_errors:

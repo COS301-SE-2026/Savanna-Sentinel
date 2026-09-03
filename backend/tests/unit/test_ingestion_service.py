@@ -8,8 +8,22 @@ from app.services.ingestion_service import IngestionService
 
 
 @pytest.fixture
-def mock_repo():
-    return MagicMock()
+def fake_ranger():
+    user = MagicMock()
+    user.id = "user-1"
+    user.role = "ranger"
+    return user
+
+
+def _make_repo(submitter):
+    repo = AsyncMock()
+    repo.users.get_by_username = AsyncMock(return_value=submitter)
+    return repo
+
+
+@pytest.fixture
+def mock_repo(fake_ranger):
+    return _make_repo(fake_ranger)
 
 
 @pytest.fixture
@@ -23,8 +37,8 @@ def mock_audit():
 
 
 @pytest.fixture
-def auditing_service(mock_audit):
-    repo = AsyncMock()
+def auditing_service(mock_audit, fake_ranger):
+    repo = _make_repo(fake_ranger)
     return IngestionService(repo=repo, audit_service=mock_audit)
 
 
@@ -34,16 +48,14 @@ def valid_body():
         "start_row": 1,
         "records": [
             {
-                "record_id": 1,
-                "ingestion_timestamp": "2026-03-15T08:30:00Z",
-                "source_system": "ERP",
-                "data_domain": "Finance",
-                "event_type": "Invoice",
-                "payload_size_kb": 100,
-                "priority_level": "HIGH",
-                "retry_count": 0,
-                "is_encrypted": True,
-                "status": "PENDING",
+                "submitted_by": "ranger1",
+                "report_type": "incident",
+                "description": "Snare found near the river bend.",
+                "lat": -24.1,
+                "lon": 31.05,
+                "occurred_at": "2026-03-15T08:30:00Z",
+                "incident_type": "Snare Found",
+                "severity": "high",
             },
         ],
     }
@@ -55,31 +67,31 @@ def invalid_body():
         "start_row": 1,
         "records": [
             {
-                "record_id": "some_string_that is not an int",
-                "ingestion_timestamp": "2026-03-15T08:30:00Z",
-                "source_system": "ERP",
-                "data_domain": "Finance",
-                "event_type": "Invoice",
-                "payload_size_kb": 100,
-                "priority_level": "HIGH",
-                "retry_count": 0,
-                "is_encrypted": "false string",
-                "status": "PENDING",
+                "submitted_by": "ranger1",
+                "report_type": "incident",
+                "description": "Snare found near the river bend.",
+                "lat": "not-a-number",
+                "lon": 31.05,
+                "occurred_at": "not-a-date",
+                "incident_type": "Snare Found",
+                "severity": "high",
             },
         ],
     }
 
 
-def test_ingestion_service_validate_success(service, valid_body):
+@pytest.mark.asyncio
+async def test_ingestion_service_validate_success(service, valid_body):
     body = IngestionRequest(**valid_body)
 
-    result = service.validate(body)
+    result = await service.validate(body)
 
     assert result["status"] == "success"
     assert "rows 1 to 1" in result["message"]
 
 
-def test_ingestion_service_validate_failure(service, invalid_body):
+@pytest.mark.asyncio
+async def test_ingestion_service_validate_failure(service, invalid_body):
     # Force data into the model, ignoring pydantic errors
     body = IngestionRequest.model_construct(
         start_row=invalid_body["start_row"],
@@ -87,7 +99,7 @@ def test_ingestion_service_validate_failure(service, invalid_body):
     )
 
     with pytest.raises(HTTPException) as e:
-        service.validate(body)
+        await service.validate(body)
 
     assert e.value.status_code == 422
     assert e.value.detail["message"] == (
@@ -97,8 +109,41 @@ def test_ingestion_service_validate_failure(service, invalid_body):
 
     errors = e.value.detail["errors"]["row_1"]
     failed_cols = [err["column"] for err in errors]
-    assert "record_id" in failed_cols
-    assert "is_encrypted" in failed_cols
+    assert "lat" in failed_cols
+    assert "occurred_at" in failed_cols
+
+
+@pytest.mark.asyncio
+async def test_ingestion_service_validate_rejects_unknown_submitter(
+    service,
+    mock_repo,
+    valid_body,
+):
+    mock_repo.users.get_by_username = AsyncMock(return_value=None)
+    body = IngestionRequest(**valid_body)
+
+    with pytest.raises(HTTPException) as e:
+        await service.validate(body)
+
+    errors = e.value.detail["errors"]["row_1"]
+    assert errors[0]["column"] == "submitted_by"
+
+
+@pytest.mark.asyncio
+async def test_ingestion_service_validate_rejects_wrong_role_submitter(
+    service,
+    mock_repo,
+    valid_body,
+):
+    analyst = MagicMock(id="user-2", role="analyst")
+    mock_repo.users.get_by_username = AsyncMock(return_value=analyst)
+    body = IngestionRequest(**valid_body)
+
+    with pytest.raises(HTTPException) as e:
+        await service.validate(body)
+
+    errors = e.value.detail["errors"]["row_1"]
+    assert errors[0]["column"] == "submitted_by"
 
 
 @pytest.mark.asyncio
@@ -177,7 +222,7 @@ async def test_upload_persists_records(auditing_service, valid_body):
 
     records = auditing_service.repo.upload_file.call_args.args[0]
     assert len(records) == 1
-    assert records[0]["record_id"] == 1
+    assert records[0]["submitted_by"] == "ranger1"
 
 
 # notifications
@@ -189,8 +234,8 @@ def notification_service():
 
 
 @pytest.fixture
-def notifying_service(notification_service):
-    repo = AsyncMock()
+def notifying_service(notification_service, fake_ranger):
+    repo = _make_repo(fake_ranger)
     return IngestionService(
         repo=repo,
         notification_service=notification_service,

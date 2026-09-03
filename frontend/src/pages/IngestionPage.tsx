@@ -30,7 +30,11 @@ const mapRowToRecord = (row: string[]): Record<string, unknown> => {
     const record: Record<string, unknown> = {};
 
     FILE_SCHEMA.forEach((col, i) => {
-        const value = row[i];
+        const value = row[i]?.trim() ?? "";
+        if (value === "") {
+            record[col.name] = null;
+            return;
+        }
         if (col.type === "number") {
             record[col.name] = Number(value);
         } else if (col.type === "boolean") {
@@ -196,7 +200,7 @@ const IngestionPage = () => {
                 return false;
             }
             return row.every((cell, i) =>
-                validateData(cell, FILE_SCHEMA[i].type),
+                validateData(cell, FILE_SCHEMA[i].type, FILE_SCHEMA[i].optional),
             );
         });
     };
