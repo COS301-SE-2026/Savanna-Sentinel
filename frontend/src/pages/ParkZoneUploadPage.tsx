@@ -113,23 +113,21 @@ const ParkZoneUploadPage = () => {
 
     const returnToLogin = async () => {
         navigate("/login");
-    }
+    };
 
     return (
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
             <h1 className="mb-6 font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
                 Park GeoJson Upload
             </h1>
-            {(!user || user?.role !== "admin") ? (
+            {!user || user?.role !== "admin" ? (
                 <EmptyState
                     className="mb-4"
                     icon={CircleX}
                     title="Not authorised"
                     body="The system is currently in an uninitalised state, please contact an admin to finish setup by uploading the park boundaries"
                     action={
-                        <button onClick={returnToLogin}>
-                            Return to Login
-                        </button>
+                        <button onClick={returnToLogin}>Return to Login</button>
                     }
                 />
             ) : (
@@ -142,7 +140,10 @@ const ParkZoneUploadPage = () => {
                         onFilesSelected={handleFilesSelected}
                     />
 
-                    <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+                    <Dialog
+                        open={isConfirmOpen}
+                        onOpenChange={setIsConfirmOpen}
+                    >
                         <DialogContent preventBackdropClose>
                             <DialogHeader>
                                 <DialogTitle>Confirm Map Layout</DialogTitle>
@@ -185,7 +186,6 @@ const ParkZoneUploadPage = () => {
                 </div>
             )}
         </div>
-        
     );
 };
 

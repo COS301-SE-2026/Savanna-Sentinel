@@ -36,7 +36,7 @@ export default function ProtectedRoute() {
                     setIsUploaded(response.uploaded);
                     setIsChecking(false);
                 }
-            } catch(error: unknown) {
+            } catch (error: unknown) {
                 if (isAxiosError(error) && error.response?.status === 401) {
                     logout();
                     return;

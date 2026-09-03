@@ -232,11 +232,13 @@ describe("ParkZoneUploadPage", () => {
 
         expect(screen.getByText("Not authorised")).toBeInTheDocument();
         expect(
-            screen.getByText(/the system is currently in an uninitalised state/i)
+            screen.getByText(
+                /the system is currently in an uninitalised state/i,
+            ),
         ).toBeInTheDocument();
 
         expect(
-            screen.queryByText(/upload wgs84 boundary file/i)
+            screen.queryByText(/upload wgs84 boundary file/i),
         ).not.toBeInTheDocument();
 
         const button = screen.getByRole("button", { name: /return to login/i });
