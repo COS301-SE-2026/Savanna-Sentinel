@@ -200,7 +200,11 @@ const IngestionPage = () => {
                 return false;
             }
             return row.every((cell, i) =>
-                validateData(cell, FILE_SCHEMA[i].type, FILE_SCHEMA[i].optional),
+                validateData(
+                    cell,
+                    FILE_SCHEMA[i].type,
+                    FILE_SCHEMA[i].optional,
+                ),
             );
         });
     };
