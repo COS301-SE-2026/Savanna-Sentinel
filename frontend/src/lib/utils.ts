@@ -13,6 +13,10 @@ export function homePathForRole(role: string | undefined): string {
     switch (role) {
         case "community_liaison":
             return "/tipoffs";
+        case "ranger":
+        case "analyst":
+        case "admin":
+            return "/dashboard";
         default:
             return "/profile";
     }

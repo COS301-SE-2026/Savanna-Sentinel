@@ -3,6 +3,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useEffect, useState } from "react";
 import { riskApi } from "@/services/riskApi";
 import { isAxiosError } from "axios";
+import { homePathForRole } from "@/lib/utils";
 
 /**
  * Wraps any route that requires authentication.
@@ -16,6 +17,7 @@ import { isAxiosError } from "axios";
  */
 export default function ProtectedRoute() {
     const accessToken = useAuthStore((s) => s.accessToken);
+    const user = useAuthStore((s) => s.user);
     const location = useLocation();
     const logout = useAuthStore((s) => s.logout);
 
@@ -67,7 +69,7 @@ export default function ProtectedRoute() {
         return <Navigate to="/upload" replace />;
     }
     if (isUploaded && location.pathname === "/upload") {
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to={homePathForRole(user?.role)} replace />;
     }
 
     return <Outlet />;

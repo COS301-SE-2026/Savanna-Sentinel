@@ -68,7 +68,8 @@ test.describe("User profile update logic", () => {
         await page.getByPlaceholder("Password").fill(userCleanup!.password);
         const loginButton = page.getByRole("button", { name: /log in/i });
         await loginButton.click();
-        await expect(page).toHaveURL("/profile");
+        await expect(page).toHaveURL("/dashboard");
+        await page.goto("/profile");
     });
 
     test("Should display profile details accurately", async ({ page }) => {
@@ -167,6 +168,6 @@ test.describe("User profile update logic", () => {
         await page.getByPlaceholder("Password").fill("NewSecurePassword123!");
         await loginButton.click();
 
-        await expect(page).toHaveURL("/profile");
+        await expect(page).toHaveURL("/dashboard");
     });
 });

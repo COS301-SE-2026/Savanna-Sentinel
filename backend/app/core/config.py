@@ -38,6 +38,9 @@ class Settings:
     MINIO_SECRET_KEY: str = os.environ["MINIO_SECRET_KEY"]
     MINIO_BUCKET: str = os.getenv("MINIO_BUCKET", "savanna-sentinel-media")
     MINIO_USE_SSL: bool = os.getenv("MINIO_USE_SSL", "false").lower() == "true"
+    MINIO_INTERNAL_USE_SSL: bool = (
+        os.getenv("MINIO_INTERNAL_USE_SSL", "false").lower() == "true"
+    )
     MINIO_PUBLIC_ENDPOINT: str = os.getenv(
         "MINIO_PUBLIC_ENDPOINT",
         os.getenv("MINIO_ENDPOINT", "seaweedfs:9000"),

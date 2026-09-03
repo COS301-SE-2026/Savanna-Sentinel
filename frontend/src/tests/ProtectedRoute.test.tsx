@@ -23,6 +23,7 @@ const renderTestRouter = (initialEntry: string) => {
                         element={<div>Dashboard Page</div>}
                     />
                     <Route path="/reports" element={<div>Reports Page</div>} />
+                    <Route path="/tipoffs" element={<div>Tipoffs Page</div>} />
                     <Route path="/upload" element={<div>Upload Page</div>} />
                 </Route>
             </Routes>
@@ -65,12 +66,27 @@ describe("ProtectedRoute", () => {
     });
 
     it("redirects away from upload to dashboard if system is already uploaded", async () => {
-        useAuthStore.setState({ accessToken: "mock-valid-token" });
+        useAuthStore.setState({
+            accessToken: "mock-valid-token",
+            user: { id: "1", username: "admin", role: "admin" },
+        });
         vi.mocked(riskApi.checkUploaded).mockResolvedValue({ uploaded: true });
 
         renderTestRouter("/upload");
 
         expect(await screen.findByText("Dashboard Page")).toBeInTheDocument();
+    });
+
+    it("sends a liaison leaving upload to tipoffs, not the dashboard", async () => {
+        useAuthStore.setState({
+            accessToken: "mock-valid-token",
+            user: { id: "2", username: "liaison", role: "community_liaison" },
+        });
+        vi.mocked(riskApi.checkUploaded).mockResolvedValue({ uploaded: true });
+
+        renderTestRouter("/upload");
+
+        expect(await screen.findByText("Tipoffs Page")).toBeInTheDocument();
     });
 
     it("logs out user and redirects to login when checkUploaded fails with 401", async () => {

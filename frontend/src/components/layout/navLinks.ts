@@ -23,7 +23,7 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Dashboard",
         path: "/dashboard",
         icon: LayoutDashboard,
-        roles: [],
+        roles: ["ranger", "analyst", "admin"],
     },
     {
         label: "Reports",

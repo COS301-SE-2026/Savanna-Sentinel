@@ -36,7 +36,7 @@ test("Login with correct credentials", async ({ page }) => {
     const loginButton = page.getByRole("button", { name: /log in/i });
     await loginButton.click();
 
-    await expect(page).toHaveURL("/profile");
+    await expect(page).toHaveURL("/dashboard");
 });
 test("Get automatically redirected to login when trying to access an authorised page", async ({
     page,
