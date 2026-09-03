@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.workers.tasks.risk_tasks import _train
+from app.workers.ml.risk_engine import _SIGHTING_LOOKBACK_DAYS
+from app.workers.tasks.risk_tasks import _FEATURE_LOOKBACK_DAYS, _train
 
 
 @pytest.mark.asyncio
@@ -23,6 +24,7 @@ async def test_train_skips_when_not_enough_examples(
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
+    mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.persist_grid_cells = AsyncMock()
 
     result = await _train(
@@ -57,6 +59,7 @@ async def test_train_uploads_model_and_saves_version_on_success(
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
+    mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.persist_grid_cells = AsyncMock()
     mock_repo.save_model_version = AsyncMock(return_value="model-123")
 
@@ -93,6 +96,13 @@ async def test_train_uploads_model_and_saves_version_on_success(
     mock_repo.save_model_version.assert_called_once()
     mock_session.commit.assert_called_once()
 
+    incidents_since = mock_repo.fetch_incidents_by_cell.call_args.args[2]
+    sightings_since = mock_repo.fetch_sightings_by_cell.call_args.args[2]
+    assert sightings_since > incidents_since
+    assert (sightings_since - incidents_since).days == (
+        _FEATURE_LOOKBACK_DAYS - _SIGHTING_LOOKBACK_DAYS
+    )
+
 
 @pytest.mark.asyncio
 @patch("app.workers.tasks.risk_tasks._storage")
@@ -114,6 +124,7 @@ async def test_train_reports_conflict_on_concurrent_active_model_insert(
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
+    mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.persist_grid_cells = AsyncMock()
     mock_repo.save_model_version = AsyncMock(
         side_effect=IntegrityError("insert", {}, Exception("conflict")),
@@ -148,3 +159,6 @@ async def test_train_reports_conflict_on_concurrent_active_model_insert(
     }
     mock_session.rollback.assert_called_once()
     mock_session.commit.assert_not_called()
+    mock_storage.delete_model.assert_called_once_with(
+        "risk-models/klaserie/abc.json",
+    )

@@ -22,6 +22,35 @@ export function parseGridCells(grid: ParkGridResponse): GridCell[] {
     }));
 }
 
+export const PARK_CENTER_FALLBACK: [number, number] = [31.18, -24.2];
+
+export function getGridCenterAndBounds(cells: GridCell[]) {
+    let minLng = Infinity,
+        maxLng = -Infinity;
+    let minLat = Infinity,
+        maxLat = -Infinity;
+
+    for (const cell of cells) {
+        for (const [lng, lat] of cell.corners) {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+        }
+    }
+
+    const center: [number, number] = [
+        (minLng + maxLng) / 2,
+        (minLat + maxLat) / 2,
+    ];
+    const bounds: [[number, number], [number, number]] = [
+        [minLng, minLat],
+        [maxLng, maxLat],
+    ];
+
+    return { center, bounds };
+}
+
 export function scoresByCell(
     cellsByRef: Map<string, HeatmapCell>,
 ): Map<string, number> {

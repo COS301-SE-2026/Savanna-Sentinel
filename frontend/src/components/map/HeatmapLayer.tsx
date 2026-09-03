@@ -200,6 +200,7 @@ export function HeatmapLayer({
                 level={selected.level}
                 row={selected.cell.row}
                 col={selected.cell.col}
+                cellRef={selected.cell.cellId}
                 canViewAnalysis={canViewAnalysis}
                 onClose={() => setSelected(null)}
                 onViewAnalysis={() => openAnalysis(selected)}
@@ -232,6 +233,7 @@ export function HeatmapLayer({
                         level={selected.level}
                         row={selected.cell.row}
                         col={selected.cell.col}
+                        cellRef={selected.cell.cellId}
                         canViewAnalysis={canViewAnalysis}
                         onClose={() => setSelected(null)}
                         onViewAnalysis={() => openAnalysis(selected)}

@@ -3,10 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { RiskZoneOverviewCard } from "@/components/dashboard/RiskZoneOverviewCard";
 
 describe("RiskZoneOverviewCard", () => {
-    it("renders an empty state when there is no risk zone data", () => {
+    it("renders an empty state when there is no risk cell data", () => {
         render(<RiskZoneOverviewCard riskData={[]} />);
         expect(
-            screen.getByText("No risk zone data available"),
+            screen.getByText("No risk cell data available"),
         ).toBeInTheDocument();
         expect(screen.queryAllByRole("progressbar")).toHaveLength(0);
     });

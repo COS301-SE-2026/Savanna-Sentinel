@@ -48,3 +48,9 @@ class RiskModelStorage:
             Key=object_key,
         )
         return response["Body"].read()
+
+    def delete_model(self, object_key: str) -> None:
+        self._client.delete_object(
+            Bucket=settings.MINIO_BUCKET,
+            Key=object_key,
+        )

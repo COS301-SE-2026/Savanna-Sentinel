@@ -345,7 +345,9 @@ describe("HeatmapLayer", () => {
             await popupScope.findByRole("button", { name: /view analysis/i }),
         );
 
-        expect(await popupScope.findByText("Nearby incidents")).toBeTruthy();
+        expect(
+            await popupScope.findByText("Incident density (this cell)"),
+        ).toBeTruthy();
     });
 
     it("does not open a popup on a cell with no risk score", async () => {

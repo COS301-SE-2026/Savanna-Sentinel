@@ -76,6 +76,20 @@ describe("MapPage", () => {
         ).toBeInTheDocument();
     });
 
+    it("keeps the map centered on the park, not a placeholder point, when the grid fails to load", async () => {
+        server.use(
+            http.get("http://localhost:8000/v1/risk/grid", () =>
+                HttpResponse.json({ detail: "boom" }, { status: 500 }),
+            ),
+        );
+        const onSpy = vi.spyOn(maplibregl.Map.prototype, "on");
+        renderPage();
+        await screen.findByText("Could not load risk grid");
+
+        const map = onSpy.mock.instances[0] as unknown as FakeMap;
+        expect(map.options.center).toEqual([31.18, -24.2]);
+    });
+
     it("shows a no-data banner and still renders the grid when no heatmap has been computed", async () => {
         server.use(
             http.get("http://localhost:8000/v1/risk/heatmap/snapshots", () =>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
     describe,
@@ -71,12 +71,68 @@ describe("CellAnalysisPanel", () => {
         expect(screen.getByText("Risk score: 82%")).toBeInTheDocument();
         expect(screen.getByText("Critical Risk")).toBeInTheDocument();
 
-        expect(await screen.findByText("Nearby incidents")).toBeInTheDocument();
+        expect(
+            await screen.findByText("Incident density (this cell)"),
+        ).toBeInTheDocument();
         expect(
             screen.getByRole("progressbar", {
-                name: "Nearby incidents confidence",
+                name: "Incident density (this cell) confidence",
             }),
         ).toHaveAttribute("aria-valuenow", "60");
+    });
+
+    it("lists the actual nearby incidents with type, severity, and date", async () => {
+        seedCellRef();
+        render(
+            <CellAnalysisPanel
+                level="critical"
+                row={14}
+                col={7}
+                score={0.82}
+                cellRef="cell-1"
+                isClosing={false}
+                onClose={vi.fn()}
+                onClosed={vi.fn()}
+            />,
+        );
+
+        const incidentsHeading = await screen.findByText("Nearby Incidents");
+        const incidentsSection = within(
+            incidentsHeading.parentElement as HTMLElement,
+        );
+        expect(incidentsHeading).toBeInTheDocument();
+        expect(incidentsSection.getByText("In this cell")).toBeInTheDocument();
+        expect(incidentsSection.getByText("Snare")).toBeInTheDocument();
+        expect(incidentsSection.getByText("High severity")).toBeInTheDocument();
+
+        expect(
+            incidentsSection.getByText("In neighboring cells"),
+        ).toBeInTheDocument();
+        expect(incidentsSection.getAllByText("Poaching Sign")).toHaveLength(2);
+        expect(
+            incidentsSection.getByText("Medium severity"),
+        ).toBeInTheDocument();
+        expect(incidentsSection.getByText("Low severity")).toBeInTheDocument();
+    });
+
+    it("lists the actual nearby sightings with species, count, and date", async () => {
+        seedCellRef();
+        render(
+            <CellAnalysisPanel
+                level="critical"
+                row={14}
+                col={7}
+                score={0.82}
+                cellRef="cell-1"
+                isClosing={false}
+                onClose={vi.fn()}
+                onClosed={vi.fn()}
+            />,
+        );
+
+        expect(await screen.findByText("Nearby Sightings")).toBeInTheDocument();
+        expect(screen.getByText("Lion (3)")).toBeInTheDocument();
+        expect(screen.getByText("Elephant (1)")).toBeInTheDocument();
     });
 
     it("identifies the active model by its version number", async () => {
@@ -172,7 +228,9 @@ describe("CellAnalysisPanel", () => {
                 "Explanation available for the latest snapshot only.",
             ),
         ).toBeInTheDocument();
-        expect(screen.queryByText("Nearby incidents")).not.toBeInTheDocument();
+        expect(
+            screen.queryByText("Incident density (this cell)"),
+        ).not.toBeInTheDocument();
     });
 
     it("calls onClosed after the close animation once isClosing is true", () => {

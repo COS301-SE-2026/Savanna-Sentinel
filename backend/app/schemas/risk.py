@@ -29,17 +29,24 @@ class RiskJobResponse(BaseModel):
 
 
 class RiskTrainRequest(BaseModel):
-    window_start: datetime
-    window_end: datetime
+    window_start: datetime | None = None
+    window_end: datetime | None = None
 
     @model_validator(mode="after")
     def _validate_window(self) -> "RiskTrainRequest":
-        if self.window_start.tzinfo is None:
-            self.window_start = self.window_start.replace(tzinfo=timezone.utc)
-        if self.window_end.tzinfo is None:
+        if self.window_end is None:
+            self.window_end = datetime.now(timezone.utc)
+        elif self.window_end.tzinfo is None:
             self.window_end = self.window_end.replace(tzinfo=timezone.utc)
-        if self.window_end <= self.window_start:
-            raise ValueError("window_end must be after window_start")
+
+        if self.window_start is not None:
+            if self.window_start.tzinfo is None:
+                self.window_start = self.window_start.replace(
+                    tzinfo=timezone.utc,
+                )
+            if self.window_end <= self.window_start:
+                raise ValueError("window_end must be after window_start")
+
         if self.window_end > datetime.now(timezone.utc):
             raise ValueError("window_end cannot be in the future")
         return self
@@ -51,6 +58,7 @@ class RiskTrainJobStatus(BaseModel):
     model_id: str | None = None
     metrics: dict | None = None
     n_training_examples: int | None = None
+    reason: str | None = None
 
 
 class RiskScoreJobStatus(BaseModel):
@@ -59,6 +67,7 @@ class RiskScoreJobStatus(BaseModel):
     heatmap_id: str | None = None
     computed_at: str | None = None
     n_cells_scored: int | None = None
+    reason: str | None = None
 
 
 class HeatmapCell(BaseModel):
@@ -88,10 +97,26 @@ class ExplainFeature(BaseModel):
     contribution: float
 
 
+class IncidentDetail(BaseModel):
+    incident_type: str
+    occurred_at: datetime
+    severity: str | None
+
+
+class SightingDetail(BaseModel):
+    species: str
+    count: int | None
+    occurred_at: datetime
+
+
 class CellExplainResponse(BaseModel):
     cell_id: str
     heatmap_id: str
     top_features: list[ExplainFeature]
+    self_incidents: list[IncidentDetail]
+    neighbor_incidents: list[IncidentDetail]
+    self_sightings: list[SightingDetail]
+    neighbor_sightings: list[SightingDetail]
 
 
 class ActiveModelResponse(BaseModel):

@@ -20,11 +20,11 @@ describe("DashboardPage", () => {
         expect(screen.getByText("No recent field reports")).toBeInTheDocument();
     });
 
-    it("renders the Risk Zone Overview panel", () => {
+    it("renders the Risk Cell Overview panel", () => {
         render(<DashboardPage />);
-        expect(screen.getByText("Risk Zone Overview")).toBeInTheDocument();
+        expect(screen.getByText("Risk Cell Overview")).toBeInTheDocument();
         expect(
-            screen.getByText("No risk zone data available"),
+            screen.getByText("No risk cell data available"),
         ).toBeInTheDocument();
     });
 
