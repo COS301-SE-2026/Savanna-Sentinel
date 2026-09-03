@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { cn, formatRole, formatRelativeTime } from "@/lib/utils";
+import {
+    cn,
+    formatRole,
+    formatRelativeTime,
+    homePathForRole,
+} from "@/lib/utils";
 
 describe("cn", () => {
     it("merges and dedupes tailwind classes", () => {
@@ -8,6 +13,23 @@ describe("cn", () => {
         expect(cn("text-sm", isHidden && "hidden", "font-bold")).toBe(
             "text-sm font-bold",
         );
+    });
+});
+
+describe("homePathForRole", () => {
+    it("lands dashboard-capable roles on the dashboard", () => {
+        expect(homePathForRole("ranger")).toBe("/dashboard");
+        expect(homePathForRole("analyst")).toBe("/dashboard");
+        expect(homePathForRole("admin")).toBe("/dashboard");
+    });
+
+    it("lands a community liaison on tipoffs", () => {
+        expect(homePathForRole("community_liaison")).toBe("/tipoffs");
+    });
+
+    it("falls back to profile for an unknown or missing role", () => {
+        expect(homePathForRole(undefined)).toBe("/profile");
+        expect(homePathForRole("volunteer")).toBe("/profile");
     });
 });
 

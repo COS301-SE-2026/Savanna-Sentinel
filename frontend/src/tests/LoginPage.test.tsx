@@ -19,6 +19,7 @@ function renderLoginPage(initialPath = "/login") {
             <Toaster />
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/dashboard" element={<div>Dashboard</div>} />
                 <Route path="/profile" element={<div>Profile</div>} />
             </Routes>
         </MemoryRouter>,
@@ -102,7 +103,7 @@ describe("LoginPage - Savanna Sentinel", () => {
         await userEvent.click(screen.getByRole("button", { name: /log in/i }));
 
         await waitFor(() => {
-            expect(screen.getByText(/profile/i)).toBeInTheDocument();
+            expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
         });
     });
 
@@ -131,10 +132,10 @@ describe("LoginPage - Savanna Sentinel", () => {
             expect(
                 within(dialog).getByText(/enter the code sent to your email/i),
             ).toBeInTheDocument();
-            expect(screen.queryByText(/profile/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/dashboard/i)).not.toBeInTheDocument();
         });
 
-        it("navigates to profile after verifying the correct code", async () => {
+        it("navigates to the dashboard after verifying the correct code", async () => {
             renderLoginPage();
             await userEvent.type(screen.getByLabelText(/username/i), "admin");
             await userEvent.type(
@@ -153,7 +154,7 @@ describe("LoginPage - Savanna Sentinel", () => {
             );
 
             await waitFor(() => {
-                expect(screen.getByText(/profile/i)).toBeInTheDocument();
+                expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
             });
         });
 
@@ -197,7 +198,7 @@ describe("LoginPage - Savanna Sentinel", () => {
             );
 
             expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-            expect(screen.queryByText(/profile/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/dashboard/i)).not.toBeInTheDocument();
         });
     });
 });

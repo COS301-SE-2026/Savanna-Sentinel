@@ -8,7 +8,7 @@ import { AxiosError } from "axios";
 import { notifyCritical, notifySafe } from "@/components/ui/toast";
 import { useAuthStore } from "@/store/authStore";
 
-import { cn } from "@/lib/utils";
+import { cn, homePathForRole } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,7 +58,7 @@ export default function LoginPage() {
                 setIsMfaOpen(true);
                 return;
             }
-            navigate("/profile");
+            navigate(homePathForRole(useAuthStore.getState().user?.role));
         } catch (err) {
             const axiosErr = err as AxiosError<{ detail: string }>;
 
@@ -83,7 +83,7 @@ export default function LoginPage() {
         try {
             await verifyMfa(mfaToken, code);
             setIsMfaOpen(false);
-            navigate("/profile");
+            navigate(homePathForRole(useAuthStore.getState().user?.role));
         } catch (err) {
             const axiosErr = err as AxiosError<{ detail: string }>;
 
