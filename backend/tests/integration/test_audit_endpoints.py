@@ -144,9 +144,9 @@ async def seeded_audit_logs(admin_token, engine):
                 text(
                     "INSERT INTO audit_logs "
                     "(actor_id, action, target_type, target_id) "
-                    "VALUES (:actor_id, :action, 'user', :actor_id)",
+                    "VALUES (:actor_id, :action, 'user', :target_id)",
                 ),
-                {"actor_id": actor_id, "action": action},
+                {"actor_id": actor_id, "action": action, "target_id": actor_id},
             )
 
     return {"token": admin_token, "actor_id": actor_id}
