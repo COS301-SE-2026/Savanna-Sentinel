@@ -232,11 +232,12 @@ async def non_uuid_target_audit_log(admin_token, engine):
 @pytest.mark.asyncio
 async def test_filter_by_non_uuid_target_id(non_uuid_target_audit_log):
     target_id = non_uuid_target_audit_log["target_id"]
+    token = non_uuid_target_audit_log["token"]
 
     async with _client() as c:
         response = await c.get(
             f"/v1/audit-logs?target_id={target_id}",
-            headers={"Authorization": f"Bearer {non_uuid_target_audit_log['token']}"},
+            headers={"Authorization": f"Bearer {token}"},
         )
 
     assert response.status_code == 200
