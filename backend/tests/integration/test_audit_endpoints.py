@@ -212,6 +212,40 @@ async def test_audit_log_includes_actor_username(seeded_audit_logs):
     )
 
 
+@pytest_asyncio.fixture
+async def non_uuid_target_audit_log(admin_token, engine):
+    target_id = "2026-09-08-sightings-upload.csv"
+
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "INSERT INTO audit_logs "
+                "(action, target_type, target_id) "
+                "VALUES ('ingestion.csv_uploaded', 'ingestion', :target_id)",
+            ),
+            {"target_id": target_id},
+        )
+
+    return {"token": admin_token, "target_id": target_id}
+
+
+@pytest.mark.asyncio
+async def test_filter_by_non_uuid_target_id(non_uuid_target_audit_log):
+    target_id = non_uuid_target_audit_log["target_id"]
+
+    async with _client() as c:
+        response = await c.get(
+            f"/v1/audit-logs?target_id={target_id}",
+            headers={"Authorization": f"Bearer {non_uuid_target_audit_log['token']}"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["results"]) == 1
+    assert body["results"][0]["target_id"] == target_id
+    assert body["results"][0]["target_type"] == "ingestion"
+
+
 @pytest.mark.asyncio
 async def test_export_requires_authentication():
     async with _client() as c:
