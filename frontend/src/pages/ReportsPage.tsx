@@ -57,6 +57,46 @@ function mapToDraft(item: ReportListItem): DraftReport {
         status: item.status ?? "none",
     };
 }
+
+function matchesFilters(
+    draft: DraftReport,
+    filters: {
+        search: string;
+        types: ReportType[];
+        severities: Severity[];
+        species: string[];
+        usernames: string[];
+    },
+): boolean {
+    const term = filters.search.trim().toLowerCase();
+    if (
+        term &&
+        !draft.description.toLowerCase().includes(term) &&
+        !(draft.species ?? "").toLowerCase().includes(term)
+    ) {
+        return false;
+    }
+    if (filters.types.length && !filters.types.includes(draft.reportType)) {
+        return false;
+    }
+    if (
+        filters.severities.length &&
+        (!draft.severity || !filters.severities.includes(draft.severity))
+    ) {
+        return false;
+    }
+    if (
+        filters.species.length &&
+        (!draft.species || !filters.species.includes(draft.species))
+    ) {
+        return false;
+    }
+    return !(
+        filters.usernames.length &&
+        (!draft.submittedByUsername ||
+            !filters.usernames.includes(draft.submittedByUsername))
+    );
+}
 // Helper functions end
 
 export default function ReportsPage() {
@@ -85,10 +125,10 @@ export default function ReportsPage() {
             setIsLoading(true);
             const temp: ListReportsQueryParams = {
                 search: debouncedSearch || undefined,
-                report_type: typeFilter || null,
-                severity: severityFilter || null,
-                species: speciesFilter || null,
-                users: usernameFilter || null,
+                report_type: typeFilter.length ? typeFilter : undefined,
+                severity: severityFilter.length ? severityFilter : undefined,
+                species: speciesFilter.length ? speciesFilter : undefined,
+                users: usernameFilter.length ? usernameFilter : undefined,
             };
             const localDrafts = user
                 ? await listDrafts(user.id).catch(() => [])
@@ -126,6 +166,29 @@ export default function ReportsPage() {
                 (r) => r.submittedBy === user?.id && r.syncStatus !== "synced",
             ),
         [reports, user?.id],
+    );
+
+    const visibleReports = useMemo(
+        () =>
+            reports.filter(
+                (r) =>
+                    r.syncStatus === "synced" ||
+                    matchesFilters(r, {
+                        search: debouncedSearch,
+                        types: typeFilter,
+                        severities: severityFilter,
+                        species: speciesFilter,
+                        usernames: usernameFilter,
+                    }),
+            ),
+        [
+            reports,
+            debouncedSearch,
+            typeFilter,
+            severityFilter,
+            speciesFilter,
+            usernameFilter,
+        ],
     );
 
     const handleCreate = async (input: DraftReportInput) => {
@@ -324,7 +387,7 @@ export default function ReportsPage() {
                             }
                         >
                             <ReportList
-                                reports={reports}
+                                reports={visibleReports}
                                 canSubmit={canSubmit}
                                 onGoToNewReport={() => setActiveTab("new")}
                                 search={search}
