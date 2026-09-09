@@ -129,7 +129,7 @@ describe("ParkZoneUploadPage", () => {
 
         await waitFor(() => {
             expect(notifyCritical).toHaveBeenCalledWith(
-                "Failed to upload park zone file",
+                "An unexpected server error occurred. Please try again or contact the developers.",
             );
         });
 

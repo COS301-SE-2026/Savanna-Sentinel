@@ -21,7 +21,7 @@ export function LocationPickerMap({
     center,
     zoom = 10,
     className,
-    onMapReady
+    onMapReady,
 }: LocationPickerMapProps) {
     const [map, setMap] = useState<maplibregl.Map | null>(null);
     const markerRef = useRef<maplibregl.Marker | null>(null);

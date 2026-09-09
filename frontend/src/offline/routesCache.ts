@@ -37,17 +37,17 @@ async function cacheRoutes(
     await writeCache(cacheKeys.savedRoutes(), userId, { savedAt });
 }
 
-export async function prefetchSavedRoutes(userId: string | null): Promise<void> {
-    if (!userId){
+export async function prefetchSavedRoutes(
+    userId: string | null,
+): Promise<void> {
+    if (!userId) {
         return;
     }
     try {
         await loadSavedRoutes(userId);
+    } catch {
+        console.warn("Failed to prefetch saved patrol routes.");
     }
-    catch {
-        console.warn("Failed to prefetch saved patrol routes.")
-    }
-    
 }
 
 export async function loadSavedRoutes(

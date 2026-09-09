@@ -64,19 +64,22 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
     const parkCenter = useParkCenter();
     const [map, setMap] = React.useState<maplibregl.Map | null>(null);
     const [grid, setGrid] = React.useState<ParkGridResponse | null>(null);
-    const [riskByCell, setRiskByCell] = React.useState<Map<string, number>>(new Map());
+    const [riskByCell, setRiskByCell] = React.useState<Map<string, number>>(
+        new Map(),
+    );
 
     React.useEffect(() => {
         let isMounted = true;
-        riskApi.getParkGrid()
+        riskApi
+            .getParkGrid()
             .then((response) => {
-                if (!isMounted){
+                if (!isMounted) {
                     return;
-                } 
+                }
                 setGrid(response);
                 const cells = parseGridCells(response);
                 const emptyRiskMap = new Map<string, number>(
-                    cells.map((c) => [c.cellId, DEFAULT_RISK_SCORE])
+                    cells.map((c) => [c.cellId, DEFAULT_RISK_SCORE]),
                 );
                 setRiskByCell(emptyRiskMap);
             })
@@ -269,7 +272,7 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
                         )}
                         {errors.species && (
                             <span className="text-xs text-status-critical">
-                                {errors.species}z{" "}
+                                {errors.species}{" "}
                             </span>
                         )}
                     </div>

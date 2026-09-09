@@ -46,12 +46,14 @@ export default function ProtectedRoute() {
                 }
 
                 if (isMounted) {
-                    const isNetworkError = !navigator.onLine || (isAxiosError(error) && !error.response);
+                    const isNetworkError =
+                        !navigator.onLine ||
+                        (isAxiosError(error) && !error.response);
 
                     // Check if the network request failed due to being offline, or actual error response
                     //If offline, persist the value of isUploaded
-                    if(!isNetworkError){
-                        setIsUploaded(false)
+                    if (!isNetworkError) {
+                        setIsUploaded(false);
                     }
                     setIsChecking(false);
                 }
@@ -62,7 +64,7 @@ export default function ProtectedRoute() {
         return () => {
             isMounted = false;
         };
-    }, [accessToken, logout]);
+    }, [accessToken, logout, setIsUploaded]);
 
     if (!accessToken) {
         return <Navigate to="/login" state={{ from: location }} replace />;

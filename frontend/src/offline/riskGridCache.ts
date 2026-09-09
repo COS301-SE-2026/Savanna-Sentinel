@@ -24,18 +24,17 @@ export interface HeatmapResult {
 }
 
 export async function prefetchMapData(userId: string): Promise<void> {
-    try{
+    try {
         await loadRiskGrid(userId);
 
         const { snapshots } = await loadHeatmapSnapshots(userId);
-        
-        if(snapshots.length > 0){
-            const latest = snapshots[snapshots.length - 1]
-            await loadHeatmap(latest.heatmap_id, userId)
+
+        if (snapshots.length > 0) {
+            const latest = snapshots[snapshots.length - 1];
+            await loadHeatmap(latest.heatmap_id, userId);
         }
-    }
-    catch {
-        console.warn("Background map cache warming failed")
+    } catch {
+        console.warn("Background map cache warming failed");
     }
 }
 

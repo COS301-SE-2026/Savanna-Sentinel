@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CircleX } from "lucide-react";
+import axios from "axios";
 
 const DEFAULT_ZOOM = 10;
 const DEFAULT_RISK_SCORE = 0.5;
@@ -87,8 +88,38 @@ const ParkZoneUploadPage = () => {
                 setMapBounds(bounds);
             }
             setIsConfirmOpen(true);
-        } catch {
-            notifyCritical("Failed to upload park zone file");
+        } catch (err: unknown) {
+            let errorMessage = "Empty";
+            if (axios.isAxiosError(err)) {
+                if (!err.response) {
+                    errorMessage =
+                        "Unable to reach the server. Please check your internet connection.";
+                } else {
+                    switch (err.response.status) {
+                        case 400:
+                            errorMessage =
+                                "The uploaded file is unreadable or not a valid GeoJSON file.";
+                            break;
+                        case 401:
+                            errorMessage =
+                                "Your session has expired. Please log in again.";
+                            break;
+                        case 403:
+                            errorMessage =
+                                "You do not have permission to upload park zones.";
+                            break;
+                        case 422:
+                            errorMessage =
+                                "Boundary coordinates must follow standard WGS 84 latitude/longitude formats.";
+                            break;
+                        default:
+                            errorMessage =
+                                "An unexpected server error occurred. Please try again or contact the developers.";
+                            break;
+                    }
+                }
+            }
+            notifyCritical(errorMessage);
         }
     };
 

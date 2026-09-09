@@ -94,7 +94,7 @@ export const useAuthStore = create<AuthState>()(
                 },
 
                 setUser: (user: AuthUser) => set({ user }),
-                setIsUploaded: (isUploaded: boolean) => set({ isUploaded}),
+                setIsUploaded: (isUploaded: boolean) => set({ isUploaded }),
             };
         },
         {
@@ -109,7 +109,7 @@ export const useAuthStore = create<AuthState>()(
                 accessToken: state.accessToken,
                 refreshToken: state.refreshToken,
                 user: state.user,
-                isUploaded: state.isUploaded
+                isUploaded: state.isUploaded,
             }),
         },
     ),

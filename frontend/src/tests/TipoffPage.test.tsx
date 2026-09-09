@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import TipoffPage from "@/pages/TipoffPage";
@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { tipoffsApi } from "@/services/tipoffsApi";
 import { mediaApi } from "@/services/mediaApi";
+
+const originalGeolocation = navigator.geolocation;
 
 vi.mock("@/components/ui/toast", () => ({
     notifySafe: vi.fn(),
@@ -26,12 +28,23 @@ vi.mock("@/services/mediaApi", () => ({
     },
 }));
 
+vi.mock("@/store/authStore", () => {
+    const mockStore = vi.fn();
+    (mockStore as unknown as { setState: ReturnType<typeof vi.fn> }).setState =
+        vi.fn();
+    return { useAuthStore: mockStore };
+});
+
 function setUser(role: string) {
-    useAuthStore.setState({
+    const mockState = {
         user: { id: "u1", username: "liaison1", role },
         accessToken: "token",
         refreshToken: "refresh",
-    });
+    };
+
+    vi.mocked(useAuthStore).mockImplementation(((selector) => {
+        return selector ? selector(mockState as never) : mockState;
+    }) as typeof useAuthStore);
 }
 
 function stubGeolocation(latitude: number, longitude: number) {
@@ -47,22 +60,33 @@ function stubGeolocation(latitude: number, longitude: number) {
 }
 
 async function fillAndSubmitTipoff() {
-    await userEvent.type(
-        screen.getByLabelText("Description"),
+    const user = userEvent.setup();
+    const activePanel = screen.getByRole("tabpanel", { name: "New Tip-off" });
+
+    await user.type(
+        within(activePanel).getByLabelText("Description"),
         "Snare seen near the north gate.",
     );
-    await userEvent.selectOptions(
-        screen.getByRole("combobox", { name: "Incident Type" }),
+
+    await user.selectOptions(
+        within(activePanel).getByRole("combobox", { name: "Incident Type" }),
         "Snare Found",
     );
-    const occurredAt = screen.getByLabelText("When did this happen?");
-    await userEvent.clear(occurredAt);
-    await userEvent.type(occurredAt, "2020-01-01T08:00");
-    await userEvent.click(
-        screen.getByRole("button", { name: "Use current location" }),
+
+    const occurredAt = within(activePanel).getByLabelText(
+        "When did this happen?",
     );
-    await userEvent.click(
-        screen.getByRole("button", { name: "Submit Tip-off" }),
+    await user.clear(occurredAt);
+    await user.type(occurredAt, "2020-01-01T08:00");
+
+    await user.click(
+        within(activePanel).getByRole("button", {
+            name: "Use current location",
+        }),
+    );
+
+    await user.click(
+        within(activePanel).getByRole("button", { name: "Submit Tip-off" }),
     );
 }
 
@@ -93,6 +117,12 @@ describe("TipoffPage", () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+
+        Object.defineProperty(navigator, "geolocation", {
+            configurable: true,
+            value: originalGeolocation,
+        });
+
         useAuthStore.setState({
             user: null,
             accessToken: null,
@@ -147,6 +177,7 @@ describe("TipoffPage", () => {
     });
 
     it("fetches and renders tip-offs for an admin", async () => {
+        const user = userEvent.setup();
         vi.mocked(tipoffsApi.listTipoffs).mockResolvedValueOnce({
             results: [
                 {
@@ -169,9 +200,7 @@ describe("TipoffPage", () => {
 
         setUser("admin");
         render(<TipoffPage />);
-        await userEvent.click(
-            screen.getByRole("tab", { name: "All Tip-offs" }),
-        );
+        await user.click(screen.getByRole("tab", { name: "All Tip-offs" }));
         expect(
             await screen.findByText("Suspicious tracks near the fence"),
         ).toBeInTheDocument();
@@ -202,6 +231,7 @@ describe("TipoffPage", () => {
     });
 
     it("adds the submitted tip-off to the list for an admin", async () => {
+        const user = userEvent.setup();
         stubGeolocation(-24.205, 31.185);
         setUser("admin");
         render(<TipoffPage />);
@@ -209,9 +239,7 @@ describe("TipoffPage", () => {
         await fillAndSubmitTipoff();
         await waitFor(() => expect(notifySafe).toHaveBeenCalled());
 
-        await userEvent.click(
-            screen.getByRole("tab", { name: "All Tip-offs" }),
-        );
+        await user.click(screen.getByRole("tab", { name: "All Tip-offs" }));
         expect(
             await screen.findByText("Snare seen near the north gate."),
         ).toBeInTheDocument();
