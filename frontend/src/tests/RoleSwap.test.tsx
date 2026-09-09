@@ -256,6 +256,19 @@ describe("RoleSwap - Role Management", () => {
         expect(getUsernames()).toEqual(["analyst2", "ranger1"]);
     });
 
+    it("does not offer Admin as a role filter option", async () => {
+        const user = userEvent.setup();
+        renderRoleSwap();
+
+        await screen.findByText("ranger1");
+
+        await user.click(screen.getByRole("button", { name: /open filters/i }));
+        await user.click(screen.getByRole("button", { name: /^role/i }));
+
+        const listbox = screen.getByRole("listbox");
+        expect(within(listbox).queryByLabelText("Admin")).not.toBeInTheDocument();
+    });
+
     it("closes the confirmation dialog via the header close button without applying the change", async () => {
         const user = userEvent.setup();
         renderRoleSwap();
