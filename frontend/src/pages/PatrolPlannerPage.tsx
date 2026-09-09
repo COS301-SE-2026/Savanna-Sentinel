@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 
 import { MapView } from "@/components/map/MapView";
 import { MapControls } from "@/components/map/MapControls";

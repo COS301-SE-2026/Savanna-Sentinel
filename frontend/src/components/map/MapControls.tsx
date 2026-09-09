@@ -1,5 +1,5 @@
 import { Plus, Minus, Compass } from "lucide-react";
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 
 import { Button } from "@/components/ui/button";
 
