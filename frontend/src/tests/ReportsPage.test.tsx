@@ -220,6 +220,48 @@ describe("ReportsPage", () => {
         expect(screen.getByText("Pending Sync")).toBeInTheDocument();
     });
 
+    it("hides an offline draft that does not match the active filters", async () => {
+        vi.mocked(reportsApi.submitReport).mockRejectedValue(
+            new Error("offline"),
+        );
+        w;
+        setUser("ranger");
+        render(<ReportsPage />);
+        await submitMinimalIncidentReport("Snare found near the river");
+        await userEvent.click(screen.getByRole("tab", { name: "All Reports" }));
+        expect(
+            screen.getByText("Snare found near the river"),
+        ).toBeInTheDocument();
+
+        await applyFilter(/^report type/i, "Sighting");
+
+        await waitFor(() =>
+            expect(
+                screen.queryByText("Snare found near the river"),
+            ).not.toBeInTheDocument(),
+        );
+        expect(
+            screen.getByText("No reports match your search or filters."),
+        ).toBeInTheDocument();
+    });
+
+    it("keeps a filtered out offline draft available on the New Report tab", async () => {
+        vi.mocked(reportsApi.submitReport).mockRejectedValue(
+            new Error("offline"),
+        );
+        setUser("ranger");
+        render(<ReportsPage />);
+        await submitMinimalIncidentReport("Snare found near the river");
+        await userEvent.click(screen.getByRole("tab", { name: "All Reports" }));
+        await applyFilter(/^report type/i, "Sighting");
+        await userEvent.click(screen.getByRole("tab", { name: "New Report" }));
+        await userEvent.click(screen.getByRole("button", { name: "1" }));
+
+        expect(screen.getByLabelText("Description")).toHaveValue(
+            "Snare found near the river",
+        );
+    });
+
     it("switches to New Report when the empty state action is clicked", async () => {
         setUser("ranger");
         render(<ReportsPage />);
