@@ -64,6 +64,7 @@ const ParkZoneUploadPage = () => {
 
     const navigate = useNavigate();
     const user = useAuthStore((s) => s.user);
+    const setIsUploaded = useAuthStore((s) => s.setIsUploaded);
 
     const handleFilesSelected = async (files: FileList | null) => {
         const file = files?.[0];
@@ -92,6 +93,7 @@ const ParkZoneUploadPage = () => {
     };
 
     const handleConfirm = async () => {
+        setIsUploaded(true);
         setIsConfirmOpen(false);
         navigate("/dashboard");
     };

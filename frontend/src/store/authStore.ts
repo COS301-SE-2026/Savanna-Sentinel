@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { authApi, type TokenResponse } from "../services/authApi";
 import { clearOfflineData } from "../offline/db";
+import { prefetchMapData } from "@/offline/riskGridCache";
+import { prefetchSavedRoutes } from "@/offline/routesCache";
 
 export interface AuthUser {
     id: string;
@@ -40,6 +42,9 @@ export const useAuthStore = create<AuthState>()(
                         role: data.user.role,
                     },
                 });
+
+                prefetchMapData(data.user.id).catch(() => {});
+                prefetchSavedRoutes(data.user.id).catch(() => {});
             };
 
             return {
@@ -94,6 +99,12 @@ export const useAuthStore = create<AuthState>()(
         },
         {
             name: "auth-storage",
+            onRehydrateStorage: () => (state) => {
+                if (state?.user?.id) {
+                    prefetchMapData(state.user.id).catch(() => {});
+                    prefetchSavedRoutes(state.user.id).catch(() => {});
+                }
+            },
             partialize: (state) => ({
                 accessToken: state.accessToken,
                 refreshToken: state.refreshToken,
