@@ -433,7 +433,8 @@ async def test_submitting_report_notifies_analysts_and_admins():
 
     items = notif_r.json()["results"]
     matching = [
-        n for n in items
+        n
+        for n in items
         if n["type"] == "field_report_submitted"
         and n["related_id"] == report_id
     ]
@@ -908,6 +909,78 @@ async def test_list_filter_by_report_type():
     assert all(
         item["report_type"] == "incident" for item in r.json()["results"]
     )
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_severity():
+    uid = await _create_user("test_ranger_severity")
+    async with _client() as c:
+        await c.post(
+            "/v1/reports",
+            json=_incident_payload(severity="high"),
+            headers=_auth_header(uid),
+        )
+        await c.post(
+            "/v1/reports",
+            json=_incident_payload(severity="low"),
+            headers=_auth_header(uid),
+        )
+        r = await c.get(
+            "/v1/reports?severity=high",
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) >= 1
+    assert all(item["severity"] == "high" for item in results)
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_multiple_severities():
+    uid = await _create_user("test_ranger_severity_multi")
+    async with _client() as c:
+        for level in ("low", "medium", "high"):
+            await c.post(
+                "/v1/reports",
+                json=_incident_payload(severity=level),
+                headers=_auth_header(uid),
+            )
+        r = await c.get(
+            "/v1/reports?severity=low&severity=high",
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) >= 2
+    assert all(item["severity"] in ("low", "high") for item in results)
+
+
+@pytest.mark.asyncio
+async def test_list_combined_filters_narrow_results():
+    uid = await _create_user("test_ranger_combined")
+    username = "test_ranger_combined"
+    async with _client() as c:
+        await c.post(
+            "/v1/reports",
+            json=_incident_payload(severity="high"),
+            headers=_auth_header(uid),
+        )
+        await c.post(
+            "/v1/reports",
+            json=_sighting_payload(),
+            headers=_auth_header(uid),
+        )
+        r = await c.get(
+            f"/v1/reports?report_type=incident&severity=high&users={username}",
+            headers=_auth_header(uid),
+        )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) >= 1
+    for item in results:
+        assert item["report_type"] == "incident"
+        assert item["severity"] == "high"
+        assert item["submitted_by"] == uid
 
 
 @pytest.mark.asyncio
