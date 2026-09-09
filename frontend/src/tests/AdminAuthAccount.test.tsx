@@ -28,6 +28,8 @@ describe("AuthPage - Account Approvals", () => {
         );
 
         const listbox = screen.getByRole("listbox");
-        expect(within(listbox).queryByLabelText("Admin")).not.toBeInTheDocument();
+        expect(
+            within(listbox).queryByLabelText("Admin"),
+        ).not.toBeInTheDocument();
     });
 });

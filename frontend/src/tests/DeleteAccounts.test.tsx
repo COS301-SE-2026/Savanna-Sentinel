@@ -218,7 +218,9 @@ describe("DeleteAccounts - Delete Accounts", () => {
         await user.click(screen.getByRole("button", { name: /^role/i }));
 
         const listbox = screen.getByRole("listbox");
-        expect(within(listbox).queryByLabelText("Admin")).not.toBeInTheDocument();
+        expect(
+            within(listbox).queryByLabelText("Admin"),
+        ).not.toBeInTheDocument();
     });
 
     it("closes the confirmation dialog via the header close button", async () => {

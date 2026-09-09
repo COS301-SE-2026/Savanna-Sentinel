@@ -6,9 +6,9 @@ describe("useRoleOptions", () => {
     it("does not include admin as a selectable role filter option", () => {
         const { result } = renderHook(() => useRoleOptions());
 
-        expect(
-            result.current.some((option) => option.value === "admin"),
-        ).toBe(false);
+        expect(result.current.some((option) => option.value === "admin")).toBe(
+            false,
+        );
     });
 
     it("exposes the assignable, non-admin roles", () => {
