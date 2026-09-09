@@ -16,6 +16,7 @@ interface AuthState {
     accessToken: string | null;
     refreshToken: string | null;
     user: AuthUser | null;
+    isUploaded: boolean | null;
 
     login: (username: string, password: string) => Promise<LoginResult>;
     verifyMfa: (mfaToken: string, code: string) => Promise<void>;
@@ -23,6 +24,7 @@ interface AuthState {
     refreshSession: () => Promise<string>;
     logout: () => void;
     setUser: (user: AuthUser) => void;
+    setIsUploaded: (uploaded: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -44,6 +46,7 @@ export const useAuthStore = create<AuthState>()(
                 accessToken: null,
                 refreshToken: null,
                 user: null,
+                isUploaded: null,
                 login: async (username: string, password: string) => {
                     const data = await authApi.login({ username, password });
                     if ("mfa_required" in data) {
@@ -86,6 +89,7 @@ export const useAuthStore = create<AuthState>()(
                 },
 
                 setUser: (user: AuthUser) => set({ user }),
+                setIsUploaded: (isUploaded: boolean) => set({ isUploaded}),
             };
         },
         {
@@ -94,6 +98,7 @@ export const useAuthStore = create<AuthState>()(
                 accessToken: state.accessToken,
                 refreshToken: state.refreshToken,
                 user: state.user,
+                isUploaded: state.isUploaded
             }),
         },
     ),

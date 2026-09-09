@@ -18,11 +18,12 @@ import { homePathForRole } from "@/lib/utils";
 export default function ProtectedRoute() {
     const accessToken = useAuthStore((s) => s.accessToken);
     const user = useAuthStore((s) => s.user);
+    const isUploaded = useAuthStore((s) => s.isUploaded);
+    const setIsUploaded = useAuthStore((s) => s.setIsUploaded);
     const location = useLocation();
     const logout = useAuthStore((s) => s.logout);
 
     const [isChecking, setIsChecking] = useState(true);
-    const [isUploaded, setIsUploaded] = useState<boolean | null>(null);
 
     useEffect(() => {
         if (!accessToken) {
@@ -45,7 +46,13 @@ export default function ProtectedRoute() {
                 }
 
                 if (isMounted) {
-                    setIsUploaded(false);
+                    const isNetworkError = !navigator.onLine || (isAxiosError(error) && !error.response);
+
+                    // Check if the network request failed due to being offline, or actual error response
+                    //If offline, persist the value of isUploaded
+                    if(!isNetworkError){
+                        setIsUploaded(false)
+                    }
                     setIsChecking(false);
                 }
             }
