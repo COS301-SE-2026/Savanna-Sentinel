@@ -17,7 +17,7 @@ vi.mock("maplibre-gl", async () => {
     return createMapLibreMock();
 });
 
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import MapPage from "@/pages/MapPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers } from "./mocks/riskHandlers";

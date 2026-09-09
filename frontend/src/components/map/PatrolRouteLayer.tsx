@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 
 import type { LatLon } from "@/types/patrol";
 import type { PlannedRoute } from "@/services/routeApi";
