@@ -181,6 +181,26 @@ async def test_get_grid_without_token_returns_401():
 
 
 @pytest.mark.asyncio
+async def test_get_risk_summary_returns_incident_and_sighting_counts():
+    uid = await _create_user("test_ranger_summary")
+    async with _client() as c:
+        r = await c.get("/v1/risk/summary", headers=_auth_header(uid))
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["incidents_60d"], int)
+    assert isinstance(body["sightings_7d"], int)
+    assert body["incidents_60d"] >= 0
+    assert body["sightings_7d"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_get_risk_summary_without_token_returns_401():
+    async with _client() as c:
+        r = await c.get("/v1/risk/summary")
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_geojson_file_upload(
     sample_geojson,
     backup_grid_file,

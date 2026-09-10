@@ -8,6 +8,8 @@ from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 from app.repositories.risk_repository import (
+    count_incidents_since,
+    count_sightings_since,
     fetch_incidents_by_cell,
     fetch_patrol_tracks_by_cell,
     fetch_sightings_by_cell,
@@ -344,6 +346,42 @@ async def test_fetch_sightings_by_cell_groups_by_containing_cell():
     assert target["cell_id"] in result
     assert len(result[target["cell_id"]]) == 1
     assert result[target["cell_id"]][0]["count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_count_incidents_since_counts_only_events_in_window():
+    lon, lat = 31.5, -24.3
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(days=60)
+
+    async with _Session() as session:
+        before = await count_incidents_since(session, since)
+
+    await _insert_incident(lon, lat, now - timedelta(days=10))
+    await _insert_incident(lon, lat, now - timedelta(days=200))
+
+    async with _Session() as session:
+        after = await count_incidents_since(session, since)
+
+    assert after - before == 1
+
+
+@pytest.mark.asyncio
+async def test_count_sightings_since_counts_only_events_in_window():
+    lon, lat = 31.5, -24.3
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(days=7)
+
+    async with _Session() as session:
+        before = await count_sightings_since(session, since)
+
+    await _insert_sighting(lon, lat, now - timedelta(days=2))
+    await _insert_sighting(lon, lat, now - timedelta(days=30))
+
+    async with _Session() as session:
+        after = await count_sightings_since(session, since)
+
+    assert after - before == 1
 
 
 @pytest.mark.asyncio
