@@ -5,6 +5,10 @@ import numpy as np
 import xgboost as xgb
 from sklearn.metrics import precision_score, recall_score, roc_auc_score
 
+from app.core.risk_windows import (
+    SIGHTING_LOOKBACK_DAYS as _SIGHTING_LOOKBACK_DAYS,
+)
+
 FEATURE_NAMES = [
     "incident_density_self",
     "incident_density_neighbors",
@@ -32,7 +36,6 @@ _NEIGHBOR_DISTANCE_DECAY = 0.5
 _SCALE_POS_WEIGHT_CAP = 50.0
 
 _SIGHTING_RECENCY_HALF_LIFE_DAYS = 3.0
-_SIGHTING_LOOKBACK_DAYS = 7
 
 _INCIDENT_FLOOR_BASE = {"low": 0.55, "medium": 0.72, "high": 0.88, None: 0.55}
 _INCIDENT_FLOOR_SOURCE_MULT = {"field_report": 1.0, "tipoff": 0.6}
@@ -44,7 +47,9 @@ _INCIDENT_FLOOR_RING_MULT = 0.6
 def _incident_weight(incident: dict, reference_time: datetime) -> float:
     seconds_ago = (reference_time - incident["occurred_at"]).total_seconds()
     days_ago = seconds_ago / 86400
-    recency_decay = math.exp(-math.log(2) * days_ago / _RECENCY_HALF_LIFE_DAYS)
+    recency_decay = math.exp(
+        -math.log(2) * (days_ago / _RECENCY_HALF_LIFE_DAYS) ** 2,
+    )
     severity_weight = _SEVERITY_WEIGHT[incident["severity"]]
     source_weight = _SOURCE_WEIGHT[incident["source_tier"]]
     return severity_weight * source_weight * recency_decay

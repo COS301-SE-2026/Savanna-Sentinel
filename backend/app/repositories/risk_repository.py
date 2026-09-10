@@ -8,6 +8,10 @@ from pyproj import Transformer
 from sqlalchemy import column, func, insert, select, table, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.risk_windows import (
+    INCIDENT_LOOKBACK_DAYS,
+    SIGHTING_LOOKBACK_DAYS,
+)
 from app.models.risk_job import RiskJob
 from app.models.risk_model import RiskModel
 
@@ -559,8 +563,6 @@ async def list_heatmap_snapshots(
     ]
 
 
-_INCIDENT_LOOKBACK_DAYS = 90
-_SIGHTING_LOOKBACK_DAYS = 7
 _NEIGHBOR_RADIUS_CELLS = 2
 _MAX_INCIDENTS_PER_GROUP = 20
 
@@ -721,9 +723,9 @@ async def get_cell_explanation(
             session,
             cell_row,
             incident_since=latest_computed_at
-            - timedelta(days=_INCIDENT_LOOKBACK_DAYS),
+            - timedelta(days=INCIDENT_LOOKBACK_DAYS),
             sighting_since=latest_computed_at
-            - timedelta(days=_SIGHTING_LOOKBACK_DAYS),
+            - timedelta(days=SIGHTING_LOOKBACK_DAYS),
         )
 
     return {
