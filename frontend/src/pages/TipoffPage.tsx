@@ -2,7 +2,12 @@ import * as React from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TipoffForm } from "@/components/tipoffs/TipoffForm";
-import { ReportList } from "@/components/reports/ReportList";
+import { ReportList, PAGE_SIZE } from "@/components/reports/ReportList";
+import {
+    reportSortFields,
+    type ReportSortKey,
+} from "@/components/reports/reportColumns";
+import type { SortDirection } from "@/hooks/useSort";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { useAuthStore } from "@/store/authStore";
 import { formatToUTC, toDatetimeLocalValue } from "@/lib/utils";
@@ -69,6 +74,11 @@ export default function TipoffPage() {
     const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
     const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
     const [usernameFilter, setUsernameFilter] = React.useState<string[]>([]);
+    const [page, setPage] = React.useState(1);
+    const [total, setTotal] = React.useState(0);
+    const [sortKey, setSortKey] = React.useState<ReportSortKey>("createdAt");
+    const [sortDirection, setSortDirection] =
+        React.useState<SortDirection>("desc");
 
     const debouncedSearch = useDebounce(search, 300);
 
@@ -82,9 +92,14 @@ export default function TipoffPage() {
                 severity: severityFilter.length ? severityFilter : undefined,
                 species: speciesFilter.length ? speciesFilter : undefined,
                 users: usernameFilter.length ? usernameFilter : undefined,
+                sort: reportSortFields[sortKey],
+                direction: sortDirection,
+                page,
+                page_size: PAGE_SIZE,
             };
             try {
                 const res = await tipoffsApi.listTipoffs(query);
+                setTotal(res.total);
                 setTipoffs(res.results.map(mapToDraft));
             } catch (err) {
                 notifyCritical("Error", "Failed to fetch tip-offs");
@@ -102,6 +117,9 @@ export default function TipoffPage() {
         severityFilter,
         speciesFilter,
         usernameFilter,
+        page,
+        sortKey,
+        sortDirection,
     ]);
 
     const handleSubmit = async (input: DraftReportInput) => {
@@ -227,6 +245,20 @@ export default function TipoffPage() {
                                         getTipoffUsernameOptions
                                     }
                                     searchPlaceholder="Search tip-offs..."
+                                    page={page}
+                                    onPageChange={(next) => {
+                                        setIsLoading(true);
+                                        setPage(next);
+                                    }}
+                                    totalItems={total}
+                                    sortKey={sortKey}
+                                    sortDirection={sortDirection}
+                                    onSortChange={(key, nextDirection) => {
+                                        setIsLoading(true);
+                                        setSortKey(key);
+                                        setSortDirection(nextDirection);
+                                        setPage(1);
+                                    }}
                                 />
                             </div>
                         )}

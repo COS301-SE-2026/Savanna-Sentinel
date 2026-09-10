@@ -91,8 +91,17 @@ export interface ReportUpdate {
     count?: number;
 }
 
+export type ReportSortField =
+    | "report_type"
+    | "description"
+    | "occurred_at"
+    | "submitted_by"
+    | "created_at";
+
 export interface ListReportsQueryParams {
     search?: string;
+    sort?: ReportSortField;
+    direction?: "asc" | "desc";
     report_type?: ReportType | ReportType[];
     severity?: SeverityLevel | SeverityLevel[];
     species?: string | string[];

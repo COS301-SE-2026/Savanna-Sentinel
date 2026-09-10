@@ -25,7 +25,7 @@ import {
     getSpeciesOptions,
     getUsernameOptions,
 } from "@/hooks/useReportSearchFilter";
-import { useSort } from "@/hooks/useSort";
+import { useSort, type SortDirection } from "@/hooks/useSort";
 import {
     SEVERITY_OPTIONS,
     type DraftReport,
@@ -33,7 +33,7 @@ import {
     type Severity,
 } from "@/types/reports";
 
-const PAGE_SIZE = 10;
+export const PAGE_SIZE = 10;
 
 const severityBadgeVariant: Record<Severity, "caution" | "alert" | "critical"> =
     {
@@ -64,6 +64,12 @@ interface ReportListProps {
     loadSpeciesOptions?: () => Promise<string[]>;
     loadUsernameOptions?: () => Promise<string[]>;
     searchPlaceholder?: string;
+    page?: number;
+    onPageChange?: (page: number) => void;
+    totalItems?: number;
+    sortKey?: ReportSortKey;
+    sortDirection?: SortDirection;
+    onSortChange?: (key: ReportSortKey, direction: SortDirection) => void;
 }
 
 const NO_TYPES: ReportType[] = [];
@@ -88,12 +94,20 @@ export function ReportList({
     loadSpeciesOptions = getSpeciesOptions,
     loadUsernameOptions = getUsernameOptions,
     searchPlaceholder,
+    page: pageProp,
+    onPageChange,
+    totalItems,
+    sortKey: sortKeyProp,
+    sortDirection,
+    onSortChange,
 }: ReportListProps) {
     const showFilterBar = setSearch !== undefined;
 
     const [speciesOptions, setSpeciesOptions] = React.useState<string[]>([]);
     const [usernameOptions, setUsernameOptions] = React.useState<string[]>([]);
-    const [page, setPage] = React.useState(1);
+    const [localPage, setLocalPage] = React.useState(1);
+    const page = pageProp ?? localPage;
+    const setPage = onPageChange ?? setLocalPage;
     const [selectedReport, setSelectedReport] =
         React.useState<DraftReport | null>(null);
 
@@ -102,7 +116,7 @@ export function ReportList({
             setSearch?.(value);
             setPage(1);
         },
-        [setSearch],
+        [setSearch, setPage],
     );
 
     const handleTypeFilterChange = React.useCallback(
@@ -139,17 +153,38 @@ export function ReportList({
         });
     }, [showFilterBar, loadSpeciesOptions, loadUsernameOptions]);
 
-    const { sorted, sortKey, direction, requestSort } = useSort<
-        DraftReport,
-        ReportSortKey
-    >(reports, reportSortAccessors, { key: "createdAt", direction: "desc" });
-
-    const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-    const currentPage = Math.min(page, totalPages);
-    const pageItems = sorted.slice(
-        (currentPage - 1) * PAGE_SIZE,
-        currentPage * PAGE_SIZE,
+    const localSort = useSort<DraftReport, ReportSortKey>(
+        reports,
+        reportSortAccessors,
+        { key: "createdAt", direction: "desc" },
     );
+
+    const isControlledSort = onSortChange !== undefined;
+    const sorted = isControlledSort ? reports : localSort.sorted;
+    const sortKey = isControlledSort ? sortKeyProp : localSort.sortKey;
+    const direction = isControlledSort
+        ? (sortDirection ?? "desc")
+        : localSort.direction;
+    const requestSort = (key: ReportSortKey) => {
+        if (!onSortChange) {
+            localSort.requestSort(key);
+            return;
+        }
+        onSortChange(
+            key,
+            sortKeyProp === key && direction === "asc" ? "desc" : "asc",
+        );
+    };
+
+    const isServerPaged = totalItems !== undefined;
+    const totalPages = Math.max(
+        1,
+        Math.ceil((isServerPaged ? totalItems : sorted.length) / PAGE_SIZE),
+    );
+    const currentPage = Math.min(page, totalPages);
+    const pageItems = isServerPaged
+        ? sorted
+        : sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
     const hasActiveFilters =
         search.trim() !== "" ||
