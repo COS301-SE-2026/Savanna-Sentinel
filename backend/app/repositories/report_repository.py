@@ -55,7 +55,7 @@ class ReportRepository:
 
         if severities:
             conditions.append("i.severity::text = ANY(:severities)")
-            params["severity"] = severities
+            params["severities"] = severities
 
         if species:
             conditions.append("s.species = ANY(:species)")

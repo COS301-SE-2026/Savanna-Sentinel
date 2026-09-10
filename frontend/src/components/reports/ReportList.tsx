@@ -61,6 +61,9 @@ interface ReportListProps {
     usernameFilter?: string[];
     setUsernameFilter?: React.Dispatch<React.SetStateAction<string[]>>;
     isLoading?: boolean;
+    loadSpeciesOptions?: () => Promise<string[]>;
+    loadUsernameOptions?: () => Promise<string[]>;
+    searchPlaceholder?: string;
 }
 
 const NO_TYPES: ReportType[] = [];
@@ -82,6 +85,9 @@ export function ReportList({
     usernameFilter = NO_STRINGS,
     setUsernameFilter,
     isLoading = false,
+    loadSpeciesOptions = getSpeciesOptions,
+    loadUsernameOptions = getUsernameOptions,
+    searchPlaceholder,
 }: ReportListProps) {
     const showFilterBar = setSearch !== undefined;
 
@@ -125,13 +131,13 @@ export function ReportList({
 
     React.useEffect(() => {
         if (!showFilterBar) return;
-        getSpeciesOptions().then((species) => {
+        loadSpeciesOptions().then((species) => {
             setSpeciesOptions(species);
         });
-        getUsernameOptions().then((user) => {
+        loadUsernameOptions().then((user) => {
             setUsernameOptions(user);
         });
-    }, [showFilterBar]);
+    }, [showFilterBar, loadSpeciesOptions, loadUsernameOptions]);
 
     const { sorted, sortKey, direction, requestSort } = useSort<
         DraftReport,
@@ -192,6 +198,7 @@ export function ReportList({
                         setPage(1);
                     }}
                     usernameOptions={usernameOptions}
+                    searchPlaceholder={searchPlaceholder}
                 />
             )}
 

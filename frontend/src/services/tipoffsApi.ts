@@ -1,5 +1,11 @@
 import { api } from "./api";
-import type { ReportType, SeverityLevel, LocationLatLon } from "./reportsApi";
+import type {
+    ReportType,
+    SeverityLevel,
+    LocationLatLon,
+    SpeciesResponse,
+    UserFilterResponse,
+} from "./reportsApi";
 
 export interface TipoffCreate {
     report_type: ReportType;
@@ -18,6 +24,7 @@ export interface TipoffSubmitResponse {
     report_type: string;
     status: string;
     submitted_by: string;
+    submitted_by_username?: string | null;
     created_at: string;
 }
 
@@ -33,6 +40,7 @@ export interface TipoffListItem {
     count?: number | null;
     images: string[];
     submitted_by: string;
+    submitted_by_username?: string | null;
     created_at: string;
 }
 
@@ -44,7 +52,11 @@ export interface TipoffListResponse {
 }
 
 export interface ListTipoffsQueryParams {
-    report_type?: ReportType;
+    search?: string;
+    report_type?: ReportType | ReportType[];
+    severity?: SeverityLevel | SeverityLevel[];
+    species?: string | string[];
+    users?: string | string[];
     from?: string;
     to?: string;
     page?: number;
@@ -63,4 +75,10 @@ export const tipoffsApi = {
         api
             .get<TipoffListResponse>("/tipoffs", { params: payload })
             .then((r) => r.data),
+
+    getSpecies: async (): Promise<SpeciesResponse> =>
+        api.get<SpeciesResponse>("/tipoffs/species").then((r) => r.data),
+
+    getUsernames: async (): Promise<UserFilterResponse> =>
+        api.get<UserFilterResponse>("/tipoffs/users").then((r) => r.data),
 };

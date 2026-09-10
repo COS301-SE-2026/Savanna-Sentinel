@@ -275,6 +275,7 @@ async def test_community_liaison_can_submit_tipoff_returns_201():
     assert "tipoff_id" in body
     assert "created_at" in body
 
+
 @pytest.mark.asyncio
 async def test_analyst_blocked_from_submit_tipoff_returns_403():
     uid = await _create_user("test_analyst_submit_1", role="analyst")
@@ -340,6 +341,7 @@ async def test_missing_incident_type_on_submit_tipoff_returns_400():
 
     assert response.status_code == 400
 
+
 @pytest.mark.asyncio
 async def test_community_liaison_list_only_owns_tipoffs():
     owner_id = await _create_user("test_liaison_list_own_1")
@@ -366,7 +368,8 @@ async def test_tipoff_list_paginates_with_page_size_and_page_offset():
     owner_id = await _create_user("test_liaison_paging_1")
     created = [
         await _create_tipoff(
-            owner_id, description=f"Paging tip {idx}",
+            owner_id,
+            description=f"Paging tip {idx}",
             hours_ago=idx + 1,
         )
         for idx in range(55)
@@ -433,6 +436,134 @@ async def test_tipoff_list_filters_by_from_and_to_query_aliases():
     assert old["tipoff_id"] not in ids
 
 
+@pytest.mark.asyncio
+async def test_tipoff_list_returns_submitter_username():
+    owner_id = await _create_user("test_liaison_username_1")
+    created = await _create_tipoff(owner_id)
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/tipoffs",
+            headers=_auth_header(owner_id),
+        )
+
+    assert response.status_code == 200
+    item = next(
+        i
+        for i in response.json()["results"]
+        if i["tipoff_id"] == created["tipoff_id"]
+    )
+    assert item["submitted_by_username"] == "test_liaison_username_1"
+
+
+@pytest.mark.asyncio
+async def test_tipoff_list_filters_by_search():
+    owner_id = await _create_user("test_liaison_search_1")
+    match = await _create_tipoff(
+        owner_id,
+        description="Gunshots heard near the northern gate",
+    )
+    other = await _create_tipoff(owner_id, description="Fence cut open")
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/tipoffs",
+            params={"search": "northern gate"},
+            headers=_auth_header(owner_id),
+        )
+
+    assert response.status_code == 200
+    ids = [item["tipoff_id"] for item in response.json()["results"]]
+    assert match["tipoff_id"] in ids
+    assert other["tipoff_id"] not in ids
+
+
+@pytest.mark.asyncio
+async def test_tipoff_list_filters_by_report_type_and_species():
+    owner_id = await _create_user("test_liaison_species_1")
+    sighting = await _create_tipoff(
+        owner_id,
+        report_type="sighting",
+        species="Rhino",
+    )
+    incident = await _create_tipoff(owner_id)
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/tipoffs?report_type=sighting&species=Rhino",
+            headers=_auth_header(owner_id),
+        )
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    ids = [item["tipoff_id"] for item in results]
+    assert sighting["tipoff_id"] in ids
+    assert incident["tipoff_id"] not in ids
+    assert all(item["report_type"] == "sighting" for item in results)
+
+
+@pytest.mark.asyncio
+async def test_tipoff_list_filters_by_severity():
+    owner_id = await _create_user("test_liaison_severity_1")
+    high = await _create_tipoff(owner_id)
+    sighting = await _create_tipoff(owner_id, report_type="sighting")
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/tipoffs?severity=high",
+            headers=_auth_header(owner_id),
+        )
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    ids = [item["tipoff_id"] for item in results]
+    assert high["tipoff_id"] in ids
+    assert sighting["tipoff_id"] not in ids
+    assert all(item["severity"] == "high" for item in results)
+
+
+@pytest.mark.asyncio
+async def test_tipoff_list_filters_by_username():
+    owner_id = await _create_user("test_liaison_user_filter_1")
+    other_id = await _create_user("test_liaison_user_filter_2")
+    admin_id = await _create_user("test_admin_user_filter_1", role="admin")
+    mine = await _create_tipoff(owner_id)
+    theirs = await _create_tipoff(other_id)
+
+    async with _client() as client:
+        response = await client.get(
+            "/v1/tipoffs",
+            params={"users": "test_liaison_user_filter_1"},
+            headers=_auth_header(admin_id),
+        )
+
+    assert response.status_code == 200
+    ids = [item["tipoff_id"] for item in response.json()["results"]]
+    assert mine["tipoff_id"] in ids
+    assert theirs["tipoff_id"] not in ids
+
+
+@pytest.mark.asyncio
+async def test_tipoff_species_and_user_options():
+    owner_id = await _create_user("test_liaison_options_1")
+    await _create_tipoff(owner_id, report_type="sighting", species="Buffalo")
+
+    async with _client() as client:
+        species_response = await client.get(
+            "/v1/tipoffs/species",
+            headers=_auth_header(owner_id),
+        )
+        users_response = await client.get(
+            "/v1/tipoffs/users",
+            headers=_auth_header(owner_id),
+        )
+
+    assert species_response.status_code == 200
+    assert "Buffalo" in species_response.json()["species"]
+    assert users_response.status_code == 200
+    assert "test_liaison_options_1" in users_response.json()["usernames"]
+
+
 # notifications
 
 
@@ -464,7 +595,8 @@ async def test_submitting_tipoff_notifies_ranger_analyst_and_admin():
             )
             items = notif_response.json()["results"]
             matching = [
-                n for n in items
+                n
+                for n in items
                 if n["type"] == "tipoff_submitted"
                 and n["related_id"] == tipoff_id
             ]

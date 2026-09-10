@@ -30,7 +30,8 @@ def _community_liaison(
     username: str = "liaison1",
 ) -> SimpleNamespace:
     return SimpleNamespace(
-        id=user_id, role="community_liaison",
+        id=user_id,
+        role="community_liaison",
         username=username,
     )
 
@@ -348,7 +349,9 @@ async def test_get_tipoffs_converts_stored_images_to_view_urls():
 
     results, _ = await service.get_tipoffs(_admin())
 
-    assert results[0]["images"] == ["http://minio/bucket/tipoffs/a.jpg?signed=1"]
+    assert results[0]["images"] == [
+        "http://minio/bucket/tipoffs/a.jpg?signed=1",
+    ]
     assert results[1]["images"] == []
 
 
@@ -389,7 +392,11 @@ async def test_get_tipoffs_passes_filters_to_repo():
 
     await service.get_tipoffs(
         _admin(),
-        report_type="incident",
+        search="snare",
+        report_types=["incident"],
+        severities=["high"],
+        species=["Rhino"],
+        users=["liaison1"],
         from_dt=from_dt,
         to_dt=to_dt,
         page=2,
@@ -397,7 +404,11 @@ async def test_get_tipoffs_passes_filters_to_repo():
     )
 
     call_kwargs = service.repo.get_list.call_args.kwargs
-    assert call_kwargs["report_type"] == "incident"
+    assert call_kwargs["search"] == "snare"
+    assert call_kwargs["report_types"] == ["incident"]
+    assert call_kwargs["severities"] == ["high"]
+    assert call_kwargs["species"] == ["Rhino"]
+    assert call_kwargs["users"] == ["liaison1"]
     assert call_kwargs["from_dt"] == from_dt
     assert call_kwargs["to_dt"] == to_dt
     assert call_kwargs["page"] == 2
