@@ -224,7 +224,6 @@ describe("ReportsPage", () => {
         vi.mocked(reportsApi.submitReport).mockRejectedValue(
             new Error("offline"),
         );
-        w;
         setUser("ranger");
         render(<ReportsPage />);
         await submitMinimalIncidentReport("Snare found near the river");

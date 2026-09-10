@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import TipoffPage from "@/pages/TipoffPage";
@@ -17,6 +17,8 @@ vi.mock("@/services/tipoffsApi", () => ({
     tipoffsApi: {
         listTipoffs: vi.fn(),
         submitTipoff: vi.fn(),
+        getSpecies: vi.fn(),
+        getUsernames: vi.fn(),
     },
 }));
 
@@ -43,6 +45,46 @@ function stubGeolocation(latitude: number, longitude: number) {
                     coords: { latitude, longitude },
                 } as GeolocationPosition),
         },
+    });
+}
+
+async function applyFilter(groupName: RegExp, optionLabel: string) {
+    if (!screen.queryByRole("button", { name: /^report type/i })) {
+        await userEvent.click(
+            screen.getByRole("button", { name: /^open filters/i }),
+        );
+    }
+    const trigger = screen
+        .getAllByRole("button", { name: groupName })
+        .find((button) => button.getAttribute("aria-haspopup") === "listbox");
+    await userEvent.click(trigger!);
+    await userEvent.click(
+        within(screen.getByRole("listbox")).getByLabelText(optionLabel),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+}
+
+function mockOneTipoff(overrides: Record<string, unknown> = {}) {
+    vi.mocked(tipoffsApi.listTipoffs).mockResolvedValue({
+        results: [
+            {
+                tipoff_id: "tip-1",
+                report_type: "incident",
+                description: "Suspicious tracks near the fence",
+                incident_type: "Suspicious Tracks",
+                severity: "medium",
+                occurred_at: "2026-01-01T00:00:00Z",
+                location: { lat: -24.205, lon: 31.185 },
+                images: [],
+                submitted_by: "2f9c1f42-1e2b-4a1c-9c2f-8c7a1d3b5e60",
+                submitted_by_username: "liaison1",
+                created_at: "2026-01-01T00:00:00Z",
+                ...overrides,
+            },
+        ],
+        total: 1,
+        page: 1,
+        page_size: 20,
     });
 }
 
@@ -84,6 +126,10 @@ describe("TipoffPage", () => {
             status: "submitted",
             submitted_by: "u1",
             created_at: new Date().toISOString(),
+        });
+        vi.mocked(tipoffsApi.getSpecies).mockResolvedValue({ species: [] });
+        vi.mocked(tipoffsApi.getUsernames).mockResolvedValue({
+            usernames: [],
         });
         vi.mocked(mediaApi.uploadPhoto).mockResolvedValue(
             "http://minio/tipoffs/uploaded.jpg",
@@ -265,5 +311,75 @@ describe("TipoffPage", () => {
                 "Failed to fetch tip-offs",
             );
         });
+    });
+
+    it("shows the submitter username instead of the user id", async () => {
+        mockOneTipoff();
+        setUser("analyst");
+        render(<TipoffPage />);
+
+        expect(await screen.findByText("liaison1")).toBeInTheDocument();
+        expect(
+            screen.queryByText("2f9c1f42-1e2b-4a1c-9c2f-8c7a1d3b5e60"),
+        ).not.toBeInTheDocument();
+    });
+
+    it("re-queries the backend as the search term changes", async () => {
+        mockOneTipoff();
+        setUser("analyst");
+        render(<TipoffPage />);
+        await screen.findByText("Suspicious tracks near the fence");
+
+        await userEvent.type(
+            screen.getByPlaceholderText("Search tip-offs..."),
+            "snare",
+        );
+
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({ search: "snare" }),
+            ),
+        );
+    });
+
+    it("re-queries the backend for each filter group", async () => {
+        vi.mocked(tipoffsApi.getSpecies).mockResolvedValue({
+            species: ["Rhino"],
+        });
+        vi.mocked(tipoffsApi.getUsernames).mockResolvedValue({
+            usernames: ["liaison1"],
+        });
+        mockOneTipoff();
+        setUser("analyst");
+        render(<TipoffPage />);
+        await screen.findByText("Suspicious tracks near the fence");
+
+        await applyFilter(/^report type/i, "Incident");
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({ report_type: ["incident"] }),
+            ),
+        );
+
+        await applyFilter(/^severity/i, "High");
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({ severity: ["high"] }),
+            ),
+        );
+
+        await applyFilter(/^species/i, "Rhino");
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({ species: ["Rhino"] }),
+            ),
+        );
+
+        await applyFilter(/^submitted by/i, "liaison1");
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({ users: ["liaison1"] }),
+            ),
+        );
     });
 });
