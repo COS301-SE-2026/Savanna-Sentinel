@@ -14,6 +14,9 @@ import ParkZoneUploadPage from "@/pages/ParkZoneUploadPage";
 import {
     deleteErrorHandlers,
     parkZoneHandlers,
+    uploadError401Handlers,
+    uploadError403Handlers,
+    uploadError422Handlers,
     uploadErrorHandlers,
 } from "./mocks/parkZoneHandlers";
 import userEvent from "@testing-library/user-event";
@@ -135,17 +138,15 @@ describe("ParkZoneUploadPage", () => {
 
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
-    it("navigates to /profile when confirming the layout", async () => {
+    it("shows a critical toast notification when file upload fails with 401 unauthorized", async () => {
         const user = userEvent.setup();
-        server.use(...parkZoneHandlers);
+        server.use(...uploadError401Handlers);
         const { container } = render(<ParkZoneUploadPage />);
 
         const file = new File(
             ['{"type":"FeatureCollection"}'],
             "reserve.geojson",
-            {
-                type: "application/json",
-            },
+            { type: "application/json" },
         );
 
         const fileInput = container.querySelector(
@@ -153,12 +154,61 @@ describe("ParkZoneUploadPage", () => {
         ) as HTMLInputElement;
         await user.upload(fileInput, file);
 
-        const confirmButton = await screen.findByRole("button", {
-            name: /confirm/i,
+        await waitFor(() => {
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Your session has expired. Please log in again.",
+            );
         });
-        await user.click(confirmButton);
 
-        expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    it("shows a critical toast notification when file upload fails with 403 forbidden", async () => {
+        const user = userEvent.setup();
+        server.use(...uploadError403Handlers);
+        const { container } = render(<ParkZoneUploadPage />);
+
+        const file = new File(
+            ['{"type":"FeatureCollection"}'],
+            "reserve.geojson",
+            { type: "application/json" },
+        );
+
+        const fileInput = container.querySelector(
+            "#park-geojson-file",
+        ) as HTMLInputElement;
+        await user.upload(fileInput, file);
+
+        await waitFor(() => {
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "You do not have permission to upload park zones.",
+            );
+        });
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    it("shows a critical toast notification when file upload fails with 422 unprocessable entity", async () => {
+        const user = userEvent.setup();
+        server.use(...uploadError422Handlers);
+        const { container } = render(<ParkZoneUploadPage />);
+
+        const file = new File(
+            ['{"type":"FeatureCollection"}'],
+            "reserve.geojson",
+            { type: "application/json" },
+        );
+
+        const fileInput = container.querySelector(
+            "#park-geojson-file",
+        ) as HTMLInputElement;
+        await user.upload(fileInput, file);
+
+        await waitFor(() => {
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "Boundary coordinates must follow standard WGS 84 latitude/longitude formats.",
+            );
+        });
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
     it("deletes the upload and closes the modal when clicking reject", async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });

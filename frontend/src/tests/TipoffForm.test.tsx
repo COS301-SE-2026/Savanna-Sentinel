@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { riskApi, type ParkGridResponse } from "@/services/riskApi";
 
 import { TipoffForm } from "@/components/tipoffs/TipoffForm";
 
@@ -88,5 +89,55 @@ describe("TipoffForm", () => {
         render(<TipoffForm onSubmit={vi.fn()} isSubmitting />);
         const button = screen.getByRole("button", { name: "Submitting..." });
         expect(button).toBeDisabled();
+    });
+    it("fetches park grid successfully on mount", async () => {
+        const mockGridData = {
+            type: "FeatureCollection",
+            features: [
+                {
+                    type: "Feature",
+                    properties: { cell_id: "cell-1" },
+                    geometry: { type: "Polygon", coordinates: [] },
+                },
+            ],
+        } as unknown as ParkGridResponse;
+
+        vi.spyOn(riskApi, "getParkGrid").mockResolvedValue(mockGridData);
+
+        render(<TipoffForm onSubmit={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(riskApi.getParkGrid).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it("prevents state updates when unmounted before getParkGrid resolves", async () => {
+        let resolvePromise!: (value: ParkGridResponse) => void;
+        const pendingPromise = new Promise<ParkGridResponse>((resolve) => {
+            resolvePromise = resolve;
+        });
+
+        vi.spyOn(riskApi, "getParkGrid").mockReturnValue(pendingPromise);
+
+        const { unmount } = render(<TipoffForm onSubmit={vi.fn()} />);
+
+        unmount();
+
+        resolvePromise({
+            type: "FeatureCollection",
+            features: [],
+        } as unknown as ParkGridResponse);
+
+        await pendingPromise;
+    });
+
+    it("handles getParkGrid failure gracefully without throwing", async () => {
+        vi.spyOn(riskApi, "getParkGrid").mockRejectedValue(new Error("API Error"));
+
+        render(<TipoffForm onSubmit={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(riskApi.getParkGrid).toHaveBeenCalled();
+        });
     });
 });

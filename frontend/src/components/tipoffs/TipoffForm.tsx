@@ -1,4 +1,5 @@
 import * as React from "react";
+import type * as maplibregl from "maplibre-gl";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
