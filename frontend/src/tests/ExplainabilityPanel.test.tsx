@@ -87,13 +87,42 @@ describe("ExplainabilityPanel", () => {
         expect(high).toHaveTextContent("1");
     });
 
-    it("shows placeholder text for metrics with no backend source yet", () => {
+    it("shows placeholder text for summary metrics with nothing loaded", () => {
         renderPanel();
         const incidents = screen
-            .getByText(/incidents \(30d\)/i)
+            .getByText(/incidents \(60d\)/i)
             .closest("div")!;
+        const sightings = screen.getByText(/sightings \(7d\)/i).closest("div")!;
         const lastUpdated = screen.getByText(/last updated/i).closest("div")!;
         expect(incidents).toHaveTextContent("Not available yet");
+        expect(sightings).toHaveTextContent("Not available yet");
         expect(lastUpdated).toHaveTextContent("Not available yet");
+    });
+
+    it("shows incident and sighting counts from the store summary", () => {
+        useMapStore.setState({
+            summary: { incidents_60d: 7, sightings_7d: 42 },
+        });
+        renderPanel();
+        expect(
+            screen.getByText(/incidents \(60d\)/i).closest("div")!,
+        ).toHaveTextContent("7");
+        expect(
+            screen.getByText(/sightings \(7d\)/i).closest("div")!,
+        ).toHaveTextContent("42");
+    });
+
+    it("shows the selected snapshot's computed_at as the last updated time", () => {
+        const twoHoursAgo = new Date(
+            Date.now() - 2 * 60 * 60 * 1000,
+        ).toISOString();
+        useMapStore.setState({
+            snapshots: [{ heatmap_id: "h1", computed_at: twoHoursAgo }],
+            selectedSnapshotId: "h1",
+        });
+        renderPanel();
+        expect(
+            screen.getByText(/last updated/i).closest("div")!,
+        ).toHaveTextContent("2 hr ago");
     });
 });

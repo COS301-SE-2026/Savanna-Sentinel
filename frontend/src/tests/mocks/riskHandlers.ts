@@ -9,6 +9,7 @@ import type {
     RiskJobResponse,
     RiskTrainJobStatus,
     RiskScoreJobStatus,
+    RiskSummaryResponse,
 } from "@/services/riskApi";
 
 const BASE = "http://localhost:8000/v1";
@@ -144,6 +145,11 @@ export const TEST_CELL_EXPLAIN: CellExplainResponse = {
     ],
 };
 
+export const TEST_RISK_SUMMARY: RiskSummaryResponse = {
+    incidents_60d: 5,
+    sightings_7d: 18,
+};
+
 export const TEST_ACTIVE_MODEL: ActiveModelResponse = {
     model_id: "model-test-1",
     version: 3,
@@ -193,6 +199,9 @@ export const riskHandlers = [
     ),
     http.get(`${BASE}/risk/models/active`, () =>
         HttpResponse.json(TEST_ACTIVE_MODEL),
+    ),
+    http.get(`${BASE}/risk/summary`, () =>
+        HttpResponse.json(TEST_RISK_SUMMARY),
     ),
     http.post(`${BASE}/risk/train`, () => HttpResponse.json(TEST_TRAIN_JOB)),
     http.get(`${BASE}/risk/train/:jobId`, () =>

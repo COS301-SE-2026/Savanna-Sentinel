@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
+from app.core.risk_windows import (
+    INCIDENT_LOOKBACK_DAYS as _FEATURE_LOOKBACK_DAYS,
+)
 from app.repositories import risk_repository
 from app.services.risk_model_storage import RiskModelStorage
 from app.workers.celery_app import celery_app
@@ -21,7 +24,6 @@ from app.workers.ml.risk_engine import (
     train_model,
 )
 
-_FEATURE_LOOKBACK_DAYS = 365
 _MIN_TRAINING_EXAMPLES = 20
 _engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 _TaskSessionLocal = async_sessionmaker(_engine, expire_on_commit=False)

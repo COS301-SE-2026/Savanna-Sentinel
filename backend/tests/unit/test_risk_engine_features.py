@@ -5,7 +5,9 @@ import pytest
 from app.workers.ml.risk_engine import (
     _NEIGHBOR_DISTANCE_DECAY,
     _NEIGHBOR_WEIGHT_MULTIPLIER,
+    _RECENCY_HALF_LIFE_DAYS,
     FEATURE_NAMES,
+    _incident_weight,
     compute_cell_features,
 )
 
@@ -366,3 +368,19 @@ def test_a_week_old_incident_still_counts_even_though_a_sighting_would_not():
 
     assert features["c00"]["incident_density_self"] > 0
     assert features["c00"]["sighting_density_self"] == 0.0
+
+
+def test_incident_weight_decays_quadratically_with_age():
+    base = {"severity": "high", "source_tier": "field_report"}  # 3.0 * 1.0
+
+    def weight_at(days):
+        return _incident_weight(
+            {**base, "occurred_at": _NOW - timedelta(days=days)},
+            _NOW,
+        )
+
+    fresh = weight_at(0)
+    assert fresh == pytest.approx(3.0)
+    assert weight_at(_RECENCY_HALF_LIFE_DAYS) == pytest.approx(1.5)
+    assert weight_at(2 * _RECENCY_HALF_LIFE_DAYS) == pytest.approx(3.0 * 0.5**4)
+    assert weight_at(30) > 0.9 * fresh
