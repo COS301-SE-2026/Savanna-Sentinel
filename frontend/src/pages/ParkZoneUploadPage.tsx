@@ -1,5 +1,6 @@
 import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { MapView } from "@/components/map/MapView";
+import type * as maplibregl from "maplibre-gl";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,

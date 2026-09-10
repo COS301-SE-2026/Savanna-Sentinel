@@ -15,7 +15,7 @@ vi.mock("maplibre-gl", async () => {
     return createMapLibreMock();
 });
 
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { TEST_GRID } from "./mocks/riskHandlers";
 import type { FakeMap } from "./mocks/maplibreMock";

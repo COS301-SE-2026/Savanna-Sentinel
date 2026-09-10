@@ -106,7 +106,7 @@ CREATE TABLE audit_logs (
     actor_id    UUID        REFERENCES users(id) ON DELETE SET NULL,
     action      TEXT        NOT NULL,
     target_type TEXT,
-    target_id   UUID,
+    target_id   TEXT,
     details     JSONB,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

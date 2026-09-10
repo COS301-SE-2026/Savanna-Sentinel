@@ -7,7 +7,7 @@ vi.mock("maplibre-gl", async () => {
     return createMapLibreMock();
 });
 
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import { PatrolRouteLayer } from "@/components/map/PatrolRouteLayer";
 import type { FakeMap } from "./mocks/maplibreMock";
 import type { PlannedRoute } from "@/services/routeApi";
