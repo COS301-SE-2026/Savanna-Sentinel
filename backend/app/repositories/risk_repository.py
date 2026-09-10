@@ -361,6 +361,36 @@ async def fetch_sightings_by_cell(
     return by_cell
 
 
+_EVENT_COUNT_SQL = """
+    SELECT COUNT(*)
+    FROM {event_table} ev
+    JOIN geospatial_events ge ON ge.id = ev.id
+    WHERE ge.occurred_at >= :since
+"""
+
+
+async def count_incidents_since(
+    session: AsyncSession,
+    since: datetime,
+) -> int:
+    result = await session.execute(
+        text(_EVENT_COUNT_SQL.format(event_table="incidents")),
+        {"since": since},
+    )
+    return result.scalar_one()
+
+
+async def count_sightings_since(
+    session: AsyncSession,
+    since: datetime,
+) -> int:
+    result = await session.execute(
+        text(_EVENT_COUNT_SQL.format(event_table="sightings")),
+        {"since": since},
+    )
+    return result.scalar_one()
+
+
 async def save_heatmap_snapshot(
     session: AsyncSession,
     model_id: str,
