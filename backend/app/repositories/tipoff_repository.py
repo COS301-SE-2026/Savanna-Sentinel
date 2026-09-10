@@ -73,6 +73,21 @@ _photos = Table(
 )
 
 
+_SORT_COLUMNS = {
+    "report_type": "t.report_type::text",
+    "description": "LOWER(t.description)",
+    "occurred_at": "t.occurred_at",
+    "submitted_by": "LOWER(u.username)",
+    "created_at": "t.created_at",
+}
+
+
+def _order_by(sort_by: Optional[str], direction: Optional[str]) -> str:
+    column = _SORT_COLUMNS.get(sort_by or "", _SORT_COLUMNS["created_at"])
+    order = "ASC" if (direction or "").lower() == "asc" else "DESC"
+    return f"{column} {order}, t.id"
+
+
 class TipoffRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -170,6 +185,8 @@ class TipoffRepository:
         users: Optional[list[str]] = None,
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
+        sort_by: Optional[str] = None,
+        direction: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
@@ -251,7 +268,7 @@ class TipoffRepository:
             LEFT JOIN sightings s ON s.tipoff_id = t.id
             LEFT JOIN users u ON u.id = t.submitted_by
             WHERE {where}
-            ORDER BY t.created_at DESC
+            ORDER BY {_order_by(sort_by, direction)}
             LIMIT :limit OFFSET :offset
         """,  # nosec B608
         )

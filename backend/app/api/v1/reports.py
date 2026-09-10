@@ -121,6 +121,19 @@ async def list_reports(
         Optional[Literal["offline", "pending", "synced"]],
         Query(),
     ] = None,
+    sort_by: Annotated[
+        Optional[
+            Literal[
+                "report_type",
+                "description",
+                "occurred_at",
+                "submitted_by",
+                "created_at",
+            ]
+        ],
+        Query(alias="sort"),
+    ] = None,
+    direction: Annotated[Optional[Literal["asc", "desc"]], Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
     current_user: Annotated[User, Depends(get_current_user)] = None,
@@ -143,6 +156,8 @@ async def list_reports(
         from_dt=from_dt,
         to_dt=to,
         sync_status=sync_status,
+        sort_by=sort_by,
+        direction=direction,
         page=page,
         page_size=page_size,
     )

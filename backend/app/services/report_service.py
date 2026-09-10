@@ -226,6 +226,8 @@ class ReportService:
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
         sync_status: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        direction: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
@@ -239,6 +241,8 @@ class ReportService:
             from_dt=from_dt,
             to_dt=to_dt,
             sync_status=sync_status,
+            sort_by=sort_by,
+            direction=direction,
             page=page,
             page_size=page_size,
         )

@@ -15,6 +15,21 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
+_SORT_COLUMNS = {
+    "report_type": "fr.report_type::text",
+    "description": "LOWER(fr.description)",
+    "occurred_at": "fr.occurred_at",
+    "submitted_by": "LOWER(u.username)",
+    "created_at": "fr.created_at",
+}
+
+
+def _order_by(sort_by: Optional[str], direction: Optional[str]) -> str:
+    column = _SORT_COLUMNS.get(sort_by or "", _SORT_COLUMNS["created_at"])
+    order = "ASC" if (direction or "").lower() == "asc" else "DESC"
+    return f"{column} {order}, fr.id"
+
+
 class ReportRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -30,6 +45,8 @@ class ReportRepository:
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
         sync_status: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        direction: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
@@ -118,7 +135,7 @@ class ReportRepository:
             LEFT JOIN sightings s ON s.field_report_id = fr.id
             LEFT JOIN users u ON u.id = fr.submitted_by
             WHERE {where}
-            ORDER BY fr.created_at DESC
+            ORDER BY {_order_by(sort_by, direction)}
             LIMIT :limit OFFSET :offset
         """,  # nosec B608
         )

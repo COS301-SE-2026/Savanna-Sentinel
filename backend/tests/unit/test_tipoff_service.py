@@ -399,6 +399,8 @@ async def test_get_tipoffs_passes_filters_to_repo():
         users=["liaison1"],
         from_dt=from_dt,
         to_dt=to_dt,
+        sort_by="occurred_at",
+        direction="asc",
         page=2,
         page_size=10,
     )
@@ -409,6 +411,8 @@ async def test_get_tipoffs_passes_filters_to_repo():
     assert call_kwargs["severities"] == ["high"]
     assert call_kwargs["species"] == ["Rhino"]
     assert call_kwargs["users"] == ["liaison1"]
+    assert call_kwargs["sort_by"] == "occurred_at"
+    assert call_kwargs["direction"] == "asc"
     assert call_kwargs["from_dt"] == from_dt
     assert call_kwargs["to_dt"] == to_dt
     assert call_kwargs["page"] == 2
