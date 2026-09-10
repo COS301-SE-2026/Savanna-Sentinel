@@ -382,6 +382,38 @@ describe("ReportsPage", () => {
         );
     });
 
+    it("re-queries the backend when a column header is sorted", async () => {
+        mockOneReport();
+        setUser("analyst");
+        render(<ReportsPage />);
+        await screen.findByText("Snare near the fence");
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /occurred at/i }),
+        );
+        await waitFor(() =>
+            expect(reportsApi.listReports).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    sort: "occurred_at",
+                    direction: "asc",
+                    page: 1,
+                }),
+            ),
+        );
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /occurred at/i }),
+        );
+        await waitFor(() =>
+            expect(reportsApi.listReports).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    sort: "occurred_at",
+                    direction: "desc",
+                }),
+            ),
+        );
+    });
+
     it("re-queries the backend for each filter group", async () => {
         vi.mocked(reportsApi.getSpecies).mockResolvedValue({
             species: ["Elephant"],
