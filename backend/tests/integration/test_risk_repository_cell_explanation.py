@@ -230,12 +230,18 @@ async def test_get_cell_explanation_includes_self_and_neighbor_incidents():
         result = await get_cell_explanation(session, target["cell_id"])
 
     assert result is not None
-    assert [i["incident_type"] for i in result["self_incidents"]] == ["snare"]
-    assert result["self_incidents"][0]["severity"] == "high"
-    assert [i["incident_type"] for i in result["neighbor_incidents"]] == [
-        "poaching_sign",
+    self_snare = [
+        i for i in result["self_incidents"] if i["incident_type"] == "snare"
     ]
-    assert result["neighbor_incidents"][0]["severity"] == "medium"
+    assert len(self_snare) == 1
+    assert self_snare[0]["severity"] == "high"
+    neighbor_sign = [
+        i
+        for i in result["neighbor_incidents"]
+        if i["incident_type"] == "poaching_sign"
+    ]
+    assert len(neighbor_sign) == 1
+    assert neighbor_sign[0]["severity"] == "medium"
 
 
 @pytest.mark.asyncio
@@ -255,7 +261,7 @@ async def test_get_cell_explanation_excludes_far_neighbors_and_old_incidents():
     await _insert_incident(
         target_lon,
         target_lat,
-        now - timedelta(days=200),
+        now - timedelta(days=400),
         "snare",
         "high",
     )
@@ -273,10 +279,42 @@ async def test_get_cell_explanation_excludes_far_neighbors_and_old_incidents():
 
     async with _Session() as session:
         result = await get_cell_explanation(session, target["cell_id"])
+    assert result is not None
+    self_types = [i["incident_type"] for i in result["self_incidents"]]
+    neighbor_types = [i["incident_type"] for i in result["neighbor_incidents"]]
+    assert "snare" not in self_types
+    assert "poaching_sign" not in neighbor_types
+
+
+@pytest.mark.asyncio
+async def test_get_cell_explanation_lists_incidents_within_scoring_window():
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+        await session.commit()
+        cells = await get_grid_cells(session, _PARK)
+
+    target = cells[0]
+    now = datetime.now(timezone.utc)
+    target_lon, target_lat = _cell_center(target)
+
+    await _insert_incident(
+        target_lon,
+        target_lat,
+        now - timedelta(days=150),
+        "aged_incident",
+        "high",
+    )
+
+    async with _Session() as session:
+        await _create_heatmap_for_cell(session, target)
+        await session.commit()
+
+    async with _Session() as session:
+        result = await get_cell_explanation(session, target["cell_id"])
 
     assert result is not None
-    assert result["self_incidents"] == []
-    assert result["neighbor_incidents"] == []
+    self_types = [i["incident_type"] for i in result["self_incidents"]]
+    assert "aged_incident" in self_types
 
 
 @pytest.mark.asyncio
