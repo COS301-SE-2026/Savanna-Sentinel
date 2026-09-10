@@ -20,7 +20,6 @@ export interface ExplainabilityPanelProps {
     onHeatmapVisibleChange: (visible: boolean) => void;
     opacity: number;
     onOpacityChange: (opacity: number) => void;
-    gridFetchedAt?: number | null;
     gridStale?: boolean;
 }
 
@@ -29,10 +28,16 @@ export function ExplainabilityPanel({
     onHeatmapVisibleChange,
     opacity,
     onOpacityChange,
-    gridFetchedAt = null,
     gridStale = false,
 }: ExplainabilityPanelProps) {
     const cellsByRef = useMapStore((s) => s.cellsByRef);
+    const summary = useMapStore((s) => s.summary);
+    const snapshots = useMapStore((s) => s.snapshots);
+    const selectedSnapshotId = useMapStore((s) => s.selectedSnapshotId);
+
+    const selectedSnapshot = snapshots.find(
+        (s) => s.heatmap_id === selectedSnapshotId,
+    );
 
     const { criticalCount, highCount } = useMemo(() => {
         let criticalCount = 0;
@@ -106,10 +111,22 @@ export function ExplainabilityPanel({
                     </div>
                     <div className="flex justify-between text-sm">
                         <dt className="text-color-text-secondary">
-                            Incidents (30d)
+                            Incidents (60d)
                         </dt>
                         <dd className="font-semibold text-color-text-primary">
-                            Not available yet
+                            {summary === null
+                                ? "Not available yet"
+                                : summary.incidents_60d}
+                        </dd>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <dt className="text-color-text-secondary">
+                            Sightings (7d)
+                        </dt>
+                        <dd className="font-semibold text-color-text-primary">
+                            {summary === null
+                                ? "Not available yet"
+                                : summary.sightings_7d}
                         </dd>
                     </div>
                     <div className="flex justify-between text-sm">
@@ -123,11 +140,11 @@ export function ExplainabilityPanel({
                                     : "font-semibold text-color-text-primary"
                             }
                         >
-                            {gridFetchedAt === null
-                                ? "Not available yet"
-                                : formatRelativeTime(
-                                      new Date(gridFetchedAt).toISOString(),
-                                  )}
+                            {selectedSnapshot
+                                ? formatRelativeTime(
+                                      selectedSnapshot.computed_at,
+                                  )
+                                : "Not available yet"}
                         </dd>
                     </div>
                 </dl>

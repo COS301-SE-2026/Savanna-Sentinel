@@ -85,6 +85,11 @@ export interface HeatmapSnapshot {
     computed_at: string;
 }
 
+export interface RiskSummaryResponse {
+    incidents_60d: number;
+    sightings_7d: number;
+}
+
 export interface HeatmapSnapshotListResponse {
     snapshots: HeatmapSnapshot[];
 }
@@ -163,6 +168,9 @@ export const riskApi = {
 
     getActiveModel: async (): Promise<ActiveModelResponse> =>
         api.get<ActiveModelResponse>("/risk/models/active").then((r) => r.data),
+
+    getRiskSummary: async (): Promise<RiskSummaryResponse> =>
+        api.get<RiskSummaryResponse>("/risk/summary").then((r) => r.data),
 
     trainModel: async (payload: RiskTrainRequest): Promise<RiskJobResponse> =>
         api.post<RiskJobResponse>("/risk/train", payload).then((r) => r.data),

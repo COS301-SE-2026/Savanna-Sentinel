@@ -43,10 +43,10 @@ export default function MapPage() {
     const cellsByRef = useMapStore((s) => s.cellsByRef);
     const riskByCell = useMemo(() => scoresByCell(cellsByRef), [cellsByRef]);
     const heatmapStatus = useMapStore((s) => s.heatmapStatus);
-    const gridFetchedAt = useMapStore((s) => s.gridFetchedAt);
     const isGridStale = useMapStore((s) => s.gridStale);
     const loadGrid = useMapStore((s) => s.loadGrid);
     const loadSnapshots = useMapStore((s) => s.loadSnapshots);
+    const loadSummary = useMapStore((s) => s.loadSummary);
 
     const [isHeatmapVisible, setHeatmapVisible] = useState(true);
     const [opacity, setOpacity] = useState(DEFAULT_OPACITY_PERCENT);
@@ -60,7 +60,8 @@ export default function MapPage() {
     useEffect(() => {
         loadGrid();
         loadSnapshots();
-    }, [loadGrid, loadSnapshots]);
+        loadSummary();
+    }, [loadGrid, loadSnapshots, loadSummary]);
 
     useEffect(() => {
         if (!grid || !map) return;
@@ -84,7 +85,6 @@ export default function MapPage() {
         onHeatmapVisibleChange: setHeatmapVisible,
         opacity,
         onOpacityChange: setOpacity,
-        gridFetchedAt,
         gridStale: isGridStale,
     };
 
