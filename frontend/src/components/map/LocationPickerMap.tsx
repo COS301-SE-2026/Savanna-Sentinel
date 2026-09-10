@@ -12,6 +12,7 @@ export interface LocationPickerMapProps {
     center: [number, number];
     zoom?: number;
     className?: string;
+    onMapReady?: (map: maplibregl.Map) => void;
 }
 
 export function LocationPickerMap({
@@ -20,6 +21,7 @@ export function LocationPickerMap({
     center,
     zoom = 10,
     className,
+    onMapReady,
 }: LocationPickerMapProps) {
     const [map, setMap] = useState<maplibregl.Map | null>(null);
     const markerRef = useRef<maplibregl.Marker | null>(null);
@@ -30,6 +32,10 @@ export function LocationPickerMap({
 
     function handleMapClick(lngLat: { lng: number; lat: number }) {
         onChangeRef.current({ lat: lngLat.lat, lon: lngLat.lng });
+    }
+    function handleMapReady(mapInstance: maplibregl.Map) {
+        setMap(mapInstance);
+        onMapReady?.(mapInstance);
     }
 
     useEffect(() => {
@@ -84,7 +90,7 @@ export function LocationPickerMap({
             <MapView
                 center={center}
                 zoom={zoom}
-                onMapReady={setMap}
+                onMapReady={handleMapReady}
                 onMapRemove={() => setMap(null)}
                 onMapClick={handleMapClick}
                 className="absolute inset-0 cursor-crosshair"

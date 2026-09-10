@@ -42,6 +42,30 @@ export const uploadErrorHandlers = [
     }),
 ];
 
+export const uploadError400Handlers = [
+    http.post("**/v1/risk/upload*", () => {
+        return new HttpResponse(null, { status: 400 });
+    }),
+];
+
+export const uploadError401Handlers = [
+    http.post("**/v1/risk/upload*", () => {
+        return new HttpResponse(null, { status: 401 });
+    }),
+];
+
+export const uploadError403Handlers = [
+    http.post("**/v1/risk/upload*", () => {
+        return new HttpResponse(null, { status: 403 });
+    }),
+];
+
+export const uploadError422Handlers = [
+    http.post("**/v1/risk/upload*", () => {
+        return new HttpResponse(null, { status: 422 });
+    }),
+];
+
 export const deleteErrorHandlers = [
     http.delete("**/v1/risk/geojson*", () => {
         return new HttpResponse(null, { status: 500 });

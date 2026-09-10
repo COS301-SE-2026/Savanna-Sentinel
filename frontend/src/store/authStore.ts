@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { authApi, type TokenResponse } from "../services/authApi";
 import { clearOfflineData } from "../offline/db";
+import { prefetchMapData } from "@/offline/riskGridCache";
+import { prefetchSavedRoutes } from "@/offline/routesCache";
 
 export interface AuthUser {
     id: string;
@@ -16,6 +18,7 @@ interface AuthState {
     accessToken: string | null;
     refreshToken: string | null;
     user: AuthUser | null;
+    isUploaded: boolean | null;
 
     login: (username: string, password: string) => Promise<LoginResult>;
     verifyMfa: (mfaToken: string, code: string) => Promise<void>;
@@ -23,6 +26,7 @@ interface AuthState {
     refreshSession: () => Promise<string>;
     logout: () => void;
     setUser: (user: AuthUser) => void;
+    setIsUploaded: (uploaded: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -38,12 +42,16 @@ export const useAuthStore = create<AuthState>()(
                         role: data.user.role,
                     },
                 });
+
+                prefetchMapData(data.user.id).catch(() => {});
+                prefetchSavedRoutes(data.user.id).catch(() => {});
             };
 
             return {
                 accessToken: null,
                 refreshToken: null,
                 user: null,
+                isUploaded: null,
                 login: async (username: string, password: string) => {
                     const data = await authApi.login({ username, password });
                     if ("mfa_required" in data) {
@@ -86,14 +94,22 @@ export const useAuthStore = create<AuthState>()(
                 },
 
                 setUser: (user: AuthUser) => set({ user }),
+                setIsUploaded: (isUploaded: boolean) => set({ isUploaded }),
             };
         },
         {
             name: "auth-storage",
+            onRehydrateStorage: () => (state) => {
+                if (state?.user?.id) {
+                    prefetchMapData(state.user.id).catch(() => {});
+                    prefetchSavedRoutes(state.user.id).catch(() => {});
+                }
+            },
             partialize: (state) => ({
                 accessToken: state.accessToken,
                 refreshToken: state.refreshToken,
                 user: state.user,
+                isUploaded: state.isUploaded,
             }),
         },
     ),

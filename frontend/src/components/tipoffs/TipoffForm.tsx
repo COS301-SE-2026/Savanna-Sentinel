@@ -1,4 +1,5 @@
 import * as React from "react";
+import type * as maplibregl from "maplibre-gl";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,9 @@ import {
     type ReportType,
 } from "@/types/reports";
 import type { LatLon } from "@/types/patrol";
+import { HeatmapLayer } from "@/components/map/HeatmapLayer";
+import { parseGridCells } from "@/lib/riskGrid";
+import { riskApi, type ParkGridResponse } from "@/services/riskApi";
 
 const OTHER = "Other";
 
@@ -34,6 +38,7 @@ const REPORT_TYPE_OPTIONS: { value: ReportType; label: string }[] = [
 ];
 
 const DEFAULT_ZOOM = 10;
+const DEFAULT_RISK_SCORE = 0.5;
 
 export interface TipoffFormProps {
     onSubmit: (input: DraftReportInput) => void;
@@ -58,6 +63,33 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
     const [photos, setPhotos] = React.useState<PhotoAttachment[]>([]);
     const [errors, setErrors] = React.useState<ReportValidationErrors>({});
     const parkCenter = useParkCenter();
+    const [map, setMap] = React.useState<maplibregl.Map | null>(null);
+    const [grid, setGrid] = React.useState<ParkGridResponse | null>(null);
+    const [riskByCell, setRiskByCell] = React.useState<Map<string, number>>(
+        new Map(),
+    );
+
+    React.useEffect(() => {
+        let isMounted = true;
+        riskApi
+            .getParkGrid()
+            .then((response) => {
+                if (!isMounted) {
+                    return;
+                }
+                setGrid(response);
+                const cells = parseGridCells(response);
+                const emptyRiskMap = new Map<string, number>(
+                    cells.map((c) => [c.cellId, DEFAULT_RISK_SCORE]),
+                );
+                setRiskByCell(emptyRiskMap);
+            })
+            .catch(() => {});
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const resolvedIncidentType =
         incidentTypeSelect === OTHER ? incidentTypeOther : incidentTypeSelect;
@@ -241,7 +273,7 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
                         )}
                         {errors.species && (
                             <span className="text-xs text-status-critical">
-                                {errors.species}z{" "}
+                                {errors.species}{" "}
                             </span>
                         )}
                     </div>
@@ -308,6 +340,14 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
                     onChange={setLocation}
                     center={parkCenter}
                     zoom={DEFAULT_ZOOM}
+                    onMapReady={setMap}
+                />
+                <HeatmapLayer
+                    map={map}
+                    grid={grid}
+                    riskByCell={riskByCell}
+                    pickingActive={false}
+                    isMobile={false}
                 />
                 <p className="text-xs text-color-text-secondary">
                     Click the map to drop a pin, or drag it to fine-tune the
