@@ -132,7 +132,9 @@ describe("TipoffForm", () => {
     });
 
     it("handles getParkGrid failure gracefully without throwing", async () => {
-        vi.spyOn(riskApi, "getParkGrid").mockRejectedValue(new Error("API Error"));
+        vi.spyOn(riskApi, "getParkGrid").mockRejectedValue(
+            new Error("API Error"),
+        );
 
         render(<TipoffForm onSubmit={vi.fn()} />);
 
