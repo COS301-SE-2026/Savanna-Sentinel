@@ -370,6 +370,27 @@ describe("TipoffPage", () => {
         );
     });
 
+    it("re-queries the backend when a column header is sorted", async () => {
+        mockOneTipoff();
+        setUser("analyst");
+        render(<TipoffPage />);
+        await screen.findByText("Suspicious tracks near the fence");
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /occurred at/i }),
+        );
+
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    sort: "occurred_at",
+                    direction: "asc",
+                    page: 1,
+                }),
+            ),
+        );
+    });
+
     it("re-queries the backend for each filter group", async () => {
         vi.mocked(tipoffsApi.getSpecies).mockResolvedValue({
             species: ["Rhino"],

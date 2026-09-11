@@ -5,6 +5,7 @@ import type {
     LocationLatLon,
     SpeciesResponse,
     UserFilterResponse,
+    ReportSortField,
 } from "./reportsApi";
 
 export interface TipoffCreate {
@@ -53,6 +54,8 @@ export interface TipoffListResponse {
 
 export interface ListTipoffsQueryParams {
     search?: string;
+    sort?: ReportSortField;
+    direction?: "asc" | "desc";
     report_type?: ReportType | ReportType[];
     severity?: SeverityLevel | SeverityLevel[];
     species?: string | string[];

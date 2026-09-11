@@ -123,6 +123,8 @@ class TipoffService:
         users: Optional[list[str]] = None,
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
+        sort_by: Optional[str] = None,
+        direction: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
@@ -140,6 +142,8 @@ class TipoffService:
             users=users,
             from_dt=from_dt,
             to_dt=to_dt,
+            sort_by=sort_by,
+            direction=direction,
             page=page,
             page_size=page_size,
         )
