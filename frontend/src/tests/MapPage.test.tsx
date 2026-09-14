@@ -1,4 +1,11 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import {
+    render,
+    screen,
+    waitFor,
+    fireEvent,
+    within,
+    act,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -180,6 +187,79 @@ describe("MapPage", () => {
             for (const feature of data.features) {
                 expect([1, 0.15]).toContain(feature.properties.fillOpacity);
             }
+        });
+    });
+
+    it("does not ask for location until the My Location layer is switched on", async () => {
+        const watchPosition = vi.fn(() => 1);
+        Object.defineProperty(window.navigator, "geolocation", {
+            configurable: true,
+            value: { watchPosition, clearWatch: vi.fn() },
+        });
+
+        renderPage();
+        const toggle = await screen.findByRole("checkbox", {
+            name: /my location/i,
+        });
+        expect(toggle).not.toBeChecked();
+        expect(watchPosition).not.toHaveBeenCalled();
+
+        await userEvent.click(toggle);
+
+        await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(1));
+
+        Object.defineProperty(window.navigator, "geolocation", {
+            configurable: true,
+            value: undefined,
+        });
+    });
+
+    it("puts a location marker on the map once a fix arrives on an enabled layer", async () => {
+        let emit: ((p: GeolocationPosition) => void) | null = null;
+        Object.defineProperty(window.navigator, "geolocation", {
+            configurable: true,
+            value: {
+                watchPosition: vi.fn((success) => {
+                    emit = success;
+                    return 1;
+                }),
+                clearWatch: vi.fn(),
+            },
+        });
+
+        const addSourceSpy = vi.spyOn(maplibregl.Map.prototype, "addSource");
+        renderPage();
+        await waitFor(() => expect(addSourceSpy).toHaveBeenCalled());
+        const map = addSourceSpy.mock.instances[0] as unknown as FakeMap;
+        expect(map.markers.size).toBe(0);
+
+        await userEvent.click(
+            await screen.findByRole("checkbox", { name: /my location/i }),
+        );
+        act(() =>
+            emit?.({
+                coords: {
+                    latitude: -24.3,
+                    longitude: 31.05,
+                    heading: 45,
+                    accuracy: 10,
+                    altitude: null,
+                    altitudeAccuracy: null,
+                    speed: null,
+                },
+                timestamp: Date.now(),
+            } as GeolocationPosition),
+        );
+
+        await waitFor(() => expect(map.markers.size).toBe(1));
+        const puck = [...map.markers][0].element;
+        expect(
+            within(puck).getByRole("img", { name: /your current location/i }),
+        ).toBeTruthy();
+
+        Object.defineProperty(window.navigator, "geolocation", {
+            configurable: true,
+            value: undefined,
         });
     });
 

@@ -37,6 +37,8 @@ function renderPanel(
     const props = {
         heatmapVisible: true,
         onHeatmapVisibleChange: vi.fn(),
+        locationVisible: false,
+        onLocationVisibleChange: vi.fn(),
         opacity: 55,
         onOpacityChange: vi.fn(),
         ...overrides,
@@ -51,9 +53,35 @@ describe("ExplainabilityPanel", () => {
         expect(
             screen.getByRole("checkbox", { name: /risk heatmap/i }),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole("checkbox", { name: /my location/i }),
+        ).toBeInTheDocument();
         expect(screen.queryByText(/roads/i)).not.toBeInTheDocument();
         expect(screen.queryByText(/water sources/i)).not.toBeInTheDocument();
         expect(screen.queryByText(/fence lines/i)).not.toBeInTheDocument();
+    });
+
+    it("lists My Location directly after Risk Heatmap", () => {
+        renderPanel();
+        const layers = screen
+            .getAllByRole("checkbox")
+            .map((box) => box.closest("label")?.textContent);
+        expect(layers).toEqual(["Risk Heatmap", "My Location"]);
+    });
+
+    it("leaves My Location off until the user turns it on", () => {
+        renderPanel();
+        expect(
+            screen.getByRole("checkbox", { name: /my location/i }),
+        ).not.toBeChecked();
+    });
+
+    it("calls onLocationVisibleChange when My Location is toggled", async () => {
+        const props = renderPanel({ locationVisible: false });
+        await userEvent.click(
+            screen.getByRole("checkbox", { name: /my location/i }),
+        );
+        expect(props.onLocationVisibleChange).toHaveBeenCalledWith(true);
     });
 
     it("calls onHeatmapVisibleChange when the Risk Heatmap checkbox is toggled", async () => {
