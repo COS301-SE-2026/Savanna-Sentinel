@@ -131,15 +131,25 @@ export class FakeMap {
 
 export class FakeMarker {
     private lngLat = { lng: 0, lat: 0 };
+    private rotation = 0;
     private map: FakeMap | null = null;
     private handlers: Record<string, Handler[]> = {};
     element: HTMLElement;
+    options: Record<string, unknown>;
     constructor(options: { element: HTMLElement }) {
         this.element = options.element;
+        this.options = options;
     }
     setLngLat(coords: [number, number]) {
         this.lngLat = { lng: coords[0], lat: coords[1] };
         return this;
+    }
+    setRotation(rotation: number) {
+        this.rotation = rotation;
+        return this;
+    }
+    getRotation() {
+        return this.rotation;
     }
     on(event: string, handler: Handler) {
         (this.handlers[event] ??= []).push(handler);
