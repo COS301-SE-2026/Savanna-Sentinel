@@ -7,6 +7,7 @@ functions plus the high-level plan_routes().
 from __future__ import annotations
 
 import math
+import random
 from dataclasses import dataclass
 
 import pytest
@@ -15,6 +16,18 @@ from app.schemas.geo import GeoPoint
 from app.schemas.route import GraphEdge, GraphNode, ParkGraph, PlannedRoute
 from app.workers.ml import route_planner
 from app.workers.ml.shortest_path import PathResult
+
+
+class FixedRandom:
+
+    def __init__(self, fraction: float = 0.01):
+        self.fraction = fraction
+
+    def uniform(self, a: float, b: float) -> float:
+        return b * self.fraction
+
+    def choice(self, seq):
+        return seq[0]
 
 
 @dataclass(frozen=True)
@@ -502,12 +515,13 @@ def test_select_next_waypoint_returns_none_when_no_candidates():
             "start",
             {},
             config,
+            random.Random(0),
         )
         is None
     )
 
 
-def test_select_next_waypoint_discounts_already_covered_candidates(monkeypatch):
+def test_select_next_waypoint_discounts_already_covered_candidates():
     """An already-covered candidate stops pulling the search toward it."""
     config = route_planner.ACOConfig(alpha=1.0, beta=1.0)
     matrix = {
@@ -525,7 +539,7 @@ def test_select_next_waypoint_discounts_already_covered_candidates(monkeypatch):
     node_risk = {"w1": 0.7, "w2": 0.4}
     pheromones = {("start", "w1"): 1.0, ("start", "w2"): 1.0}
     # Lands inside w1's share of the roulette wheel while uncovered.
-    monkeypatch.setattr(route_planner.random, "uniform", lambda a, b: b * 0.01)
+    rng = FixedRandom(fraction=0.01)
 
     uncovered_choice = route_planner.select_next_waypoint(
         ["w1", "w2"],
@@ -534,6 +548,7 @@ def test_select_next_waypoint_discounts_already_covered_candidates(monkeypatch):
         "start",
         node_risk,
         config,
+        rng,
     )
     assert uncovered_choice == "w1"
 
@@ -544,14 +559,13 @@ def test_select_next_waypoint_discounts_already_covered_candidates(monkeypatch):
         "start",
         node_risk,
         config,
+        rng,
         covered=frozenset({"w1"}),
     )
     assert covered_choice == "w2"
 
 
-def test_select_next_waypoint_falls_back_to_random_when_weights_are_zero(
-    monkeypatch,
-):
+def test_select_next_waypoint_falls_back_to_random_when_weights_are_zero():
     """
     Zero pheromone with alpha > 0 zeroes every weight.
 
@@ -566,7 +580,6 @@ def test_select_next_waypoint_falls_back_to_random_when_weights_are_zero(
         ),
     }
     node_risk = {"w1": 0.7}
-    monkeypatch.setattr(route_planner.random, "choice", lambda seq: seq[0])
 
     choice = route_planner.select_next_waypoint(
         ["w1"],
@@ -575,6 +588,7 @@ def test_select_next_waypoint_falls_back_to_random_when_weights_are_zero(
         "start",
         node_risk,
         config,
+        FixedRandom(),
     )
     assert choice == "w1"
 
@@ -623,6 +637,7 @@ def test_construct_waypoint_tour_builds_waypoint_and_expanded_paths(
             max_fuel=5.0,
             pheromones={},
             config=config,
+            rng=random.Random(0),
         )
     )
 
@@ -665,6 +680,7 @@ def test_construct_waypoint_tour_discounts_risk_for_already_covered_nodes():
             max_fuel=10.0,
             pheromones={},
             config=config,
+            rng=random.Random(0),
         )
     )
 
@@ -716,6 +732,7 @@ def test_construct_waypoint_tour_treats_none_max_time_and_max_fuel_as_unlimited(
         max_fuel=None,
         pheromones={},
         config=config,
+        rng=random.Random(0),
     )
 
     assert captured["time_remaining"] == math.inf
@@ -750,6 +767,7 @@ def test_construct_waypoint_tour_stops_when_no_feasible_waypoint_exists(
             max_fuel=5.0,
             pheromones={},
             config=config,
+            rng=random.Random(0),
         )
     )
 
@@ -853,6 +871,7 @@ def test_run_phase_returns_best(
             pheromones={"initial": True},
             num_iterations=3,
             config=config,
+            rng=random.Random(0),
         )
     )
 
@@ -912,6 +931,7 @@ def test_run_phase_prefers_efficient_tour_over_longer_higher_risk_tour(
             pheromones={},
             num_iterations=1,
             config=config,
+            rng=random.Random(0),
         )
     )
 
@@ -955,6 +975,7 @@ def test_run_phase_skips_iterations_without_complete_tours(monkeypatch):
             pheromones={"initial": True},
             num_iterations=2,
             config=config,
+            rng=random.Random(0),
         )
     )
 
@@ -1201,3 +1222,100 @@ def test_routes_skips_empty_phase_results(monkeypatch):
     )
 
     assert routes == []
+
+
+# determinism
+
+
+def _seeded_plan(graph, fixture, seed, **overrides):
+    config = route_planner.ACOConfig(
+        num_ants=4,
+        total_iterations=12,
+        seed=seed,
+        **overrides,
+    )
+    return route_planner.plan_routes(
+        graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        max_time_min=None,
+        max_fuel_l=None,
+        num_alternatives=3,
+        config=config,
+    )
+
+
+def _signature(routes):
+    return [(r.suggested_path, round(r.risk_coverage, 9)) for r in routes]
+
+
+def test_plan_routes_is_reproducible_for_a_fixed_seed():
+    fixture = make_graph()
+    first = _seeded_plan(fixture.graph, fixture, seed=1234)
+    second = _seeded_plan(fixture.graph, fixture, seed=1234)
+    assert _signature(first) == _signature(second)
+
+
+def test_plan_routes_rebuilds_the_stream_on_every_call():
+    """A second call with one config must not continue the first's stream."""
+    fixture = make_graph()
+    config = route_planner.ACOConfig(num_ants=4, total_iterations=12, seed=7)
+    args = (fixture.graph, fixture.start_node_id, fixture.end_node_id)
+    first = route_planner.plan_routes(*args, None, None, 3, config)
+    second = route_planner.plan_routes(*args, None, None, 3, config)
+    assert _signature(first) == _signature(second)
+
+
+def test_plan_routes_seed_survives_a_fresh_equivalent_graph():
+    """Reproducibility must not depend on the graph object's warm caches."""
+    fixture = make_graph()
+    first = _seeded_plan(fixture.graph, fixture, seed=99)
+    rebuilt = make_graph()
+    second = _seeded_plan(rebuilt.graph, rebuilt, seed=99)
+    assert _signature(first) == _signature(second)
+
+
+def test_plan_routes_without_a_seed_still_plans():
+    fixture = make_graph()
+    routes = _seeded_plan(fixture.graph, fixture, seed=None)
+    assert all(isinstance(r, PlannedRoute) for r in routes)
+
+
+def test_aco_config_defaults_to_no_seed():
+    assert route_planner.ACOConfig().seed is None
+
+
+def test_select_waypoints_order_does_not_depend_on_set_iteration():
+    """Equally good candidates must resolve in grid order, not hash order.
+
+    Every cell here covers exactly one uncovered high-risk cell on the first
+    pass, so the winner is decided purely by tie-break.
+    """
+    node_ids = [f"cell-{i}" for i in range(12)]
+    nodes = [
+        GraphNode(
+            node_id=nid,
+            location=GeoPoint(coordinates=(float(i), 0.0)),
+            risk_score=0.9,
+        )
+        for i, nid in enumerate(node_ids)
+    ]
+    graph = ParkGraph(park_id="p", nodes=nodes, edges=[])
+
+    assert route_planner.select_waypoints(graph) == node_ids
+
+
+def test_select_waypoints_follows_node_order_not_insertion_luck():
+    """Reversing the node list reverses the result, proving order is read."""
+    node_ids = [f"cell-{i}" for i in range(12)]
+    nodes = [
+        GraphNode(
+            node_id=nid,
+            location=GeoPoint(coordinates=(float(i), 0.0)),
+            risk_score=0.9,
+        )
+        for i, nid in enumerate(node_ids)
+    ]
+    reversed_graph = ParkGraph(park_id="p", nodes=nodes[::-1], edges=[])
+
+    assert route_planner.select_waypoints(reversed_graph) == node_ids[::-1]

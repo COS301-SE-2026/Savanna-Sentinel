@@ -24,6 +24,7 @@ class ACOConfig:
     diversity_threshold: float = 0.3
     # candidate must retain >= 90% of best risk_coverage
     quality_threshold: float = 0.9
+    seed: int | None = None
 
 
 def init_pheromones(
@@ -81,18 +82,10 @@ def select_waypoints(
     graph: ParkGraph,
     threshold: float = DEFAULT_HIGH_RISK_THRESHOLD,
 ) -> list[str]:
-    """High-risk nodes needed to cover every high-risk node (greedy set cover).
 
-    A patrol only needs to get within one hop of a hotspot cell to count
-    it as covered (see covered_nodes/compute_risk_coverage), so treating
-    every single high-risk cell as a waypoint the route must physically
-    visit causes the search to weave back and forth across a dense cluster.
-    Picking a minimal representative set instead gives the macro route planner a
-    handful of stops per hotspot rather than one per cell.
-    """
     node_risk = _node_risk(graph)
     coverage_neighbors = _coverage_neighbors(graph)
-    high_risk = {nid for nid, score in node_risk.items() if score >= threshold}
+    high_risk = [nid for nid, score in node_risk.items() if score >= threshold]
     uncovered = set(high_risk)
     waypoints: list[str] = []
     while uncovered:
@@ -174,6 +167,7 @@ def select_next_waypoint(
     current_node: str,
     node_risk: dict[str, float],
     config: ACOConfig,
+    rng: random.Random,
     covered: frozenset[str] = frozenset(),
 ) -> str | None:
     if not candidates:
@@ -189,8 +183,8 @@ def select_next_waypoint(
         weights.append((tau**config.alpha) * (heuristic**config.beta))
     total = sum(weights)
     if total == 0:
-        return random.choice(candidates)  # NOSONAR
-    r = random.uniform(0, total)
+        return rng.choice(candidates)  # NOSONAR
+    r = rng.uniform(0, total)
     cumulative = 0.0
     for target, w in zip(candidates, weights):
         cumulative += w
@@ -209,6 +203,7 @@ def construct_waypoint_tour(
     max_fuel: float | None,
     pheromones: dict,
     config: ACOConfig,
+    rng: random.Random,
 ) -> tuple[list[str], list[str], float, float, float]:
     """One ant's tour over hub nodes, stitched from real shortest-path nodes.
 
@@ -251,6 +246,7 @@ def construct_waypoint_tour(
             current,
             node_risk,
             config,
+            rng,
             frozenset(covered),
         )
         if chosen is None:
@@ -330,6 +326,7 @@ def run_phase(
     pheromones: dict,
     num_iterations: int,
     config: ACOConfig,
+    rng: random.Random,
 ) -> tuple[list[str], list[str], float, dict]:
     best_waypoint_path: list[str] = []
     best_expanded_path: list[str] = []
@@ -348,6 +345,7 @@ def run_phase(
                     max_fuel,
                     pheromones,
                     config,
+                    rng,
                 )
             )
             if waypoint_path[-1] == end_node_id:
@@ -449,6 +447,8 @@ def plan_routes(
     config: ACOConfig | None = None,
 ) -> list[PlannedRoute]:
     config = config or ACOConfig()
+
+    rng = random.Random(config.seed)
     waypoint_ids = [
         w
         for w in select_waypoints(graph)
@@ -476,6 +476,7 @@ def plan_routes(
             pheromones,
             n_iter,
             config,
+            rng,
         )
         if not waypoint_path:
             continue
@@ -504,6 +505,7 @@ def plan_routes(
                     pheromones,
                     n_iter,
                     config,
+                    rng,
                 )
             )
             passes = (

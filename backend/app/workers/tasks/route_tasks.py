@@ -26,14 +26,8 @@ def run_route_planning_job(
     max_fuel_l: float | None,
     num_alternatives: int,
     risk_by_cell: dict[str, float] | None = None,
+    seed: int | None = None,
 ) -> dict:
-    """Run plan_routes() and return however many alternatives were accepted.
-
-    Not 'async def' - Celery does not await coroutine task functions, and
-    nothing this task calls is async anyway. Job status/progress is read
-    from this task's own Celery result state (see get_routes) - there is
-    no separate persisted RouteJob record.
-    """
     graph = build_park_graph(park_id, risk_by_cell)
     start_node_id = find_nearest_node(graph, start)
     end_node_id = find_nearest_node(graph, end)
@@ -45,7 +39,7 @@ def run_route_planning_job(
         max_time_min,
         max_fuel_l,
         num_alternatives,
-        ACOConfig(),
+        ACOConfig(seed=seed),
     )
 
     return {
