@@ -44,11 +44,7 @@ interface SidebarContentProps {
     onArmField: (field: "start" | "end") => void;
     onStartPointChange: (point: LatLon | null) => void;
     onEndPointChange: (point: LatLon | null) => void;
-    maxTime: string;
-    maxFuel: string;
     coverageTarget: string;
-    onMaxTimeChange: (v: string) => void;
-    onMaxFuelChange: (v: string) => void;
     onCoverageTargetChange: (v: string) => void;
     onGenerate: () => void;
     isGenerating: boolean;
@@ -76,11 +72,7 @@ function SidebarContent({
     onArmField,
     onStartPointChange,
     onEndPointChange,
-    maxTime,
-    maxFuel,
     coverageTarget,
-    onMaxTimeChange,
-    onMaxFuelChange,
     onCoverageTargetChange,
     onGenerate,
     isGenerating,
@@ -123,11 +115,7 @@ function SidebarContent({
                 onArmField={onArmField}
                 onStartPointChange={onStartPointChange}
                 onEndPointChange={onEndPointChange}
-                maxTime={maxTime}
-                maxFuel={maxFuel}
                 coverageTarget={coverageTarget}
-                onMaxTimeChange={onMaxTimeChange}
-                onMaxFuelChange={onMaxFuelChange}
                 onCoverageTargetChange={onCoverageTargetChange}
                 onGenerate={onGenerate}
                 isGenerating={isGenerating}
@@ -194,8 +182,6 @@ export default function PatrolPlannerPage() {
     const [startPoint, setStartPoint] = useState<LatLon | null>(null);
     const [endPoint, setEndPoint] = useState<LatLon | null>(null);
     const [armedField, setArmedField] = useState<ArmedField>(null);
-    const [maxTime, setMaxTime] = useState("");
-    const [maxFuel, setMaxFuel] = useState("");
     const [coverageTarget, setCoverageTarget] = useState("");
 
     const [requestId, setRequestId] = useState<string | null>(null);
@@ -304,8 +290,6 @@ export default function PatrolPlannerPage() {
                     type: "Point",
                     coordinates: [endPoint.lon, endPoint.lat],
                 },
-                max_time: maxTime.trim() === "" ? undefined : Number(maxTime),
-                max_fuel: maxFuel.trim() === "" ? undefined : Number(maxFuel),
                 num_alternatives: 3,
                 coverage_target:
                     coverageTarget.trim() === ""
@@ -332,7 +316,6 @@ export default function PatrolPlannerPage() {
             suggested_path: [],
             path_geometry: saved.path_geometry,
             estimated_time_min: saved.estimated_time_min,
-            estimated_fuel_l: saved.estimated_fuel_l,
             risk_coverage: saved.risk_coverage,
         });
         setSavedRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
@@ -345,8 +328,6 @@ export default function PatrolPlannerPage() {
             lat: saved.end_point.coordinates[1],
             lon: saved.end_point.coordinates[0],
         });
-        setMaxTime(saved.max_time === null ? "" : String(saved.max_time));
-        setMaxFuel(saved.max_fuel === null ? "" : String(saved.max_fuel));
     }
 
     const canSave = requestId !== null;
@@ -365,8 +346,6 @@ export default function PatrolPlannerPage() {
                     type: "Point",
                     coordinates: [endPoint.lon, endPoint.lat],
                 },
-                max_time: maxTime.trim() === "" ? null : Number(maxTime),
-                max_fuel: maxFuel.trim() === "" ? null : Number(maxFuel),
                 risk_by_cell: Object.fromEntries(riskByCell),
                 route: routes[index],
             });
@@ -390,11 +369,7 @@ export default function PatrolPlannerPage() {
         onArmField: handleArmField,
         onStartPointChange: setStartPoint,
         onEndPointChange: setEndPoint,
-        maxTime,
-        maxFuel,
         coverageTarget,
-        onMaxTimeChange: setMaxTime,
-        onMaxFuelChange: setMaxFuel,
         onCoverageTargetChange: setCoverageTarget,
         onGenerate: handleGenerate,
         isGenerating,

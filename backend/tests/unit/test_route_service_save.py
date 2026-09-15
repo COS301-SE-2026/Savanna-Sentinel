@@ -24,8 +24,6 @@ def _fake_save_request(request_id: str = "req-1") -> SaveRouteRequest:
         request_id=request_id,
         start_point=GeoPoint(coordinates=(31.18, -24.2)),
         end_point=GeoPoint(coordinates=(31.19, -24.21)),
-        max_time=120.0,
-        max_fuel=40.0,
         risk_by_cell={"cell-1": 0.5},
         route=PlannedRoute(
             suggested_path=["a", "b"],
@@ -33,7 +31,6 @@ def _fake_save_request(request_id: str = "req-1") -> SaveRouteRequest:
                 coordinates=[(31.18, -24.2), (31.19, -24.21)],
             ),
             estimated_time_min=90.0,
-            estimated_fuel_l=30.0,
             risk_coverage=0.7,
         ),
     )

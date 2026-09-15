@@ -6,7 +6,6 @@ from pyproj import Transformer
 from app.repositories import route_repository
 from app.repositories.route_repository import (
     AVG_SPEED_KMH,
-    FUEL_L_PER_KM,
     build_park_graph,
     find_nearest_node,
 )
@@ -153,7 +152,6 @@ def test_load_grid_edge_costs_derived_from_cell_width(grid_2x2):
         assert edge.est_time_min == pytest.approx(
             expected_km / AVG_SPEED_KMH * 60,
         )
-        assert edge.est_fuel_l == pytest.approx(expected_km * FUEL_L_PER_KM)
 
 
 def test_load_grid_raises_when_no_grid_uploaded_yet(tmp_path, monkeypatch):
@@ -359,7 +357,6 @@ def test_find_nearest_node_scales_the_bound_to_the_cell_size():
                 "only",
                 distance_km=10.0,
                 est_time_min=30.0,
-                est_fuel_l=1.5,
             ),
         ],
     )

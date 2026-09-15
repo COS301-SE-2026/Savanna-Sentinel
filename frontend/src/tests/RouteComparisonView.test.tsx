@@ -18,14 +18,12 @@ const ROUTES: PlannedRoute[] = [
         suggested_path: [],
         path_geometry: { type: "LineString", coordinates: [] },
         estimated_time_min: 38,
-        estimated_fuel_l: 16,
         risk_coverage: 0.74,
     },
     {
         suggested_path: [],
         path_geometry: { type: "LineString", coordinates: [] },
         estimated_time_min: 45,
-        estimated_fuel_l: 21,
         risk_coverage: 0.58,
     },
 ];

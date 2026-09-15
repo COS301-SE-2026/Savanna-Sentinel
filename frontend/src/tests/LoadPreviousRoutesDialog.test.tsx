@@ -34,7 +34,6 @@ describe("LoadPreviousRoutesDialog", () => {
             name: /55 min/i,
         });
         expect(routeButton).toBeInTheDocument();
-        expect(routeButton).toHaveAccessibleName(/22 L/i);
         expect(routeButton).toHaveAccessibleName(/42% risk/i);
         expect(routeButton).toHaveAccessibleName(/start: -24.30000, 31.05000/i);
     });

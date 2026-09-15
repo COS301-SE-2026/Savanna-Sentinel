@@ -21,11 +21,7 @@ export interface PatrolPlannerFormProps {
     onArmField: (field: "start" | "end") => void;
     onStartPointChange: (point: LatLon | null) => void;
     onEndPointChange: (point: LatLon | null) => void;
-    maxTime: string;
-    maxFuel: string;
     coverageTarget: string;
-    onMaxTimeChange: (value: string) => void;
-    onMaxFuelChange: (value: string) => void;
     onCoverageTargetChange: (value: string) => void;
     onGenerate: () => void;
     isGenerating: boolean;
@@ -58,11 +54,7 @@ export function PatrolPlannerForm({
     onArmField,
     onStartPointChange,
     onEndPointChange,
-    maxTime,
-    maxFuel,
     coverageTarget,
-    onMaxTimeChange,
-    onMaxFuelChange,
     onCoverageTargetChange,
     onGenerate,
     isGenerating,
@@ -72,17 +64,12 @@ export function PatrolPlannerForm({
 }: PatrolPlannerFormProps) {
     const [isClearOpen, setIsClearOpen] = useState(false);
 
-    const isBlankOrPositive = (value: string) =>
-        value.trim() === "" || Number(value) > 0;
-
     const isBlankOrPercent = (value: string) =>
         value.trim() === "" || (Number(value) > 0 && Number(value) <= 100);
 
     const canGenerate =
         startPoint !== null &&
         endPoint !== null &&
-        isBlankOrPositive(maxTime) &&
-        isBlankOrPositive(maxFuel) &&
         isBlankOrPercent(coverageTarget) &&
         !isGenerating &&
         !heatmapHasNoData;
@@ -165,42 +152,6 @@ export function PatrolPlannerForm({
                     >
                         <MapPin />
                     </Button>
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-                <Label htmlFor="pp-time">Max Time (optional)</Label>
-                <div className="relative">
-                    <Input
-                        id="pp-time"
-                        type="number"
-                        min={0}
-                        placeholder="No limit"
-                        value={maxTime}
-                        onChange={(e) => onMaxTimeChange(e.target.value)}
-                        className="pr-10"
-                    />
-                    <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-color-text-primary">
-                        min
-                    </span>
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-                <Label htmlFor="pp-fuel">Max Fuel (optional)</Label>
-                <div className="relative">
-                    <Input
-                        id="pp-fuel"
-                        type="number"
-                        min={0}
-                        placeholder="No limit"
-                        value={maxFuel}
-                        onChange={(e) => onMaxFuelChange(e.target.value)}
-                        className="pr-8"
-                    />
-                    <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-color-text-primary">
-                        L
-                    </span>
                 </div>
             </div>
 

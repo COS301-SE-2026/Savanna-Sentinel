@@ -10,9 +10,8 @@ from app.schemas.route import GraphEdge, GraphNode, ParkGraph
 from app.workers.ml.route_planner import clear_path_cache
 
 # Placeholder patrol-vehicle profile - no vehicle telemetry/risk engine exists
-# yet to derive these from, so a flat off-road estimate is used for every edge.
+# yet to derive this from, so a flat off-road estimate is used for every edge.
 AVG_SPEED_KMH = 20.0
-FUEL_L_PER_KM = 0.15
 
 
 @lru_cache(maxsize=None)
@@ -85,7 +84,6 @@ def _load_grid() -> ParkGraph:
                         to_node_id=f"cell-{neighbor_id}",
                         distance_km=km,
                         est_time_min=km / AVG_SPEED_KMH * 60,
-                        est_fuel_l=km * FUEL_L_PER_KM,
                     ),
                 )
 

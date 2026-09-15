@@ -212,12 +212,6 @@ export function LoadPreviousRoutesDialog({
                                                     )}{" "}
                                                     min
                                                 </span>
-                                                <span>
-                                                    {Math.round(
-                                                        route.estimated_fuel_l,
-                                                    )}{" "}
-                                                    L
-                                                </span>
                                             </div>
                                             <Button
                                                 type="button"

@@ -215,14 +215,6 @@ export function RouteComparisonView({
                                 </div>
                                 <div className="flex justify-between">
                                     <dt className="text-color-text-secondary">
-                                        Est. Fuel
-                                    </dt>
-                                    <dd className="font-medium">
-                                        {Math.round(route.estimated_fuel_l)} L
-                                    </dd>
-                                </div>
-                                <div className="flex justify-between">
-                                    <dt className="text-color-text-secondary">
                                         Risk Coverage
                                     </dt>
                                     <dd

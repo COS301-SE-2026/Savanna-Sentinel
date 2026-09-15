@@ -9,7 +9,6 @@ from app.schemas.route import GraphEdge, ParkGraph
 @dataclass(frozen=True)
 class PathResult:
     time_min: float
-    fuel_l: float
     path: list[str]
 
 
@@ -33,7 +32,6 @@ def dijkstra(
     pending = None if target_ids is None else set(target_ids)
 
     best_time = {source_node_id: 0.0}
-    best_fuel = {source_node_id: 0.0}
     prev: dict[str, str] = {}
     visited: set[str] = set()
     heap: list[tuple[float, str]] = [(0.0, source_node_id)]
@@ -52,7 +50,6 @@ def dijkstra(
             candidate_time = time_so_far + edge.est_time_min
             if candidate_time < best_time.get(neighbor, math.inf):
                 best_time[neighbor] = candidate_time
-                best_fuel[neighbor] = best_fuel[node] + edge.est_fuel_l
                 prev[neighbor] = node
                 heapq.heappush(heap, (candidate_time, neighbor))
 
@@ -67,7 +64,6 @@ def dijkstra(
         path.reverse()
         results[node_id] = PathResult(
             time_min=best_time[node_id],
-            fuel_l=best_fuel[node_id],
             path=path,
         )
     return results

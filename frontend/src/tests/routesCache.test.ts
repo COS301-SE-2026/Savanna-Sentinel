@@ -20,8 +20,6 @@ function route(id: string, createdAt: string): SavedRoute {
         request_id: `req-${id}`,
         start_point: { type: "Point", coordinates: [31.0, -24.3] },
         end_point: { type: "Point", coordinates: [31.2, -24.1] },
-        max_time: null,
-        max_fuel: null,
         risk_by_cell: {},
         path_geometry: {
             type: "LineString",
@@ -31,7 +29,6 @@ function route(id: string, createdAt: string): SavedRoute {
             ],
         },
         estimated_time_min: 40,
-        estimated_fuel_l: 9,
         risk_coverage: 0.5,
         created_at: createdAt,
     };

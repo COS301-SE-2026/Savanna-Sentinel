@@ -12,7 +12,6 @@ def _serialize_route(route: PlannedRoute) -> dict:
         "suggested_path": route.suggested_path,
         "path_geometry": route.path_geometry.model_dump(),
         "estimated_time_min": route.estimated_time_min,
-        "estimated_fuel_l": route.estimated_fuel_l,
         "risk_coverage": route.risk_coverage,
     }
 
@@ -22,8 +21,6 @@ def run_route_planning_job(
     park_id: str,
     start: tuple[float, float],
     end: tuple[float, float],
-    max_time_min: float | None,
-    max_fuel_l: float | None,
     num_alternatives: int,
     risk_by_cell: dict[str, float] | None = None,
     coverage_target: float | None = None,
@@ -37,8 +34,6 @@ def run_route_planning_job(
         graph,
         start_node_id,
         end_node_id,
-        max_time_min,
-        max_fuel_l,
         num_alternatives,
         ACOConfig(seed=seed, coverage_target=coverage_target),
     )

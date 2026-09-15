@@ -6,7 +6,6 @@ functions plus the high-level plan_routes().
 
 from __future__ import annotations
 
-import math
 import random
 from dataclasses import dataclass
 
@@ -63,21 +62,18 @@ def make_graph() -> SimpleGraphFixture:
             "mid",
             distance_km=1.0,
             est_time_min=10.0,
-            est_fuel_l=1.5,
         ),
         GraphEdge(
             "mid",
             "end",
             distance_km=1.0,
             est_time_min=10.0,
-            est_fuel_l=1.5,
         ),
         GraphEdge(
             "start",
             "end",
             distance_km=2.0,
             est_time_min=25.0,
-            est_fuel_l=3.5,
         ),
     ]
 
@@ -132,7 +128,6 @@ def make_line_graph() -> ParkGraph:
                 b,
                 distance_km=1.0,
                 est_time_min=3.0,
-                est_fuel_l=0.15,
             ),
         )
         edges.append(
@@ -141,7 +136,6 @@ def make_line_graph() -> ParkGraph:
                 a,
                 distance_km=1.0,
                 est_time_min=3.0,
-                est_fuel_l=0.15,
             ),
         )
     return ParkGraph(park_id="line", nodes=nodes, edges=edges)
@@ -196,28 +190,24 @@ def test_select_waypoints_covers_a_cluster_with_one_representative():
             "a2",
             distance_km=1.0,
             est_time_min=3.0,
-            est_fuel_l=0.15,
         ),
         GraphEdge(
             "a2",
             "a1",
             distance_km=1.0,
             est_time_min=3.0,
-            est_fuel_l=0.15,
         ),
         GraphEdge(
             "a2",
             "a3",
             distance_km=1.0,
             est_time_min=3.0,
-            est_fuel_l=0.15,
         ),
         GraphEdge(
             "a3",
             "a2",
             distance_km=1.0,
             est_time_min=3.0,
-            est_fuel_l=0.15,
         ),
     ]
     graph = ParkGraph(park_id="p", nodes=nodes, edges=edges)
@@ -255,28 +245,24 @@ def test_select_waypoints_needs_one_per_disconnected_hotspot():
             "a2",
             distance_km=1.0,
             est_time_min=3.0,
-            est_fuel_l=0.15,
         ),
         GraphEdge(
             "a2",
             "a1",
             distance_km=1.0,
             est_time_min=3.0,
-            est_fuel_l=0.15,
         ),
         GraphEdge(
             "a2",
             "a3",
             distance_km=1.0,
             est_time_min=3.0,
-            est_fuel_l=0.15,
         ),
         GraphEdge(
             "a3",
             "a2",
             distance_km=1.0,
             est_time_min=3.0,
-            est_fuel_l=0.15,
         ),
     ]
     graph = ParkGraph(park_id="p", nodes=nodes, edges=edges)
@@ -328,7 +314,6 @@ def test_build_waypoint_distance_matrix_covers_every_ordered_pair():
     )
 
     assert matrix[("p1", "p3")].time_min == pytest.approx(6.0)
-    assert matrix[("p1", "p3")].fuel_l == pytest.approx(0.3)
     assert matrix[("p1", "p3")].path == ["p1", "p2", "p3"]
     assert matrix[("p3", "p1")].path == ["p3", "p2", "p1"]
     assert matrix[("p3", "p5")].time_min == pytest.approx(6.0)
@@ -363,7 +348,7 @@ def test_build_waypoint_distance_matrix_omits_unreachable_pairs():
         ),
     ]
     edges = [
-        GraphEdge("a", "b", distance_km=1.0, est_time_min=1.0, est_fuel_l=0.1),
+        GraphEdge("a", "b", distance_km=1.0, est_time_min=1.0),
     ]
     graph = ParkGraph(park_id="p", nodes=nodes, edges=edges)
 
@@ -405,20 +390,17 @@ def test_feasible_waypoints_filters_visited_and_infeasible():
     matrix = {
         ("start", "w1"): PathResult(
             time_min=5.0,
-            fuel_l=1.0,
             path=["start", "w1"],
         ),
-        ("w1", "end"): PathResult(time_min=5.0, fuel_l=1.0, path=["w1", "end"]),
+        ("w1", "end"): PathResult(time_min=5.0, path=["w1", "end"]),
         # too expensive to even reach
         ("start", "w2"): PathResult(
             time_min=100.0,
-            fuel_l=1.0,
             path=["start", "w2"],
         ),
-        ("w2", "end"): PathResult(time_min=5.0, fuel_l=1.0, path=["w2", "end"]),
+        ("w2", "end"): PathResult(time_min=5.0, path=["w2", "end"]),
         ("start", "end"): PathResult(
             time_min=8.0,
-            fuel_l=1.0,
             path=["start", "end"],
         ),
     }
@@ -429,21 +411,18 @@ def test_feasible_waypoints_filters_visited_and_infeasible():
         current_node="start",
         end_node_id="end",
         visited={"start"},
-        time_remaining=20.0,
-        fuel_remaining=5.0,
     )
 
-    assert candidates == ["w1", "end"]
+    assert candidates == ["w1", "w2", "end"]
 
 
 def test_feasible_waypoints_excludes_already_visited():
     matrix = {
         ("start", "w1"): PathResult(
             time_min=5.0,
-            fuel_l=1.0,
             path=["start", "w1"],
         ),
-        ("w1", "end"): PathResult(time_min=5.0, fuel_l=1.0, path=["w1", "end"]),
+        ("w1", "end"): PathResult(time_min=5.0, path=["w1", "end"]),
     }
 
     candidates = route_planner.feasible_waypoints(
@@ -452,25 +431,21 @@ def test_feasible_waypoints_excludes_already_visited():
         current_node="start",
         end_node_id="end",
         visited={"start", "w1"},
-        time_remaining=20.0,
-        fuel_remaining=5.0,
     )
 
     assert candidates == []
 
 
-def test_feasible_waypoints_excludes_when_return_trip_unaffordable():
-    """Reachable directly, but the return trip would strand the tour."""
+def test_feasible_waypoints_excludes_a_waypoint_with_no_way_back():
+    """Reachable directly, but nothing leads on to the end from there."""
     matrix = {
         ("start", "w1"): PathResult(
             time_min=5.0,
-            fuel_l=1.0,
             path=["start", "w1"],
         ),
-        ("w1", "end"): PathResult(
-            time_min=50.0,
-            fuel_l=1.0,
-            path=["w1", "end"],
+        ("start", "end"): PathResult(
+            time_min=8.0,
+            path=["start", "end"],
         ),
     }
 
@@ -480,11 +455,9 @@ def test_feasible_waypoints_excludes_when_return_trip_unaffordable():
         current_node="start",
         end_node_id="end",
         visited=set(),
-        time_remaining=20.0,
-        fuel_remaining=5.0,
     )
 
-    assert candidates == []
+    assert candidates == ["end"]
 
 
 def test_feasible_waypoints_excludes_unreachable_targets():
@@ -494,8 +467,6 @@ def test_feasible_waypoints_excludes_unreachable_targets():
         current_node="start",
         end_node_id="end",
         visited=set(),
-        time_remaining=20.0,
-        fuel_remaining=5.0,
     )
 
     assert candidates == []
@@ -527,12 +498,10 @@ def test_select_next_waypoint_discounts_already_covered_candidates():
     matrix = {
         ("start", "w1"): PathResult(
             time_min=10.0,
-            fuel_l=1.5,
             path=["start", "w1"],
         ),
         ("start", "w2"): PathResult(
             time_min=25.0,
-            fuel_l=3.5,
             path=["start", "w2"],
         ),
     }
@@ -575,7 +544,6 @@ def test_select_next_waypoint_falls_back_to_random_when_weights_are_zero():
     matrix = {
         ("start", "w1"): PathResult(
             time_min=10.0,
-            fuel_l=1.5,
             path=["start", "w1"],
         ),
     }
@@ -604,12 +572,10 @@ def test_construct_waypoint_tour_builds_waypoint_and_expanded_paths(
     matrix = {
         ("start", "mid"): PathResult(
             time_min=10.0,
-            fuel_l=1.5,
             path=["start", "mid"],
         ),
         ("mid", "end"): PathResult(
             time_min=10.0,
-            fuel_l=1.5,
             path=["mid", "end"],
         ),
     }
@@ -626,15 +592,13 @@ def test_construct_waypoint_tour_builds_waypoint_and_expanded_paths(
         lambda candidates, *_, **__: candidates[0],
     )
 
-    waypoint_path, expanded_path, time_used, fuel_used, risk_total = (
+    waypoint_path, expanded_path, time_used, risk_total = (
         route_planner.construct_waypoint_tour(
             fixture.graph,
             matrix,
             waypoint_ids=["mid"],
             start_node_id="start",
             end_node_id="end",
-            max_time=30.0,
-            max_fuel=5.0,
             pheromones={},
             config=config,
             rng=random.Random(0),
@@ -644,7 +608,6 @@ def test_construct_waypoint_tour_builds_waypoint_and_expanded_paths(
     assert waypoint_path == ["start", "mid", "end"]
     assert expanded_path == ["start", "mid", "end"]
     assert time_used == pytest.approx(20.0)
-    assert fuel_used == pytest.approx(3.0)
 
 
 def test_construct_waypoint_tour_discounts_risk_for_already_covered_nodes():
@@ -659,25 +622,21 @@ def test_construct_waypoint_tour_discounts_risk_for_already_covered_nodes():
     matrix = {
         ("p1", "p3"): PathResult(
             time_min=6.0,
-            fuel_l=0.3,
             path=["p1", "p2", "p3"],
         ),
         ("p3", "p5"): PathResult(
             time_min=6.0,
-            fuel_l=0.3,
             path=["p3", "p4", "p5"],
         ),
     }
 
-    waypoint_path, expanded_path, time_used, fuel_used, risk_total = (
+    waypoint_path, expanded_path, time_used, risk_total = (
         route_planner.construct_waypoint_tour(
             graph,
             matrix,
             waypoint_ids=["p3"],
             start_node_id="p1",
             end_node_id="p5",
-            max_time=100.0,
-            max_fuel=10.0,
             pheromones={},
             config=config,
             rng=random.Random(0),
@@ -687,57 +646,7 @@ def test_construct_waypoint_tour_discounts_risk_for_already_covered_nodes():
     assert waypoint_path == ["p1", "p3", "p5"]
     assert expanded_path == ["p1", "p2", "p3", "p4", "p5"]
     assert time_used == pytest.approx(12.0)
-    assert fuel_used == pytest.approx(0.6)
     assert risk_total == pytest.approx(1.3)
-
-
-def test_construct_waypoint_tour_treats_none_max_time_and_max_fuel_as_unlimited(
-    monkeypatch,
-):
-    fixture = make_graph()
-    config = route_planner.ACOConfig()
-    captured = {}
-
-    def fake_feasible_waypoints(
-        distance_matrix,
-        waypoint_ids,
-        current_node,
-        end_node_id,
-        visited,
-        time_remaining,
-        fuel_remaining,
-        targets=None,
-    ):
-        captured["time_remaining"] = time_remaining
-        captured["fuel_remaining"] = fuel_remaining
-        return []
-
-    monkeypatch.setattr(
-        route_planner,
-        "feasible_waypoints",
-        fake_feasible_waypoints,
-    )
-    monkeypatch.setattr(
-        route_planner,
-        "select_next_waypoint",
-        lambda *args, **kwargs: None,
-    )
-
-    route_planner.construct_waypoint_tour(
-        fixture.graph,
-        {},
-        waypoint_ids=["mid"],
-        start_node_id="start",
-        end_node_id="end",
-        max_time=None,
-        max_fuel=None,
-        pheromones={},
-        config=config,
-        rng=random.Random(0),
-    )
-
-    assert captured["time_remaining"] == math.inf
-    assert captured["fuel_remaining"] == math.inf
 
 
 def test_construct_waypoint_tour_stops_when_no_feasible_waypoint_exists(
@@ -757,15 +666,13 @@ def test_construct_waypoint_tour_stops_when_no_feasible_waypoint_exists(
         lambda *a, **k: None,
     )
 
-    waypoint_path, expanded_path, time_used, fuel_used, risk_total = (
+    waypoint_path, expanded_path, time_used, risk_total = (
         route_planner.construct_waypoint_tour(
             fixture.graph,
             {},
             waypoint_ids=["mid"],
             start_node_id="start",
             end_node_id="end",
-            max_time=30.0,
-            max_fuel=5.0,
             pheromones={},
             config=config,
             rng=random.Random(0),
@@ -775,7 +682,6 @@ def test_construct_waypoint_tour_stops_when_no_feasible_waypoint_exists(
     assert waypoint_path == ["start"]
     assert expanded_path == ["start"]
     assert time_used == pytest.approx(0.0)
-    assert fuel_used == pytest.approx(0.0)
     assert risk_total == pytest.approx(0.0)
 
 
@@ -841,7 +747,6 @@ def test_run_phase_returns_best(
             [fixture.start_node_id, fixture.mid_node_id, fixture.end_node_id],
             [fixture.start_node_id, fixture.mid_node_id, fixture.end_node_id],
             20.0,
-            3.0,
             0.8,
         )
 
@@ -867,8 +772,6 @@ def test_run_phase_returns_best(
             ["mid"],
             fixture.start_node_id,
             fixture.end_node_id,
-            max_time=30.0,
-            max_fuel=5.0,
             pheromones={"initial": True},
             num_iterations=3,
             config=config,
@@ -896,8 +799,8 @@ def test_run_phase_prefers_cheap_tour_when_extra_risk_costs_too_much(
         fixture.end_node_id,
     ]
 
-    short_tour = (tour_path, tour_path, 5.0, 1.0, 1.0)
-    long_tour = (tour_path, tour_path, 50.0, 10.0, 1.05)
+    short_tour = (tour_path, tour_path, 5.0, 1.0)
+    long_tour = (tour_path, tour_path, 50.0, 1.05)
     responses = iter([short_tour, long_tour])
 
     monkeypatch.setattr(
@@ -921,8 +824,6 @@ def test_run_phase_prefers_cheap_tour_when_extra_risk_costs_too_much(
             ["mid"],
             fixture.start_node_id,
             fixture.end_node_id,
-            max_time=60.0,
-            max_fuel=15.0,
             pheromones={},
             num_iterations=1,
             config=config,
@@ -947,7 +848,6 @@ def test_run_phase_skips_iterations_without_complete_tours(monkeypatch):
             incomplete_path,
             incomplete_path,
             10.0,
-            1.5,
             0.2,
         ),
     )
@@ -966,8 +866,6 @@ def test_run_phase_skips_iterations_without_complete_tours(monkeypatch):
             ["mid"],
             fixture.start_node_id,
             fixture.end_node_id,
-            max_time=30.0,
-            max_fuel=5.0,
             pheromones={"initial": True},
             num_iterations=2,
             config=config,
@@ -993,7 +891,6 @@ def test_to_planned_route_builds_geometry_and_sums_edge_costs():
     assert isinstance(route, PlannedRoute)
     assert route.suggested_path == ["start", "mid", "end"]
     assert route.estimated_time_min == pytest.approx(20.0)
-    assert route.estimated_fuel_l == pytest.approx(3.0)
     assert route.risk_coverage == pytest.approx(0.83)
     assert route.path_geometry.type == "LineString"
     assert len(route.path_geometry.coordinates) >= 2
@@ -1129,8 +1026,6 @@ def test_plan_routes_uses_normalized_coverage_not_raw_search_sum(monkeypatch):
         fixture.graph,
         fixture.start_node_id,
         fixture.end_node_id,
-        max_time_min=30.0,
-        max_fuel_l=5.0,
         num_alternatives=1,
         config=config,
     ).routes
@@ -1193,8 +1088,6 @@ def test_plan_routes_accepts_paths_from_each_phase(monkeypatch):
         fixture.graph,
         fixture.start_node_id,
         fixture.end_node_id,
-        max_time_min=30.0,
-        max_fuel_l=5.0,
         num_alternatives=2,
         config=config,
     ).routes
@@ -1232,8 +1125,6 @@ def test_routes_skips_empty_phase_results(monkeypatch):
         fixture.graph,
         fixture.start_node_id,
         fixture.end_node_id,
-        max_time_min=30.0,
-        max_fuel_l=5.0,
         num_alternatives=1,
         config=config,
     ).routes
@@ -1255,8 +1146,6 @@ def _seeded_plan(graph, fixture, seed, **overrides):
         graph,
         fixture.start_node_id,
         fixture.end_node_id,
-        max_time_min=None,
-        max_fuel_l=None,
         num_alternatives=3,
         config=config,
     ).routes
@@ -1278,8 +1167,8 @@ def test_plan_routes_rebuilds_the_stream_on_every_call():
     fixture = make_graph()
     config = route_planner.ACOConfig(num_ants=4, total_iterations=12, seed=7)
     args = (fixture.graph, fixture.start_node_id, fixture.end_node_id)
-    first = route_planner.plan_routes(*args, None, None, 3, config).routes
-    second = route_planner.plan_routes(*args, None, None, 3, config).routes
+    first = route_planner.plan_routes(*args, 3, config).routes
+    second = route_planner.plan_routes(*args, 3, config).routes
     assert _signature(first) == _signature(second)
 
 
@@ -1366,8 +1255,8 @@ def _round_trip_graph() -> ParkGraph:
     ]
     edges = []
     for a, b in (("p1", "p2"), ("p2", "p3")):
-        edges.append(GraphEdge(a, b, 1.0, 3.0, 0.15))
-        edges.append(GraphEdge(b, a, 1.0, 3.0, 0.15))
+        edges.append(GraphEdge(a, b, 1.0, 3.0))
+        edges.append(GraphEdge(b, a, 1.0, 3.0))
     return ParkGraph(park_id="rt", nodes=nodes, edges=edges)
 
 
@@ -1375,7 +1264,7 @@ def test_plan_routes_returns_a_real_loop_when_start_equals_end():
     graph = _round_trip_graph()
     config = route_planner.ACOConfig(num_ants=6, total_iterations=15, seed=5)
     routes = route_planner.plan_routes(
-        graph, "p1", "p1", None, None, 3, config,
+        graph, "p1", "p1", 3, config,
     ).routes
 
     assert routes
@@ -1390,7 +1279,7 @@ def test_plan_routes_never_emits_a_single_point_geometry():
     graph = _round_trip_graph()
     config = route_planner.ACOConfig(num_ants=6, total_iterations=15, seed=5)
     routes = route_planner.plan_routes(
-        graph, "p1", "p1", None, None, 3, config,
+        graph, "p1", "p1", 3, config,
     ).routes
 
     assert all(len(r.path_geometry.coordinates) > 1 for r in routes)
@@ -1410,7 +1299,7 @@ def test_plan_routes_drops_a_loop_with_nowhere_to_go():
 
     assert (
         route_planner.plan_routes(
-            graph, "solo", "solo", None, None, 3, config,
+            graph, "solo", "solo", 3, config,
         ).routes
         == []
     )
@@ -1423,8 +1312,6 @@ def test_plan_routes_start_to_end_is_unchanged_by_the_loop_handling():
         fixture.graph,
         fixture.start_node_id,
         fixture.end_node_id,
-        None,
-        None,
         3,
         config,
     ).routes
@@ -1499,8 +1386,8 @@ def _coverage_graph(size: int = 9) -> ParkGraph:
     ]
     edges = []
     for i in range(size - 1):
-        edges.append(GraphEdge(f"c{i}", f"c{i + 1}", 1.0, 3.0, 0.15))
-        edges.append(GraphEdge(f"c{i + 1}", f"c{i}", 1.0, 3.0, 0.15))
+        edges.append(GraphEdge(f"c{i}", f"c{i + 1}", 1.0, 3.0))
+        edges.append(GraphEdge(f"c{i + 1}", f"c{i}", 1.0, 3.0))
     return ParkGraph(park_id="line", nodes=nodes, edges=edges)
 
 
@@ -1513,7 +1400,7 @@ def _plan(graph, **config_kwargs):
         **config_kwargs,
     )
     return route_planner.plan_routes(
-        graph, "c0", "c8", None, None, 1, config,
+        graph, "c0", "c8", 1, config,
     ).routes
 
 
@@ -1535,7 +1422,7 @@ def test_solve_risk_weight_stays_inside_its_bounds():
     matrix = route_planner.build_waypoint_distance_matrix(graph, hubs)
 
     weight = route_planner.solve_risk_weight(
-        graph, matrix, waypoints, "c0", "c8", None, None,
+        graph, matrix, waypoints, "c0", "c8",
         config, random.Random(0),
     )
 
@@ -1554,7 +1441,7 @@ def test_an_unreachable_coverage_target_falls_back_to_the_cheapest_weight():
     matrix = route_planner.build_waypoint_distance_matrix(graph, hubs)
 
     weight = route_planner.solve_risk_weight(
-        graph, matrix, waypoints, "c0", "c8", None, None,
+        graph, matrix, waypoints, "c0", "c8",
         config, random.Random(0),
     )
 
@@ -1580,15 +1467,15 @@ def test_coverage_target_is_ignored_when_there_are_no_waypoints():
     ]
     edges = []
     for i in range(2):
-        edges.append(GraphEdge(f"c{i}", f"c{i + 1}", 1.0, 3.0, 0.15))
-        edges.append(GraphEdge(f"c{i + 1}", f"c{i}", 1.0, 3.0, 0.15))
+        edges.append(GraphEdge(f"c{i}", f"c{i + 1}", 1.0, 3.0))
+        edges.append(GraphEdge(f"c{i + 1}", f"c{i}", 1.0, 3.0))
     graph = ParkGraph(park_id="flat", nodes=nodes, edges=edges)
     config = route_planner.ACOConfig(
         num_ants=2, total_iterations=4, seed=1, coverage_target=0.9,
     )
 
     routes = route_planner.plan_routes(
-        graph, "c0", "c2", None, None, 1, config,
+        graph, "c0", "c2", 1, config,
     ).routes
 
     assert [r.suggested_path for r in routes] == [["c0", "c1", "c2"]]
@@ -1734,7 +1621,7 @@ def test_plan_routes_caps_the_hubs_it_searches():
     route_planner.build_waypoint_distance_matrix = spy
     try:
         route_planner.plan_routes(
-            graph, "near0", "far0", None, None, 1, config,
+            graph, "near0", "far0", 1, config,
         )
     finally:
         route_planner.build_waypoint_distance_matrix = original
@@ -1820,8 +1707,8 @@ def _shortcut_graph() -> ParkGraph:
     ]
     pairs = [(0, 1), (1, 2), (2, 3), (3, 4), (1, 3)]
     edges = [
-        GraphEdge(f"n{a}", f"n{b}", 1.0, 3.0, 0.15) for a, b in pairs
-    ] + [GraphEdge(f"n{b}", f"n{a}", 1.0, 3.0, 0.15) for a, b in pairs]
+        GraphEdge(f"n{a}", f"n{b}", 1.0, 3.0) for a, b in pairs
+    ] + [GraphEdge(f"n{b}", f"n{a}", 1.0, 3.0) for a, b in pairs]
     return ParkGraph(park_id="shortcut", nodes=nodes, edges=edges)
 
 
@@ -1838,7 +1725,7 @@ def test_a_similar_route_is_kept_rather_than_dropped(monkeypatch):
     config = _three_phase_config(diversity_threshold=0.9, min_diversity=0.05)
 
     plan = route_planner.plan_routes(
-        graph, "n0", "n4", None, None, 2, config,
+        graph, "n0", "n4", 2, config,
     )
 
     assert len(plan.routes) == 2
@@ -1854,8 +1741,6 @@ def test_an_exact_duplicate_is_still_dropped(monkeypatch):
         fixture.graph,
         fixture.start_node_id,
         fixture.end_node_id,
-        None,
-        None,
         2,
         config,
     )
@@ -1876,8 +1761,6 @@ def test_shortfall_is_none_when_every_alternative_is_found(monkeypatch):
         fixture.graph,
         fixture.start_node_id,
         fixture.end_node_id,
-        None,
-        None,
         2,
         config,
     )
@@ -1895,8 +1778,6 @@ def test_shortfall_reports_when_no_tour_was_found(monkeypatch):
         fixture.graph,
         fixture.start_node_id,
         fixture.end_node_id,
-        None,
-        None,
         2,
         config,
     )
@@ -1917,8 +1798,6 @@ def test_a_low_quality_alternative_is_flagged_but_still_returned(monkeypatch):
         fixture.graph,
         fixture.start_node_id,
         fixture.end_node_id,
-        None,
-        None,
         2,
         config,
     )
@@ -1951,8 +1830,6 @@ def test_the_search_retries_before_giving_up_on_a_duplicate(monkeypatch):
         fixture.graph,
         fixture.start_node_id,
         fixture.end_node_id,
-        None,
-        None,
         2,
         config,
     )
@@ -1988,8 +1865,8 @@ def _detour_graph() -> ParkGraph:
           ("a", "c"): 2.0, ("b", "d"): 2.0, ("a", "d"): 3.0}
     edges = []
     for (x, y), dist in km.items():
-        edges.append(GraphEdge(x, y, dist, dist * 3, dist * 0.15))
-        edges.append(GraphEdge(y, x, dist, dist * 3, dist * 0.15))
+        edges.append(GraphEdge(x, y, dist, dist * 3))
+        edges.append(GraphEdge(y, x, dist, dist * 3))
     return ParkGraph(park_id="detour", nodes=nodes, edges=edges)
 
 
@@ -2010,8 +1887,8 @@ def _spur_graph() -> ParkGraph:
     ]
     edges = []
     for a, b in chains:
-        edges.append(GraphEdge(a, b, 1.0, 3.0, 0.15))
-        edges.append(GraphEdge(b, a, 1.0, 3.0, 0.15))
+        edges.append(GraphEdge(a, b, 1.0, 3.0))
+        edges.append(GraphEdge(b, a, 1.0, 3.0))
     return ParkGraph(park_id="spur", nodes=nodes, edges=edges)
 
 
@@ -2022,14 +1899,14 @@ def test_evaluate_hub_sequence_matches_a_constructed_tour():
     direct = route_planner.evaluate_hub_sequence(graph, matrix, ["s", "e"])
     assert direct[0] == ["s", "m1", "m2", "e"]
     assert direct[1] == pytest.approx(9.0)
-    assert direct[3] == pytest.approx(0.0)
+    assert direct[2] == pytest.approx(0.0)
 
     detour = route_planner.evaluate_hub_sequence(
         graph, matrix, ["s", "h2", "e"],
     )
     assert detour[0] == ["s", "h1", "h2", "h3", "e"]
     assert detour[1] == pytest.approx(12.0)
-    assert detour[3] == pytest.approx(0.9)
+    assert detour[2] == pytest.approx(0.9)
 
 
 def test_evaluate_hub_sequence_returns_none_for_an_unreachable_hop():
@@ -2085,10 +1962,10 @@ def test_locally_improved_tour_keeps_the_original_when_no_move_helps():
     matrix = _line_matrix(graph, ["a", "b", "c", "d"])
     path = ["a", "b", "c", "d"]
     scored = route_planner.evaluate_hub_sequence(graph, matrix, path)
-    expanded, time_used, fuel_used, risk = scored
+    expanded, time_used, risk = scored
 
     result = route_planner.locally_improved_tour(
-        graph, matrix, path, expanded, time_used, fuel_used, risk,
+        graph, matrix, path, expanded, time_used, risk,
         route_planner.ACOConfig(),
     )
 
@@ -2148,7 +2025,7 @@ def test_the_greedy_seed_only_primes_the_first_phase(monkeypatch):
 
     monkeypatch.setattr(route_planner, "run_phase", spy)
     route_planner.plan_routes(
-        graph, "s", "e", None, None, 3,
+        graph, "s", "e", 3,
         route_planner.ACOConfig(num_ants=2, total_iterations=6, seed=1),
     )
 

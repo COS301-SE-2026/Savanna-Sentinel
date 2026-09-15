@@ -213,47 +213,22 @@ def feasible_waypoints(
     current_node: str,
     end_node_id: str,
     visited: set[str],
-    time_remaining: float,
-    fuel_remaining: float,
     targets: list[str] | None = None,
 ) -> list[str]:
-    """Unvisited waypoints (plus end node) reachable without stranding the tour.
-
-    Feasibility is checked against the exact precomputed shortest-path
-    cost from build_waypoint_distance_matrix, not an estimate. The old
-    cell-by-cell search only had a straight-line lower bound to work
-    with, but operating over a handful of hub nodes makes the real
-    number cheap to precompute for every pair up front.
-    """
+    """Unvisited waypoints, plus the end node, that the tour can still reach."""
     if targets is None:
         targets = list(dict.fromkeys([*waypoint_ids, end_node_id]))
-    unbounded = time_remaining == math.inf and fuel_remaining == math.inf
     candidates = []
     for target in targets:
         if target in visited:
             continue
-        hop = distance_matrix.get((current_node, target))
-        if hop is None:
+        if (current_node, target) not in distance_matrix:
             continue
-        if unbounded:
-            # nothing can strand the tour, so skip the return-trip check
-            reachable = (target, end_node_id) in distance_matrix
-            if target == end_node_id or reachable:
-                candidates.append(target)
+        # a waypoint the tour could not leave again would strand it
+        if target != end_node_id and (target, end_node_id) not in (
+            distance_matrix
+        ):
             continue
-        time_left_after = time_remaining - hop.time_min
-        fuel_left_after = fuel_remaining - hop.fuel_l
-        if time_left_after < 0 or fuel_left_after < 0:
-            continue
-        if target != end_node_id:
-            return_hop = distance_matrix.get((target, end_node_id))
-            if return_hop is None:
-                continue
-            if (
-                return_hop.time_min > time_left_after
-                or return_hop.fuel_l > fuel_left_after
-            ):
-                continue
         candidates.append(target)
     return candidates
 
@@ -277,7 +252,7 @@ def select_next_waypoint(
         # contributes no further risk (mitigates revisiting issues)
         risk = 0.0 if target in covered else node_risk.get(target, 0.0001)
         hop = distance_matrix[(current_node, target)]
-        heuristic = (risk + 0.0001) / (hop.time_min + hop.fuel_l + 1)
+        heuristic = (risk + 0.0001) / (hop.time_min + 1)
         weights.append((tau**config.alpha) * (heuristic**config.beta))
     total = sum(weights)
     if total == 0:
@@ -297,15 +272,13 @@ def construct_waypoint_tour(
     waypoint_ids: list[str],
     start_node_id: str,
     end_node_id: str,
-    max_time: float | None,
-    max_fuel: float | None,
     pheromones: dict,
     config: ACOConfig,
     rng: random.Random,
-) -> tuple[list[str], list[str], float, float, float]:
+) -> tuple[list[str], list[str], float, float]:
     """One ant's tour over hub nodes, stitched from real shortest-path nodes.
 
-    Returns (waypoint_path, expanded_path, time_used, fuel_used, risk_total).
+    Returns (waypoint_path, expanded_path, time_used, risk_total).
     expanded_path is the actual raw-grid node sequence. Every consecutive
     pair is a real graph edge, which is what geometry/cost/coverage get
     computed from. risk_total is discounted the same way
@@ -317,9 +290,7 @@ def construct_waypoint_tour(
     """
     node_risk = _node_risk(graph)
     coverage_neighbors = _coverage_neighbors(graph)
-    time_left = max_time if max_time is not None else math.inf
-    fuel_left = max_fuel if max_fuel is not None else math.inf
-    time_used, fuel_used, risk_total = 0.0, 0.0, 0.0
+    time_used, risk_total = 0.0, 0.0
 
     waypoint_path = [start_node_id]
     expanded_path = [start_node_id]
@@ -336,8 +307,6 @@ def construct_waypoint_tour(
             current,
             end_node_id,
             visited,
-            time_left,
-            fuel_left,
             targets,
         )
         chosen = select_next_waypoint(
@@ -353,10 +322,7 @@ def construct_waypoint_tour(
         if chosen is None:
             break
         hop = distance_matrix[(current, chosen)]
-        time_left -= hop.time_min
-        fuel_left -= hop.fuel_l
         time_used += hop.time_min
-        fuel_used += hop.fuel_l
         # Union the whole hop's coverage before diffing against covered,
         # so an earlier node's radius cant shadow a later node's credit
         # based on loop order.
@@ -375,15 +341,15 @@ def construct_waypoint_tour(
         if current == end_node_id:
             break
 
-    return waypoint_path, expanded_path, time_used, fuel_used, risk_total
+    return waypoint_path, expanded_path, time_used, risk_total
 
 
 def evaluate_hub_sequence(
     graph: ParkGraph,
     distance_matrix: dict[tuple[str, str], PathResult],
     sequence: list[str],
-) -> tuple[list[str], float, float, float] | None:
-    """Expand a hub order into (path, time, fuel, risk), or None if unreachable.
+) -> tuple[list[str], float, float] | None:
+    """Expand a hub order into (path, time, risk), or None if unreachable.
 
     Scores risk exactly as construct_waypoint_tour does, so a local search
     move is compared against the tour on the same terms.
@@ -394,21 +360,20 @@ def evaluate_hub_sequence(
     coverage_neighbors = _coverage_neighbors(graph)
     start = sequence[0]
     expanded = [start]
-    time_used = fuel_used = risk_total = 0.0
+    time_used = risk_total = 0.0
     covered = set(coverage_neighbors.get(start, {start}))
     for a, b in zip(sequence, sequence[1:]):
         hop = distance_matrix.get((a, b))
         if hop is None:
             return None
         time_used += hop.time_min
-        fuel_used += hop.fuel_l
         hop_covered: set[str] = set()
         for node_id in hop.path[1:]:
             hop_covered |= coverage_neighbors.get(node_id, {node_id})
         risk_total += sum(node_risk.get(n, 0.0) for n in hop_covered - covered)
         covered |= hop_covered
         expanded.extend(hop.path[1:])
-    return expanded, time_used, fuel_used, risk_total
+    return expanded, time_used, risk_total
 
 
 def _sequence_time(
@@ -473,23 +438,22 @@ def locally_improved_tour(
     waypoint_path: list[str],
     expanded_path: list[str],
     time_used: float,
-    fuel_used: float,
     risk_total: float,
     config: ACOConfig,
-) -> tuple[list[str], list[str], float, float, float]:
+) -> tuple[list[str], list[str], float, float]:
     """Keep the local-search result only when it beats its starting tour."""
     improved = improve_hub_sequence(distance_matrix, waypoint_path)
     if improved == waypoint_path:
-        return waypoint_path, expanded_path, time_used, fuel_used, risk_total
+        return waypoint_path, expanded_path, time_used, risk_total
     scored = evaluate_hub_sequence(graph, distance_matrix, improved)
     if scored is None:
-        return waypoint_path, expanded_path, time_used, fuel_used, risk_total
-    new_path, new_time, new_fuel, new_risk = scored
+        return waypoint_path, expanded_path, time_used, risk_total
+    new_path, new_time, new_risk = scored
     before = tour_score(risk_total, time_used, config.risk_weight)
     after = tour_score(new_risk, new_time, config.risk_weight)
     if after <= before:
-        return waypoint_path, expanded_path, time_used, fuel_used, risk_total
-    return improved, new_path, new_time, new_fuel, new_risk
+        return waypoint_path, expanded_path, time_used, risk_total
+    return improved, new_path, new_time, new_risk
 
 
 def greedy_tour(
@@ -499,7 +463,7 @@ def greedy_tour(
     start_node_id: str,
     end_node_id: str,
     config: ACOConfig,
-) -> tuple[list[str], list[str], float, float, float] | None:
+) -> tuple[list[str], list[str], float, float] | None:
     """Insert whichever waypoint most improves tour_score, until none does.
 
     Deterministic, and good enough on its own to give the colony a decent
@@ -509,7 +473,7 @@ def greedy_tour(
     scored = evaluate_hub_sequence(graph, distance_matrix, sequence)
     if scored is None:
         return None
-    best_score = tour_score(scored[3], scored[1], config.risk_weight)
+    best_score = tour_score(scored[2], scored[1], config.risk_weight)
     remaining = [
         w for w in waypoint_ids if w not in (start_node_id, end_node_id)
     ]
@@ -527,7 +491,7 @@ def greedy_tour(
                 )
                 if result is None:
                     continue
-                score = tour_score(result[3], result[1], config.risk_weight)
+                score = tour_score(result[2], result[1], config.risk_weight)
                 if score > best_score and (
                     best_move is None or score > best_move[0]
                 ):
@@ -536,8 +500,8 @@ def greedy_tour(
             break
         best_score, sequence, waypoint, scored = best_move
         remaining.remove(waypoint)
-    expanded, time_used, fuel_used, risk_total = scored
-    return sequence, expanded, time_used, fuel_used, risk_total
+    expanded, time_used, risk_total = scored
+    return sequence, expanded, time_used, risk_total
 
 
 def update_pheromones(
@@ -589,8 +553,6 @@ def run_phase(
     waypoint_ids: list[str],
     start_node_id: str,
     end_node_id: str,
-    max_time: float | None,
-    max_fuel: float | None,
     pheromones: dict,
     num_iterations: int,
     config: ACOConfig,
@@ -609,8 +571,6 @@ def run_phase(
                 waypoint_ids,
                 start_node_id,
                 end_node_id,
-                max_time,
-                max_fuel,
                 pheromones,
                 config,
                 rng,
@@ -620,12 +580,10 @@ def run_phase(
         if seed_tour is not None and iteration == 0:
             constructed.append(seed_tour)
         for tour in constructed:
-            waypoint_path, expanded_path, time_used, fuel_used, risk = tour
+            waypoint_path, expanded_path, time_used, risk = tour
             if len(waypoint_path) <= 1 or waypoint_path[-1] != end_node_id:
                 continue
-            tours.append(
-                (waypoint_path, expanded_path, risk, time_used, fuel_used),
-            )
+            tours.append((waypoint_path, expanded_path, risk, time_used))
         if not tours:
             continue
         iter_best = max(
@@ -637,7 +595,6 @@ def run_phase(
             iter_best_expanded_path,
             iter_best_risk,
             iter_best_time,
-            iter_best_fuel,
         ) = iter_best
         if config.local_search:
             # only the iteration best, so this costs once per iteration
@@ -646,7 +603,6 @@ def run_phase(
                 iter_best_waypoint_path,
                 iter_best_expanded_path,
                 iter_best_time,
-                iter_best_fuel,
                 iter_best_risk,
             ) = locally_improved_tour(
                 graph,
@@ -654,7 +610,6 @@ def run_phase(
                 iter_best_waypoint_path,
                 iter_best_expanded_path,
                 iter_best_time,
-                iter_best_fuel,
                 iter_best_risk,
                 config,
             )
@@ -751,8 +706,6 @@ def _probe_coverage(
     waypoint_ids: list[str],
     start_node_id: str,
     end_node_id: str,
-    max_time_min: float | None,
-    max_fuel_l: float | None,
     config: ACOConfig,
     risk_weight: float,
     rng: random.Random,
@@ -764,8 +717,6 @@ def _probe_coverage(
         waypoint_ids,
         start_node_id,
         end_node_id,
-        max_time_min,
-        max_fuel_l,
         init_pheromones(distance_matrix, probe),
         config.probe_iterations,
         probe,
@@ -782,8 +733,6 @@ def solve_risk_weight(
     waypoint_ids: list[str],
     start_node_id: str,
     end_node_id: str,
-    max_time_min: float | None,
-    max_fuel_l: float | None,
     config: ACOConfig,
     rng: random.Random,
 ) -> float:
@@ -798,8 +747,6 @@ def solve_risk_weight(
             waypoint_ids,
             start_node_id,
             end_node_id,
-            max_time_min,
-            max_fuel_l,
             config,
             mid,
             rng,
@@ -828,8 +775,6 @@ def _run_phase_with_retries(
     waypoint_ids: list[str],
     start_node_id: str,
     end_node_id: str,
-    max_time_min: float | None,
-    max_fuel_l: float | None,
     pheromones: dict,
     n_iter: int,
     config: ACOConfig,
@@ -850,8 +795,6 @@ def _run_phase_with_retries(
             waypoint_ids,
             start_node_id,
             end_node_id,
-            max_time_min,
-            max_fuel_l,
             pheromones,
             n_iter,
             config,
@@ -880,8 +823,6 @@ def plan_routes(
     graph: ParkGraph,
     start_node_id: str,
     end_node_id: str,
-    max_time_min: float | None,
-    max_fuel_l: float | None,
     num_alternatives: int = 3,
     config: ACOConfig | None = None,
 ) -> RoutePlan:
@@ -904,8 +845,6 @@ def plan_routes(
                 waypoint_ids,
                 start_node_id,
                 end_node_id,
-                max_time_min,
-                max_fuel_l,
                 config,
                 rng,
             ),
@@ -936,8 +875,6 @@ def plan_routes(
             waypoint_ids,
             start_node_id,
             end_node_id,
-            max_time_min,
-            max_fuel_l,
             pheromones,
             n_iter,
             config,
@@ -990,6 +927,5 @@ def _to_planned_route(
         suggested_path=path,
         path_geometry=GeoLineString(coordinates=smoothed),
         estimated_time_min=sum(e.est_time_min for e in edges_used),
-        estimated_fuel_l=sum(e.est_fuel_l for e in edges_used),
         risk_coverage=risk_coverage,
     )

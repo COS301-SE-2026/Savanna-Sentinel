@@ -12,11 +12,7 @@ function baseProps() {
         onArmField: vi.fn(),
         onStartPointChange: vi.fn(),
         onEndPointChange: vi.fn(),
-        maxTime: "120",
-        maxFuel: "15",
         coverageTarget: "",
-        onMaxTimeChange: vi.fn(),
-        onMaxFuelChange: vi.fn(),
         onCoverageTargetChange: vi.fn(),
         onGenerate: vi.fn(),
         isGenerating: false,
@@ -89,35 +85,6 @@ describe("PatrolPlannerForm", () => {
         expect(
             screen.getByRole("button", { name: /generate routes/i }),
         ).toBeEnabled();
-    });
-
-    it("enables Generate Routes when max time and max fuel are left blank", () => {
-        render(
-            <PatrolPlannerForm
-                {...baseProps()}
-                startPoint={{ lat: -24.3, lon: 31.05 }}
-                endPoint={{ lat: -24.32, lon: 31.08 }}
-                maxTime=""
-                maxFuel=""
-            />,
-        );
-        expect(
-            screen.getByRole("button", { name: /generate routes/i }),
-        ).toBeEnabled();
-    });
-
-    it("disables Generate Routes when max time is explicitly zero", () => {
-        render(
-            <PatrolPlannerForm
-                {...baseProps()}
-                startPoint={{ lat: -24.3, lon: 31.05 }}
-                endPoint={{ lat: -24.32, lon: 31.08 }}
-                maxTime="0"
-            />,
-        );
-        expect(
-            screen.getByRole("button", { name: /generate routes/i }),
-        ).toBeDisabled();
     });
 
     it("calls onArmField('start') when the start pin button is clicked", async () => {

@@ -25,7 +25,6 @@ export const COMPLETED_ROUTES: RouteListResponse = {
                 ],
             },
             estimated_time_min: 38,
-            estimated_fuel_l: 16,
             risk_coverage: 0.74,
         },
         {
@@ -38,7 +37,6 @@ export const COMPLETED_ROUTES: RouteListResponse = {
                 ],
             },
             estimated_time_min: 45,
-            estimated_fuel_l: 21,
             risk_coverage: 0.58,
         },
     ],

@@ -13,7 +13,6 @@ def _make_route(path, risk):
         suggested_path=path,
         path_geometry=GeoLineString(coordinates=[(0.0, 0.0), (1.0, 1.0)]),
         estimated_time_min=6.0,
-        estimated_fuel_l=0.3,
         risk_coverage=risk,
     )
 
@@ -33,7 +32,6 @@ def test_serialize_route_returns_plain_dict_with_geometry_dumped():
             "coordinates": [(0.0, 0.0), (1.0, 1.0)],
         },
         "estimated_time_min": 6.0,
-        "estimated_fuel_l": 0.3,
         "risk_coverage": 0.75,
     }
 
@@ -59,8 +57,6 @@ def test_run_route_planning_job_wires_graph_lookup_and_planning(
         park_id="klaserie",
         start=(31.05, -24.3),
         end=(31.1, -24.2),
-        max_time_min=120.0,
-        max_fuel_l=10.0,
         num_alternatives=3,
         risk_by_cell={"cell-1": 0.6},
     )
@@ -105,8 +101,6 @@ def test_run_route_planning_job_defaults_risk_by_cell_to_none(
         park_id="klaserie",
         start=(31.05, -24.3),
         end=(31.1, -24.2),
-        max_time_min=120.0,
-        max_fuel_l=10.0,
         num_alternatives=3,
     )
 
@@ -134,8 +128,6 @@ def test_run_route_planning_job_found_count_may_be_less_than_requested(
         park_id="klaserie",
         start=(31.05, -24.3),
         end=(31.1, -24.2),
-        max_time_min=120.0,
-        max_fuel_l=10.0,
         num_alternatives=3,
     )
 
@@ -160,8 +152,6 @@ def test_run_route_planning_job_no_accepted_routes_returns_empty_results(
         park_id="klaserie",
         start=(31.05, -24.3),
         end=(31.1, -24.2),
-        max_time_min=120.0,
-        max_fuel_l=10.0,
         num_alternatives=3,
     )
 
