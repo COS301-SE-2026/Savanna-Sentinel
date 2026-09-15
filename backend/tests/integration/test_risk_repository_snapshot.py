@@ -77,7 +77,10 @@ async def test_save_heatmap_snapshot_persists_scores_and_explanations():
         },
     }
     explanations = {
-        cell_id: [("incident_density_self", 0.6), ("sighting_density_self", 0.4)],
+        cell_id: [
+            ("incident_density_self", 0.6),
+            ("sighting_density_self", 0.4),
+        ],
     }
 
     async with _Session() as session:
@@ -198,7 +201,10 @@ async def test_save_heatmap_snapshot_links_explanations_to_correct_cell_when_bat
     }
     explanations = {
         cell_a: [("incident_density_self", 0.1)],
-        cell_b: [("incident_density_self", 0.8), ("sighting_density_neighbors", 0.6)],
+        cell_b: [
+            ("incident_density_self", 0.8),
+            ("sighting_density_neighbors", 0.6),
+        ],
     }
 
     async with _Session() as session:
