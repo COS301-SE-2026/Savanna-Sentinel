@@ -26,6 +26,7 @@ def run_route_planning_job(
     max_fuel_l: float | None,
     num_alternatives: int,
     risk_by_cell: dict[str, float] | None = None,
+    coverage_target: float | None = None,
     seed: int | None = None,
 ) -> dict:
     graph = build_park_graph(park_id, risk_by_cell)
@@ -39,7 +40,7 @@ def run_route_planning_job(
         max_time_min,
         max_fuel_l,
         num_alternatives,
-        ACOConfig(seed=seed),
+        ACOConfig(seed=seed, coverage_target=coverage_target),
     )
 
     return {

@@ -795,7 +795,7 @@ def test_update_pheromones():
             fixture.mid_node_id,
             fixture.end_node_id,
         ],
-        best_risk=0.5,
+        best_score=0.5,
         config=config,
     )
 
@@ -844,8 +844,8 @@ def test_run_phase_returns_best(
             0.8,
         )
 
-    def fake_update_pheromones(pheromones, best_path, best_risk, config):
-        calls.append((best_path, best_risk))
+    def fake_update_pheromones(pheromones, best_path, best_score, config):
+        calls.append((best_path, best_score))
         return {"updated": True}
 
     monkeypatch.setattr(
@@ -879,22 +879,16 @@ def test_run_phase_returns_best(
     assert best_expanded_path == ["start", "mid", "end"]
     assert best_risk == pytest.approx(0.8)
     assert pheromones == {"updated": True}
-    assert calls == [
-        (["start", "mid", "end"], 0.8),
-        (["start", "mid", "end"], 0.8),
-        (["start", "mid", "end"], 0.8),
-    ]
+    # 0.8 risk less 0.1 * 20.0 minutes, deposited once per iteration
+    assert calls == [(["start", "mid", "end"], pytest.approx(-1.2))] * 3
 
 
-def test_run_phase_prefers_efficient_tour_over_longer_higher_risk_tour(
+def test_run_phase_prefers_cheap_tour_when_extra_risk_costs_too_much(
     monkeypatch,
 ):
-    """A short, efficient tour should win over a longer, higher-risk tour.
-
-    Not always pad out to the full time/fuel budget for negligible risk.
-    """
+    """45 extra minutes for 0.05 more risk is a bad trade at risk_weight 0.1."""
     fixture = make_graph()
-    config = route_planner.ACOConfig(num_ants=2)
+    config = route_planner.ACOConfig(num_ants=2, risk_weight=0.1)
     tour_path = [
         fixture.start_node_id,
         fixture.mid_node_id,
@@ -914,8 +908,8 @@ def test_run_phase_prefers_efficient_tour_over_longer_higher_risk_tour(
     monkeypatch.setattr(
         route_planner,
         "update_pheromones",
-        lambda pheromones, best_path, best_risk, config: (
-            deposits.append(best_risk) or pheromones
+        lambda pheromones, best_path, best_score, config: (
+            deposits.append(best_score) or pheromones
         ),
     )
 
@@ -936,7 +930,8 @@ def test_run_phase_prefers_efficient_tour_over_longer_higher_risk_tour(
     )
 
     assert best_risk == pytest.approx(1.0)
-    assert deposits == [1.0]
+    # 1.0 risk less 0.1 * 5.0 minutes
+    assert deposits == [pytest.approx(0.5)]
 
 
 def test_run_phase_skips_iterations_without_complete_tours(monkeypatch):
@@ -1415,3 +1410,173 @@ def test_plan_routes_start_to_end_is_unchanged_by_the_loop_handling():
     for route in routes:
         assert route.suggested_path[0] == fixture.start_node_id
         assert route.suggested_path[-1] == fixture.end_node_id
+
+
+# tour_score
+
+
+def test_tour_score_charges_time_against_risk():
+    assert route_planner.tour_score(10.0, 20.0, 0.1) == pytest.approx(8.0)
+
+
+def test_tour_score_goes_negative_when_time_outweighs_risk():
+    assert route_planner.tour_score(1.0, 100.0, 0.1) == pytest.approx(-9.0)
+
+
+def test_tour_score_ignores_time_at_zero_weight():
+    assert route_planner.tour_score(5.0, 999.0, 0.0) == pytest.approx(5.0)
+
+
+def test_tour_score_prefers_more_coverage_at_equal_time():
+    cheap = route_planner.tour_score(4.0, 50.0, 0.1)
+    rich = route_planner.tour_score(9.0, 50.0, 0.1)
+    assert rich > cheap
+
+
+def test_tour_score_prefers_the_shorter_of_two_equal_risk_tours():
+    short = route_planner.tour_score(6.0, 30.0, 0.1)
+    long_ = route_planner.tour_score(6.0, 300.0, 0.1)
+    assert short > long_
+
+
+def test_higher_risk_weight_flips_the_winner():
+    """The same pair of tours ranks differently as time gets pricier."""
+    thorough = (20.0, 200.0)
+    quick = (8.0, 30.0)
+    assert route_planner.tour_score(*thorough, 0.01) > route_planner.tour_score(
+        *quick, 0.01,
+    )
+    assert route_planner.tour_score(*quick, 0.5) > route_planner.tour_score(
+        *thorough, 0.5,
+    )
+
+
+def test_update_pheromones_ignores_a_negative_score():
+    config = route_planner.ACOConfig(rho=0.1, tau_min=0.01, tau_max=5.0)
+    pheromones = {("a", "b"): 1.0}
+
+    updated = route_planner.update_pheromones(
+        pheromones, ["a", "b"], -50.0, config,
+    )
+
+    assert updated[("a", "b")] == pytest.approx(0.9)
+
+
+# coverage_target
+
+
+def _coverage_graph(size: int = 9) -> ParkGraph:
+    """Build a line of high-risk cells, so coverage scales with length."""
+    nodes = [
+        GraphNode(
+            node_id=f"c{i}",
+            location=GeoPoint(coordinates=(float(i) * 0.01, 0.0)),
+            risk_score=0.9,
+        )
+        for i in range(size)
+    ]
+    edges = []
+    for i in range(size - 1):
+        edges.append(GraphEdge(f"c{i}", f"c{i + 1}", 1.0, 3.0, 0.15))
+        edges.append(GraphEdge(f"c{i + 1}", f"c{i}", 1.0, 3.0, 0.15))
+    return ParkGraph(park_id="line", nodes=nodes, edges=edges)
+
+
+def _plan(graph, **config_kwargs):
+    config = route_planner.ACOConfig(
+        num_ants=6,
+        total_iterations=20,
+        probe_iterations=4,
+        seed=17,
+        **config_kwargs,
+    )
+    return route_planner.plan_routes(
+        graph, "c0", "c8", None, None, 1, config,
+    )
+
+
+def test_a_low_risk_weight_buys_more_coverage_than_a_high_one():
+    graph = _coverage_graph()
+    greedy = _plan(graph, risk_weight=0.001)
+    stingy = _plan(graph, risk_weight=5.0)
+    assert greedy[0].risk_coverage >= stingy[0].risk_coverage
+
+
+def test_solve_risk_weight_stays_inside_its_bounds():
+    graph = _coverage_graph()
+    config = route_planner.ACOConfig(
+        num_ants=4, total_iterations=8, probe_iterations=3,
+        seed=2, coverage_target=0.9,
+    )
+    waypoints = route_planner.select_waypoints(graph)
+    hubs = list(dict.fromkeys(["c0", "c8", *waypoints]))
+    matrix = route_planner.build_waypoint_distance_matrix(graph, hubs)
+
+    weight = route_planner.solve_risk_weight(
+        graph, matrix, waypoints, "c0", "c8", None, None,
+        config, random.Random(0),
+    )
+
+    assert weight >= route_planner.RISK_WEIGHT_MIN
+    assert weight <= route_planner.RISK_WEIGHT_MAX
+
+
+def test_an_unreachable_coverage_target_falls_back_to_the_cheapest_weight():
+    graph = _coverage_graph()
+    config = route_planner.ACOConfig(
+        num_ants=4, total_iterations=8, probe_iterations=3,
+        seed=2, coverage_target=1.1,
+    )
+    waypoints = route_planner.select_waypoints(graph)
+    hubs = list(dict.fromkeys(["c0", "c8", *waypoints]))
+    matrix = route_planner.build_waypoint_distance_matrix(graph, hubs)
+
+    weight = route_planner.solve_risk_weight(
+        graph, matrix, waypoints, "c0", "c8", None, None,
+        config, random.Random(0),
+    )
+
+    assert weight == route_planner.RISK_WEIGHT_MIN
+
+
+def test_coverage_target_reaches_further_than_a_blunt_high_risk_weight():
+    graph = _coverage_graph()
+    targeted = _plan(graph, risk_weight=5.0, coverage_target=0.95)
+    untargeted = _plan(graph, risk_weight=5.0)
+    assert targeted[0].risk_coverage >= untargeted[0].risk_coverage
+
+
+def test_coverage_target_is_ignored_when_there_are_no_waypoints():
+    """No high-risk cells means nothing to bisect against."""
+    nodes = [
+        GraphNode(
+            node_id=f"c{i}",
+            location=GeoPoint(coordinates=(float(i) * 0.01, 0.0)),
+            risk_score=0.0,
+        )
+        for i in range(3)
+    ]
+    edges = []
+    for i in range(2):
+        edges.append(GraphEdge(f"c{i}", f"c{i + 1}", 1.0, 3.0, 0.15))
+        edges.append(GraphEdge(f"c{i + 1}", f"c{i}", 1.0, 3.0, 0.15))
+    graph = ParkGraph(park_id="flat", nodes=nodes, edges=edges)
+    config = route_planner.ACOConfig(
+        num_ants=2, total_iterations=4, seed=1, coverage_target=0.9,
+    )
+
+    routes = route_planner.plan_routes(
+        graph, "c0", "c2", None, None, 1, config,
+    )
+
+    assert [r.suggested_path for r in routes] == [["c0", "c1", "c2"]]
+    assert routes[0].risk_coverage == 0.0
+
+
+def test_planning_stays_reproducible_with_a_coverage_target():
+    graph = _coverage_graph()
+    first = _plan(graph, coverage_target=0.8)
+    second = _plan(graph, coverage_target=0.8)
+    assert [r.suggested_path for r in first] == [
+        r.suggested_path for r in second
+    ]

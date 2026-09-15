@@ -23,8 +23,10 @@ export interface PatrolPlannerFormProps {
     onEndPointChange: (point: LatLon | null) => void;
     maxTime: string;
     maxFuel: string;
+    coverageTarget: string;
     onMaxTimeChange: (value: string) => void;
     onMaxFuelChange: (value: string) => void;
+    onCoverageTargetChange: (value: string) => void;
     onGenerate: () => void;
     isGenerating: boolean;
     heatmapHasNoData: boolean;
@@ -58,8 +60,10 @@ export function PatrolPlannerForm({
     onEndPointChange,
     maxTime,
     maxFuel,
+    coverageTarget,
     onMaxTimeChange,
     onMaxFuelChange,
+    onCoverageTargetChange,
     onGenerate,
     isGenerating,
     heatmapHasNoData,
@@ -71,11 +75,15 @@ export function PatrolPlannerForm({
     const isBlankOrPositive = (value: string) =>
         value.trim() === "" || Number(value) > 0;
 
+    const isBlankOrPercent = (value: string) =>
+        value.trim() === "" || (Number(value) > 0 && Number(value) <= 100);
+
     const canGenerate =
         startPoint !== null &&
         endPoint !== null &&
         isBlankOrPositive(maxTime) &&
         isBlankOrPositive(maxFuel) &&
+        isBlankOrPercent(coverageTarget) &&
         !isGenerating &&
         !heatmapHasNoData;
 
@@ -192,6 +200,25 @@ export function PatrolPlannerForm({
                     />
                     <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-color-text-primary">
                         L
+                    </span>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+                <Label htmlFor="pp-coverage">Risk Coverage (optional)</Label>
+                <div className="relative">
+                    <Input
+                        id="pp-coverage"
+                        type="number"
+                        min={0}
+                        max={100}
+                        placeholder="Best effort"
+                        value={coverageTarget}
+                        onChange={(e) => onCoverageTargetChange(e.target.value)}
+                        className="pr-8"
+                    />
+                    <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-color-text-primary">
+                        %
                     </span>
                 </div>
             </div>

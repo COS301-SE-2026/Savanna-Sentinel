@@ -24,6 +24,7 @@ export interface RouteRequest {
     max_time?: number;
     max_fuel?: number;
     num_alternatives?: number;
+    coverage_target?: number;
     risk_by_cell?: Record<string, number>;
 }
 

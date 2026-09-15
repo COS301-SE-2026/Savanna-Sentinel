@@ -46,8 +46,10 @@ interface SidebarContentProps {
     onEndPointChange: (point: LatLon | null) => void;
     maxTime: string;
     maxFuel: string;
+    coverageTarget: string;
     onMaxTimeChange: (v: string) => void;
     onMaxFuelChange: (v: string) => void;
+    onCoverageTargetChange: (v: string) => void;
     onGenerate: () => void;
     isGenerating: boolean;
     heatmapHasNoData: boolean;
@@ -74,8 +76,10 @@ function SidebarContent({
     onEndPointChange,
     maxTime,
     maxFuel,
+    coverageTarget,
     onMaxTimeChange,
     onMaxFuelChange,
+    onCoverageTargetChange,
     onGenerate,
     isGenerating,
     heatmapHasNoData,
@@ -117,8 +121,10 @@ function SidebarContent({
                 onEndPointChange={onEndPointChange}
                 maxTime={maxTime}
                 maxFuel={maxFuel}
+                coverageTarget={coverageTarget}
                 onMaxTimeChange={onMaxTimeChange}
                 onMaxFuelChange={onMaxFuelChange}
+                onCoverageTargetChange={onCoverageTargetChange}
                 onGenerate={onGenerate}
                 isGenerating={isGenerating}
                 heatmapHasNoData={heatmapHasNoData}
@@ -184,6 +190,7 @@ export default function PatrolPlannerPage() {
     const [armedField, setArmedField] = useState<ArmedField>(null);
     const [maxTime, setMaxTime] = useState("");
     const [maxFuel, setMaxFuel] = useState("");
+    const [coverageTarget, setCoverageTarget] = useState("");
 
     const [requestId, setRequestId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -289,6 +296,10 @@ export default function PatrolPlannerPage() {
                 max_time: maxTime.trim() === "" ? undefined : Number(maxTime),
                 max_fuel: maxFuel.trim() === "" ? undefined : Number(maxFuel),
                 num_alternatives: 3,
+                coverage_target:
+                    coverageTarget.trim() === ""
+                        ? undefined
+                        : Number(coverageTarget) / 100,
                 risk_by_cell: Object.fromEntries(riskByCell),
             });
             setRequestId(job.request_id);
@@ -370,8 +381,10 @@ export default function PatrolPlannerPage() {
         onEndPointChange: setEndPoint,
         maxTime,
         maxFuel,
+        coverageTarget,
         onMaxTimeChange: setMaxTime,
         onMaxFuelChange: setMaxFuel,
+        onCoverageTargetChange: setCoverageTarget,
         onGenerate: handleGenerate,
         isGenerating,
         heatmapHasNoData: hasNoRiskData,

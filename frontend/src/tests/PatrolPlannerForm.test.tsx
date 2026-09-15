@@ -14,8 +14,10 @@ function baseProps() {
         onEndPointChange: vi.fn(),
         maxTime: "120",
         maxFuel: "15",
+        coverageTarget: "",
         onMaxTimeChange: vi.fn(),
         onMaxFuelChange: vi.fn(),
+        onCoverageTargetChange: vi.fn(),
         onGenerate: vi.fn(),
         isGenerating: false,
         heatmapHasNoData: false,
@@ -25,6 +27,50 @@ function baseProps() {
 }
 
 describe("PatrolPlannerForm", () => {
+    it("reports the coverage target as it is typed", async () => {
+        const props = baseProps();
+        render(
+            <PatrolPlannerForm
+                {...props}
+                startPoint={{ lat: -24.2, lon: 31.18 }}
+                endPoint={{ lat: -24.21, lon: 31.19 }}
+            />,
+        );
+        await userEvent.type(
+            screen.getByLabelText(/risk coverage/i),
+            "90",
+        );
+        expect(props.onCoverageTargetChange).toHaveBeenCalled();
+    });
+
+    it("blocks Generate Routes for a coverage target above 100", () => {
+        render(
+            <PatrolPlannerForm
+                {...baseProps()}
+                startPoint={{ lat: -24.2, lon: 31.18 }}
+                endPoint={{ lat: -24.21, lon: 31.19 }}
+                coverageTarget="150"
+            />,
+        );
+        expect(
+            screen.getByRole("button", { name: /generate routes/i }),
+        ).toBeDisabled();
+    });
+
+    it("allows a blank coverage target", () => {
+        render(
+            <PatrolPlannerForm
+                {...baseProps()}
+                startPoint={{ lat: -24.2, lon: 31.18 }}
+                endPoint={{ lat: -24.21, lon: 31.19 }}
+                coverageTarget=""
+            />,
+        );
+        expect(
+            screen.getByRole("button", { name: /generate routes/i }),
+        ).toBeEnabled();
+    });
+
     it("disables Generate Routes until both points are set", () => {
         render(<PatrolPlannerForm {...baseProps()} />);
         expect(

@@ -55,6 +55,7 @@ async def generate_route_job(
             "max_time_min": request.max_time,
             "max_fuel_l": request.max_fuel,
             "num_alternatives": request.num_alternatives,
+            "coverage_target": request.coverage_target,
             "risk_by_cell": request.risk_by_cell,
         },
         task_id=job_id,

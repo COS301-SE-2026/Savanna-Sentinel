@@ -1,6 +1,6 @@
 import math
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from app.schemas.geo import GeoLineString
 from app.schemas.route import ParkGraph, PlannedRoute
@@ -25,6 +25,12 @@ class ACOConfig:
     # candidate must retain >= 90% of best risk_coverage
     quality_threshold: float = 0.9
     seed: int | None = None
+    # risk units charged per minute of patrol time
+    risk_weight: float = 0.1
+    # when set, risk_weight is solved for instead of used
+    coverage_target: float | None = None
+    bisection_steps: int = 8
+    probe_iterations: int = 8
 
 
 def init_pheromones(
@@ -281,15 +287,17 @@ def construct_waypoint_tour(
 def update_pheromones(
     pheromones: dict,
     best_path: list[str],
-    best_risk: float,
+    best_score: float,
     config: ACOConfig,
 ) -> dict:
     updated = {
         edge: max(tau * (1 - config.rho), config.tau_min)
         for edge, tau in pheromones.items()
     }
+    # a tour whose cost outweighs its risk reinforces nothing
+    strength = config.rho * max(best_score, 0.0)
     for a, b in zip(best_path, best_path[1:]):
-        deposit = updated.get((a, b), config.tau_min) + config.rho * best_risk
+        deposit = updated.get((a, b), config.tau_min) + strength
         updated[(a, b)] = min(deposit, config.tau_max)
     return updated
 
@@ -306,18 +314,17 @@ def apply_partial_penalty(
     return penalized
 
 
-def tour_efficiency(
+RISK_WEIGHT_MIN = 0.001
+RISK_WEIGHT_MAX = 10.0
+
+
+def tour_score(
     risk_total: float,
     time_used: float,
-    fuel_used: float,
+    risk_weight: float,
 ) -> float:
-    """Risk captured per unit of time/fuel spent getting it.
-
-    Raw summed risk favours padding the route to the full budget, since
-    almost any extra stop adds some risk. Risk-per-cost lets a short,
-    efficient tour beat a longer one that only picked up small risk.
-    """
-    return risk_total / (time_used + fuel_used + 1)
+    """Risk covered, less the patrol time it cost to cover it."""
+    return risk_total - risk_weight * time_used
 
 
 def run_phase(
@@ -335,7 +342,7 @@ def run_phase(
 ) -> tuple[list[str], list[str], float, dict]:
     best_waypoint_path: list[str] = []
     best_expanded_path: list[str] = []
-    best_risk, best_efficiency = -1.0, -1.0
+    best_risk, best_score = -1.0, -math.inf
     for _ in range(num_iterations):
         tours = []
         for _ in range(config.num_ants):
@@ -359,30 +366,33 @@ def run_phase(
                 )
         if not tours:
             continue
-        iter_best = max(tours, key=lambda t: tour_efficiency(t[2], t[3], t[4]))
+        iter_best = max(
+            tours,
+            key=lambda t: tour_score(t[2], t[3], config.risk_weight),
+        )
         (
             iter_best_waypoint_path,
             iter_best_expanded_path,
             iter_best_risk,
             iter_best_time,
-            iter_best_fuel,
+            _,
         ) = iter_best
+        iter_score = tour_score(
+            iter_best_risk,
+            iter_best_time,
+            config.risk_weight,
+        )
         pheromones = update_pheromones(
             pheromones,
             iter_best_waypoint_path,
-            iter_best_risk,
+            iter_score,
             config,
         )
-        iter_efficiency = tour_efficiency(
-            iter_best_risk,
-            iter_best_time,
-            iter_best_fuel,
-        )
-        if iter_efficiency > best_efficiency:
+        if iter_score > best_score:
             best_waypoint_path = iter_best_waypoint_path
             best_expanded_path = iter_best_expanded_path
             best_risk = iter_best_risk
-            best_efficiency = iter_efficiency
+            best_score = iter_score
     return best_waypoint_path, best_expanded_path, best_risk, pheromones
 
 
@@ -444,6 +454,72 @@ def is_sufficient_quality(
     return candidate_risk >= config.quality_threshold * best_risk_so_far
 
 
+def _probe_coverage(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    waypoint_ids: list[str],
+    start_node_id: str,
+    end_node_id: str,
+    max_time_min: float | None,
+    max_fuel_l: float | None,
+    config: ACOConfig,
+    risk_weight: float,
+    rng: random.Random,
+) -> float:
+    probe = replace(config, risk_weight=risk_weight)
+    _, expanded_path, _, _ = run_phase(
+        graph,
+        distance_matrix,
+        waypoint_ids,
+        start_node_id,
+        end_node_id,
+        max_time_min,
+        max_fuel_l,
+        init_pheromones(distance_matrix, probe),
+        config.probe_iterations,
+        probe,
+        rng,
+    )
+    if not expanded_path:
+        return 0.0
+    return compute_risk_coverage(graph, expanded_path)
+
+
+def solve_risk_weight(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    waypoint_ids: list[str],
+    start_node_id: str,
+    end_node_id: str,
+    max_time_min: float | None,
+    max_fuel_l: float | None,
+    config: ACOConfig,
+    rng: random.Random,
+) -> float:
+
+    lo, hi = RISK_WEIGHT_MIN, RISK_WEIGHT_MAX
+    best = lo
+    for _ in range(config.bisection_steps):
+        mid = math.sqrt(lo * hi)
+        coverage = _probe_coverage(
+            graph,
+            distance_matrix,
+            waypoint_ids,
+            start_node_id,
+            end_node_id,
+            max_time_min,
+            max_fuel_l,
+            config,
+            mid,
+            rng,
+        )
+        if coverage >= config.coverage_target:
+            best, lo = mid, mid
+        else:
+            hi = mid
+    return best
+
+
 def plan_routes(
     graph: ParkGraph,
     start_node_id: str,
@@ -463,6 +539,21 @@ def plan_routes(
     ]
     hub_ids = list(dict.fromkeys([start_node_id, end_node_id, *waypoint_ids]))
     distance_matrix = build_waypoint_distance_matrix(graph, hub_ids)
+    if config.coverage_target is not None and waypoint_ids:
+        config = replace(
+            config,
+            risk_weight=solve_risk_weight(
+                graph,
+                distance_matrix,
+                waypoint_ids,
+                start_node_id,
+                end_node_id,
+                max_time_min,
+                max_fuel_l,
+                config,
+                rng,
+            ),
+        )
     pheromones = init_pheromones(distance_matrix, config)
     iterations_per_phase = [
         int(config.total_iterations * f)
