@@ -72,12 +72,12 @@ async def test_save_heatmap_snapshot_persists_scores_and_explanations():
         cell_id: {
             "incident_density_self": 4.0,
             "incident_density_neighbors": 1.0,
-            "patrol_recency_days": 5.0,
-            "patrol_frequency": 2.0,
+            "sighting_density_self": 5.0,
+            "sighting_density_neighbors": 2.0,
         },
     }
     explanations = {
-        cell_id: [("incident_density_self", 0.6), ("patrol_recency_days", 0.4)],
+        cell_id: [("incident_density_self", 0.6), ("sighting_density_self", 0.4)],
     }
 
     async with _Session() as session:
@@ -143,8 +143,8 @@ async def test_save_heatmap_snapshot_returns_db_assigned_computed_at():
         cell_id: {
             "incident_density_self": 1.0,
             "incident_density_neighbors": 0.0,
-            "patrol_recency_days": 3.0,
-            "patrol_frequency": 1.0,
+            "sighting_density_self": 3.0,
+            "sighting_density_neighbors": 1.0,
         },
     }
     explanations = {cell_id: [("incident_density_self", 0.5)]}
@@ -186,19 +186,19 @@ async def test_save_heatmap_snapshot_links_explanations_to_correct_cell_when_bat
         cell_a: {
             "incident_density_self": 1.0,
             "incident_density_neighbors": 0.0,
-            "patrol_recency_days": 3.0,
-            "patrol_frequency": 1.0,
+            "sighting_density_self": 3.0,
+            "sighting_density_neighbors": 1.0,
         },
         cell_b: {
             "incident_density_self": 5.0,
             "incident_density_neighbors": 2.0,
-            "patrol_recency_days": 1.0,
-            "patrol_frequency": 4.0,
+            "sighting_density_self": 1.0,
+            "sighting_density_neighbors": 4.0,
         },
     }
     explanations = {
         cell_a: [("incident_density_self", 0.1)],
-        cell_b: [("incident_density_self", 0.8), ("patrol_frequency", 0.6)],
+        cell_b: [("incident_density_self", 0.8), ("sighting_density_neighbors", 0.6)],
     }
 
     async with _Session() as session:
@@ -231,7 +231,7 @@ async def test_save_heatmap_snapshot_links_explanations_to_correct_cell_when_bat
     assert by_cell[cell_a] == ["incident_density_self"]
     assert sorted(by_cell[cell_b]) == [
         "incident_density_self",
-        "patrol_frequency",
+        "sighting_density_neighbors",
     ]
 
 
@@ -250,8 +250,8 @@ async def test_save_heatmap_snapshot_persists_non_default_time_interval():
         cell_id: {
             "incident_density_self": 1.0,
             "incident_density_neighbors": 0.0,
-            "patrol_recency_days": 3.0,
-            "patrol_frequency": 1.0,
+            "sighting_density_self": 3.0,
+            "sighting_density_neighbors": 1.0,
         },
     }
     explanations = {cell_id: [("incident_density_self", 0.4)]}
@@ -290,8 +290,8 @@ async def test_list_heatmap_snapshots_returns_all_heatmaps_sorted_ascending():
         cell_id: {
             "incident_density_self": 1.0,
             "incident_density_neighbors": 0.0,
-            "patrol_recency_days": 3.0,
-            "patrol_frequency": 1.0,
+            "sighting_density_self": 3.0,
+            "sighting_density_neighbors": 1.0,
         },
     }
     explanations = {cell_id: [("incident_density_self", 0.5)]}
@@ -349,8 +349,8 @@ async def test_list_heatmap_snapshots_excludes_heatmaps_with_no_cells():
         cell_id: {
             "incident_density_self": 1.0,
             "incident_density_neighbors": 0.0,
-            "patrol_recency_days": 3.0,
-            "patrol_frequency": 1.0,
+            "sighting_density_self": 3.0,
+            "sighting_density_neighbors": 1.0,
         },
     }
     explanations = {cell_id: [("incident_density_self", 0.5)]}
@@ -399,8 +399,8 @@ async def test_get_latest_heatmap_ignores_newer_snapshot_with_no_cells():
         cell_id: {
             "incident_density_self": 1.0,
             "incident_density_neighbors": 0.0,
-            "patrol_recency_days": 3.0,
-            "patrol_frequency": 1.0,
+            "sighting_density_self": 3.0,
+            "sighting_density_neighbors": 1.0,
         },
     }
     explanations = {cell_id: [("incident_density_self", 0.5)]}
@@ -466,14 +466,14 @@ async def test_get_risk_zone_overview_returns_highest_scoring_cells_first():
         low_cell["cell_id"]: {
             "incident_density_self": 1.0,
             "incident_density_neighbors": 0.0,
-            "patrol_recency_days": 3.0,
-            "patrol_frequency": 1.0,
+            "sighting_density_self": 3.0,
+            "sighting_density_neighbors": 1.0,
         },
         high_cell["cell_id"]: {
             "incident_density_self": 5.0,
             "incident_density_neighbors": 2.0,
-            "patrol_recency_days": 1.0,
-            "patrol_frequency": 4.0,
+            "sighting_density_self": 1.0,
+            "sighting_density_neighbors": 4.0,
         },
     }
     explanations = {

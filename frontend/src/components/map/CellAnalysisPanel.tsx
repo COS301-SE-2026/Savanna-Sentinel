@@ -30,8 +30,6 @@ const MODEL_META_FALLBACK: [string, string][] = [
 const FEATURE_LABELS: Record<string, string> = {
     incident_density_self: "Incident density (this cell)",
     incident_density_neighbors: "Incident density (nearby cells)",
-    patrol_recency_days: "Days since last patrol",
-    patrol_frequency: "Patrol frequency",
     sighting_density_self: "Animal sightings (this cell)",
     sighting_density_neighbors: "Animal sightings (nearby cells)",
     recent_incident: "Recent incident nearby",

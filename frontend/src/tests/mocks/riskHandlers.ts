@@ -108,7 +108,7 @@ export const TEST_CELL_EXPLAIN: CellExplainResponse = {
     heatmap_id: TEST_HEATMAP_ID,
     top_features: [
         { feature_name: "incident_density_self", contribution: 0.6 },
-        { feature_name: "patrol_recency_days", contribution: 0.4 },
+        { feature_name: "sighting_density_self", contribution: 0.4 },
     ],
     self_incidents: [
         {

@@ -19,8 +19,6 @@ def _make_examples(n=150, seed=7):
                 "features": {
                     "incident_density_self": density,
                     "incident_density_neighbors": rng.uniform(0, 5),
-                    "patrol_recency_days": rng.uniform(0, 30),
-                    "patrol_frequency": rng.uniform(0, 10),
                     "sighting_density_self": rng.uniform(0, 3),
                     "sighting_density_neighbors": rng.uniform(0, 2),
                 },
@@ -41,8 +39,6 @@ def test_explain_cells_returns_top_n_features_per_cell():
         "c1": {
             "incident_density_self": 9.0,
             "incident_density_neighbors": 4.0,
-            "patrol_recency_days": 25.0,
-            "patrol_frequency": 1.0,
             "sighting_density_self": 0.0,
             "sighting_density_neighbors": 0.0,
         },
@@ -63,8 +59,6 @@ def test_explain_cells_sorted_by_contribution_descending():
         "c1": {
             "incident_density_self": 9.5,
             "incident_density_neighbors": 0.1,
-            "patrol_recency_days": 1.0,
-            "patrol_frequency": 9.0,
             "sighting_density_self": 0.0,
             "sighting_density_neighbors": 0.0,
         },
@@ -82,16 +76,12 @@ def test_explain_cells_handles_multiple_cells_independently():
         "high": {
             "incident_density_self": 9.0,
             "incident_density_neighbors": 4.0,
-            "patrol_recency_days": 25.0,
-            "patrol_frequency": 1.0,
             "sighting_density_self": 0.0,
             "sighting_density_neighbors": 0.0,
         },
         "low": {
             "incident_density_self": 0.0,
             "incident_density_neighbors": 0.0,
-            "patrol_recency_days": 1.0,
-            "patrol_frequency": 8.0,
             "sighting_density_self": 0.0,
             "sighting_density_neighbors": 0.0,
         },
