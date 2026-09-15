@@ -114,16 +114,9 @@ def build_waypoint_distance_matrix(
     graph: ParkGraph,
     node_ids: list[str],
 ) -> dict[tuple[str, str], PathResult]:
-    """All-pairs shortest paths among a small set of hub nodes.
-
-    One Dijkstra run per hub (start, end, and the hotspot waypoints from
-    select_waypoints. Not the full grid), so this stays cheap. A pair
-    absent from the result means 'to' isn't reachable from 'from' on the
-    graph. Self-pairs arent included.
-    """
     matrix: dict[tuple[str, str], PathResult] = {}
     for source in node_ids:
-        reachable = dijkstra(graph, source)
+        reachable = dijkstra(graph, source, targets=node_ids)
         for target in node_ids:
             if target == source:
                 continue

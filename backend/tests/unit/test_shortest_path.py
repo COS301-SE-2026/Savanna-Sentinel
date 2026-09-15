@@ -82,3 +82,100 @@ def test_dijkstra_omits_unreachable_nodes():
     results = dijkstra(graph, "a")
     assert "isolated" not in results
     assert set(results) == {"a", "b"}
+
+
+def test_dijkstra_targets_narrow_the_result():
+    graph = make_line_graph()
+    results = dijkstra(graph, "p1", targets=["p3", "p5"])
+    assert set(results) == {"p3", "p5"}
+    assert results["p3"].path == ["p1", "p2", "p3"]
+    assert results["p5"].time_min == pytest.approx(12.0)
+
+
+def test_dijkstra_targets_give_the_same_costs_as_an_unfiltered_run():
+    graph = make_line_graph()
+    full = dijkstra(graph, "p1")
+    narrowed = dijkstra(graph, "p1", targets=["p4"])
+    assert narrowed["p4"] == full["p4"]
+
+
+def test_dijkstra_targets_omit_unreachable_nodes():
+    graph = make_diamond_graph()
+    graph.edges.append(
+        GraphEdge(
+            "stranded",
+            "a",
+            distance_km=1.0,
+            est_time_min=1.0,
+            est_fuel_l=0.1,
+        ),
+    )
+    results = dijkstra(graph, "a", targets=["d", "stranded"])
+    assert set(results) == {"d"}
+
+
+def test_dijkstra_with_no_targets_returns_nothing():
+    graph = make_line_graph()
+    assert dijkstra(graph, "p1", targets=[]) == {}
+
+
+def test_dijkstra_targets_accept_a_consumable_iterable():
+    graph = make_line_graph()
+    results = dijkstra(graph, "p1", targets=(n for n in ("p2", "p3")))
+    assert set(results) == {"p2", "p3"}
+
+
+class _RecordingAdjacency(dict):
+    """Adjacency map that records which nodes the search expanded."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.expanded: list[str] = []
+
+    def get(self, key, default=None):
+        self.expanded.append(key)
+        return super().get(key, default)
+
+
+def _recording_adjacency(graph: ParkGraph) -> _RecordingAdjacency:
+    adjacency = _RecordingAdjacency()
+    for edge in graph.edges:
+        adjacency.setdefault(edge.from_node_id, []).append(edge)
+    graph._adjacency_cache = adjacency
+    return adjacency
+
+
+def test_dijkstra_stops_once_every_target_is_settled():
+    graph = make_line_graph()
+    adjacency = _recording_adjacency(graph)
+
+    dijkstra(graph, "p1", targets=["p2"])
+
+    # p2 settles on the second pop, so nothing past it is ever expanded.
+    assert adjacency.expanded == ["p1"]
+
+
+def test_dijkstra_without_targets_still_drains_the_graph():
+    graph = make_line_graph()
+    adjacency = _recording_adjacency(graph)
+
+    dijkstra(graph, "p1")
+
+    assert adjacency.expanded == ["p1", "p2", "p3", "p4", "p5"]
+
+
+def test_adjacency_is_cached_on_the_graph_across_calls():
+    graph = make_line_graph()
+    dijkstra(graph, "p1")
+    cached = graph._adjacency_cache
+    dijkstra(graph, "p2")
+    assert graph._adjacency_cache is cached
+
+
+def test_dijkstra_sees_edges_added_to_a_fresh_graph():
+    """A new ParkGraph gets its own adjacency, so caching cannot leak."""
+    first = make_line_graph()
+    dijkstra(first, "p1")
+    second = make_diamond_graph()
+    results = dijkstra(second, "a", targets=["d"])
+    assert results["d"].path == ["a", "b", "d"]
