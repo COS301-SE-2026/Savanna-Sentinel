@@ -1023,6 +1023,22 @@ def test_compute_risk_coverage_counts_high_risk_neighbor_within_one_hop():
 
 
 def test_compute_risk_coverage_returns_zero_when_grid_has_no_high_risk_cells():
+    """A uniformly low-risk grid has no hotspots to cover."""
+    nodes = [
+        GraphNode(
+            node_id=nid,
+            location=GeoPoint(coordinates=(float(i), 0.0)),
+            risk_score=0.1,
+        )
+        for i, nid in enumerate(("a", "b"))
+    ]
+    graph = ParkGraph(park_id="p", nodes=nodes, edges=[])
+    coverage = route_planner.compute_risk_coverage(graph, path=["a", "b"])
+    assert coverage == pytest.approx(0.0)
+
+
+def test_compute_risk_coverage_scores_against_the_dim_grids_own_top():
+    """Below the absolute cut, the grid's top cells become the hotspots."""
     nodes = [
         GraphNode(
             node_id="a",
@@ -1036,8 +1052,13 @@ def test_compute_risk_coverage_returns_zero_when_grid_has_no_high_risk_cells():
         ),
     ]
     graph = ParkGraph(park_id="p", nodes=nodes, edges=[])
-    coverage = route_planner.compute_risk_coverage(graph, path=["a", "b"])
-    assert coverage == pytest.approx(0.0)
+
+    assert route_planner.compute_risk_coverage(
+        graph, path=["b"],
+    ) == pytest.approx(1.0)
+    assert route_planner.compute_risk_coverage(
+        graph, path=["a"],
+    ) == pytest.approx(0.0)
 
 
 def test_compute_risk_coverage_partial_ratio():
@@ -1580,3 +1601,142 @@ def test_planning_stays_reproducible_with_a_coverage_target():
     assert [r.suggested_path for r in first] == [
         r.suggested_path for r in second
     ]
+
+
+# high_risk_threshold
+
+
+def _risk_graph(scores: list[float]) -> ParkGraph:
+    nodes = [
+        GraphNode(
+            node_id=f"c{i}",
+            location=GeoPoint(coordinates=(float(i) * 0.01, 0.0)),
+            risk_score=score,
+        )
+        for i, score in enumerate(scores)
+    ]
+    return ParkGraph(park_id="p", nodes=nodes, edges=[])
+
+
+def test_threshold_keeps_the_absolute_cut_when_something_clears_it():
+    graph = _risk_graph([0.1, 0.4, 0.9])
+    assert route_planner.high_risk_threshold(graph) == pytest.approx(0.5)
+
+
+def test_threshold_drops_to_the_quantile_on_a_dim_heatmap():
+    graph = _risk_graph([0.0, 0.05, 0.1, 0.2, 0.3, 0.45])
+    threshold = route_planner.high_risk_threshold(graph)
+    assert threshold < route_planner.DEFAULT_HIGH_RISK_THRESHOLD
+    assert threshold > 0.0
+
+
+def test_threshold_finds_hotspots_a_fixed_cut_would_have_missed():
+    graph = _risk_graph([0.0, 0.05, 0.1, 0.2, 0.3, 0.45])
+    assert route_planner.select_waypoints(graph) != []
+    assert route_planner.select_waypoints(graph, threshold=0.5) == []
+
+
+def test_threshold_ignores_a_flat_heatmap():
+    """No spread means no top, whatever the level."""
+    for level in (0.0, 0.1, 0.3, 0.49):
+        graph = _risk_graph([level] * 8)
+        assert route_planner.high_risk_threshold(graph) == pytest.approx(0.5)
+        assert route_planner.select_waypoints(graph) == []
+
+
+def test_threshold_respects_the_floor_on_a_near_zero_heatmap():
+    graph = _risk_graph([0.0, 0.0, 0.0, 0.001, 0.002])
+    assert route_planner.high_risk_threshold(graph) == pytest.approx(0.5)
+
+
+def test_threshold_is_cached_on_the_graph():
+    graph = _risk_graph([0.1, 0.2, 0.3])
+    first = route_planner.high_risk_threshold(graph)
+    assert route_planner.high_risk_threshold(graph) == first
+    assert graph._high_risk_threshold_cache == first
+
+
+def test_threshold_handles_an_empty_grid():
+    graph = ParkGraph(park_id="p", nodes=[], edges=[])
+    assert route_planner.high_risk_threshold(graph) == pytest.approx(0.5)
+
+
+# select_waypoints cost weighting and cap
+
+
+def _two_cluster_graph() -> ParkGraph:
+    """Two tight hotspot clusters, far apart, with nothing in between."""
+    nodes = []
+    for i in range(3):
+        nodes.append(
+            GraphNode(
+                node_id=f"near{i}",
+                location=GeoPoint(coordinates=(31.0 + i * 0.2, -24.0)),
+                risk_score=0.9,
+            ),
+        )
+    for i in range(3):
+        nodes.append(
+            GraphNode(
+                node_id=f"far{i}",
+                location=GeoPoint(coordinates=(33.0 + i * 0.2, -24.0)),
+                risk_score=0.9,
+            ),
+        )
+    return ParkGraph(park_id="p", nodes=nodes, edges=[])
+
+
+def test_select_waypoints_finishes_a_cluster_before_crossing_the_park():
+    graph = _two_cluster_graph()
+    picked = route_planner.select_waypoints(graph)
+    first_group = [nid[:-1] for nid in picked[:3]]
+    assert len(set(first_group)) == 1
+
+
+def test_select_waypoints_still_covers_every_cluster():
+    graph = _two_cluster_graph()
+    picked = set(route_planner.select_waypoints(graph))
+    assert any(nid.startswith("near") for nid in picked)
+    assert any(nid.startswith("far") for nid in picked)
+
+
+def test_select_waypoints_honours_the_limit():
+    graph = _two_cluster_graph()
+    assert len(route_planner.select_waypoints(graph, limit=2)) == 2
+    assert len(route_planner.select_waypoints(graph, limit=1)) == 1
+
+
+def test_select_waypoints_limit_above_the_need_changes_nothing():
+    graph = _two_cluster_graph()
+    assert route_planner.select_waypoints(
+        graph, limit=99,
+    ) == route_planner.select_waypoints(graph)
+
+
+def test_select_waypoints_limit_of_zero_returns_nothing():
+    graph = _two_cluster_graph()
+    assert route_planner.select_waypoints(graph, limit=0) == []
+
+
+def test_plan_routes_caps_the_hubs_it_searches():
+    graph = _two_cluster_graph()
+    config = route_planner.ACOConfig(
+        num_ants=2, total_iterations=4, seed=1, max_waypoints=2,
+    )
+    captured = []
+    original = route_planner.build_waypoint_distance_matrix
+
+    def spy(g, node_ids):
+        captured.append(list(node_ids))
+        return original(g, node_ids)
+
+    route_planner.build_waypoint_distance_matrix = spy
+    try:
+        route_planner.plan_routes(
+            graph, "near0", "far0", None, None, 1, config,
+        )
+    finally:
+        route_planner.build_waypoint_distance_matrix = original
+
+    # start, end, and at most max_waypoints hotspots
+    assert len(captured[0]) <= 4

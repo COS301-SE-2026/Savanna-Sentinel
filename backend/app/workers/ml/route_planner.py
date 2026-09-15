@@ -31,6 +31,7 @@ class ACOConfig:
     coverage_target: float | None = None
     bisection_steps: int = 8
     probe_iterations: int = 8
+    max_waypoints: int = 60
 
 
 def init_pheromones(
@@ -81,24 +82,68 @@ def covered_nodes(graph: ParkGraph, path: list[str]) -> frozenset[str]:
     return frozenset(covered)
 
 
+KM_PER_DEGREE = 111.0
 DEFAULT_HIGH_RISK_THRESHOLD = 0.5
+HIGH_RISK_QUANTILE = 0.85
+HIGH_RISK_FLOOR = 0.05
+
+
+def high_risk_threshold(
+    graph: ParkGraph,
+    absolute: float = DEFAULT_HIGH_RISK_THRESHOLD,
+    quantile: float = HIGH_RISK_QUANTILE,
+    floor: float = HIGH_RISK_FLOOR,
+) -> float:
+    """Risk score at or above which a cell counts as a hotspot.
+
+    Falls back to the grid's own top quantile only when nothing clears the
+    absolute cut, so a heatmap that peaks below it still yields hotspots.
+    The fallback needs the quantile to sit above the grid's lowest score,
+    otherwise a flat heatmap would promote every cell on it.
+    """
+    cached = getattr(graph, "_high_risk_threshold_cache", None)
+    if cached is None:
+        scores = sorted(_node_risk(graph).values())
+        cached = absolute
+        if scores and scores[-1] < absolute:
+            index = min(int(quantile * len(scores)), len(scores) - 1)
+            candidate = scores[index]
+            if candidate > scores[0] and candidate >= floor:
+                cached = candidate
+        graph._high_risk_threshold_cache = cached
+    return cached
+
+
+def _km_between(a: tuple[float, float], b: tuple[float, float]) -> float:
+    d_lon = (a[0] - b[0]) * math.cos(math.radians(b[1])) * KM_PER_DEGREE
+    d_lat = (a[1] - b[1]) * KM_PER_DEGREE
+    return math.hypot(d_lon, d_lat)
 
 
 def select_waypoints(
     graph: ParkGraph,
-    threshold: float = DEFAULT_HIGH_RISK_THRESHOLD,
+    threshold: float | None = None,
+    limit: int | None = None,
 ) -> list[str]:
-
+    
+    if threshold is None:
+        threshold = high_risk_threshold(graph)
     node_risk = _node_risk(graph)
     coverage_neighbors = _coverage_neighbors(graph)
+    location = {n.node_id: n.location.coordinates for n in graph.nodes}
     high_risk = [nid for nid, score in node_risk.items() if score >= threshold]
     uncovered = set(high_risk)
     waypoints: list[str] = []
-    while uncovered:
-        best_node = max(
-            high_risk,
-            key=lambda nid: len(coverage_neighbors.get(nid, {nid}) & uncovered),
-        )
+    nearest_km: dict[str, float] = {}
+
+    def rank(nid: str) -> float:
+        gain = len(coverage_neighbors.get(nid, {nid}) & uncovered)
+        if not gain:
+            return 0.0
+        return gain / (1.0 + nearest_km.get(nid, 0.0))
+
+    while uncovered and (limit is None or len(waypoints) < limit):
+        best_node = max(high_risk, key=rank)
         newly_covered = (
             coverage_neighbors.get(best_node, {best_node}) & uncovered
         )
@@ -106,6 +151,15 @@ def select_waypoints(
             break
         waypoints.append(best_node)
         uncovered -= newly_covered
+        chosen_at = location.get(best_node)
+        if chosen_at is not None:
+            for nid in high_risk:
+                at = location.get(nid)
+                if at is None:
+                    continue
+                distance = _km_between(at, chosen_at)
+                if distance < nearest_km.get(nid, math.inf):
+                    nearest_km[nid] = distance
     return waypoints
 
 
@@ -399,7 +453,7 @@ def run_phase(
 def compute_risk_coverage(
     graph: ParkGraph,
     path: list[str],
-    threshold: float = DEFAULT_HIGH_RISK_THRESHOLD,
+    threshold: float | None = None,
 ) -> float:
     """Fraction of the grid's high-risk cells the path covers, in [0, 1].
 
@@ -407,6 +461,8 @@ def compute_risk_coverage(
     patrol presence model rather than guaranteed detection. This is the
     normalised figure shown to the user as "risk coverage".
     """
+    if threshold is None:
+        threshold = high_risk_threshold(graph)
     node_risk = _node_risk(graph)
     high_risk_nodes = {
         nid for nid, score in node_risk.items() if score >= threshold
@@ -534,7 +590,7 @@ def plan_routes(
     rng = random.Random(config.seed)
     waypoint_ids = [
         w
-        for w in select_waypoints(graph)
+        for w in select_waypoints(graph, limit=config.max_waypoints)
         if w not in (start_node_id, end_node_id)
     ]
     hub_ids = list(dict.fromkeys([start_node_id, end_node_id, *waypoint_ids]))
