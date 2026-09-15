@@ -8,6 +8,8 @@ import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { LoadingPill } from "@/components/map/LoadingPill";
 import { ExplainabilityPanel } from "@/components/map/ExplainabilityPanel";
 import { NoDataBanner } from "@/components/map/NoDataBanner";
+import { UserLocationLayer } from "@/components/map/UserLocationLayer";
+import { UserLocationNotice } from "@/components/map/UserLocationNotice";
 import {
     Drawer,
     DrawerContent,
@@ -16,6 +18,7 @@ import {
 } from "@/components/ui/drawer";
 import { useMapStore } from "@/store/mapStore";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUserLocation } from "@/hooks/useUserLocation";
 import { getSnapHeightPx } from "@/lib/utils";
 import {
     PARK_CENTER_FALLBACK,
@@ -80,9 +83,24 @@ export default function MapPage() {
         }
     }, [heatmapStatus]);
 
+    const [isLocationVisible, setLocationVisible] = useState(false);
+    const { location: userLocation, status: userLocationStatus } =
+        useUserLocation(isLocationVisible);
+
+    const bottomAnchorStyle = isMobile
+        ? {
+              bottom: `calc(${Math.min(
+                  getSnapHeightPx(drawerSnap ?? COLLAPSED_SNAP),
+                  getSnapHeightPx(EXPANDED_SNAP),
+              )}px + 0.5rem)`,
+          }
+        : undefined;
+
     const panelProps = {
         heatmapVisible: isHeatmapVisible,
         onHeatmapVisibleChange: setHeatmapVisible,
+        locationVisible: isLocationVisible,
+        onLocationVisibleChange: setLocationVisible,
         opacity,
         onOpacityChange: setOpacity,
         gridStale: isGridStale,
@@ -111,19 +129,9 @@ export default function MapPage() {
                 />
                 <MapLegend
                     bottomClassName={isMobile ? "" : "bottom-2"}
-                    style={
-                        isMobile
-                            ? {
-                                  bottom: `calc(${Math.min(
-                                      getSnapHeightPx(
-                                          drawerSnap ?? COLLAPSED_SNAP,
-                                      ),
-                                      getSnapHeightPx(EXPANDED_SNAP),
-                                  )}px + 0.5rem)`,
-                              }
-                            : undefined
-                    }
+                    style={bottomAnchorStyle}
                     defaultExpanded={!isMobile}
+                    showLocation={isLocationVisible}
                 />
                 {isHeatmapVisible && (
                     <HeatmapLayer
@@ -134,6 +142,16 @@ export default function MapPage() {
                         isMobile={isMobile}
                         opacityOverride={opacity / 100}
                     />
+                )}
+                {isLocationVisible && (
+                    <>
+                        <UserLocationLayer map={map} location={userLocation} />
+                        <UserLocationNotice
+                            status={userLocationStatus}
+                            bottomClassName={isMobile ? "" : "bottom-2"}
+                            style={bottomAnchorStyle}
+                        />
+                    </>
                 )}
                 <NoDataBanner
                     visible={

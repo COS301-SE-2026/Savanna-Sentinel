@@ -18,6 +18,8 @@ export function SectionHeader({ children }: { children: string }) {
 export interface ExplainabilityPanelProps {
     heatmapVisible: boolean;
     onHeatmapVisibleChange: (visible: boolean) => void;
+    locationVisible: boolean;
+    onLocationVisibleChange: (visible: boolean) => void;
     opacity: number;
     onOpacityChange: (opacity: number) => void;
     gridStale?: boolean;
@@ -26,6 +28,8 @@ export interface ExplainabilityPanelProps {
 export function ExplainabilityPanel({
     heatmapVisible,
     onHeatmapVisibleChange,
+    locationVisible,
+    onLocationVisibleChange,
     opacity,
     onOpacityChange,
     gridStale = false,
@@ -69,6 +73,17 @@ export function ExplainabilityPanel({
                         />
                         <span className="text-sm text-color-text-primary">
                             Risk Heatmap
+                        </span>
+                    </label>
+                    <label className="flex min-h-11 w-full cursor-pointer items-center gap-2">
+                        <Checkbox
+                            checked={locationVisible}
+                            onChange={(e) =>
+                                onLocationVisibleChange(e.target.checked)
+                            }
+                        />
+                        <span className="text-sm text-color-text-primary">
+                            My Location
                         </span>
                     </label>
                 </div>
