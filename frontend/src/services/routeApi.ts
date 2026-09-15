@@ -41,6 +41,7 @@ export interface RouteListResponse {
     status: string | null;
     num_alternatives_requested: number | null;
     num_alternatives_found: number | null;
+    shortfall_reason?: string | null;
     total: number;
     page: number;
     page_size: number;

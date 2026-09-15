@@ -22,6 +22,9 @@ class ACOConfig:
     tau_min: float = 0.01
     penalty_factor: float = 0.3
     diversity_threshold: float = 0.3
+    # below this a candidate is a duplicate, not merely a similar route
+    min_diversity: float = 0.05
+    diversity_retries: int = 2
     # candidate must retain >= 90% of best risk_coverage
     quality_threshold: float = 0.9
     seed: int | None = None
@@ -125,7 +128,6 @@ def select_waypoints(
     threshold: float | None = None,
     limit: int | None = None,
 ) -> list[str]:
-    
     if threshold is None:
         threshold = high_risk_threshold(graph)
     node_risk = _node_risk(graph)
@@ -477,23 +479,31 @@ def edge_set(path: list[str]) -> set[tuple[str, str]]:
     return set(zip(path, path[1:]))
 
 
+def route_distance(path_a: list[str], path_b: list[str]) -> float:
+    """1 - Jaccard over the segments actually driven, in [0, 1].
+
+    Measured on expanded paths. Hub sequences make two tours over the same
+    stops in a different order look completely different, and covered cells
+    make every good route look the same, since they all reach the hotspots.
+    """
+    edges_a, edges_b = edge_set(path_a), edge_set(path_b)
+    union = edges_a | edges_b
+    if not union:
+        return 0.0
+    return 1 - len(edges_a & edges_b) / len(union)
+
+
 def is_sufficiently_diverse(
     candidate_path: list[str],
     prior_paths: list[list[str]],
     threshold: float,
 ) -> bool:
-    candidate_edges = edge_set(candidate_path)
-    if not candidate_edges:
+    if not edge_set(candidate_path):
         return False
-    for prior in prior_paths:
-        prior_edges = edge_set(prior)
-        overlap_ratio = len(candidate_edges & prior_edges) / max(
-            len(candidate_edges | prior_edges),
-            1,
-        )
-        if (1 - overlap_ratio) < threshold:
-            return False
-    return True
+    return all(
+        route_distance(candidate_path, prior) >= threshold
+        for prior in prior_paths
+    )
 
 
 def is_sufficient_quality(
@@ -576,6 +586,69 @@ def solve_risk_weight(
     return best
 
 
+NO_TOUR_FOUND = "no_tour_found"
+DUPLICATE_ROUTE = "duplicate_route"
+BELOW_QUALITY = "below_quality"
+
+
+@dataclass
+class RoutePlan:
+    routes: list[PlannedRoute]
+    shortfall: str | None = None
+
+
+def _run_phase_with_retries(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    waypoint_ids: list[str],
+    start_node_id: str,
+    end_node_id: str,
+    max_time_min: float | None,
+    max_fuel_l: float | None,
+    pheromones: dict,
+    n_iter: int,
+    config: ACOConfig,
+    rng: random.Random,
+    accepted_expanded_paths: list[list[str]],
+) -> tuple[list[str], list[str], float, dict]:
+    """Run a phase, penalising and retrying while it repeats an accepted route.
+
+    Returns the last attempt either way. A candidate that is merely similar
+    is still worth offering, so judging it is left to the caller.
+    """
+    best: tuple[list[str], list[str], float, dict] | None = None
+    for attempt in range(config.diversity_retries + 1):
+        waypoint_path, expanded_path, candidate_risk, pheromones = run_phase(
+            graph,
+            distance_matrix,
+            waypoint_ids,
+            start_node_id,
+            end_node_id,
+            max_time_min,
+            max_fuel_l,
+            pheromones,
+            n_iter,
+            config,
+            rng,
+        )
+        best = (waypoint_path, expanded_path, candidate_risk, pheromones)
+        if not waypoint_path:
+            break
+        if is_sufficiently_diverse(
+            expanded_path,
+            accepted_expanded_paths,
+            config.diversity_threshold,
+        ):
+            break
+        if attempt < config.diversity_retries:
+            pheromones = apply_partial_penalty(
+                pheromones,
+                waypoint_path,
+                config,
+            )
+    return best
+
+
 def plan_routes(
     graph: ParkGraph,
     start_node_id: str,
@@ -584,7 +657,7 @@ def plan_routes(
     max_fuel_l: float | None,
     num_alternatives: int = 3,
     config: ACOConfig | None = None,
-) -> list[PlannedRoute]:
+) -> RoutePlan:
     config = config or ACOConfig()
 
     rng = random.Random(config.seed)
@@ -618,8 +691,9 @@ def plan_routes(
     accepted_waypoint_paths: list[list[str]] = []
     accepted_expanded_paths: list[list[str]] = []
     accepted_risks: list[float] = []
+    shortfalls: list[str] = []
     for n_iter in iterations_per_phase:
-        waypoint_path, expanded_path, candidate_risk, pheromones = run_phase(
+        phase = _run_phase_with_retries(
             graph,
             distance_matrix,
             waypoint_ids,
@@ -631,58 +705,37 @@ def plan_routes(
             n_iter,
             config,
             rng,
+            accepted_expanded_paths,
         )
+        waypoint_path, expanded_path, candidate_risk, pheromones = phase
         if not waypoint_path:
+            shortfalls.append(NO_TOUR_FOUND)
+            continue
+        distance = min(
+            (
+                route_distance(expanded_path, prior)
+                for prior in accepted_expanded_paths
+            ),
+            default=1.0,
+        )
+        if distance < config.min_diversity:
+            shortfalls.append(DUPLICATE_ROUTE)
             continue
         best_so_far = max(accepted_risks) if accepted_risks else candidate_risk
-        passes = is_sufficiently_diverse(
-            waypoint_path,
-            accepted_waypoint_paths,
-            config.diversity_threshold,
-        ) and is_sufficient_quality(candidate_risk, best_so_far, config)
-        if not passes:
-            # one retry with a stronger penalty already in effect
-            pheromones = apply_partial_penalty(
-                pheromones,
-                waypoint_path,
-                config,
-            )
-            waypoint_path, expanded_path, candidate_risk, pheromones = (
-                run_phase(
-                    graph,
-                    distance_matrix,
-                    waypoint_ids,
-                    start_node_id,
-                    end_node_id,
-                    max_time_min,
-                    max_fuel_l,
-                    pheromones,
-                    n_iter,
-                    config,
-                    rng,
-                )
-            )
-            passes = (
-                waypoint_path
-                and is_sufficiently_diverse(
-                    waypoint_path,
-                    accepted_waypoint_paths,
-                    config.diversity_threshold,
-                )
-                and is_sufficient_quality(candidate_risk, best_so_far, config)
-            )
-        if not passes:
-            # drop this phase's result, do not force a weak/duplicate path in
-            continue
+        if not is_sufficient_quality(candidate_risk, best_so_far, config):
+            # worth returning as an alternative even so, just flagged
+            shortfalls.append(BELOW_QUALITY)
         accepted_waypoint_paths.append(waypoint_path)
         accepted_expanded_paths.append(expanded_path)
         accepted_risks.append(candidate_risk)
         pheromones = apply_partial_penalty(pheromones, waypoint_path, config)
-    return [
+    routes = [
         _to_planned_route(graph, p, compute_risk_coverage(graph, p))
         for p in accepted_expanded_paths
         if len(p) > 1
     ]
+    shortfall = shortfalls[0] if len(routes) < num_alternatives else None
+    return RoutePlan(routes=routes, shortfall=shortfall)
 
 
 def _to_planned_route(

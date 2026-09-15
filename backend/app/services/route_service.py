@@ -125,12 +125,14 @@ async def get_routes(
     routes: list[PlannedRoute] = []
     num_requested = None
     num_found = None
+    shortfall_reason = None
 
     if result.state == "SUCCESS":
         payload = result.result
         routes = [_deserialize_route(r) for r in payload["results"]]
         num_requested = payload["num_alternatives_requested"]
         num_found = payload["num_alternatives_found"]
+        shortfall_reason = payload.get("shortfall_reason")
 
     start = (page - 1) * page_size
     page_results = routes[start : start + page_size]
@@ -140,6 +142,7 @@ async def get_routes(
         status=status_value,
         num_alternatives_requested=num_requested,
         num_alternatives_found=num_found,
+        shortfall_reason=shortfall_reason,
         total=len(routes),
         page=page,
         page_size=page_size,

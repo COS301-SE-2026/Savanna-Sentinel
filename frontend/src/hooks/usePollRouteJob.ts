@@ -8,6 +8,7 @@ export interface UsePollRouteJobResult {
     routes: PlannedRoute[];
     numAlternativesRequested: number | null;
     numAlternativesFound: number | null;
+    shortfallReason: string | null;
 }
 
 async function fetchRouteJob(
@@ -35,6 +36,10 @@ export function usePollRouteJob(
         numAlternativesFound:
             status === "completed"
                 ? (result?.num_alternatives_found ?? null)
+                : null,
+        shortfallReason:
+            status === "completed"
+                ? (result?.shortfall_reason ?? null)
                 : null,
     };
 }

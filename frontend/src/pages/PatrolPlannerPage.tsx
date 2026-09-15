@@ -56,6 +56,8 @@ interface SidebarContentProps {
     jobStatus: ReturnType<typeof usePollRouteJob>["status"];
     routes: ReturnType<typeof usePollRouteJob>["routes"];
     selectedIndex: number;
+    numAlternativesRequested: number | null;
+    shortfallReason: string | null;
     onSelectRoute: (index: number) => void;
     onClearRoutes: () => void;
     onSaveRoute: (index: number) => void;
@@ -86,6 +88,8 @@ function SidebarContent({
     jobStatus,
     routes,
     selectedIndex,
+    numAlternativesRequested,
+    shortfallReason,
     onSelectRoute,
     onClearRoutes,
     onSaveRoute,
@@ -144,6 +148,8 @@ function SidebarContent({
                     savingIndex={savingIndex}
                     savedIndices={savedIndices}
                     canSave={canSave}
+                    numAlternativesRequested={numAlternativesRequested}
+                    shortfallReason={shortfallReason}
                 />
             </div>
         </div>
@@ -194,7 +200,12 @@ export default function PatrolPlannerPage() {
 
     const [requestId, setRequestId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
-    const { status: jobStatus, routes } = usePollRouteJob(requestId);
+    const {
+        status: jobStatus,
+        routes,
+        numAlternativesRequested,
+        shortfallReason,
+    } = usePollRouteJob(requestId);
 
     const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
         COLLAPSED_SNAP,
@@ -392,6 +403,10 @@ export default function PatrolPlannerPage() {
         jobStatus: displayStatus,
         routes: displayRoutes,
         selectedIndex,
+        numAlternativesRequested: loadedRoute
+            ? null
+            : numAlternativesRequested,
+        shortfallReason: loadedRoute ? null : shortfallReason,
         onSelectRoute: handleSelectRoute,
         onSaveRoute: handleSaveRoute,
         savingIndex,

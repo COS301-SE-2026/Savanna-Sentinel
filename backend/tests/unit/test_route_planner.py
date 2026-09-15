@@ -1132,7 +1132,7 @@ def test_plan_routes_uses_normalized_coverage_not_raw_search_sum(monkeypatch):
         max_fuel_l=5.0,
         num_alternatives=1,
         config=config,
-    )
+    ).routes
 
     assert len(routes) == 1
     assert routes[0].risk_coverage == pytest.approx(1.0)
@@ -1196,7 +1196,7 @@ def test_plan_routes_accepts_paths_from_each_phase(monkeypatch):
         max_fuel_l=5.0,
         num_alternatives=2,
         config=config,
-    )
+    ).routes
 
     assert len(routes) == 2
     assert [route.suggested_path for route in routes] == [
@@ -1235,7 +1235,7 @@ def test_routes_skips_empty_phase_results(monkeypatch):
         max_fuel_l=5.0,
         num_alternatives=1,
         config=config,
-    )
+    ).routes
 
     assert routes == []
 
@@ -1258,7 +1258,7 @@ def _seeded_plan(graph, fixture, seed, **overrides):
         max_fuel_l=None,
         num_alternatives=3,
         config=config,
-    )
+    ).routes
 
 
 def _signature(routes):
@@ -1277,8 +1277,8 @@ def test_plan_routes_rebuilds_the_stream_on_every_call():
     fixture = make_graph()
     config = route_planner.ACOConfig(num_ants=4, total_iterations=12, seed=7)
     args = (fixture.graph, fixture.start_node_id, fixture.end_node_id)
-    first = route_planner.plan_routes(*args, None, None, 3, config)
-    second = route_planner.plan_routes(*args, None, None, 3, config)
+    first = route_planner.plan_routes(*args, None, None, 3, config).routes
+    second = route_planner.plan_routes(*args, None, None, 3, config).routes
     assert _signature(first) == _signature(second)
 
 
@@ -1375,7 +1375,7 @@ def test_plan_routes_returns_a_real_loop_when_start_equals_end():
     config = route_planner.ACOConfig(num_ants=6, total_iterations=15, seed=5)
     routes = route_planner.plan_routes(
         graph, "p1", "p1", None, None, 3, config,
-    )
+    ).routes
 
     assert routes
     for route in routes:
@@ -1390,7 +1390,7 @@ def test_plan_routes_never_emits_a_single_point_geometry():
     config = route_planner.ACOConfig(num_ants=6, total_iterations=15, seed=5)
     routes = route_planner.plan_routes(
         graph, "p1", "p1", None, None, 3, config,
-    )
+    ).routes
 
     assert all(len(r.path_geometry.coordinates) > 1 for r in routes)
 
@@ -1410,7 +1410,7 @@ def test_plan_routes_drops_a_loop_with_nowhere_to_go():
     assert (
         route_planner.plan_routes(
             graph, "solo", "solo", None, None, 3, config,
-        )
+        ).routes
         == []
     )
 
@@ -1426,7 +1426,7 @@ def test_plan_routes_start_to_end_is_unchanged_by_the_loop_handling():
         None,
         3,
         config,
-    )
+    ).routes
 
     for route in routes:
         assert route.suggested_path[0] == fixture.start_node_id
@@ -1513,7 +1513,7 @@ def _plan(graph, **config_kwargs):
     )
     return route_planner.plan_routes(
         graph, "c0", "c8", None, None, 1, config,
-    )
+    ).routes
 
 
 def test_a_low_risk_weight_buys_more_coverage_than_a_high_one():
@@ -1588,7 +1588,7 @@ def test_coverage_target_is_ignored_when_there_are_no_waypoints():
 
     routes = route_planner.plan_routes(
         graph, "c0", "c2", None, None, 1, config,
-    )
+    ).routes
 
     assert [r.suggested_path for r in routes] == [["c0", "c1", "c2"]]
     assert routes[0].risk_coverage == 0.0
@@ -1740,3 +1740,222 @@ def test_plan_routes_caps_the_hubs_it_searches():
 
     # start, end, and at most max_waypoints hotspots
     assert len(captured[0]) <= 4
+
+
+# route diversity
+
+
+def test_route_distance_is_zero_for_identical_paths():
+    path = ["a", "b", "c"]
+    assert route_planner.route_distance(path, path) == pytest.approx(0.0)
+
+
+def test_route_distance_is_one_for_disjoint_paths():
+    assert route_planner.route_distance(
+        ["a", "b"], ["c", "d"],
+    ) == pytest.approx(1.0)
+
+
+def test_route_distance_is_partial_for_a_shared_leg():
+    # {ab, bc} vs {ab, bd}: one shared of three
+    assert route_planner.route_distance(
+        ["a", "b", "c"], ["a", "b", "d"],
+    ) == pytest.approx(2 / 3)
+
+
+def test_route_distance_is_symmetric():
+    a, b = ["p", "q", "r"], ["p", "r", "q"]
+    assert route_planner.route_distance(a, b) == route_planner.route_distance(
+        b, a,
+    )
+
+
+def test_route_distance_separates_reordered_stops_from_identical_ones():
+    """The old hub-pair metric called a reordered tour fully diverse."""
+    base = ["a", "b", "c", "d"]
+    reordered = ["a", "c", "b", "d"]
+    assert route_planner.route_distance(base, base) == pytest.approx(0.0)
+    assert route_planner.route_distance(base, reordered) > 0.0
+
+
+def test_route_distance_of_two_edgeless_paths_is_zero():
+    assert route_planner.route_distance(["a"], ["a"]) == pytest.approx(0.0)
+
+
+# alternative count and shortfall
+
+
+def _phase_stub(monkeypatch, results):
+    supply = iter(results)
+    monkeypatch.setattr(
+        route_planner,
+        "run_phase",
+        lambda *a, **k: (lambda r: (r[0], r[0], r[1], {}))(next(supply)),
+    )
+    monkeypatch.setattr(
+        route_planner,
+        "apply_partial_penalty",
+        lambda pheromones, used_path, config: pheromones,
+    )
+
+
+def _three_phase_config(**kwargs):
+    return route_planner.ACOConfig(
+        total_iterations=9,
+        phase_split=(0.34, 0.33, 0.33),
+        **kwargs,
+    )
+
+
+def _shortcut_graph() -> ParkGraph:
+    """n0-n1-n2-n3-n4 in a line, plus an n1-n3 shortcut past n2."""
+    nodes = [
+        GraphNode(
+            node_id=f"n{i}",
+            location=GeoPoint(coordinates=(float(i) * 0.01, 0.0)),
+            risk_score=0.9,
+        )
+        for i in range(5)
+    ]
+    pairs = [(0, 1), (1, 2), (2, 3), (3, 4), (1, 3)]
+    edges = [
+        GraphEdge(f"n{a}", f"n{b}", 1.0, 3.0, 0.15) for a, b in pairs
+    ] + [GraphEdge(f"n{b}", f"n{a}", 1.0, 3.0, 0.15) for a, b in pairs]
+    return ParkGraph(park_id="shortcut", nodes=nodes, edges=edges)
+
+
+def test_a_similar_route_is_kept_rather_than_dropped(monkeypatch):
+    """Only near-duplicates are dropped; merely similar is still an option."""
+    graph = _shortcut_graph()
+    long_way = ["n0", "n1", "n2", "n3", "n4"]
+    short_way = ["n0", "n1", "n3", "n4"]
+    # they share n0-n1 and n3-n4, so distance is 0.6: similar, not a duplicate
+    assert route_planner.route_distance(long_way, short_way) < 0.9
+    assert route_planner.route_distance(long_way, short_way) > 0.05
+
+    _phase_stub(monkeypatch, [(long_way, 0.9)] + [(short_way, 0.9)] * 5)
+    config = _three_phase_config(diversity_threshold=0.9, min_diversity=0.05)
+
+    plan = route_planner.plan_routes(
+        graph, "n0", "n4", None, None, 2, config,
+    )
+
+    assert len(plan.routes) == 2
+
+
+def test_an_exact_duplicate_is_still_dropped(monkeypatch):
+    fixture = make_graph()
+    path = ["start", "mid", "end"]
+    _phase_stub(monkeypatch, [(path, 0.9)] * 8)
+    config = _three_phase_config()
+
+    plan = route_planner.plan_routes(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        None,
+        None,
+        2,
+        config,
+    )
+
+    assert len(plan.routes) == 1
+    assert plan.shortfall == route_planner.DUPLICATE_ROUTE
+
+
+def test_shortfall_is_none_when_every_alternative_is_found(monkeypatch):
+    fixture = make_graph()
+    _phase_stub(
+        monkeypatch,
+        [(["start", "mid", "end"], 0.9), (["start", "end"], 0.9)],
+    )
+    config = _three_phase_config()
+
+    plan = route_planner.plan_routes(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        None,
+        None,
+        2,
+        config,
+    )
+
+    assert len(plan.routes) == 2
+    assert plan.shortfall is None
+
+
+def test_shortfall_reports_when_no_tour_was_found(monkeypatch):
+    fixture = make_graph()
+    _phase_stub(monkeypatch, [([], 0.0)] * 8)
+    config = _three_phase_config()
+
+    plan = route_planner.plan_routes(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        None,
+        None,
+        2,
+        config,
+    )
+
+    assert plan.routes == []
+    assert plan.shortfall == route_planner.NO_TOUR_FOUND
+
+
+def test_a_low_quality_alternative_is_flagged_but_still_returned(monkeypatch):
+    fixture = make_graph()
+    _phase_stub(
+        monkeypatch,
+        [(["start", "mid", "end"], 1.0), (["start", "end"], 0.1)],
+    )
+    config = _three_phase_config(quality_threshold=0.9)
+
+    plan = route_planner.plan_routes(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        None,
+        None,
+        2,
+        config,
+    )
+
+    assert len(plan.routes) == 2
+    assert plan.shortfall is None
+
+
+def test_the_search_retries_before_giving_up_on_a_duplicate(monkeypatch):
+    fixture = make_graph()
+    calls = []
+    supply = iter(
+        [(["start", "mid", "end"], 0.9)] * 3 + [(["start", "end"], 0.9)] * 5,
+    )
+
+    def counting_run_phase(*a, **k):
+        path, risk = next(supply)
+        calls.append(path)
+        return path, path, risk, {}
+
+    monkeypatch.setattr(route_planner, "run_phase", counting_run_phase)
+    monkeypatch.setattr(
+        route_planner,
+        "apply_partial_penalty",
+        lambda pheromones, used_path, config: pheromones,
+    )
+    config = _three_phase_config(diversity_retries=2)
+
+    plan = route_planner.plan_routes(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        None,
+        None,
+        2,
+        config,
+    )
+
+    # phase one accepts at once, phase two retries past the repeat
+    assert len(calls) > 2
+    assert len(plan.routes) == 2

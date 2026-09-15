@@ -33,7 +33,7 @@ def run_route_planning_job(
     start_node_id = find_nearest_node(graph, start)
     end_node_id = find_nearest_node(graph, end)
 
-    routes = plan_routes(
+    plan = plan_routes(
         graph,
         start_node_id,
         end_node_id,
@@ -46,6 +46,7 @@ def run_route_planning_job(
     return {
         "park_id": park_id,
         "num_alternatives_requested": num_alternatives,
-        "num_alternatives_found": len(routes),
-        "results": [_serialize_route(r) for r in routes],
+        "num_alternatives_found": len(plan.routes),
+        "shortfall_reason": plan.shortfall,
+        "results": [_serialize_route(r) for r in plan.routes],
     }

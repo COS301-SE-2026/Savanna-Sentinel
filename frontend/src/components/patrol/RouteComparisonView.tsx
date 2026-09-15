@@ -29,6 +29,25 @@ export interface RouteComparisonViewProps {
     savingIndex: number | null;
     savedIndices: Set<number>;
     canSave: boolean;
+    numAlternativesRequested?: number | null;
+    shortfallReason?: string | null;
+}
+
+const SHORTFALL_MESSAGES: Record<string, string> = {
+    duplicate_route: "the remaining options retraced a route already shown",
+    no_tour_found: "no further route could be completed",
+    below_quality: "the remaining options covered too little risk",
+};
+
+function shortfallNote(
+    found: number,
+    requested: number | null | undefined,
+    reason: string | null | undefined,
+): string | null {
+    if (!requested || found >= requested) return null;
+    const detail = reason ? SHORTFALL_MESSAGES[reason] : undefined;
+    const tail = detail ? `: ${detail}` : ".";
+    return `Showing ${found} of ${requested} alternatives${tail}`;
 }
 
 function SkeletonCard() {
@@ -51,6 +70,8 @@ export function RouteComparisonView({
     savingIndex,
     savedIndices,
     canSave,
+    numAlternativesRequested,
+    shortfallReason,
 }: RouteComparisonViewProps) {
     const [pendingSaveIndex, setPendingSaveIndex] = useState<number | null>(
         null,
@@ -96,8 +117,22 @@ export function RouteComparisonView({
         );
     }
 
+    const note = shortfallNote(
+        routes.length,
+        numAlternativesRequested,
+        shortfallReason,
+    );
+
     return (
         <>
+            {note && (
+                <p
+                    className="mb-2 text-xs text-color-text-primary"
+                    role="status"
+                >
+                    {note}
+                </p>
+            )}
             <div
                 className="flex flex-col gap-3"
                 aria-label="Route alternatives"

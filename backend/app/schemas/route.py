@@ -80,6 +80,7 @@ class RouteListResponse(BaseModel):
     status: str | None = None
     num_alternatives_requested: int | None = None
     num_alternatives_found: int | None = None
+    shortfall_reason: str | None = None
     total: int
     page: int
     page_size: int
