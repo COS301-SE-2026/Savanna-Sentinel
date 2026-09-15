@@ -7,6 +7,7 @@ from pyproj import Transformer
 from app.repositories.risk_repository import GRID_FILE_PATH
 from app.schemas.geo import GeoPoint
 from app.schemas.route import GraphEdge, GraphNode, ParkGraph
+from app.workers.ml.route_planner import clear_path_cache
 
 # Placeholder patrol-vehicle profile - no vehicle telemetry/risk engine exists
 # yet to derive these from, so a flat off-road estimate is used for every edge.
@@ -95,6 +96,7 @@ def _load_grid() -> ParkGraph:
 
 def invalidate_grid_cache() -> None:
     _load_grid.cache_clear()
+    clear_path_cache()
 
 
 def build_park_graph(

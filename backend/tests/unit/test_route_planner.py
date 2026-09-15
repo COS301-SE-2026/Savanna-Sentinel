@@ -706,6 +706,7 @@ def test_construct_waypoint_tour_treats_none_max_time_and_max_fuel_as_unlimited(
         visited,
         time_remaining,
         fuel_remaining,
+        targets=None,
     ):
         captured["time_remaining"] = time_remaining
         captured["fuel_remaining"] = fuel_remaining
@@ -1959,3 +1960,288 @@ def test_the_search_retries_before_giving_up_on_a_duplicate(monkeypatch):
     # phase one accepts at once, phase two retries past the repeat
     assert len(calls) > 2
     assert len(plan.routes) == 2
+
+
+# local search
+
+
+def _line_matrix(graph: ParkGraph, node_ids: list[str]):
+    return route_planner.build_waypoint_distance_matrix(graph, node_ids)
+
+
+def _detour_graph() -> ParkGraph:
+    """Build four collinear cells where hub order decides tour length."""
+    nodes = [
+        GraphNode(
+            node_id=nid,
+            location=GeoPoint(coordinates=(lon, lat)),
+            risk_score=0.9,
+        )
+        for nid, lon, lat in (
+            ("a", 0.0, 0.0),
+            ("b", 0.01, 0.0),
+            ("c", 0.02, 0.0),
+            ("d", 0.03, 0.0),
+        )
+    ]
+    km = {("a", "b"): 1.0, ("b", "c"): 1.0, ("c", "d"): 1.0,
+          ("a", "c"): 2.0, ("b", "d"): 2.0, ("a", "d"): 3.0}
+    edges = []
+    for (x, y), dist in km.items():
+        edges.append(GraphEdge(x, y, dist, dist * 3, dist * 0.15))
+        edges.append(GraphEdge(y, x, dist, dist * 3, dist * 0.15))
+    return ParkGraph(park_id="detour", nodes=nodes, edges=edges)
+
+
+def _spur_graph() -> ParkGraph:
+    """Two routes from s to e; only the long one passes within reach of h2."""
+    names = ("s", "m1", "m2", "e", "h1", "h2", "h3")
+    nodes = [
+        GraphNode(
+            node_id=name,
+            location=GeoPoint(coordinates=(i * 0.01, 0.0)),
+            risk_score=0.9 if name == "h2" else 0.0,
+        )
+        for i, name in enumerate(names)
+    ]
+    chains = [
+        ("s", "m1"), ("m1", "m2"), ("m2", "e"),
+        ("s", "h1"), ("h1", "h2"), ("h2", "h3"), ("h3", "e"),
+    ]
+    edges = []
+    for a, b in chains:
+        edges.append(GraphEdge(a, b, 1.0, 3.0, 0.15))
+        edges.append(GraphEdge(b, a, 1.0, 3.0, 0.15))
+    return ParkGraph(park_id="spur", nodes=nodes, edges=edges)
+
+
+def test_evaluate_hub_sequence_matches_a_constructed_tour():
+    graph = _spur_graph()
+    matrix = _line_matrix(graph, ["s", "e", "h2"])
+
+    direct = route_planner.evaluate_hub_sequence(graph, matrix, ["s", "e"])
+    assert direct[0] == ["s", "m1", "m2", "e"]
+    assert direct[1] == pytest.approx(9.0)
+    assert direct[3] == pytest.approx(0.0)
+
+    detour = route_planner.evaluate_hub_sequence(
+        graph, matrix, ["s", "h2", "e"],
+    )
+    assert detour[0] == ["s", "h1", "h2", "h3", "e"]
+    assert detour[1] == pytest.approx(12.0)
+    assert detour[3] == pytest.approx(0.9)
+
+
+def test_evaluate_hub_sequence_returns_none_for_an_unreachable_hop():
+    graph = _detour_graph()
+    assert (
+        route_planner.evaluate_hub_sequence(graph, {}, ["a", "b"]) is None
+    )
+
+
+def test_evaluate_hub_sequence_returns_none_for_a_single_node():
+    graph = _detour_graph()
+    matrix = _line_matrix(graph, ["a", "b"])
+    assert route_planner.evaluate_hub_sequence(graph, matrix, ["a"]) is None
+
+
+def test_improve_hub_sequence_shortens_a_crossed_order():
+    graph = _detour_graph()
+    matrix = _line_matrix(graph, ["a", "b", "c", "d"])
+    crossed = ["a", "c", "b", "d"]
+    improved = route_planner.improve_hub_sequence(matrix, crossed)
+
+    assert route_planner._sequence_time(
+        matrix, improved,
+    ) < route_planner._sequence_time(matrix, crossed)
+
+
+def test_improve_hub_sequence_keeps_the_same_stops():
+    graph = _detour_graph()
+    matrix = _line_matrix(graph, ["a", "b", "c", "d"])
+    crossed = ["a", "c", "b", "d"]
+    improved = route_planner.improve_hub_sequence(matrix, crossed)
+
+    assert sorted(improved) == sorted(crossed)
+    assert improved[0] == "a"
+    assert improved[-1] == "d"
+
+
+def test_improve_hub_sequence_leaves_an_optimal_order_alone():
+    graph = _detour_graph()
+    matrix = _line_matrix(graph, ["a", "b", "c", "d"])
+    best = ["a", "b", "c", "d"]
+    assert route_planner.improve_hub_sequence(matrix, best) == best
+
+
+def test_improve_hub_sequence_ignores_a_sequence_too_short_to_reorder():
+    graph = _detour_graph()
+    matrix = _line_matrix(graph, ["a", "b"])
+    assert route_planner.improve_hub_sequence(matrix, ["a", "b"]) == ["a", "b"]
+
+
+def test_locally_improved_tour_keeps_the_original_when_no_move_helps():
+    graph = _detour_graph()
+    matrix = _line_matrix(graph, ["a", "b", "c", "d"])
+    path = ["a", "b", "c", "d"]
+    scored = route_planner.evaluate_hub_sequence(graph, matrix, path)
+    expanded, time_used, fuel_used, risk = scored
+
+    result = route_planner.locally_improved_tour(
+        graph, matrix, path, expanded, time_used, fuel_used, risk,
+        route_planner.ACOConfig(),
+    )
+
+    assert result[0] == path
+
+
+# greedy seed
+
+
+def test_greedy_tour_takes_a_detour_that_pays_for_itself():
+    graph = _spur_graph()
+    matrix = _line_matrix(graph, ["s", "e", "h2"])
+    result = route_planner.greedy_tour(
+        graph, matrix, ["h2"], "s", "e",
+        route_planner.ACOConfig(risk_weight=0.001),
+    )
+
+    assert result[0] == ["s", "h2", "e"]
+
+
+def test_greedy_tour_skips_a_detour_that_costs_more_than_it_pays():
+    graph = _spur_graph()
+    matrix = _line_matrix(graph, ["s", "e", "h2"])
+    result = route_planner.greedy_tour(
+        graph, matrix, ["h2"], "s", "e",
+        route_planner.ACOConfig(risk_weight=50.0),
+    )
+
+    assert result[0] == ["s", "e"]
+
+
+def test_greedy_tour_is_deterministic():
+    graph = _spur_graph()
+    matrix = _line_matrix(graph, ["s", "e", "h2"])
+    config = route_planner.ACOConfig()
+    first = route_planner.greedy_tour(graph, matrix, ["h2"], "s", "e", config)
+    second = route_planner.greedy_tour(graph, matrix, ["h2"], "s", "e", config)
+    assert first[0] == second[0]
+
+
+def test_greedy_tour_returns_none_without_a_route_to_the_end():
+    graph = _spur_graph()
+    assert route_planner.greedy_tour(
+        graph, {}, ["h2"], "s", "e", route_planner.ACOConfig(),
+    ) is None
+
+
+def test_the_greedy_seed_only_primes_the_first_phase(monkeypatch):
+    """Later phases must explore away from it, or alternatives collapse."""
+    graph = _spur_graph()
+    seen = []
+    original = route_planner.run_phase
+
+    def spy(*args, **kwargs):
+        seen.append(kwargs.get("seed_tour"))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(route_planner, "run_phase", spy)
+    route_planner.plan_routes(
+        graph, "s", "e", None, None, 3,
+        route_planner.ACOConfig(num_ants=2, total_iterations=6, seed=1),
+    )
+
+    assert seen[0] is not None
+    assert any(entry is None for entry in seen[1:])
+
+
+# cross-request path cache
+
+
+def test_the_distance_matrix_reuses_cached_paths(monkeypatch):
+    route_planner.clear_path_cache()
+    graph = _spur_graph()
+    calls = []
+    original = route_planner.dijkstra
+
+    def counting(g, source, targets=None):
+        calls.append(source)
+        return original(g, source, targets=targets)
+
+    monkeypatch.setattr(route_planner, "dijkstra", counting)
+
+    first = route_planner.build_waypoint_distance_matrix(graph, ["s", "e"])
+    after_first = len(calls)
+    second = route_planner.build_waypoint_distance_matrix(graph, ["s", "e"])
+
+    assert first == second
+    assert after_first > 0
+    assert len(calls) == after_first
+
+
+def test_clearing_the_cache_forces_a_fresh_search(monkeypatch):
+    route_planner.clear_path_cache()
+    graph = _spur_graph()
+    calls = []
+    original = route_planner.dijkstra
+
+    def counting(g, source, targets=None):
+        calls.append(source)
+        return original(g, source, targets=targets)
+
+    monkeypatch.setattr(route_planner, "dijkstra", counting)
+
+    route_planner.build_waypoint_distance_matrix(graph, ["s", "e"])
+    route_planner.clear_path_cache()
+    before = len(calls)
+    route_planner.build_waypoint_distance_matrix(graph, ["s", "e"])
+
+    assert len(calls) > before
+
+
+def test_the_cache_only_searches_for_pairs_it_is_missing(monkeypatch):
+    route_planner.clear_path_cache()
+    graph = _spur_graph()
+    route_planner.build_waypoint_distance_matrix(graph, ["s", "e"])
+
+    requested = []
+    original = route_planner.dijkstra
+
+    def counting(g, source, targets=None):
+        requested.append((source, sorted(targets or [])))
+        return original(g, source, targets=targets)
+
+    monkeypatch.setattr(route_planner, "dijkstra", counting)
+    route_planner.build_waypoint_distance_matrix(graph, ["s", "e", "h2"])
+
+    assert ("s", ["e"]) not in requested
+    assert any("h2" in targets for _, targets in requested)
+
+
+def test_an_unreachable_pair_is_cached_as_missing(monkeypatch):
+    route_planner.clear_path_cache()
+    nodes = [
+        GraphNode(
+            node_id=nid,
+            location=GeoPoint(coordinates=(0.0, 0.0)),
+            risk_score=0.0,
+        )
+        for nid in ("x", "y")
+    ]
+    graph = ParkGraph(park_id="p", nodes=nodes, edges=[])
+
+    calls = []
+    original = route_planner.dijkstra
+    monkeypatch.setattr(
+        route_planner,
+        "dijkstra",
+        lambda g, source, targets=None: (
+            calls.append(source) or original(g, source, targets=targets)
+        ),
+    )
+
+    assert route_planner.build_waypoint_distance_matrix(graph, ["x", "y"]) == {}
+    before = len(calls)
+    assert route_planner.build_waypoint_distance_matrix(graph, ["x", "y"]) == {}
+    assert len(calls) == before

@@ -35,6 +35,10 @@ class ACOConfig:
     bisection_steps: int = 8
     probe_iterations: int = 8
     max_waypoints: int = 60
+    # 2-opt/or-opt shorten transit, which costs coverage picked up in
+    # transit, so this is off by default. See improve_hub_sequence.
+    local_search: bool = False
+    seed_with_greedy: bool = True
 
 
 def init_pheromones(
@@ -165,17 +169,39 @@ def select_waypoints(
     return waypoints
 
 
+_PATH_CACHE: dict[tuple[str, str], PathResult | None] = {}
+
+
+def clear_path_cache() -> None:
+    """Drop cached hub-to-hub paths. Call when the park grid changes."""
+    _PATH_CACHE.clear()
+
+
 def build_waypoint_distance_matrix(
     graph: ParkGraph,
     node_ids: list[str],
 ) -> dict[tuple[str, str], PathResult]:
+    """All-pairs shortest paths among the hub nodes.
+
+    Shortest paths depend only on the grid, not on the risk scores that
+    change per request, so results are cached across requests and
+    invalidated by route_repository.invalidate_grid_cache.
+    """
     matrix: dict[tuple[str, str], PathResult] = {}
     for source in node_ids:
-        reachable = dijkstra(graph, source, targets=node_ids)
+        missing = [
+            target
+            for target in node_ids
+            if target != source and (source, target) not in _PATH_CACHE
+        ]
+        if missing:
+            reachable = dijkstra(graph, source, targets=missing)
+            for target in missing:
+                _PATH_CACHE[(source, target)] = reachable.get(target)
         for target in node_ids:
             if target == source:
                 continue
-            result = reachable.get(target)
+            result = _PATH_CACHE.get((source, target))
             if result is not None:
                 matrix[(source, target)] = result
     return matrix
@@ -189,6 +215,7 @@ def feasible_waypoints(
     visited: set[str],
     time_remaining: float,
     fuel_remaining: float,
+    targets: list[str] | None = None,
 ) -> list[str]:
     """Unvisited waypoints (plus end node) reachable without stranding the tour.
 
@@ -198,12 +225,21 @@ def feasible_waypoints(
     with, but operating over a handful of hub nodes makes the real
     number cheap to precompute for every pair up front.
     """
+    if targets is None:
+        targets = list(dict.fromkeys([*waypoint_ids, end_node_id]))
+    unbounded = time_remaining == math.inf and fuel_remaining == math.inf
     candidates = []
-    for target in list(dict.fromkeys([*waypoint_ids, end_node_id])):
+    for target in targets:
         if target in visited:
             continue
         hop = distance_matrix.get((current_node, target))
         if hop is None:
+            continue
+        if unbounded:
+            # nothing can strand the tour, so skip the return-trip check
+            reachable = (target, end_node_id) in distance_matrix
+            if target == end_node_id or reachable:
+                candidates.append(target)
             continue
         time_left_after = time_remaining - hop.time_min
         fuel_left_after = fuel_remaining - hop.fuel_l
@@ -291,6 +327,7 @@ def construct_waypoint_tour(
     covered = set(coverage_neighbors.get(start_node_id, {start_node_id}))
     current = start_node_id
     closed_tour = start_node_id == end_node_id
+    targets = list(dict.fromkeys([*waypoint_ids, end_node_id]))
 
     while True:
         candidates = feasible_waypoints(
@@ -301,6 +338,7 @@ def construct_waypoint_tour(
             visited,
             time_left,
             fuel_left,
+            targets,
         )
         chosen = select_next_waypoint(
             candidates,
@@ -338,6 +376,168 @@ def construct_waypoint_tour(
             break
 
     return waypoint_path, expanded_path, time_used, fuel_used, risk_total
+
+
+def evaluate_hub_sequence(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    sequence: list[str],
+) -> tuple[list[str], float, float, float] | None:
+    """Expand a hub order into (path, time, fuel, risk), or None if unreachable.
+
+    Scores risk exactly as construct_waypoint_tour does, so a local search
+    move is compared against the tour on the same terms.
+    """
+    if len(sequence) < 2:
+        return None
+    node_risk = _node_risk(graph)
+    coverage_neighbors = _coverage_neighbors(graph)
+    start = sequence[0]
+    expanded = [start]
+    time_used = fuel_used = risk_total = 0.0
+    covered = set(coverage_neighbors.get(start, {start}))
+    for a, b in zip(sequence, sequence[1:]):
+        hop = distance_matrix.get((a, b))
+        if hop is None:
+            return None
+        time_used += hop.time_min
+        fuel_used += hop.fuel_l
+        hop_covered: set[str] = set()
+        for node_id in hop.path[1:]:
+            hop_covered |= coverage_neighbors.get(node_id, {node_id})
+        risk_total += sum(node_risk.get(n, 0.0) for n in hop_covered - covered)
+        covered |= hop_covered
+        expanded.extend(hop.path[1:])
+    return expanded, time_used, fuel_used, risk_total
+
+
+def _sequence_time(
+    distance_matrix: dict[tuple[str, str], PathResult],
+    sequence: list[str],
+) -> float | None:
+    total = 0.0
+    for a, b in zip(sequence, sequence[1:]):
+        hop = distance_matrix.get((a, b))
+        if hop is None:
+            return None
+        total += hop.time_min
+    return total
+
+
+def _two_opt_candidates(sequence: list[str]):
+    for i in range(1, len(sequence) - 2):
+        for j in range(i + 1, len(sequence) - 1):
+            yield sequence[:i] + sequence[i : j + 1][::-1] + sequence[j + 1 :]
+
+
+def _or_opt_candidates(sequence: list[str]):
+    for i in range(1, len(sequence) - 1):
+        without = sequence[:i] + sequence[i + 1 :]
+        for j in range(1, len(without)):
+            if j == i:
+                continue
+            yield without[:j] + [sequence[i]] + without[j:]
+
+
+def improve_hub_sequence(
+    distance_matrix: dict[tuple[str, str], PathResult],
+    sequence: list[str],
+    moves=(_two_opt_candidates, _or_opt_candidates),
+) -> list[str]:
+    """Shorten a hub order by 2-opt and or-opt, keeping the same stops.
+
+    Ranked on travel time alone, which is a matrix lookup per hop rather
+    than a full re-expansion. Visiting the same hubs in less time cannot
+    lose coverage of the hubs themselves, and the caller re-scores the
+    result before keeping it.
+    """
+    best = sequence
+    best_time = _sequence_time(distance_matrix, best)
+    if best_time is None or len(best) < 4:
+        return best
+    improved = True
+    while improved:
+        improved = False
+        for move in moves:
+            for candidate in move(best):
+                candidate_time = _sequence_time(distance_matrix, candidate)
+                if candidate_time is not None and candidate_time < best_time:
+                    best, best_time = candidate, candidate_time
+                    improved = True
+    return best
+
+
+def locally_improved_tour(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    waypoint_path: list[str],
+    expanded_path: list[str],
+    time_used: float,
+    fuel_used: float,
+    risk_total: float,
+    config: ACOConfig,
+) -> tuple[list[str], list[str], float, float, float]:
+    """Keep the local-search result only when it beats its starting tour."""
+    improved = improve_hub_sequence(distance_matrix, waypoint_path)
+    if improved == waypoint_path:
+        return waypoint_path, expanded_path, time_used, fuel_used, risk_total
+    scored = evaluate_hub_sequence(graph, distance_matrix, improved)
+    if scored is None:
+        return waypoint_path, expanded_path, time_used, fuel_used, risk_total
+    new_path, new_time, new_fuel, new_risk = scored
+    before = tour_score(risk_total, time_used, config.risk_weight)
+    after = tour_score(new_risk, new_time, config.risk_weight)
+    if after <= before:
+        return waypoint_path, expanded_path, time_used, fuel_used, risk_total
+    return improved, new_path, new_time, new_fuel, new_risk
+
+
+def greedy_tour(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    waypoint_ids: list[str],
+    start_node_id: str,
+    end_node_id: str,
+    config: ACOConfig,
+) -> tuple[list[str], list[str], float, float, float] | None:
+    """Insert whichever waypoint most improves tour_score, until none does.
+
+    Deterministic, and good enough on its own to give the colony a decent
+    starting point instead of its first iteration being pure noise.
+    """
+    sequence = [start_node_id, end_node_id]
+    scored = evaluate_hub_sequence(graph, distance_matrix, sequence)
+    if scored is None:
+        return None
+    best_score = tour_score(scored[3], scored[1], config.risk_weight)
+    remaining = [
+        w for w in waypoint_ids if w not in (start_node_id, end_node_id)
+    ]
+    while remaining:
+        best_move = None
+        for waypoint in remaining:
+            for position in range(1, len(sequence)):
+                candidate = (
+                    sequence[:position] + [waypoint] + sequence[position:]
+                )
+                result = evaluate_hub_sequence(
+                    graph,
+                    distance_matrix,
+                    candidate,
+                )
+                if result is None:
+                    continue
+                score = tour_score(result[3], result[1], config.risk_weight)
+                if score > best_score and (
+                    best_move is None or score > best_move[0]
+                ):
+                    best_move = (score, candidate, waypoint, result)
+        if best_move is None:
+            break
+        best_score, sequence, waypoint, scored = best_move
+        remaining.remove(waypoint)
+    expanded, time_used, fuel_used, risk_total = scored
+    return sequence, expanded, time_used, fuel_used, risk_total
 
 
 def update_pheromones(
@@ -395,31 +595,37 @@ def run_phase(
     num_iterations: int,
     config: ACOConfig,
     rng: random.Random,
+    seed_tour: tuple[list[str], list[str], float, float, float] | None = None,
 ) -> tuple[list[str], list[str], float, dict]:
     best_waypoint_path: list[str] = []
     best_expanded_path: list[str] = []
     best_risk, best_score = -1.0, -math.inf
-    for _ in range(num_iterations):
+    for iteration in range(num_iterations):
         tours = []
-        for _ in range(config.num_ants):
-            waypoint_path, expanded_path, time_used, fuel_used, risk = (
-                construct_waypoint_tour(
-                    graph,
-                    distance_matrix,
-                    waypoint_ids,
-                    start_node_id,
-                    end_node_id,
-                    max_time,
-                    max_fuel,
-                    pheromones,
-                    config,
-                    rng,
-                )
+        constructed = [
+            construct_waypoint_tour(
+                graph,
+                distance_matrix,
+                waypoint_ids,
+                start_node_id,
+                end_node_id,
+                max_time,
+                max_fuel,
+                pheromones,
+                config,
+                rng,
             )
-            if len(waypoint_path) > 1 and waypoint_path[-1] == end_node_id:
-                tours.append(
-                    (waypoint_path, expanded_path, risk, time_used, fuel_used),
-                )
+            for _ in range(config.num_ants)
+        ]
+        if seed_tour is not None and iteration == 0:
+            constructed.append(seed_tour)
+        for tour in constructed:
+            waypoint_path, expanded_path, time_used, fuel_used, risk = tour
+            if len(waypoint_path) <= 1 or waypoint_path[-1] != end_node_id:
+                continue
+            tours.append(
+                (waypoint_path, expanded_path, risk, time_used, fuel_used),
+            )
         if not tours:
             continue
         iter_best = max(
@@ -431,8 +637,27 @@ def run_phase(
             iter_best_expanded_path,
             iter_best_risk,
             iter_best_time,
-            _,
+            iter_best_fuel,
         ) = iter_best
+        if config.local_search:
+            # only the iteration best, so this costs once per iteration
+            # rather than once per ant
+            (
+                iter_best_waypoint_path,
+                iter_best_expanded_path,
+                iter_best_time,
+                iter_best_fuel,
+                iter_best_risk,
+            ) = locally_improved_tour(
+                graph,
+                distance_matrix,
+                iter_best_waypoint_path,
+                iter_best_expanded_path,
+                iter_best_time,
+                iter_best_fuel,
+                iter_best_risk,
+                config,
+            )
         iter_score = tour_score(
             iter_best_risk,
             iter_best_time,
@@ -610,6 +835,7 @@ def _run_phase_with_retries(
     config: ACOConfig,
     rng: random.Random,
     accepted_expanded_paths: list[list[str]],
+    seed_tour: tuple[list[str], list[str], float, float, float] | None = None,
 ) -> tuple[list[str], list[str], float, dict]:
     """Run a phase, penalising and retrying while it repeats an accepted route.
 
@@ -630,6 +856,7 @@ def _run_phase_with_retries(
             n_iter,
             config,
             rng,
+            seed_tour=seed_tour if attempt == 0 else None,
         )
         best = (waypoint_path, expanded_path, candidate_risk, pheromones)
         if not waypoint_path:
@@ -683,6 +910,16 @@ def plan_routes(
                 rng,
             ),
         )
+    seed_tour = None
+    if config.seed_with_greedy:
+        seed_tour = greedy_tour(
+            graph,
+            distance_matrix,
+            waypoint_ids,
+            start_node_id,
+            end_node_id,
+            config,
+        )
     pheromones = init_pheromones(distance_matrix, config)
     iterations_per_phase = [
         int(config.total_iterations * f)
@@ -706,6 +943,7 @@ def plan_routes(
             config,
             rng,
             accepted_expanded_paths,
+            seed_tour=seed_tour if not accepted_expanded_paths else None,
         )
         waypoint_path, expanded_path, candidate_risk, pheromones = phase
         if not waypoint_path:
