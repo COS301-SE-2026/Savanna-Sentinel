@@ -11,7 +11,6 @@ from app.repositories.risk_repository import (
     count_incidents_since,
     count_sightings_since,
     fetch_incidents_by_cell,
-    fetch_patrol_tracks_by_cell,
     fetch_sightings_by_cell,
     get_grid_cells,
     persist_grid_cells,
@@ -142,37 +141,6 @@ async def _insert_incident(
         )
 
 
-async def _insert_patrol_track(wkt_linestring, occurred_at):
-    async with _engine.begin() as conn:
-        center_pt = await conn.execute(
-            text("SELECT ST_AsText(ST_Centroid(ST_GeomFromText(:wkt, 4326)))"),
-            {"wkt": wkt_linestring},
-        )
-        center_wkt = center_pt.scalar_one()
-
-        ev = await conn.execute(
-            text("""
-                INSERT INTO geospatial_events
-                    (event_type, location, occurred_at)
-                VALUES (
-                    'patrol_track', ST_GeogFromText(:center_wkt),
-                    :occurred_at
-                )
-                RETURNING id
-            """),
-            {"center_wkt": center_wkt, "occurred_at": occurred_at},
-        )
-        event_id = ev.fetchone()[0]
-        _CREATED_EVENT_IDS.append(event_id)
-        await conn.execute(
-            text("""
-                INSERT INTO patrol_tracks (id, route_line)
-                VALUES (:id, ST_GeogFromText(:wkt))
-            """),
-            {"id": event_id, "wkt": wkt_linestring},
-        )
-
-
 async def _insert_sighting(lng, lat, occurred_at, species="Elephant", count=1):
     wkt = f"POINT({lng} {lat})"
     async with _engine.begin() as conn:
@@ -289,30 +257,6 @@ async def test_fetch_incidents_by_cell_excludes_events_before_since():
         )
 
     assert result.get(target["cell_id"], []) == []
-
-
-@pytest.mark.asyncio
-async def test_fetch_patrol_tracks_by_cell_uses_intersects():
-    async with _Session() as session:
-        await persist_grid_cells(session, _PARK)
-        await session.commit()
-        cells = await get_grid_cells(session, _PARK)
-
-    target = cells[0]
-    (lon1, lat1), (lon2, lat2) = target["corners"][0], target["corners"][2]
-    wkt = f"LINESTRING({lon1} {lat1}, {lon2} {lat2})"
-    now = datetime.now(timezone.utc)
-    await _insert_patrol_track(wkt, now - timedelta(days=2))
-
-    async with _Session() as session:
-        result = await fetch_patrol_tracks_by_cell(
-            session,
-            _PARK,
-            now - timedelta(days=90),
-        )
-
-    assert target["cell_id"] in result
-    assert len(result[target["cell_id"]]) == 1
 
 
 @pytest.mark.asyncio

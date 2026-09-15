@@ -25,20 +25,16 @@ def test_feature_names_are_fixed_order():
     assert FEATURE_NAMES == [
         "incident_density_self",
         "incident_density_neighbors",
-        "patrol_recency_days",
-        "patrol_frequency",
         "sighting_density_self",
         "sighting_density_neighbors",
     ]
 
 
-def test_cell_with_no_data_gets_zero_density_and_sentinel_recency():
-    features = compute_cell_features(_CELLS, {}, {}, _NOW)
+def test_cell_with_no_data_gets_zero_density():
+    features = compute_cell_features(_CELLS, {}, _NOW)
 
     assert features["far"]["incident_density_self"] == 0.0
     assert features["far"]["incident_density_neighbors"] == 0.0
-    assert features["far"]["patrol_frequency"] == 0
-    assert features["far"]["patrol_recency_days"] > 365
 
 
 def test_self_incident_contributes_only_to_its_own_cell_and_neighbors():
@@ -52,7 +48,7 @@ def test_self_incident_contributes_only_to_its_own_cell_and_neighbors():
         ],
     }
 
-    features = compute_cell_features(_CELLS, incidents_by_cell, {}, _NOW)
+    features = compute_cell_features(_CELLS, incidents_by_cell, _NOW)
 
     assert features["c00"]["incident_density_self"] > 0
     assert features["c01"]["incident_density_self"] == 0.0
@@ -74,7 +70,6 @@ def test_incidents_outside_lookback_window_are_excluded():
     features = compute_cell_features(
         _CELLS,
         incidents_by_cell,
-        {},
         _NOW,
         lookback_days=90,
     )
@@ -96,7 +91,6 @@ def test_future_incidents_are_excluded():
     features = compute_cell_features(
         _CELLS,
         incidents_by_cell,
-        {},
         _NOW,
         lookback_days=90,
     )
@@ -124,8 +118,8 @@ def test_more_recent_incident_weighs_more_than_older_one():
         ],
     }
 
-    recent_features = compute_cell_features(_CELLS, recent, {}, _NOW)
-    old_features = compute_cell_features(_CELLS, old, {}, _NOW)
+    recent_features = compute_cell_features(_CELLS, recent, _NOW)
+    old_features = compute_cell_features(_CELLS, old, _NOW)
 
     assert (
         recent_features["c00"]["incident_density_self"]
@@ -153,8 +147,8 @@ def test_field_report_sourced_weighs_more_than_tipoff_sourced():
         ],
     }
 
-    fr_features = compute_cell_features(_CELLS, fr, {}, _NOW)
-    tip_features = compute_cell_features(_CELLS, tip, {}, _NOW)
+    fr_features = compute_cell_features(_CELLS, fr, _NOW)
+    tip_features = compute_cell_features(_CELLS, tip, _NOW)
 
     assert (
         fr_features["c00"]["incident_density_self"]
@@ -174,7 +168,7 @@ def test_neighbor_density_is_weighted_and_decays_with_distance():
     }
     cells = _CELLS + [{"cell_id": "c02", "row": 0, "col": 2, "corners": []}]
 
-    features = compute_cell_features(cells, incidents_by_cell, {}, _NOW)
+    features = compute_cell_features(cells, incidents_by_cell, _NOW)
 
     self_density = features["c00"]["incident_density_self"]
     distance_1_density = features["c01"]["incident_density_neighbors"]
@@ -189,19 +183,8 @@ def test_neighbor_density_is_weighted_and_decays_with_distance():
     assert distance_1_density > distance_2_density
 
 
-def test_patrol_recency_and_frequency():
-    patrol_by_cell = {
-        "c00": [_NOW - timedelta(days=10), _NOW - timedelta(days=3)],
-    }
-
-    features = compute_cell_features(_CELLS, {}, patrol_by_cell, _NOW)
-
-    assert features["c00"]["patrol_frequency"] == 2
-    assert features["c00"]["patrol_recency_days"] == 3
-
-
 def test_cell_with_no_sightings_gets_zero_sighting_density():
-    features = compute_cell_features(_CELLS, {}, {}, _NOW)
+    features = compute_cell_features(_CELLS, {}, _NOW)
 
     assert features["far"]["sighting_density_self"] == 0.0
     assert features["far"]["sighting_density_neighbors"] == 0.0
@@ -214,7 +197,6 @@ def test_self_sighting_contributes_to_its_own_cell_and_neighbors():
 
     features = compute_cell_features(
         _CELLS,
-        {},
         {},
         _NOW,
         sightings_by_cell=sightings_by_cell,
@@ -234,7 +216,6 @@ def test_sightings_outside_lookback_window_are_excluded():
     features = compute_cell_features(
         _CELLS,
         {},
-        {},
         _NOW,
         lookback_days=90,
         sightings_by_cell=sightings_by_cell,
@@ -251,7 +232,6 @@ def test_future_sightings_are_excluded():
     features = compute_cell_features(
         _CELLS,
         {},
-        {},
         _NOW,
         lookback_days=90,
         sightings_by_cell=sightings_by_cell,
@@ -267,13 +247,11 @@ def test_larger_herd_count_increases_sighting_density_sublinearly():
     lone_features = compute_cell_features(
         _CELLS,
         {},
-        {},
         _NOW,
         sightings_by_cell=lone,
     )
     herd_features = compute_cell_features(
         _CELLS,
-        {},
         {},
         _NOW,
         sightings_by_cell=herd,
@@ -303,7 +281,6 @@ def test_incident_and_sighting_density_are_independent():
     features = compute_cell_features(
         _CELLS,
         incidents_by_cell,
-        {},
         _NOW,
         sightings_by_cell=sightings_by_cell,
     )
@@ -320,7 +297,6 @@ def test_sighting_older_than_one_week_is_excluded():
     features = compute_cell_features(
         _CELLS,
         {},
-        {},
         _NOW,
         sightings_by_cell=sightings_by_cell,
     )
@@ -336,7 +312,6 @@ def test_sighting_within_the_week_still_contributes():
 
     features = compute_cell_features(
         _CELLS,
-        {},
         {},
         _NOW,
         sightings_by_cell=sightings_by_cell,
@@ -361,7 +336,6 @@ def test_a_week_old_incident_still_counts_even_though_a_sighting_would_not():
     features = compute_cell_features(
         _CELLS,
         incidents_by_cell,
-        {},
         _NOW,
         sightings_by_cell=sightings_by_cell,
     )

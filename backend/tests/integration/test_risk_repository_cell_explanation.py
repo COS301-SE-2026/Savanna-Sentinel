@@ -171,8 +171,8 @@ async def _create_heatmap_for_cell(session, cell):
             cell["cell_id"]: {
                 "incident_density_self": 1.0,
                 "incident_density_neighbors": 2.0,
-                "patrol_recency_days": 5.0,
-                "patrol_frequency": 3.0,
+                "sighting_density_self": 5.0,
+                "sighting_density_neighbors": 3.0,
             },
         },
         explanations={

@@ -54,7 +54,6 @@ async def test_score_computes_and_saves_snapshot_when_model_exists(
         return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
-    mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.save_heatmap_snapshot = AsyncMock(
         return_value=("heatmap-1", datetime(2026, 6, 1, tzinfo=timezone.utc)),
@@ -116,7 +115,6 @@ async def test_score_result_computed_at_matches_repository_value_not_reference_t
         return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
-    mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     db_computed_at = datetime(2026, 6, 1, 12, 30, tzinfo=timezone.utc)
     mock_repo.save_heatmap_snapshot = AsyncMock(
@@ -219,7 +217,6 @@ async def test_score_labels_manual_trigger_as_ad_hoc(
         return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
-    mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.save_heatmap_snapshot = AsyncMock(
         return_value=("heatmap-1", datetime(2026, 6, 1, tzinfo=timezone.utc)),
@@ -267,7 +264,6 @@ async def test_score_labels_scheduled_trigger_as_6h_by_default(
         return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
-    mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.save_heatmap_snapshot = AsyncMock(
         return_value=("heatmap-1", datetime(2026, 6, 1, tzinfo=timezone.utc)),
@@ -325,7 +321,6 @@ async def test_score_raises_a_low_model_cell_with_a_recent_incident(
             ],
         },
     )
-    mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.save_heatmap_snapshot = AsyncMock(
         return_value=("heatmap-1", datetime(2026, 6, 1, tzinfo=timezone.utc)),
@@ -389,7 +384,6 @@ async def test_score_leaves_a_cell_untouched_when_its_incident_is_stale(
             ],
         },
     )
-    mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.save_heatmap_snapshot = AsyncMock(
         return_value=("heatmap-1", datetime(2026, 6, 1, tzinfo=timezone.utc)),
