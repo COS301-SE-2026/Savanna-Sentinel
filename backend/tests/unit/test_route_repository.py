@@ -11,7 +11,7 @@ from app.repositories.route_repository import (
     find_nearest_node,
 )
 from app.schemas.geo import GeoPoint
-from app.schemas.route import GraphNode, ParkGraph
+from app.schemas.route import GraphEdge, GraphNode, ParkGraph
 
 _EPSG = 32736
 _CELL_M = 1000.0
@@ -249,24 +249,24 @@ def test_find_nearest_node_returns_closest_node():
         nodes=[
             GraphNode(
                 node_id="a",
-                location=GeoPoint(coordinates=(0.0, 0.0)),
+                location=GeoPoint(coordinates=(31.0, -24.0)),
                 risk_score=0.0,
             ),
             GraphNode(
                 node_id="b",
-                location=GeoPoint(coordinates=(10.0, 10.0)),
+                location=GeoPoint(coordinates=(31.1, -23.9)),
                 risk_score=0.0,
             ),
             GraphNode(
                 node_id="c",
-                location=GeoPoint(coordinates=(9.5, 9.5)),
+                location=GeoPoint(coordinates=(31.095, -23.905)),
                 risk_score=0.0,
             ),
         ],
         edges=[],
     )
-    assert find_nearest_node(graph, (9.9, 9.9)) == "b"
-    assert find_nearest_node(graph, (0.1, -0.1)) == "a"
+    assert find_nearest_node(graph, (31.099, -23.901)) == "b"
+    assert find_nearest_node(graph, (31.001, -24.001)) == "a"
 
 
 def test_find_nearest_node_exact_match_returns_same_node():
@@ -282,6 +282,94 @@ def test_find_nearest_node_exact_match_returns_same_node():
         edges=[],
     )
     assert find_nearest_node(graph, (5.0, 5.0)) == "only"
+
+
+def test_find_nearest_node_scales_longitude_by_latitude():
+    """At -24 deg a degree of longitude is ~9% shorter than one of latitude."""
+    graph = ParkGraph(
+        park_id="p",
+        nodes=[
+            GraphNode(
+                node_id="east",
+                location=GeoPoint(coordinates=(31.01, -24.0)),
+                risk_score=0.0,
+            ),
+            GraphNode(
+                node_id="north",
+                location=GeoPoint(coordinates=(31.0, -23.99)),
+                risk_score=0.0,
+            ),
+        ],
+        edges=[],
+    )
+    # Equidistant in raw degrees, so only the projection can break the tie.
+    assert find_nearest_node(graph, (31.0, -24.0)) == "east"
+
+
+def test_find_nearest_node_rejects_a_point_far_outside_the_grid():
+    graph = ParkGraph(
+        park_id="p",
+        nodes=[
+            GraphNode(
+                node_id="only",
+                location=GeoPoint(coordinates=(31.0, -24.0)),
+                risk_score=0.0,
+            ),
+        ],
+        edges=[],
+    )
+    with pytest.raises(ValueError, match="outside the park grid"):
+        find_nearest_node(graph, (18.42, -33.92))
+
+
+def test_find_nearest_node_allows_a_point_just_outside_the_grid():
+    graph = ParkGraph(
+        park_id="p",
+        nodes=[
+            GraphNode(
+                node_id="only",
+                location=GeoPoint(coordinates=(31.0, -24.0)),
+                risk_score=0.0,
+            ),
+        ],
+        edges=[],
+    )
+    assert find_nearest_node(graph, (31.0, -24.009)) == "only"
+
+
+def test_find_nearest_node_scales_the_bound_to_the_cell_size():
+    """A coarser grid tolerates a proportionally further snap."""
+    node = GraphNode(
+        node_id="only",
+        location=GeoPoint(coordinates=(31.0, -24.0)),
+        risk_score=0.0,
+    )
+    point = (31.0, -24.05)
+
+    fine = ParkGraph(park_id="p", nodes=[node], edges=[])
+    with pytest.raises(ValueError, match="outside the park grid"):
+        find_nearest_node(fine, point)
+
+    coarse = ParkGraph(
+        park_id="p",
+        nodes=[node],
+        edges=[
+            GraphEdge(
+                "only",
+                "only",
+                distance_km=10.0,
+                est_time_min=30.0,
+                est_fuel_l=1.5,
+            ),
+        ],
+    )
+    assert find_nearest_node(coarse, point) == "only"
+
+
+def test_find_nearest_node_rejects_an_empty_grid():
+    graph = ParkGraph(park_id="p", nodes=[], edges=[])
+    with pytest.raises(ValueError, match="no cells"):
+        find_nearest_node(graph, (31.0, -24.0))
 
 
 # Sanity checks against the real production grid file

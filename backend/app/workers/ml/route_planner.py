@@ -228,8 +228,9 @@ def construct_waypoint_tour(
     visited = {start_node_id}
     covered = set(coverage_neighbors.get(start_node_id, {start_node_id}))
     current = start_node_id
+    closed_tour = start_node_id == end_node_id
 
-    while current != end_node_id:
+    while True:
         candidates = feasible_waypoints(
             distance_matrix,
             waypoint_ids,
@@ -269,6 +270,10 @@ def construct_waypoint_tour(
         waypoint_path.append(chosen)
         visited.add(chosen)
         current = chosen
+        if closed_tour:
+            visited.discard(end_node_id)
+        if current == end_node_id:
+            break
 
     return waypoint_path, expanded_path, time_used, fuel_used, risk_total
 
@@ -348,7 +353,7 @@ def run_phase(
                     rng,
                 )
             )
-            if waypoint_path[-1] == end_node_id:
+            if len(waypoint_path) > 1 and waypoint_path[-1] == end_node_id:
                 tours.append(
                     (waypoint_path, expanded_path, risk, time_used, fuel_used),
                 )
@@ -412,6 +417,8 @@ def is_sufficiently_diverse(
     threshold: float,
 ) -> bool:
     candidate_edges = edge_set(candidate_path)
+    if not candidate_edges:
+        return False
     for prior in prior_paths:
         prior_edges = edge_set(prior)
         overlap_ratio = len(candidate_edges & prior_edges) / max(
@@ -527,6 +534,7 @@ def plan_routes(
     return [
         _to_planned_route(graph, p, compute_risk_coverage(graph, p))
         for p in accepted_expanded_paths
+        if len(p) > 1
     ]
 
 

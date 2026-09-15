@@ -122,13 +122,28 @@ def build_park_graph(
     return ParkGraph(park_id=park_id, nodes=nodes, edges=base.edges)
 
 
+KM_PER_DEGREE = 111.0
+MAX_SNAP_CELLS = 1.5
+
+
+def _squared_km(a: tuple[float, float], b: tuple[float, float]) -> float:
+    lon_scale = math.cos(math.radians(b[1]))
+    d_lon = (a[0] - b[0]) * lon_scale * KM_PER_DEGREE
+    d_lat = (a[1] - b[1]) * KM_PER_DEGREE
+    return d_lon**2 + d_lat**2
+
+
 def find_nearest_node(graph: ParkGraph, point: tuple[float, float]) -> str:
-    """Nearest grid node to a (lon, lat) point, by simple squared distance."""
-    lon, lat = point
-    return min(
+    if not graph.nodes:
+        raise ValueError("Park grid has no cells")
+    nearest = min(
         graph.nodes,
-        key=lambda n: (
-            (n.location.coordinates[0] - lon) ** 2
-            + (n.location.coordinates[1] - lat) ** 2
-        ),
-    ).node_id
+        key=lambda n: _squared_km(n.location.coordinates, point),
+    )
+    cell_km = min((e.distance_km for e in graph.edges), default=1.0)
+    limit = MAX_SNAP_CELLS * cell_km
+    if _squared_km(nearest.location.coordinates, point) > limit**2:
+        raise ValueError(
+            f"Point {point} is more than {limit:.1f} km outside the park grid",
+        )
+    return nearest.node_id

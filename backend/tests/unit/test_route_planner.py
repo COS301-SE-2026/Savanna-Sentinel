@@ -1319,3 +1319,99 @@ def test_select_waypoints_follows_node_order_not_insertion_luck():
     reversed_graph = ParkGraph(park_id="p", nodes=nodes[::-1], edges=[])
 
     assert route_planner.select_waypoints(reversed_graph) == node_ids[::-1]
+
+
+# degenerate routes
+
+
+def test_is_sufficiently_diverse_rejects_an_edgeless_candidate():
+    assert not route_planner.is_sufficiently_diverse(["a"], [], 0.3)
+
+
+def test_is_sufficiently_diverse_rejects_two_identical_single_nodes():
+    assert not route_planner.is_sufficiently_diverse(["a"], [["a"]], 0.3)
+
+
+def test_is_sufficiently_diverse_still_accepts_a_real_first_path():
+    assert route_planner.is_sufficiently_diverse(["a", "b"], [], 0.3)
+
+
+def _round_trip_graph() -> ParkGraph:
+    """p1 - p2 - p3 in a line, p2 carries the risk worth patrolling."""
+    risks = {"p1": 0.0, "p2": 0.9, "p3": 0.9}
+    nodes = [
+        GraphNode(
+            node_id=nid,
+            location=GeoPoint(coordinates=(float(i), 0.0)),
+            risk_score=risks[nid],
+        )
+        for i, nid in enumerate(("p1", "p2", "p3"))
+    ]
+    edges = []
+    for a, b in (("p1", "p2"), ("p2", "p3")):
+        edges.append(GraphEdge(a, b, 1.0, 3.0, 0.15))
+        edges.append(GraphEdge(b, a, 1.0, 3.0, 0.15))
+    return ParkGraph(park_id="rt", nodes=nodes, edges=edges)
+
+
+def test_plan_routes_returns_a_real_loop_when_start_equals_end():
+    graph = _round_trip_graph()
+    config = route_planner.ACOConfig(num_ants=6, total_iterations=15, seed=5)
+    routes = route_planner.plan_routes(
+        graph, "p1", "p1", None, None, 3, config,
+    )
+
+    assert routes
+    for route in routes:
+        assert len(route.suggested_path) > 1
+        assert route.suggested_path[0] == "p1"
+        assert route.suggested_path[-1] == "p1"
+        assert route.estimated_time_min > 0
+
+
+def test_plan_routes_never_emits_a_single_point_geometry():
+    graph = _round_trip_graph()
+    config = route_planner.ACOConfig(num_ants=6, total_iterations=15, seed=5)
+    routes = route_planner.plan_routes(
+        graph, "p1", "p1", None, None, 3, config,
+    )
+
+    assert all(len(r.path_geometry.coordinates) > 1 for r in routes)
+
+
+def test_plan_routes_drops_a_loop_with_nowhere_to_go():
+    """No reachable waypoint means no patrol, not a zero length route."""
+    nodes = [
+        GraphNode(
+            node_id="solo",
+            location=GeoPoint(coordinates=(0.0, 0.0)),
+            risk_score=0.9,
+        ),
+    ]
+    graph = ParkGraph(park_id="p", nodes=nodes, edges=[])
+    config = route_planner.ACOConfig(num_ants=2, total_iterations=4, seed=1)
+
+    assert (
+        route_planner.plan_routes(
+            graph, "solo", "solo", None, None, 3, config,
+        )
+        == []
+    )
+
+
+def test_plan_routes_start_to_end_is_unchanged_by_the_loop_handling():
+    fixture = make_graph()
+    config = route_planner.ACOConfig(num_ants=4, total_iterations=12, seed=3)
+    routes = route_planner.plan_routes(
+        fixture.graph,
+        fixture.start_node_id,
+        fixture.end_node_id,
+        None,
+        None,
+        3,
+        config,
+    )
+
+    for route in routes:
+        assert route.suggested_path[0] == fixture.start_node_id
+        assert route.suggested_path[-1] == fixture.end_node_id
