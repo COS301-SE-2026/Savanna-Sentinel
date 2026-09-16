@@ -18,6 +18,15 @@ const WATCH_OPTIONS: PositionOptions = {
     timeout: 15000,
 };
 
+function offsetToLatLon(lat: number, lon: number, dx: number, dy: number){
+    const deltaLat = dy / 111139;
+    const deltaLon = dx / (111139 * Math.cos((lat * Math.PI) / 180));
+    return {
+        lat: lat + deltaLat,
+        lon : lon + deltaLon
+    }
+}
+
 export function useUserLocation(enabled = true): UseUserLocationResult {
     const [location, setLocation] = useState<UserLocation | null>(null);
     const [status, setStatus] = useState<UserLocationStatus>(() =>
@@ -69,6 +78,71 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
 
         return () => geolocation.clearWatch(watchId);
     }, [enabled]);
+
+    //Offline location tracking
+    useEffect(() => {
+        if(status !== "dead-reckoning" || !window.DeviceMotionEvent){
+            return;
+        }
+
+        const handleMotion = (event: DeviceMotionEvent) => {
+            //End offline handling when there is no known reference point
+            if (!lastGpsLoc.current){
+                return;
+            }
+
+            //Get the current time for displacement calculations
+            const now = performance.now() / 1000;
+            if(!lastMotionTime.current) {
+                lastMotionTime.current = now;
+                return;
+            }
+
+            //Find the change in time since last measurement
+            const dt = now - lastMotionTime.current;
+            lastMotionTime.current = now;
+
+            //calculate acceleration
+            let accelY = event.acceleration?.y || 0;
+
+            //Filter out noise to prevent engine drift
+            if (Math.abs(accelY) < 0.2){
+                accelY = 0;
+            }
+            
+            //Calculate the displacement from acceleration and change in time
+            currentVelocity.current += accelY * dt;
+            //0 out reverse movement
+            if(currentVelocity.current < 0){
+                currentVelocity.current = 0;
+            }
+            const distanceMoved = currentVelocity.current * dt;
+
+            const headingDeg = lastGpsLoc.current.heading ?? 0;
+            const headingRad = (headingDeg * Math.PI) / 180;
+            const dx = distanceMoved * Math.sin(headingRad);
+            const dy = distanceMoved * Math.cos(headingRad);
+
+            const updatedCoords = offsetToLatLon(
+                lastGpsLoc.current.lat,
+                lastGpsLoc.current.lon,
+                dx,
+                dy
+            )
+
+            const updatedLocation: UserLocation = {
+                lat: updatedCoords.lat,
+                lon: updatedCoords.lon,
+                heading: headingDeg,
+            };
+
+            lastGpsLoc.current = updatedLocation;
+            setLocation(updatedLocation)
+        }
+
+        window.addEventListener("devicemotion", handleMotion);
+        return () => window.removeEventListener("devicemotion", handleMotion);
+    }, [status])
 
 
     if (!enabled) return { location: null, status: "idle" };
