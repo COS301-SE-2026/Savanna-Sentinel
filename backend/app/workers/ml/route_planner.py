@@ -1,10 +1,11 @@
 import math
 import random
+from collections import Counter
 from dataclasses import dataclass
 
 from app.schemas.geo import GeoLineString
 from app.schemas.route import ParkGraph, PlannedRoute
-from app.workers.ml.path_smoothing import chaikin_smooth
+from app.workers.ml.path_smoothing import smooth_route
 from app.workers.ml.shortest_path import PathResult, dijkstra
 
 
@@ -28,9 +29,6 @@ class ACOConfig:
     seed: int | None = None
     # risk units charged per minute of patrol time
     risk_weight: float = 0.1
-    # Coverage each alternative is reshaped to, as a fraction of the first
-    # route's coverage (the first's of all hotspots). None keeps the tour
-    # as the colony found it. Pairs with phase_split, so keep them in step.
     coverage_tiers: tuple[float | None, ...] = (1.0, 0.7, 0.4)
     max_waypoints: int = 60
     # 2-opt/or-opt shorten transit, which costs coverage picked up in
@@ -120,52 +118,91 @@ def high_risk_threshold(
     return cached
 
 
-def _km_between(a: tuple[float, float], b: tuple[float, float]) -> float:
-    d_lon = (a[0] - b[0]) * math.cos(math.radians(b[1])) * KM_PER_DEGREE
-    d_lat = (a[1] - b[1]) * KM_PER_DEGREE
-    return math.hypot(d_lon, d_lat)
+ZONE_RADIUS_STEPS = 2
 
 
-def select_waypoints(
+def _steps_within(
+    source: str,
+    cells: frozenset[str],
+    neighbors: dict[str, frozenset[str]],
+) -> dict[str, int]:
+    steps = {source: 0}
+    frontier = [source]
+    while frontier:
+        following = []
+        for cell in frontier:
+            for other in neighbors.get(cell, ()):
+                if other in cells and other not in steps:
+                    steps[other] = steps[cell] + 1
+                    following.append(other)
+        frontier = following
+    return steps
+
+
+def _weighted_medoid(
+    cells: list[str],
+    steps: dict[str, dict[str, int]],
+    risk: dict[str, float],
+) -> str:
+    return min(
+        cells,
+        key=lambda c: math.fsum(risk[d] * steps[c][d] for d in cells),
+    )
+
+
+def _split_zone(
+    cells: list[str],
+    neighbors: dict[str, frozenset[str]],
+    risk: dict[str, float],
+) -> list[list[str]]:
+    members = frozenset(cells)
+    steps = {c: _steps_within(c, members, neighbors) for c in cells}
+    centres = [_weighted_medoid(cells, steps, risk)]
+    while True:
+        distance = {
+            c: min(steps[centre][c] for centre in centres) for c in cells
+        }
+        farthest = max(cells, key=lambda c: distance[c])
+        if distance[farthest] <= ZONE_RADIUS_STEPS:
+            break
+        centres.append(farthest)
+    groups: dict[str, list[str]] = {centre: [] for centre in centres}
+    for c in cells:
+        nearest = min(centres, key=lambda centre: steps[centre][c])
+        groups[nearest].append(c)
+    return list(groups.values())
+
+
+def hotspot_zones(
     graph: ParkGraph,
     threshold: float | None = None,
-    limit: int | None = None,
-) -> list[str]:
+) -> list[tuple[str, list[str]]]:
+    """(stop, cells) for each area of touching hotspot cells."""
     if threshold is None:
         threshold = high_risk_threshold(graph)
-    node_risk = _node_risk(graph)
-    coverage_neighbors = _coverage_neighbors(graph)
-    location = {n.node_id: n.location.coordinates for n in graph.nodes}
-    high_risk = [nid for nid, score in node_risk.items() if score >= threshold]
-    uncovered = set(high_risk)
-    waypoints: list[str] = []
-    nearest_km: dict[str, float] = {}
-
-    def rank(nid: str) -> float:
-        gain = len(coverage_neighbors.get(nid, {nid}) & uncovered)
-        if not gain:
-            return 0.0
-        return gain / (1.0 + nearest_km.get(nid, 0.0))
-
-    while uncovered and (limit is None or len(waypoints) < limit):
-        best_node = max(high_risk, key=rank)
-        newly_covered = (
-            coverage_neighbors.get(best_node, {best_node}) & uncovered
+    risk = _node_risk(graph)
+    neighbors = _coverage_neighbors(graph)
+    order = {n.node_id: i for i, n in enumerate(graph.nodes)}
+    hot = [n.node_id for n in graph.nodes if n.risk_score >= threshold]
+    hot_set = frozenset(hot)
+    seen: set[str] = set()
+    zones = []
+    for cell in hot:
+        if cell in seen:
+            continue
+        area = sorted(
+            _steps_within(cell, hot_set, neighbors),
+            key=order.__getitem__,
         )
-        if not newly_covered:
-            break
-        waypoints.append(best_node)
-        uncovered -= newly_covered
-        chosen_at = location.get(best_node)
-        if chosen_at is not None:
-            for nid in high_risk:
-                at = location.get(nid)
-                if at is None:
-                    continue
-                distance = _km_between(at, chosen_at)
-                if distance < nearest_km.get(nid, math.inf):
-                    nearest_km[nid] = distance
-    return waypoints
+        seen.update(area)
+        for group in _split_zone(area, neighbors, risk):
+            members = frozenset(group)
+            steps = {c: _steps_within(c, members, neighbors) for c in group}
+            zones.append((_weighted_medoid(group, steps, risk), group))
+    zones.sort(
+        key=lambda z: (-math.fsum(risk[c] for c in z[1]), order[z[0]]),
+    )
+    return zones
 
 
 _PATH_CACHE: dict[tuple[str, str], PathResult | None] = {}
@@ -627,38 +664,81 @@ def run_phase(
     return best_waypoint_path, best_expanded_path, best_risk, pheromones
 
 
+COVERAGE_EPS = 1e-9
+MAX_SPUR_CELLS = 60
+
+
 def compute_risk_coverage(
     graph: ParkGraph,
     path: list[str],
     threshold: float | None = None,
 ) -> float:
-    """Fraction of the grid's high-risk cells the path covers, in [0, 1].
-
-    "Covers" means within one cell of the path (see covered_nodes()), a
-    patrol presence model rather than guaranteed detection. This is the
-    normalised figure shown to the user as "risk coverage".
-    """
-    high_risk_nodes = _high_risk_nodes(graph, threshold)
-    if not high_risk_nodes:
+    """Share of the grid's hotspot risk the path covers, in [0, 1]."""
+    weights = _hotspot_weights(graph, threshold)
+    total = math.fsum(weights.values())
+    if total <= 0:
         return 0.0
-    covered = covered_nodes(graph, path)
-    return len(high_risk_nodes & covered) / len(high_risk_nodes)
+    return _covered_weight(weights, covered_nodes(graph, path)) / total
 
 
-def _high_risk_nodes(
+def _hotspot_weights(
     graph: ParkGraph,
     threshold: float | None = None,
-) -> frozenset[str]:
+) -> dict[str, float]:
     if threshold is not None:
-        return frozenset(
-            nid for nid, score in _node_risk(graph).items()
+        return {
+            nid: score for nid, score in _node_risk(graph).items()
             if score >= threshold
-        )
-    cached = getattr(graph, "_high_risk_nodes_cache", None)
+        }
+    cached = getattr(graph, "_hotspot_weights_cache", None)
     if cached is None:
-        cached = _high_risk_nodes(graph, high_risk_threshold(graph))
-        graph._high_risk_nodes_cache = cached
+        cached = _hotspot_weights(graph, high_risk_threshold(graph))
+        graph._hotspot_weights_cache = cached
     return cached
+
+
+def _covered_weight(weights: dict[str, float], covered) -> float:
+    return math.fsum(weights[c] for c in covered if c in weights)
+
+
+TURN_PENALTY_MIN_PER_RAD = 4.0
+FREE_TURN_RAD = math.pi / 4
+REVISIT_PENALTY_MIN = 3.0
+
+
+def _node_locations(graph: ParkGraph) -> dict[str, tuple[float, float]]:
+    cached = getattr(graph, "_node_locations_cache", None)
+    if cached is None:
+        cached = {n.node_id: n.location.coordinates for n in graph.nodes}
+        graph._node_locations_cache = cached
+    return cached
+
+
+def _turn_angle(
+    a: tuple[float, float],
+    b: tuple[float, float],
+    c: tuple[float, float],
+) -> float:
+    scale = math.cos(math.radians(b[1]))
+    ux, uy = (b[0] - a[0]) * scale, b[1] - a[1]
+    vx, vy = (c[0] - b[0]) * scale, c[1] - b[1]
+    return abs(math.atan2(ux * vy - uy * vx, ux * vx + uy * vy))
+
+
+def route_effort(graph: ParkGraph, path: list[str], time_used: float) -> float:
+    """Drive time plus a charge for sharp turns and re-driven cells."""
+    at = _node_locations(graph)
+    turning = math.fsum(
+        max(_turn_angle(at[a], at[b], at[c]) - FREE_TURN_RAD, 0.0)
+        for a, b, c in zip(path, path[1:], path[2:])
+        if a != b and b != c
+    )
+    revisits = len(path) - len(set(path))
+    return (
+        time_used
+        + TURN_PENALTY_MIN_PER_RAD * turning
+        + REVISIT_PENALTY_MIN * revisits
+    )
 
 
 @dataclass
@@ -667,83 +747,112 @@ class _ScoredTour:
     path: list[str]
     time: float
     risk: float
-    covered_count: int
+    covered: float
+    effort: float
 
 
 def _score_tour(
     graph: ParkGraph,
     distance_matrix: dict[tuple[str, str], PathResult],
-    high_risk: frozenset[str],
+    weights: dict[str, float],
     hubs: list[str],
 ) -> _ScoredTour | None:
     scored = evaluate_hub_sequence(graph, distance_matrix, hubs)
     if scored is None:
         return None
     path, time_used, risk_total = scored
-    count = len(high_risk & covered_nodes(graph, path))
-    return _ScoredTour(hubs, path, time_used, risk_total, count)
+    covered = _covered_weight(weights, covered_nodes(graph, path))
+    effort = route_effort(graph, path, time_used)
+    return _ScoredTour(hubs, path, time_used, risk_total, covered, effort)
+
+
+ORDER_SLACK = 0.02
+
+
+def _cheapest_insertion(
+    distance_matrix: dict[tuple[str, str], PathResult],
+    hubs: list[str],
+    stop: str,
+) -> list[str] | None:
+    best, best_time = None, math.inf
+    for position in range(1, len(hubs)):
+        candidate = hubs[:position] + [stop] + hubs[position:]
+        time_used = _sequence_time(distance_matrix, candidate)
+        if time_used is not None and time_used < best_time:
+            best, best_time = candidate, time_used
+    return best
+
+
+def _reordered(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    weights: dict[str, float],
+    tour: _ScoredTour,
+    floor: float,
+) -> _ScoredTour:
+    hubs = improve_hub_sequence(distance_matrix, tour.hubs)
+    if hubs == tour.hubs:
+        return tour
+    candidate = _score_tour(graph, distance_matrix, weights, hubs)
+    if candidate is None or candidate.covered < floor - COVERAGE_EPS:
+        return tour
+    return candidate
 
 
 def _add_hubs(
     graph: ParkGraph,
     distance_matrix: dict[tuple[str, str], PathResult],
-    high_risk: frozenset[str],
+    weights: dict[str, float],
     waypoint_ids: list[str],
     tour: _ScoredTour,
-    needed: int,
+    needed: float,
+    slack: float,
 ) -> _ScoredTour:
-    """Insert hubs, best coverage gain per added minute first."""
-    while tour.covered_count < needed:
+    while tour.covered < needed - COVERAGE_EPS:
         best, best_value = None, 0.0
-        for waypoint in waypoint_ids:
-            if waypoint in tour.hubs:
+        for stop in waypoint_ids:
+            if stop in tour.hubs:
                 continue
-            for position in range(1, len(tour.hubs)):
-                candidate = _score_tour(
-                    graph,
-                    distance_matrix,
-                    high_risk,
-                    tour.hubs[:position] + [waypoint] + tour.hubs[position:],
-                )
-                if candidate is None:
-                    continue
-                gain = candidate.covered_count - tour.covered_count
-                added = max(candidate.time - tour.time, 0.0)
-                value = gain / (added + 1.0)
-                if gain > 0 and value > best_value:
-                    best, best_value = candidate, value
+            hubs = _cheapest_insertion(distance_matrix, tour.hubs, stop)
+            candidate = hubs and _score_tour(
+                graph, distance_matrix, weights, hubs,
+            )
+            if candidate is None:
+                continue
+            gain = candidate.covered - tour.covered
+            value = gain / (max(candidate.time - tour.time, 0.0) + 1.0)
+            if gain > COVERAGE_EPS and value > best_value:
+                best, best_value = candidate, value
         if best is None:
             return tour
-        tour = best
+        tour = _reordered(
+            graph, distance_matrix, weights, best, best.covered - slack,
+        )
     return tour
 
 
 def _drop_hubs(
     graph: ParkGraph,
     distance_matrix: dict[tuple[str, str], PathResult],
-    high_risk: frozenset[str],
+    weights: dict[str, float],
     tour: _ScoredTour,
-    needed: int,
+    needed: float,
+    slack: float,
     avoid: list[list[str]],
     min_distance: float,
 ) -> _ScoredTour:
-    """Remove whichever hub saves the most time without going under needed.
-
-    A removal that would turn the tour into a copy of an avoided path is
-    skipped, so alternatives don't all shrink onto the same minimal route.
-    """
     while True:
         best = None
         for i in range(1, len(tour.hubs) - 1):
             candidate = _score_tour(
                 graph,
                 distance_matrix,
-                high_risk,
+                weights,
                 tour.hubs[:i] + tour.hubs[i + 1:],
             )
             if (
                 candidate is None
-                or candidate.covered_count < needed
+                or candidate.covered < needed - COVERAGE_EPS
                 or candidate.time >= tour.time
                 or any(
                     route_distance(candidate.path, prior) < min_distance
@@ -755,46 +864,142 @@ def _drop_hubs(
                 best = candidate
         if best is None:
             return tour
-        tour = best
+        tour = _reordered(
+            graph, distance_matrix, weights, best, needed - slack,
+        )
 
 
-def _first_shorter_order(
+def _first_smoother_order(
     graph: ParkGraph,
     distance_matrix: dict[tuple[str, str], PathResult],
-    high_risk: frozenset[str],
+    weights: dict[str, float],
     tour: _ScoredTour,
-    needed: int,
+    floor: float,
 ) -> _ScoredTour | None:
     for move in (_two_opt_candidates, _or_opt_candidates):
         for hubs in move(tour.hubs):
             time_used = _sequence_time(distance_matrix, hubs)
-            if time_used is None or time_used >= tour.time - 1e-9:
+            if time_used is None or time_used >= tour.effort - COVERAGE_EPS:
                 continue
-            candidate = _score_tour(graph, distance_matrix, high_risk, hubs)
-            if candidate is not None and candidate.covered_count >= needed:
+            candidate = _score_tour(graph, distance_matrix, weights, hubs)
+            if (
+                candidate is not None
+                and candidate.covered >= floor - COVERAGE_EPS
+                and candidate.effort < tour.effort - COVERAGE_EPS
+            ):
                 return candidate
     return None
 
 
-def _shorten_order(
+def _smooth_order(
     graph: ParkGraph,
     distance_matrix: dict[tuple[str, str], PathResult],
-    high_risk: frozenset[str],
+    weights: dict[str, float],
     tour: _ScoredTour,
-    needed: int,
+    floor: float,
 ) -> _ScoredTour:
-    """Reorder hubs by 2-opt/or-opt, removing spikes and crossings.
-
-    Unlike improve_hub_sequence, each move is kept only if the tour still
-    covers needed cells, since a shorter transit can pass fewer of them.
-    """
     while True:
-        shorter = _first_shorter_order(
-            graph, distance_matrix, high_risk, tour, needed,
+        smoother = _first_smoother_order(
+            graph, distance_matrix, weights, tour, floor,
         )
-        if shorter is None:
+        if smoother is None:
             return tour
-        tour = shorter
+        tour = smoother
+
+
+def _edge_times(graph: ParkGraph) -> dict[tuple[str, str], float]:
+    cached = getattr(graph, "_edge_times_cache", None)
+    if cached is None:
+        cached = {
+            (e.from_node_id, e.to_node_id): e.est_time_min for e in graph.edges
+        }
+        graph._edge_times_cache = cached
+    return cached
+
+
+def _path_time(times: dict[tuple[str, str], float], path: list[str]) -> float:
+    return math.fsum(times[pair] for pair in zip(path, path[1:]))
+
+
+@dataclass
+class _SpurContext:
+    times: dict[tuple[str, str], float]
+    contributions: dict[str, frozenset[str]]
+    weights: dict[str, float]
+
+
+def _fold_spur(
+    path: list[str],
+    i: int,
+    ctx: _SpurContext,
+    counts: Counter,
+    spare: float,
+) -> tuple[list[str], int] | None:
+    anchor = path[i]
+    j = next(
+        (
+            j
+            for j in range(min(i + MAX_SPUR_CELLS, len(path) - 1), i + 2, -1)
+            if path[j] != anchor and (anchor, path[j]) in ctx.times
+        ),
+        None,
+    )
+    if j is None:
+        return None
+    elapsed = [0.0]
+    for pair in zip(path[i:j], path[i + 1 : j + 1]):
+        elapsed.append(elapsed[-1] + ctx.times[pair])
+    link = ctx.times[(anchor, path[j])]
+    removed: Counter = Counter()
+    lost = 0.0
+    best = None
+    for k in range(j - 1, i - 1, -1):
+        if k < j - 1:
+            for cell in ctx.contributions[path[k + 1]]:
+                removed[cell] += 1
+                if removed[cell] == counts[cell]:
+                    lost += ctx.weights[cell]
+        if lost > spare + COVERAGE_EPS:
+            break
+        if 2 * elapsed[k - i] + link < elapsed[-1] - COVERAGE_EPS:
+            best = k
+    if best is None:
+        return None
+    back = path[i:best][::-1]
+    return path[: best + 1] + back + path[j:], best + len(back) + 1
+
+
+def _fold_spurs(
+    graph: ParkGraph,
+    path: list[str],
+    weights: dict[str, float],
+    needed: float,
+    avoid: list[list[str]],
+    min_distance: float,
+) -> list[str]:
+    neighbors = _coverage_neighbors(graph)
+    ctx = _SpurContext(
+        times=_edge_times(graph),
+        contributions={
+            n: frozenset(c for c in neighbors.get(n, {n}) if c in weights)
+            for n in set(path)
+        },
+        weights=weights,
+    )
+    i = 0
+    while i < len(path) - 4:
+        counts: Counter = Counter()
+        for node_id in path:
+            counts.update(ctx.contributions[node_id])
+        spare = _covered_weight(weights, counts) - needed
+        folded = _fold_spur(path, i, ctx, counts, spare)
+        if folded is None or any(
+            route_distance(folded[0], prior) < min_distance for prior in avoid
+        ):
+            i += 1
+            continue
+        path, i = folded
+    return path
 
 
 def meet_coverage_target(
@@ -807,36 +1012,45 @@ def meet_coverage_target(
     avoid: list[list[str]] | None = None,
     min_distance: float = 0.0,
 ) -> tuple[list[str], list[str]]:
-    """Add, then drop, hubs so the tour clears target in as little time.
-
-    The colony only trades risk against time, so its best tour can land
-    well short of or well past the wanted coverage. When the target is out
-    of reach the tour keeps the most coverage the hubs allow.
-    """
-    high_risk = _high_risk_nodes(graph)
+    """Pick the zones to visit for target, then the best order for them."""
+    weights = _hotspot_weights(graph)
+    total = math.fsum(weights.values())
     unchanged = (waypoint_path, expanded_path)
-    if target is None or not high_risk:
+    if target is None or total <= 0:
         return unchanged
-    tour = _score_tour(graph, distance_matrix, high_risk, waypoint_path)
+    tour = _score_tour(graph, distance_matrix, weights, waypoint_path)
     if tour is None:
         return unchanged
-    needed = math.ceil(target * len(high_risk) - 1e-9)
+    slack = ORDER_SLACK * total
+    tour = _reordered(graph, distance_matrix, weights, tour, 0.0)
+    needed = target * total
     tour = _add_hubs(
-        graph, distance_matrix, high_risk, waypoint_ids, tour, needed,
+        graph, distance_matrix, weights, waypoint_ids, tour, needed, slack,
     )
-    needed = min(needed, tour.covered_count)
-    tour = _shorten_order(graph, distance_matrix, high_risk, tour, needed)
+    needed = min(needed, tour.covered)
+    avoid = avoid or []
     tour = _drop_hubs(
         graph,
         distance_matrix,
-        high_risk,
+        weights,
         tour,
         needed,
-        avoid or [],
+        slack,
+        avoid,
         min_distance,
     )
-    tour = _shorten_order(graph, distance_matrix, high_risk, tour, needed)
-    return tour.hubs, tour.path
+    tour = _smooth_order(
+        graph, distance_matrix, weights, tour, needed - slack,
+    )
+    path = _fold_spurs(
+        graph,
+        tour.path,
+        weights,
+        min(needed, tour.covered),
+        avoid,
+        min_distance,
+    )
+    return tour.hubs, path
 
 
 def edge_set(path: list[str]) -> set[tuple[str, str]]:
@@ -941,9 +1155,9 @@ def plan_routes(
 
     rng = random.Random(config.seed)
     waypoint_ids = [
-        w
-        for w in select_waypoints(graph, limit=config.max_waypoints)
-        if w not in (start_node_id, end_node_id)
+        stop
+        for stop, cells in hotspot_zones(graph)[: config.max_waypoints]
+        if start_node_id not in cells and end_node_id not in cells
     ]
     hub_ids = list(dict.fromkeys([start_node_id, end_node_id, *waypoint_ids]))
     distance_matrix = build_waypoint_distance_matrix(graph, hub_ids)
@@ -965,7 +1179,7 @@ def plan_routes(
     accepted_waypoint_paths: list[list[str]] = []
     accepted_expanded_paths: list[list[str]] = []
     shortfalls: list[str] = []
-    reference_coverage = 1.0
+    tier_scale = 1.0
     for n_iter, tier in zip(iterations_per_phase, config.coverage_tiers):
         phase = _run_phase_with_retries(
             graph,
@@ -990,7 +1204,7 @@ def plan_routes(
             waypoint_ids,
             waypoint_path,
             expanded_path,
-            None if tier is None else tier * reference_coverage,
+            None if tier is None else tier * tier_scale,
             accepted_expanded_paths,
             config.min_diversity,
         )
@@ -1004,8 +1218,9 @@ def plan_routes(
         if distance < config.min_diversity:
             shortfalls.append(DUPLICATE_ROUTE)
             continue
-        if not accepted_expanded_paths:
-            reference_coverage = compute_risk_coverage(graph, expanded_path)
+        if not accepted_expanded_paths and tier:
+            reached = compute_risk_coverage(graph, expanded_path)
+            tier_scale = min(1.0, reached / tier)
         accepted_waypoint_paths.append(waypoint_path)
         accepted_expanded_paths.append(expanded_path)
         pheromones = apply_partial_penalty(pheromones, waypoint_path, config)
@@ -1018,6 +1233,17 @@ def plan_routes(
     return RoutePlan(routes=routes, shortfall=shortfall)
 
 
+def _cell_size_degrees(graph: ParkGraph) -> float:
+    cached = getattr(graph, "_cell_size_degrees_cache", None)
+    if cached is None:
+        cached = min(
+            (e.distance_km for e in graph.edges if e.distance_km > 0),
+            default=0.0,
+        ) / KM_PER_DEGREE
+        graph._cell_size_degrees_cache = cached
+    return cached
+
+
 def _to_planned_route(
     graph: ParkGraph,
     path: list[str],
@@ -1026,7 +1252,7 @@ def _to_planned_route(
     node_lookup = {n.node_id: n for n in graph.nodes}
     edge_lookup = {(e.from_node_id, e.to_node_id): e for e in graph.edges}
     coords = [node_lookup[nid].location.coordinates for nid in path]
-    smoothed = chaikin_smooth(coords, iterations=2)
+    smoothed = smooth_route(coords, _cell_size_degrees(graph))
     edges_used = [edge_lookup[pair] for pair in zip(path, path[1:])]
     return PlannedRoute(
         suggested_path=path,

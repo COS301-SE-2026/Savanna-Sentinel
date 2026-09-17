@@ -200,9 +200,9 @@ function Patrol() {
                             route. Sections covered on foot will take longer.
                         </li>
                         <li>
-                            Risk Coverage: The percentage of Medium, High and
-                            Critical risk cells the route passes through or next
-                            to.
+                            Risk Coverage: The share of the risk in Medium, High
+                            and Critical cells that the route passes through or
+                            next to. Higher-risk cells count for more.
                         </li>
                     </ul>
                     <p className="text-base space-y-2">

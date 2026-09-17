@@ -166,11 +166,58 @@ def test_covered_nodes_unions_neighbors_across_the_whole_path():
     assert covered == {"p1", "p2", "p4", "p5"}
 
 
-# select_waypoints
+def _stops(graph, threshold=None):
+    return [
+        stop for stop, _ in route_planner.hotspot_zones(graph, threshold)
+    ]
 
 
-def test_select_waypoints_covers_a_cluster_with_one_representative():
-    """3-node chain, all high-risk: middle node's radius covers the rest."""
+
+
+def test_hotspot_zones_splits_an_area_too_long_for_one_pass():
+    graph = _coverage_graph()
+
+    zones = route_planner.hotspot_zones(graph)
+
+    assert len(zones) == 3
+    for stop, cells in zones:
+        stop_at = int(stop[1:])
+        assert all(
+            abs(int(c[1:]) - stop_at) <= route_planner.ZONE_RADIUS_STEPS
+            for c in cells
+        )
+    assert sorted(c for _, cells in zones for c in cells) == sorted(
+        f"c{i}" for i in range(9)
+    )
+
+
+def test_hotspot_zones_centres_on_the_riskiest_part():
+    nodes = [
+        GraphNode(
+            node_id=nid,
+            location=GeoPoint(coordinates=(float(i), 0.0)),
+            risk_score=score,
+        )
+        for i, (nid, score) in enumerate(
+            [("q0", 0.3), ("q1", 0.3), ("q2", 0.9)],
+        )
+    ]
+    pairs = [("q0", "q1"), ("q1", "q2")]
+    edges = [GraphEdge(a, b, 1.0, 3.0) for a, b in pairs] + [
+        GraphEdge(b, a, 1.0, 3.0) for a, b in pairs
+    ]
+    graph = ParkGraph(park_id="p", nodes=nodes, edges=edges)
+
+    assert route_planner.hotspot_zones(graph) == [("q2", ["q0", "q1", "q2"])]
+
+
+def test_hotspot_zones_come_heaviest_first():
+    graph = _risk_graph([0.3, 0.9, 0.5])
+
+    assert _stops(graph) == ["c1", "c2", "c0"]
+
+
+def test_zone_stops_covers_a_cluster_with_one_representative():
     nodes = [
         GraphNode(
             node_id="a1",
@@ -216,11 +263,10 @@ def test_select_waypoints_covers_a_cluster_with_one_representative():
     ]
     graph = ParkGraph(park_id="p", nodes=nodes, edges=edges)
 
-    assert route_planner.select_waypoints(graph) == ["a2"]
+    assert _stops(graph) == ["a2"]
 
 
-def test_select_waypoints_needs_one_per_disconnected_hotspot():
-    """An isolated node, out of the cluster's radius, needs its own waypoint."""
+def test_zone_stops_needs_one_per_disconnected_hotspot():
     nodes = [
         GraphNode(
             node_id="a1",
@@ -271,17 +317,17 @@ def test_select_waypoints_needs_one_per_disconnected_hotspot():
     ]
     graph = ParkGraph(park_id="p", nodes=nodes, edges=edges)
 
-    assert route_planner.select_waypoints(graph) == ["a2", "b1"]
+    assert _stops(graph) == ["a2", "b1"]
 
 
-def test_select_waypoints_respects_threshold():
+def test_zone_stops_respects_threshold():
     graph = make_line_graph()
 
-    assert route_planner.select_waypoints(graph, threshold=0.5) == ["p3"]
+    assert _stops(graph, threshold=0.5) == ["p3"]
 
     # p3 and p4 both clear the lower threshold, but p3's radius already
     # reaches p4, so one waypoint still covers both.
-    lower_threshold_result = route_planner.select_waypoints(
+    lower_threshold_result = _stops(
         graph,
         threshold=0.3,
     )
@@ -292,7 +338,7 @@ def test_select_waypoints_respects_threshold():
     }
 
 
-def test_select_waypoints_returns_empty_when_no_high_risk_nodes():
+def test_zone_stops_returns_empty_when_no_high_risk_nodes():
     fixture = make_graph()
     graph = ParkGraph(
         park_id=fixture.graph.park_id,
@@ -303,7 +349,7 @@ def test_select_waypoints_returns_empty_when_no_high_risk_nodes():
         edges=fixture.graph.edges,
     )
 
-    assert route_planner.select_waypoints(graph) == []
+    assert _stops(graph) == []
 
 
 # build_waypoint_distance_matrix
@@ -930,7 +976,13 @@ def test_compute_risk_coverage_counts_medium_cells_by_default():
     """p4 (0.4) is shown as Medium on the map, so it must count too."""
     graph = make_line_graph()
     coverage = route_planner.compute_risk_coverage(graph, path=["p2"])
-    assert coverage == pytest.approx(0.5)
+    assert coverage == pytest.approx(0.9 / 1.3)
+
+
+def test_compute_risk_coverage_weights_cells_by_risk():
+    graph = make_line_graph()
+    near_p4_only = route_planner.compute_risk_coverage(graph, path=["p5"])
+    assert near_p4_only == pytest.approx(0.4 / 1.3)
 
 
 def test_compute_risk_coverage_returns_zero_when_grid_has_no_high_risk_cells():
@@ -992,14 +1044,10 @@ def test_compute_risk_coverage_partial_ratio():
     ]
     graph = ParkGraph(park_id="p", nodes=nodes, edges=[])
     coverage = route_planner.compute_risk_coverage(graph, path=["a", "c"])
-    assert coverage == pytest.approx(0.5)
+    assert coverage == pytest.approx(0.9 / 1.7)
 
 
 def test_compute_risk_coverage_respects_custom_threshold():
-    """A lower threshold pulls p4 into the high-risk set too.
-
-    Dropping coverage from 1.0 (only p3 counts) to 0.5 (p3 covered, p4 not).
-    """
     graph = make_line_graph()
     coverage_default = route_planner.compute_risk_coverage(
         graph,
@@ -1012,7 +1060,7 @@ def test_compute_risk_coverage_respects_custom_threshold():
         threshold=0.3,
     )
     assert coverage_default == pytest.approx(1.0)
-    assert coverage_lower == pytest.approx(0.5)
+    assert coverage_lower == pytest.approx(0.9 / 1.3)
 
 
 def test_plan_routes_uses_normalized_coverage_not_raw_search_sum(monkeypatch):
@@ -1198,12 +1246,7 @@ def test_aco_config_defaults_to_no_seed():
     assert route_planner.ACOConfig().seed is None
 
 
-def test_select_waypoints_order_does_not_depend_on_set_iteration():
-    """Equally good candidates must resolve in grid order, not hash order.
-
-    Every cell here covers exactly one uncovered high-risk cell on the first
-    pass, so the winner is decided purely by tie-break.
-    """
+def test_zone_stops_order_does_not_depend_on_set_iteration():
     node_ids = [f"cell-{i}" for i in range(12)]
     nodes = [
         GraphNode(
@@ -1215,11 +1258,10 @@ def test_select_waypoints_order_does_not_depend_on_set_iteration():
     ]
     graph = ParkGraph(park_id="p", nodes=nodes, edges=[])
 
-    assert route_planner.select_waypoints(graph) == node_ids
+    assert _stops(graph) == node_ids
 
 
-def test_select_waypoints_follows_node_order_not_insertion_luck():
-    """Reversing the node list reverses the result, proving order is read."""
+def test_zone_stops_follows_node_order_not_insertion_luck():
     node_ids = [f"cell-{i}" for i in range(12)]
     nodes = [
         GraphNode(
@@ -1231,7 +1273,7 @@ def test_select_waypoints_follows_node_order_not_insertion_luck():
     ]
     reversed_graph = ParkGraph(park_id="p", nodes=nodes[::-1], edges=[])
 
-    assert route_planner.select_waypoints(reversed_graph) == node_ids[::-1]
+    assert _stops(reversed_graph) == node_ids[::-1]
 
 
 # degenerate routes
@@ -1459,18 +1501,19 @@ def test_planning_stays_reproducible_with_coverage_tiers():
     ]
 
 
-def _branch_graph() -> ParkGraph:
+def _branch_graph(risk: dict[str, float] | None = None) -> ParkGraph:
     """Build a start-end spine with two hotspot spurs off it."""
     specs = [
         ("br-s", 0.0), ("br-m", 0.0), ("br-e", 0.0),
         ("br-a1", 0.0), ("br-a2", 0.0), ("br-a3", 0.9),
         ("br-b1", 0.0), ("br-b2", 0.0), ("br-b3", 0.9),
     ]
+    risk = risk or {}
     nodes = [
         GraphNode(
             node_id=nid,
             location=GeoPoint(coordinates=(float(i) * 0.01, 0.0)),
-            risk_score=score,
+            risk_score=risk.get(nid, score),
         )
         for i, (nid, score) in enumerate(specs)
     ]
@@ -1573,25 +1616,67 @@ def test_plan_routes_orders_alternatives_from_most_coverage_down():
     plan = route_planner.plan_routes(graph, "br-s", "br-e", 3, config)
 
     coverages = [r.risk_coverage for r in plan.routes]
-    assert coverages == [1.0, 0.5]
-    assert plan.shortfall == route_planner.DUPLICATE_ROUTE
+    assert coverages == sorted(coverages, reverse=True)
+    assert coverages[0] == pytest.approx(1.0)
+    assert coverages[-1] == pytest.approx(0.5)
 
 
-def test_later_tiers_scale_with_the_first_routes_coverage():
+def test_equal_tiers_give_distinct_routes_of_equal_coverage():
     route_planner.clear_path_cache()
     graph = _branch_graph()
     config = route_planner.ACOConfig(
         num_ants=4, total_iterations=12, seed=3,
         phase_split=(0.5, 0.5, 0.0),
-        coverage_tiers=(0.5, 1.0),
+        coverage_tiers=(0.5, 0.5),
     )
 
     plan = route_planner.plan_routes(graph, "br-s", "br-e", 2, config)
 
-    # 1.0 of the first route's 0.5 is 0.5 again, reached via the other spur
     assert [r.risk_coverage for r in plan.routes] == [0.5, 0.5]
     first, second = (r.suggested_path for r in plan.routes)
     assert first != second
+
+
+def _captured_targets(monkeypatch):
+    targets = []
+    original = route_planner.meet_coverage_target
+
+    def spy(*args):
+        targets.append(args[5])
+        return original(*args)
+
+    monkeypatch.setattr(route_planner, "meet_coverage_target", spy)
+    return targets
+
+
+def test_later_tiers_shrink_when_the_first_falls_short(monkeypatch):
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    targets = _captured_targets(monkeypatch)
+    config = route_planner.ACOConfig(
+        num_ants=4, total_iterations=12, seed=3, max_waypoints=1,
+        phase_split=(0.5, 0.5, 0.0),
+        coverage_tiers=(1.0, 0.8),
+    )
+
+    route_planner.plan_routes(graph, "br-s", "br-e", 2, config)
+
+    assert targets == [1.0, pytest.approx(0.4)]
+
+
+def test_later_tiers_stay_put_when_the_first_overshoots(monkeypatch):
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    targets = _captured_targets(monkeypatch)
+    config = route_planner.ACOConfig(
+        num_ants=4, total_iterations=12, seed=3,
+        phase_split=(0.5, 0.5, 0.0),
+        coverage_tiers=(0.9, 0.4),
+    )
+
+    route_planner.plan_routes(graph, "br-s", "br-e", 2, config)
+
+    assert targets == [0.9, 0.4]
 
 
 def test_plan_routes_does_not_overshoot_a_low_tier():
@@ -1621,6 +1706,83 @@ def test_meet_coverage_target_straightens_a_zigzag_visiting_order():
 
     assert waypoints == hubs
     assert path == [f"c{i}" for i in range(9)]
+
+
+def _strip_graph(hot: dict[str, float]) -> ParkGraph:
+    cells = {
+        f"{row}{col}": (r, col)
+        for r, row in enumerate("abc")
+        for col in range(4)
+    }
+    nodes = [
+        GraphNode(
+            node_id=nid,
+            location=GeoPoint(coordinates=(col * 0.01, -r * 0.01)),
+            risk_score=hot.get(nid, 0.0),
+        )
+        for nid, (r, col) in cells.items()
+    ]
+    at = {rc: nid for nid, rc in cells.items()}
+    edges = []
+    for nid, (r, col) in cells.items():
+        for d_r in (-1, 0, 1):
+            for d_c in (-1, 0, 1):
+                other = at.get((r + d_r, col + d_c))
+                if other is None or other == nid:
+                    continue
+                cost = 1.41 if d_r and d_c else 1.0
+                edges.append(GraphEdge(nid, other, cost, cost))
+    return ParkGraph(park_id="strip", nodes=nodes, edges=edges)
+
+
+_LOOPED = ["a0", "a1", "a2", "a3", "b3", "c2", "b1", "b0"]
+
+
+def test_fold_spurs_retraces_a_detour_that_came_back_another_way():
+    graph = _strip_graph({"a3": 0.9})
+    weights = route_planner._hotspot_weights(graph)
+
+    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.9, [], 0.0)
+
+    assert folded == ["a0", "a1", "a2", "a1", "a0", "b0"]
+
+
+def test_fold_spurs_cuts_a_detour_nothing_needs():
+    graph = _strip_graph({"a0": 0.9})
+    weights = route_planner._hotspot_weights(graph)
+
+    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.9, [], 0.0)
+
+    assert folded == ["a0", "b0"]
+
+
+def test_fold_spurs_will_not_fold_into_a_copy_of_an_avoided_path():
+    graph = _strip_graph({"a0": 0.9})
+    weights = route_planner._hotspot_weights(graph)
+
+    folded = route_planner._fold_spurs(
+        graph, _LOOPED, weights, 0.9, [["a0", "b0"]], 0.05,
+    )
+
+    assert folded != ["a0", "b0"]
+
+
+def test_fold_spurs_keeps_a_return_leg_that_covers_needed_risk():
+    graph = _strip_graph({"a3": 0.9, "c3": 0.9})
+    weights = route_planner._hotspot_weights(graph)
+
+    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 1.8, [], 0.0)
+
+    assert folded == _LOOPED
+
+
+def test_fold_spurs_drops_a_return_leg_the_target_can_spare():
+    graph = _strip_graph({"a3": 0.9, "c2": 0.3})
+    weights = route_planner._hotspot_weights(graph)
+
+    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.9, [], 0.0)
+
+    assert folded == ["a0", "a1", "a2", "a1", "a0", "b0"]
 
 
 def test_meet_coverage_target_stops_dropping_before_it_copies_a_route():
@@ -1677,8 +1839,8 @@ def test_threshold_drops_to_the_quantile_on_a_dim_heatmap():
 
 def test_threshold_finds_hotspots_a_fixed_cut_would_have_missed():
     graph = _risk_graph([0.0, 0.02, 0.05, 0.1, 0.15, 0.2])
-    assert route_planner.select_waypoints(graph) != []
-    assert route_planner.select_waypoints(graph, threshold=0.5) == []
+    assert _stops(graph) != []
+    assert _stops(graph, threshold=0.5) == []
 
 
 def test_threshold_ignores_a_flat_heatmap():
@@ -1688,7 +1850,7 @@ def test_threshold_ignores_a_flat_heatmap():
         assert route_planner.high_risk_threshold(graph) == pytest.approx(
             route_planner.DEFAULT_HIGH_RISK_THRESHOLD,
         )
-        assert route_planner.select_waypoints(graph) == []
+        assert _stops(graph) == []
 
 
 def test_threshold_respects_the_floor_on_a_near_zero_heatmap():
@@ -1712,7 +1874,6 @@ def test_threshold_handles_an_empty_grid():
     )
 
 
-# select_waypoints cost weighting and cap
 
 
 def _two_cluster_graph() -> ParkGraph:
@@ -1737,36 +1898,11 @@ def _two_cluster_graph() -> ParkGraph:
     return ParkGraph(park_id="p", nodes=nodes, edges=[])
 
 
-def test_select_waypoints_finishes_a_cluster_before_crossing_the_park():
+def test_zone_stops_still_covers_every_cluster():
     graph = _two_cluster_graph()
-    picked = route_planner.select_waypoints(graph)
-    first_group = [nid[:-1] for nid in picked[:3]]
-    assert len(set(first_group)) == 1
-
-
-def test_select_waypoints_still_covers_every_cluster():
-    graph = _two_cluster_graph()
-    picked = set(route_planner.select_waypoints(graph))
+    picked = set(_stops(graph))
     assert any(nid.startswith("near") for nid in picked)
     assert any(nid.startswith("far") for nid in picked)
-
-
-def test_select_waypoints_honours_the_limit():
-    graph = _two_cluster_graph()
-    assert len(route_planner.select_waypoints(graph, limit=2)) == 2
-    assert len(route_planner.select_waypoints(graph, limit=1)) == 1
-
-
-def test_select_waypoints_limit_above_the_need_changes_nothing():
-    graph = _two_cluster_graph()
-    assert route_planner.select_waypoints(
-        graph, limit=99,
-    ) == route_planner.select_waypoints(graph)
-
-
-def test_select_waypoints_limit_of_zero_returns_nothing():
-    graph = _two_cluster_graph()
-    assert route_planner.select_waypoints(graph, limit=0) == []
 
 
 def test_plan_routes_caps_the_hubs_it_searches():
@@ -1791,6 +1927,42 @@ def test_plan_routes_caps_the_hubs_it_searches():
 
     # start, end, and at most max_waypoints hotspots
     assert len(captured[0]) <= 4
+
+
+def _spied_hubs(monkeypatch):
+    captured = []
+    original = route_planner.build_waypoint_distance_matrix
+
+    def spy(g, node_ids):
+        captured.append(list(node_ids))
+        return original(g, node_ids)
+
+    monkeypatch.setattr(route_planner, "build_waypoint_distance_matrix", spy)
+    return captured
+
+
+def test_plan_routes_skips_the_zone_it_starts_in(monkeypatch):
+    route_planner.clear_path_cache()
+    graph = _branch_graph({"br-a2": 0.3})
+    assert ("br-a3", ["br-a2", "br-a3"]) in route_planner.hotspot_zones(graph)
+    captured = _spied_hubs(monkeypatch)
+    config = route_planner.ACOConfig(num_ants=2, total_iterations=4, seed=1)
+
+    route_planner.plan_routes(graph, "br-a2", "br-e", 1, config)
+
+    assert "br-a3" not in captured[0]
+    assert "br-b3" in captured[0]
+
+
+def test_plan_routes_skips_the_zone_it_ends_in(monkeypatch):
+    route_planner.clear_path_cache()
+    graph = _branch_graph({"br-a2": 0.3})
+    captured = _spied_hubs(monkeypatch)
+    config = route_planner.ACOConfig(num_ants=2, total_iterations=4, seed=1)
+
+    route_planner.plan_routes(graph, "br-e", "br-a2", 1, config)
+
+    assert "br-a3" not in captured[0]
 
 
 # route diversity
