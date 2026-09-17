@@ -35,6 +35,7 @@ import { useUserLocation } from "@/hooks/useUserLocation";
 import { UserLocationNotice } from "@/components/map/UserLocationNotice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { MotionSimulator } from "@/components/dev/MotionSimulator";
 
 const DEFAULT_ZOOM = 10;
 
@@ -550,6 +551,8 @@ export default function PatrolPlannerPage() {
                     </DrawerContent>
                 </Drawer>
             )}
+
+            <MotionSimulator />
         </div>
     );
 }
