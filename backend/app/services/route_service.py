@@ -53,7 +53,6 @@ async def generate_route_job(
             "start": request.start_point.coordinates,
             "end": request.end_point.coordinates,
             "num_alternatives": request.num_alternatives,
-            "coverage_target": request.coverage_target,
             "risk_by_cell": request.risk_by_cell,
         },
         task_id=job_id,

@@ -21,7 +21,6 @@ export interface RouteRequest {
     start_point: GeoPoint;
     end_point: GeoPoint;
     num_alternatives?: number;
-    coverage_target?: number;
     risk_by_cell?: Record<string, number>;
 }
 

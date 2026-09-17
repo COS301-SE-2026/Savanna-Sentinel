@@ -44,8 +44,6 @@ class RouteRequest(BaseModel):
     start_point: GeoPoint
     end_point: GeoPoint
     num_alternatives: int = Field(default=3, ge=1, le=MAX_NUM_ALTERNATIVES)
-    # fraction of high-risk cells the route should reach
-    coverage_target: float | None = Field(default=None, ge=0.0, le=1.0)
     risk_by_cell: dict[str, float] = Field(default_factory=dict)
 
     @field_validator("risk_by_cell")

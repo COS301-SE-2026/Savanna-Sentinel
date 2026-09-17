@@ -44,8 +44,6 @@ interface SidebarContentProps {
     onArmField: (field: "start" | "end") => void;
     onStartPointChange: (point: LatLon | null) => void;
     onEndPointChange: (point: LatLon | null) => void;
-    coverageTarget: string;
-    onCoverageTargetChange: (v: string) => void;
     onGenerate: () => void;
     isGenerating: boolean;
     heatmapHasNoData: boolean;
@@ -72,8 +70,6 @@ function SidebarContent({
     onArmField,
     onStartPointChange,
     onEndPointChange,
-    coverageTarget,
-    onCoverageTargetChange,
     onGenerate,
     isGenerating,
     heatmapHasNoData,
@@ -115,8 +111,6 @@ function SidebarContent({
                 onArmField={onArmField}
                 onStartPointChange={onStartPointChange}
                 onEndPointChange={onEndPointChange}
-                coverageTarget={coverageTarget}
-                onCoverageTargetChange={onCoverageTargetChange}
                 onGenerate={onGenerate}
                 isGenerating={isGenerating}
                 heatmapHasNoData={heatmapHasNoData}
@@ -182,7 +176,6 @@ export default function PatrolPlannerPage() {
     const [startPoint, setStartPoint] = useState<LatLon | null>(null);
     const [endPoint, setEndPoint] = useState<LatLon | null>(null);
     const [armedField, setArmedField] = useState<ArmedField>(null);
-    const [coverageTarget, setCoverageTarget] = useState("");
 
     const [requestId, setRequestId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -291,10 +284,6 @@ export default function PatrolPlannerPage() {
                     coordinates: [endPoint.lon, endPoint.lat],
                 },
                 num_alternatives: 3,
-                coverage_target:
-                    coverageTarget.trim() === ""
-                        ? undefined
-                        : Number(coverageTarget) / 100,
                 risk_by_cell: Object.fromEntries(riskByCell),
             });
             setRequestId(job.request_id);
@@ -369,8 +358,6 @@ export default function PatrolPlannerPage() {
         onArmField: handleArmField,
         onStartPointChange: setStartPoint,
         onEndPointChange: setEndPoint,
-        coverageTarget,
-        onCoverageTargetChange: setCoverageTarget,
         onGenerate: handleGenerate,
         isGenerating,
         heatmapHasNoData: hasNoRiskData,
@@ -378,9 +365,7 @@ export default function PatrolPlannerPage() {
         jobStatus: displayStatus,
         routes: displayRoutes,
         selectedIndex,
-        numAlternativesRequested: loadedRoute
-            ? null
-            : numAlternativesRequested,
+        numAlternativesRequested: loadedRoute ? null : numAlternativesRequested,
         shortfallReason: loadedRoute ? null : shortfallReason,
         onSelectRoute: handleSelectRoute,
         onSaveRoute: handleSaveRoute,

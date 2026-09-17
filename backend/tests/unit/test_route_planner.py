@@ -37,6 +37,10 @@ class SimpleGraphFixture:
     end_node_id: str
 
 
+# stubbed phases return paths, not hub sequences, so leave them as is
+KEEP_TOURS = (None, None, None)
+
+
 def make_graph() -> SimpleGraphFixture:
     nodes = [
         GraphNode(
@@ -916,8 +920,17 @@ def test_compute_risk_coverage_no_high_risk_nodes_within_coverage_radius():
 def test_compute_risk_coverage_counts_high_risk_neighbor_within_one_hop():
     """p3 (0.9) is adjacent to p2 - covered without being on the path."""
     graph = make_line_graph()
-    coverage = route_planner.compute_risk_coverage(graph, path=["p2"])
+    coverage = route_planner.compute_risk_coverage(
+        graph, path=["p2"], threshold=0.5,
+    )
     assert coverage == pytest.approx(1.0)
+
+
+def test_compute_risk_coverage_counts_medium_cells_by_default():
+    """p4 (0.4) is shown as Medium on the map, so it must count too."""
+    graph = make_line_graph()
+    coverage = route_planner.compute_risk_coverage(graph, path=["p2"])
+    assert coverage == pytest.approx(0.5)
 
 
 def test_compute_risk_coverage_returns_zero_when_grid_has_no_high_risk_cells():
@@ -1048,18 +1061,12 @@ def test_is_sufficiently_diverse_rejects_too_similar_paths():
     )
 
 
-def test_best_risk_threshold():
-    config = route_planner.ACOConfig(quality_threshold=0.9)
-
-    assert route_planner.is_sufficient_quality(0.91, 1.0, config) is True
-    assert route_planner.is_sufficient_quality(0.80, 1.0, config) is False
-
-
 def test_plan_routes_accepts_paths_from_each_phase(monkeypatch):
     fixture = make_graph()
     config = route_planner.ACOConfig(
         total_iterations=10,
         phase_split=(0.5, 0.5, 0.0),
+        coverage_tiers=KEEP_TOURS,
     )
 
     phase_results = iter(
@@ -1371,7 +1378,7 @@ def test_update_pheromones_ignores_a_negative_score():
     assert updated[("a", "b")] == pytest.approx(0.9)
 
 
-# coverage_target
+# coverage tiers
 
 
 def _coverage_graph(size: int = 9) -> ParkGraph:
@@ -1395,9 +1402,8 @@ def _plan(graph, **config_kwargs):
     config = route_planner.ACOConfig(
         num_ants=6,
         total_iterations=20,
-        probe_iterations=4,
         seed=17,
-        **config_kwargs,
+        **{"coverage_tiers": KEEP_TOURS, **config_kwargs},
     )
     return route_planner.plan_routes(
         graph, "c0", "c8", 1, config,
@@ -1411,51 +1417,13 @@ def test_a_low_risk_weight_buys_more_coverage_than_a_high_one():
     assert greedy[0].risk_coverage >= stingy[0].risk_coverage
 
 
-def test_solve_risk_weight_stays_inside_its_bounds():
+def test_first_tier_reaches_everything_despite_a_blunt_risk_weight():
     graph = _coverage_graph()
-    config = route_planner.ACOConfig(
-        num_ants=4, total_iterations=8, probe_iterations=3,
-        seed=2, coverage_target=0.9,
-    )
-    waypoints = route_planner.select_waypoints(graph)
-    hubs = list(dict.fromkeys(["c0", "c8", *waypoints]))
-    matrix = route_planner.build_waypoint_distance_matrix(graph, hubs)
-
-    weight = route_planner.solve_risk_weight(
-        graph, matrix, waypoints, "c0", "c8",
-        config, random.Random(0),
-    )
-
-    assert weight >= route_planner.RISK_WEIGHT_MIN
-    assert weight <= route_planner.RISK_WEIGHT_MAX
+    tiered = _plan(graph, risk_weight=5.0, coverage_tiers=(1.0,))
+    assert tiered[0].risk_coverage == pytest.approx(1.0)
 
 
-def test_an_unreachable_coverage_target_falls_back_to_the_cheapest_weight():
-    graph = _coverage_graph()
-    config = route_planner.ACOConfig(
-        num_ants=4, total_iterations=8, probe_iterations=3,
-        seed=2, coverage_target=1.1,
-    )
-    waypoints = route_planner.select_waypoints(graph)
-    hubs = list(dict.fromkeys(["c0", "c8", *waypoints]))
-    matrix = route_planner.build_waypoint_distance_matrix(graph, hubs)
-
-    weight = route_planner.solve_risk_weight(
-        graph, matrix, waypoints, "c0", "c8",
-        config, random.Random(0),
-    )
-
-    assert weight == route_planner.RISK_WEIGHT_MIN
-
-
-def test_coverage_target_reaches_further_than_a_blunt_high_risk_weight():
-    graph = _coverage_graph()
-    targeted = _plan(graph, risk_weight=5.0, coverage_target=0.95)
-    untargeted = _plan(graph, risk_weight=5.0)
-    assert targeted[0].risk_coverage >= untargeted[0].risk_coverage
-
-
-def test_coverage_target_is_ignored_when_there_are_no_waypoints():
+def test_coverage_tiers_leave_a_riskless_grid_alone():
     """No high-risk cells means nothing to bisect against."""
     nodes = [
         GraphNode(
@@ -1471,7 +1439,7 @@ def test_coverage_target_is_ignored_when_there_are_no_waypoints():
         edges.append(GraphEdge(f"c{i + 1}", f"c{i}", 1.0, 3.0))
     graph = ParkGraph(park_id="flat", nodes=nodes, edges=edges)
     config = route_planner.ACOConfig(
-        num_ants=2, total_iterations=4, seed=1, coverage_target=0.9,
+        num_ants=2, total_iterations=4, seed=1,
     )
 
     routes = route_planner.plan_routes(
@@ -1482,13 +1450,200 @@ def test_coverage_target_is_ignored_when_there_are_no_waypoints():
     assert routes[0].risk_coverage == 0.0
 
 
-def test_planning_stays_reproducible_with_a_coverage_target():
+def test_planning_stays_reproducible_with_coverage_tiers():
     graph = _coverage_graph()
-    first = _plan(graph, coverage_target=0.8)
-    second = _plan(graph, coverage_target=0.8)
+    first = _plan(graph, coverage_tiers=(1.0, 0.7, 0.4))
+    second = _plan(graph, coverage_tiers=(1.0, 0.7, 0.4))
     assert [r.suggested_path for r in first] == [
         r.suggested_path for r in second
     ]
+
+
+def _branch_graph() -> ParkGraph:
+    """Build a start-end spine with two hotspot spurs off it."""
+    specs = [
+        ("br-s", 0.0), ("br-m", 0.0), ("br-e", 0.0),
+        ("br-a1", 0.0), ("br-a2", 0.0), ("br-a3", 0.9),
+        ("br-b1", 0.0), ("br-b2", 0.0), ("br-b3", 0.9),
+    ]
+    nodes = [
+        GraphNode(
+            node_id=nid,
+            location=GeoPoint(coordinates=(float(i) * 0.01, 0.0)),
+            risk_score=score,
+        )
+        for i, (nid, score) in enumerate(specs)
+    ]
+    pairs = [
+        ("br-s", "br-m"), ("br-m", "br-e"),
+        ("br-m", "br-a1"), ("br-a1", "br-a2"), ("br-a2", "br-a3"),
+        ("br-m", "br-b1"), ("br-b1", "br-b2"), ("br-b2", "br-b3"),
+    ]
+    edges = [GraphEdge(a, b, 1.0, 3.0) for a, b in pairs] + [
+        GraphEdge(b, a, 1.0, 3.0) for a, b in pairs
+    ]
+    return ParkGraph(park_id="branch", nodes=nodes, edges=edges)
+
+
+def _branch_matrix(graph):
+    hubs = ["br-s", "br-e", "br-a3", "br-b3"]
+    return route_planner.build_waypoint_distance_matrix(graph, hubs)
+
+
+def test_meet_coverage_target_inserts_hubs_until_the_target_is_met():
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    matrix = _branch_matrix(graph)
+    tour = ["br-s", "br-e"]
+    expanded = matrix[("br-s", "br-e")].path
+    assert route_planner.compute_risk_coverage(graph, expanded) == 0.0
+
+    waypoints, path = route_planner.meet_coverage_target(
+        graph, matrix, ["br-a3", "br-b3"], tour, expanded, 1.0,
+    )
+
+    assert set(waypoints) == {"br-s", "br-e", "br-a3", "br-b3"}
+    assert route_planner.compute_risk_coverage(graph, path) == 1.0
+
+
+def test_meet_coverage_target_stops_once_the_target_is_reached():
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    matrix = _branch_matrix(graph)
+    expanded = matrix[("br-s", "br-e")].path
+
+    waypoints, path = route_planner.meet_coverage_target(
+        graph, matrix, ["br-a3", "br-b3"], ["br-s", "br-e"], expanded, 0.5,
+    )
+
+    assert len(waypoints) == 3
+    assert route_planner.compute_risk_coverage(graph, path) == 0.5
+
+
+def test_meet_coverage_target_leaves_a_sufficient_tour_alone():
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    matrix = _branch_matrix(graph)
+    expanded = matrix[("br-s", "br-e")].path
+
+    result = route_planner.meet_coverage_target(
+        graph, matrix, ["br-a3", "br-b3"], ["br-s", "br-e"], expanded, 0.0,
+    )
+
+    assert result == (["br-s", "br-e"], expanded)
+
+
+def test_meet_coverage_target_drops_hubs_the_target_does_not_need():
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    matrix = _branch_matrix(graph)
+    tour = ["br-s", "br-a3", "br-b3", "br-e"]
+    expanded = route_planner.evaluate_hub_sequence(graph, matrix, tour)[0]
+    assert route_planner.compute_risk_coverage(graph, expanded) == 1.0
+
+    waypoints, path = route_planner.meet_coverage_target(
+        graph, matrix, ["br-a3", "br-b3"], tour, expanded, 0.5,
+    )
+
+    assert len(waypoints) == 3
+    assert route_planner.compute_risk_coverage(graph, path) == 0.5
+
+
+def test_meet_coverage_target_keeps_hubs_the_target_needs():
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    matrix = _branch_matrix(graph)
+    tour = ["br-s", "br-a3", "br-b3", "br-e"]
+    expanded = route_planner.evaluate_hub_sequence(graph, matrix, tour)[0]
+
+    waypoints, _ = route_planner.meet_coverage_target(
+        graph, matrix, ["br-a3", "br-b3"], tour, expanded, 1.0,
+    )
+
+    assert waypoints == tour
+
+
+def test_plan_routes_orders_alternatives_from_most_coverage_down():
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    config = route_planner.ACOConfig(
+        num_ants=4, total_iterations=12, seed=3, risk_weight=10.0,
+    )
+
+    plan = route_planner.plan_routes(graph, "br-s", "br-e", 3, config)
+
+    coverages = [r.risk_coverage for r in plan.routes]
+    assert coverages == [1.0, 0.5]
+    assert plan.shortfall == route_planner.DUPLICATE_ROUTE
+
+
+def test_later_tiers_scale_with_the_first_routes_coverage():
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    config = route_planner.ACOConfig(
+        num_ants=4, total_iterations=12, seed=3,
+        phase_split=(0.5, 0.5, 0.0),
+        coverage_tiers=(0.5, 1.0),
+    )
+
+    plan = route_planner.plan_routes(graph, "br-s", "br-e", 2, config)
+
+    # 1.0 of the first route's 0.5 is 0.5 again, reached via the other spur
+    assert [r.risk_coverage for r in plan.routes] == [0.5, 0.5]
+    first, second = (r.suggested_path for r in plan.routes)
+    assert first != second
+
+
+def test_plan_routes_does_not_overshoot_a_low_tier():
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    config = route_planner.ACOConfig(
+        num_ants=4, total_iterations=12,
+        seed=3, risk_weight=0.001, coverage_tiers=(0.5,),
+    )
+
+    plan = route_planner.plan_routes(graph, "br-s", "br-e", 1, config)
+
+    assert [r.risk_coverage for r in plan.routes] == [0.5]
+
+
+def test_meet_coverage_target_straightens_a_zigzag_visiting_order():
+    route_planner.clear_path_cache()
+    graph = _coverage_graph()
+    hubs = ["c0", "c2", "c6", "c8"]
+    matrix = route_planner.build_waypoint_distance_matrix(graph, hubs)
+    zigzag = ["c0", "c6", "c2", "c8"]
+    expanded = route_planner.evaluate_hub_sequence(graph, matrix, zigzag)[0]
+
+    waypoints, path = route_planner.meet_coverage_target(
+        graph, matrix, ["c2", "c6"], zigzag, expanded, 1.0,
+    )
+
+    assert waypoints == hubs
+    assert path == [f"c{i}" for i in range(9)]
+
+
+def test_meet_coverage_target_stops_dropping_before_it_copies_a_route():
+    route_planner.clear_path_cache()
+    graph = _branch_graph()
+    matrix = _branch_matrix(graph)
+    tour = ["br-s", "br-a3", "br-b3", "br-e"]
+    expanded = route_planner.evaluate_hub_sequence(graph, matrix, tour)[0]
+    accepted = [
+        route_planner.evaluate_hub_sequence(
+            graph, matrix, ["br-s", "br-a3", "br-e"],
+        )[0],
+        route_planner.evaluate_hub_sequence(
+            graph, matrix, ["br-s", "br-b3", "br-e"],
+        )[0],
+    ]
+
+    waypoints, _ = route_planner.meet_coverage_target(
+        graph, matrix, ["br-a3", "br-b3"], tour, expanded, 0.5,
+        accepted, 0.05,
+    )
+
+    assert waypoints == tour
 
 
 # high_risk_threshold
@@ -1508,33 +1663,39 @@ def _risk_graph(scores: list[float]) -> ParkGraph:
 
 def test_threshold_keeps_the_absolute_cut_when_something_clears_it():
     graph = _risk_graph([0.1, 0.4, 0.9])
-    assert route_planner.high_risk_threshold(graph) == pytest.approx(0.5)
+    assert route_planner.high_risk_threshold(graph) == pytest.approx(
+        route_planner.DEFAULT_HIGH_RISK_THRESHOLD,
+    )
 
 
 def test_threshold_drops_to_the_quantile_on_a_dim_heatmap():
-    graph = _risk_graph([0.0, 0.05, 0.1, 0.2, 0.3, 0.45])
+    graph = _risk_graph([0.0, 0.02, 0.05, 0.1, 0.15, 0.2])
     threshold = route_planner.high_risk_threshold(graph)
     assert threshold < route_planner.DEFAULT_HIGH_RISK_THRESHOLD
     assert threshold > 0.0
 
 
 def test_threshold_finds_hotspots_a_fixed_cut_would_have_missed():
-    graph = _risk_graph([0.0, 0.05, 0.1, 0.2, 0.3, 0.45])
+    graph = _risk_graph([0.0, 0.02, 0.05, 0.1, 0.15, 0.2])
     assert route_planner.select_waypoints(graph) != []
     assert route_planner.select_waypoints(graph, threshold=0.5) == []
 
 
 def test_threshold_ignores_a_flat_heatmap():
     """No spread means no top, whatever the level."""
-    for level in (0.0, 0.1, 0.3, 0.49):
+    for level in (0.0, 0.1, 0.2, 0.24):
         graph = _risk_graph([level] * 8)
-        assert route_planner.high_risk_threshold(graph) == pytest.approx(0.5)
+        assert route_planner.high_risk_threshold(graph) == pytest.approx(
+            route_planner.DEFAULT_HIGH_RISK_THRESHOLD,
+        )
         assert route_planner.select_waypoints(graph) == []
 
 
 def test_threshold_respects_the_floor_on_a_near_zero_heatmap():
     graph = _risk_graph([0.0, 0.0, 0.0, 0.001, 0.002])
-    assert route_planner.high_risk_threshold(graph) == pytest.approx(0.5)
+    assert route_planner.high_risk_threshold(graph) == pytest.approx(
+        route_planner.DEFAULT_HIGH_RISK_THRESHOLD,
+    )
 
 
 def test_threshold_is_cached_on_the_graph():
@@ -1546,7 +1707,9 @@ def test_threshold_is_cached_on_the_graph():
 
 def test_threshold_handles_an_empty_grid():
     graph = ParkGraph(park_id="p", nodes=[], edges=[])
-    assert route_planner.high_risk_threshold(graph) == pytest.approx(0.5)
+    assert route_planner.high_risk_threshold(graph) == pytest.approx(
+        route_planner.DEFAULT_HIGH_RISK_THRESHOLD,
+    )
 
 
 # select_waypoints cost weighting and cap
@@ -1691,6 +1854,7 @@ def _three_phase_config(**kwargs):
     return route_planner.ACOConfig(
         total_iterations=9,
         phase_split=(0.34, 0.33, 0.33),
+        coverage_tiers=KEEP_TOURS,
         **kwargs,
     )
 
@@ -1786,13 +1950,13 @@ def test_shortfall_reports_when_no_tour_was_found(monkeypatch):
     assert plan.shortfall == route_planner.NO_TOUR_FOUND
 
 
-def test_a_low_quality_alternative_is_flagged_but_still_returned(monkeypatch):
+def test_a_low_coverage_alternative_is_still_returned(monkeypatch):
     fixture = make_graph()
     _phase_stub(
         monkeypatch,
         [(["start", "mid", "end"], 1.0), (["start", "end"], 0.1)],
     )
-    config = _three_phase_config(quality_threshold=0.9)
+    config = _three_phase_config()
 
     plan = route_planner.plan_routes(
         fixture.graph,

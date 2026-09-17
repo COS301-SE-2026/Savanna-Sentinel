@@ -171,14 +171,6 @@ function Patrol() {
                             click the location icon and click on the map to
                             select a starting point.
                         </li>
-                        <li>
-                            Max Time: An optional constraint to help generate a
-                            path that will conform to the restraint.
-                        </li>
-                        <li>
-                            Max Fuel: An optional constraint to help generate a
-                            path that will not consume more fuel than inputed.
-                        </li>
                     </ul>
                     <p className="text-base space-y-2">
                         Afterwards, click the generate routes button to generate
@@ -204,18 +196,20 @@ function Patrol() {
                     </p>
                     <ul className="text-base list-disc pl-5 space-y-1">
                         <li>
-                            Est. Time: The estimated time it will take to
-                            complete the route.
+                            Est. Drive Time: The estimated time to drive the
+                            route. Sections covered on foot will take longer.
                         </li>
                         <li>
-                            Est. Fuel: The estimated fuel consumption the route
-                            will take.
-                        </li>
-                        <li>
-                            Risk Coverage: The percentage of risk areas covered
-                            by the route.
+                            Risk Coverage: The percentage of Medium, High and
+                            Critical risk cells the route passes through or next
+                            to.
                         </li>
                     </ul>
+                    <p className="text-base space-y-2">
+                        Routes are listed from the most risk coverage to the
+                        shortest drive, so you can pick the one that fits the
+                        time you have.
+                    </p>
                 </div>
 
                 <div>

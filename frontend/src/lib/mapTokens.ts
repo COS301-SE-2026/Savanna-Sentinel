@@ -38,8 +38,6 @@ export function getRiskCoverageColorClass(coveragePercent: number): string {
     return "text-status-safe-text";
 }
 
-// Route A/B/C card-dot colors (spot-sky / spot-aqua / spot-cobalt).
-export const ROUTE_COLORS = ["#0580bb", "#009193", "#2042b2"];
 export const ROUTE_LABELS = ["Route A", "Route B", "Route C"];
 
 // spot-navy

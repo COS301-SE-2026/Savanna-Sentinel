@@ -1,6 +1,6 @@
 import math
 import random
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from app.schemas.geo import GeoLineString
 from app.schemas.route import ParkGraph, PlannedRoute
@@ -25,15 +25,13 @@ class ACOConfig:
     # below this a candidate is a duplicate, not merely a similar route
     min_diversity: float = 0.05
     diversity_retries: int = 2
-    # candidate must retain >= 90% of best risk_coverage
-    quality_threshold: float = 0.9
     seed: int | None = None
     # risk units charged per minute of patrol time
     risk_weight: float = 0.1
-    # when set, risk_weight is solved for instead of used
-    coverage_target: float | None = None
-    bisection_steps: int = 8
-    probe_iterations: int = 8
+    # Coverage each alternative is reshaped to, as a fraction of the first
+    # route's coverage (the first's of all hotspots). None keeps the tour
+    # as the colony found it. Pairs with phase_split, so keep them in step.
+    coverage_tiers: tuple[float | None, ...] = (1.0, 0.7, 0.4)
     max_waypoints: int = 60
     # 2-opt/or-opt shorten transit, which costs coverage picked up in
     # transit, so this is off by default. See improve_hub_sequence.
@@ -90,7 +88,8 @@ def covered_nodes(graph: ParkGraph, path: list[str]) -> frozenset[str]:
 
 
 KM_PER_DEGREE = 111.0
-DEFAULT_HIGH_RISK_THRESHOLD = 0.5
+# matches the map's "Medium" band (frontend mapTokens.getRiskLevel)
+DEFAULT_HIGH_RISK_THRESHOLD = 0.25
 HIGH_RISK_QUANTILE = 0.85
 HIGH_RISK_FLOOR = 0.05
 
@@ -534,10 +533,6 @@ def apply_partial_penalty(
     return penalized
 
 
-RISK_WEIGHT_MIN = 0.001
-RISK_WEIGHT_MAX = 10.0
-
-
 def tour_score(
     risk_total: float,
     time_used: float,
@@ -643,16 +638,205 @@ def compute_risk_coverage(
     patrol presence model rather than guaranteed detection. This is the
     normalised figure shown to the user as "risk coverage".
     """
-    if threshold is None:
-        threshold = high_risk_threshold(graph)
-    node_risk = _node_risk(graph)
-    high_risk_nodes = {
-        nid for nid, score in node_risk.items() if score >= threshold
-    }
+    high_risk_nodes = _high_risk_nodes(graph, threshold)
     if not high_risk_nodes:
         return 0.0
     covered = covered_nodes(graph, path)
     return len(high_risk_nodes & covered) / len(high_risk_nodes)
+
+
+def _high_risk_nodes(
+    graph: ParkGraph,
+    threshold: float | None = None,
+) -> frozenset[str]:
+    if threshold is not None:
+        return frozenset(
+            nid for nid, score in _node_risk(graph).items()
+            if score >= threshold
+        )
+    cached = getattr(graph, "_high_risk_nodes_cache", None)
+    if cached is None:
+        cached = _high_risk_nodes(graph, high_risk_threshold(graph))
+        graph._high_risk_nodes_cache = cached
+    return cached
+
+
+@dataclass
+class _ScoredTour:
+    hubs: list[str]
+    path: list[str]
+    time: float
+    risk: float
+    covered_count: int
+
+
+def _score_tour(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    high_risk: frozenset[str],
+    hubs: list[str],
+) -> _ScoredTour | None:
+    scored = evaluate_hub_sequence(graph, distance_matrix, hubs)
+    if scored is None:
+        return None
+    path, time_used, risk_total = scored
+    count = len(high_risk & covered_nodes(graph, path))
+    return _ScoredTour(hubs, path, time_used, risk_total, count)
+
+
+def _add_hubs(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    high_risk: frozenset[str],
+    waypoint_ids: list[str],
+    tour: _ScoredTour,
+    needed: int,
+) -> _ScoredTour:
+    """Insert hubs, best coverage gain per added minute first."""
+    while tour.covered_count < needed:
+        best, best_value = None, 0.0
+        for waypoint in waypoint_ids:
+            if waypoint in tour.hubs:
+                continue
+            for position in range(1, len(tour.hubs)):
+                candidate = _score_tour(
+                    graph,
+                    distance_matrix,
+                    high_risk,
+                    tour.hubs[:position] + [waypoint] + tour.hubs[position:],
+                )
+                if candidate is None:
+                    continue
+                gain = candidate.covered_count - tour.covered_count
+                added = max(candidate.time - tour.time, 0.0)
+                value = gain / (added + 1.0)
+                if gain > 0 and value > best_value:
+                    best, best_value = candidate, value
+        if best is None:
+            return tour
+        tour = best
+    return tour
+
+
+def _drop_hubs(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    high_risk: frozenset[str],
+    tour: _ScoredTour,
+    needed: int,
+    avoid: list[list[str]],
+    min_distance: float,
+) -> _ScoredTour:
+    """Remove whichever hub saves the most time without going under needed.
+
+    A removal that would turn the tour into a copy of an avoided path is
+    skipped, so alternatives don't all shrink onto the same minimal route.
+    """
+    while True:
+        best = None
+        for i in range(1, len(tour.hubs) - 1):
+            candidate = _score_tour(
+                graph,
+                distance_matrix,
+                high_risk,
+                tour.hubs[:i] + tour.hubs[i + 1:],
+            )
+            if (
+                candidate is None
+                or candidate.covered_count < needed
+                or candidate.time >= tour.time
+                or any(
+                    route_distance(candidate.path, prior) < min_distance
+                    for prior in avoid
+                )
+            ):
+                continue
+            if best is None or candidate.time < best.time:
+                best = candidate
+        if best is None:
+            return tour
+        tour = best
+
+
+def _first_shorter_order(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    high_risk: frozenset[str],
+    tour: _ScoredTour,
+    needed: int,
+) -> _ScoredTour | None:
+    for move in (_two_opt_candidates, _or_opt_candidates):
+        for hubs in move(tour.hubs):
+            time_used = _sequence_time(distance_matrix, hubs)
+            if time_used is None or time_used >= tour.time - 1e-9:
+                continue
+            candidate = _score_tour(graph, distance_matrix, high_risk, hubs)
+            if candidate is not None and candidate.covered_count >= needed:
+                return candidate
+    return None
+
+
+def _shorten_order(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    high_risk: frozenset[str],
+    tour: _ScoredTour,
+    needed: int,
+) -> _ScoredTour:
+    """Reorder hubs by 2-opt/or-opt, removing spikes and crossings.
+
+    Unlike improve_hub_sequence, each move is kept only if the tour still
+    covers needed cells, since a shorter transit can pass fewer of them.
+    """
+    while True:
+        shorter = _first_shorter_order(
+            graph, distance_matrix, high_risk, tour, needed,
+        )
+        if shorter is None:
+            return tour
+        tour = shorter
+
+
+def meet_coverage_target(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    waypoint_ids: list[str],
+    waypoint_path: list[str],
+    expanded_path: list[str],
+    target: float | None,
+    avoid: list[list[str]] | None = None,
+    min_distance: float = 0.0,
+) -> tuple[list[str], list[str]]:
+    """Add, then drop, hubs so the tour clears target in as little time.
+
+    The colony only trades risk against time, so its best tour can land
+    well short of or well past the wanted coverage. When the target is out
+    of reach the tour keeps the most coverage the hubs allow.
+    """
+    high_risk = _high_risk_nodes(graph)
+    unchanged = (waypoint_path, expanded_path)
+    if target is None or not high_risk:
+        return unchanged
+    tour = _score_tour(graph, distance_matrix, high_risk, waypoint_path)
+    if tour is None:
+        return unchanged
+    needed = math.ceil(target * len(high_risk) - 1e-9)
+    tour = _add_hubs(
+        graph, distance_matrix, high_risk, waypoint_ids, tour, needed,
+    )
+    needed = min(needed, tour.covered_count)
+    tour = _shorten_order(graph, distance_matrix, high_risk, tour, needed)
+    tour = _drop_hubs(
+        graph,
+        distance_matrix,
+        high_risk,
+        tour,
+        needed,
+        avoid or [],
+        min_distance,
+    )
+    tour = _shorten_order(graph, distance_matrix, high_risk, tour, needed)
+    return tour.hubs, tour.path
 
 
 def edge_set(path: list[str]) -> set[tuple[str, str]]:
@@ -686,81 +870,8 @@ def is_sufficiently_diverse(
     )
 
 
-def is_sufficient_quality(
-    candidate_risk: float,
-    best_risk_so_far: float,
-    config: ACOConfig,
-) -> bool:
-    """Reject a candidate whose risk_coverage is too far below the best.
-
-    "Too far" means more than approx 10% below the best accepted path.
-    """
-    if best_risk_so_far <= 0:
-        return True
-    return candidate_risk >= config.quality_threshold * best_risk_so_far
-
-
-def _probe_coverage(
-    graph: ParkGraph,
-    distance_matrix: dict[tuple[str, str], PathResult],
-    waypoint_ids: list[str],
-    start_node_id: str,
-    end_node_id: str,
-    config: ACOConfig,
-    risk_weight: float,
-    rng: random.Random,
-) -> float:
-    probe = replace(config, risk_weight=risk_weight)
-    _, expanded_path, _, _ = run_phase(
-        graph,
-        distance_matrix,
-        waypoint_ids,
-        start_node_id,
-        end_node_id,
-        init_pheromones(distance_matrix, probe),
-        config.probe_iterations,
-        probe,
-        rng,
-    )
-    if not expanded_path:
-        return 0.0
-    return compute_risk_coverage(graph, expanded_path)
-
-
-def solve_risk_weight(
-    graph: ParkGraph,
-    distance_matrix: dict[tuple[str, str], PathResult],
-    waypoint_ids: list[str],
-    start_node_id: str,
-    end_node_id: str,
-    config: ACOConfig,
-    rng: random.Random,
-) -> float:
-
-    lo, hi = RISK_WEIGHT_MIN, RISK_WEIGHT_MAX
-    best = lo
-    for _ in range(config.bisection_steps):
-        mid = math.sqrt(lo * hi)
-        coverage = _probe_coverage(
-            graph,
-            distance_matrix,
-            waypoint_ids,
-            start_node_id,
-            end_node_id,
-            config,
-            mid,
-            rng,
-        )
-        if coverage >= config.coverage_target:
-            best, lo = mid, mid
-        else:
-            hi = mid
-    return best
-
-
 NO_TOUR_FOUND = "no_tour_found"
 DUPLICATE_ROUTE = "duplicate_route"
-BELOW_QUALITY = "below_quality"
 
 
 @dataclass
@@ -836,19 +947,6 @@ def plan_routes(
     ]
     hub_ids = list(dict.fromkeys([start_node_id, end_node_id, *waypoint_ids]))
     distance_matrix = build_waypoint_distance_matrix(graph, hub_ids)
-    if config.coverage_target is not None and waypoint_ids:
-        config = replace(
-            config,
-            risk_weight=solve_risk_weight(
-                graph,
-                distance_matrix,
-                waypoint_ids,
-                start_node_id,
-                end_node_id,
-                config,
-                rng,
-            ),
-        )
     seed_tour = None
     if config.seed_with_greedy:
         seed_tour = greedy_tour(
@@ -866,9 +964,9 @@ def plan_routes(
     ]
     accepted_waypoint_paths: list[list[str]] = []
     accepted_expanded_paths: list[list[str]] = []
-    accepted_risks: list[float] = []
     shortfalls: list[str] = []
-    for n_iter in iterations_per_phase:
+    reference_coverage = 1.0
+    for n_iter, tier in zip(iterations_per_phase, config.coverage_tiers):
         phase = _run_phase_with_retries(
             graph,
             distance_matrix,
@@ -882,10 +980,20 @@ def plan_routes(
             accepted_expanded_paths,
             seed_tour=seed_tour if not accepted_expanded_paths else None,
         )
-        waypoint_path, expanded_path, candidate_risk, pheromones = phase
+        waypoint_path, expanded_path, _, pheromones = phase
         if not waypoint_path:
             shortfalls.append(NO_TOUR_FOUND)
             continue
+        waypoint_path, expanded_path = meet_coverage_target(
+            graph,
+            distance_matrix,
+            waypoint_ids,
+            waypoint_path,
+            expanded_path,
+            None if tier is None else tier * reference_coverage,
+            accepted_expanded_paths,
+            config.min_diversity,
+        )
         distance = min(
             (
                 route_distance(expanded_path, prior)
@@ -896,13 +1004,10 @@ def plan_routes(
         if distance < config.min_diversity:
             shortfalls.append(DUPLICATE_ROUTE)
             continue
-        best_so_far = max(accepted_risks) if accepted_risks else candidate_risk
-        if not is_sufficient_quality(candidate_risk, best_so_far, config):
-            # worth returning as an alternative even so, just flagged
-            shortfalls.append(BELOW_QUALITY)
+        if not accepted_expanded_paths:
+            reference_coverage = compute_risk_coverage(graph, expanded_path)
         accepted_waypoint_paths.append(waypoint_path)
         accepted_expanded_paths.append(expanded_path)
-        accepted_risks.append(candidate_risk)
         pheromones = apply_partial_penalty(pheromones, waypoint_path, config)
     routes = [
         _to_planned_route(graph, p, compute_risk_coverage(graph, p))

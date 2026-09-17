@@ -13,8 +13,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
-    ROUTE_COLORS,
     ROUTE_LABELS,
+    SELECTED_ROUTE_COLOR,
+    UNSELECTED_ROUTE_COLOR,
     getRiskCoverageColorClass,
 } from "@/lib/mapTokens";
 import type { PlannedRoute } from "@/services/routeApi";
@@ -36,7 +37,6 @@ export interface RouteComparisonViewProps {
 const SHORTFALL_MESSAGES: Record<string, string> = {
     duplicate_route: "the remaining options retraced a route already shown",
     no_tour_found: "no further route could be completed",
-    below_quality: "the remaining options covered too little risk",
 };
 
 function shortfallNote(
@@ -111,8 +111,7 @@ export function RouteComparisonView({
     if (routes.length === 0) {
         return (
             <p className="text-sm text-color-text-primary">
-                No feasible routes found for these constraints. Try increasing
-                max time or fuel.
+                No feasible routes found. Try a different start or end point.
             </p>
         );
     }
@@ -131,6 +130,11 @@ export function RouteComparisonView({
                     role="status"
                 >
                     {note}
+                </p>
+            )}
+            {routes.length > 1 && (
+                <p className="mb-2 text-xs text-color-text-secondary">
+                    Ordered from most risk coverage to shortest drive.
                 </p>
             )}
             <div
@@ -155,7 +159,11 @@ export function RouteComparisonView({
                             <div className="mb-3 flex items-center gap-2">
                                 <span
                                     className="size-2 shrink-0 rounded-full"
-                                    style={{ background: ROUTE_COLORS[index] }}
+                                    style={{
+                                        background: isSelected
+                                            ? SELECTED_ROUTE_COLOR
+                                            : UNSELECTED_ROUTE_COLOR,
+                                    }}
                                 />
                                 <span className="flex-1 text-sm font-semibold">
                                     {ROUTE_LABELS[index]}
@@ -206,7 +214,7 @@ export function RouteComparisonView({
                             <dl className="flex flex-col gap-1 text-sm">
                                 <div className="flex justify-between">
                                     <dt className="text-color-text-secondary">
-                                        Est. Time
+                                        Est. Drive Time
                                     </dt>
                                     <dd className="font-medium">
                                         {Math.round(route.estimated_time_min)}{" "}
