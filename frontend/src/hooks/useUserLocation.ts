@@ -18,6 +18,10 @@ const WATCH_OPTIONS: PositionOptions = {
     timeout: 15000,
 };
 
+//Drift rates for accuracy
+const TIME_DRIFT_RATE = 0.5;
+const DIST_DRIFT_RATE = 0.15;
+
 function offsetToLatLon(lat: number, lon: number, dx: number, dy: number){
     const deltaLat = dy / 111139;
     const deltaLon = dx / (111139 * Math.cos((lat * Math.PI) / 180));
@@ -36,6 +40,7 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
     const lastGpsLoc = useRef<UserLocation | null>(null)
     const currentVelocity = useRef<number>(0);
     const lastMotionTime = useRef<number | null>(null);
+    const deadReckoningStartTime = useRef<number | null>(null);
 
     useEffect(() => {
         if (!enabled) return undefined;
@@ -45,11 +50,12 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
 
         const watchId = geolocation.watchPosition(
             (position) => {
-                const { latitude, longitude, heading } = position.coords;
+                const { latitude, longitude, heading, accuracy } = position.coords;
                 const newLoc: UserLocation = {
                     lat: latitude,
                     lon: longitude,
                     heading: heading && !Number.isNaN(heading) ? heading : null,
+                    accuracy: accuracy ?? 10,
                 };
 
                 //To use as a reference point
@@ -57,6 +63,8 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
                 //Reset the simulated velocity since connectivity is restored
                 currentVelocity.current = 0;
                 lastMotionTime.current = null;
+                deadReckoningStartTime.current = null;
+
                 setLocation(newLoc)
                 setStatus("tracking");
             },
@@ -102,6 +110,8 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
             const dt = now - lastMotionTime.current;
             lastMotionTime.current = now;
 
+            const totalOfflineTime = now - (deadReckoningStartTime.current ?? now);
+
             //calculate acceleration
             let accelY = event.acceleration?.y || 0;
 
@@ -130,10 +140,19 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
                 dy
             )
 
+            const baseAccuracy = lastGpsLoc.current.accuracy;
+            //Accuracy decreases the longer the application has been tracking for
+            //and the further away from last known location you are.
+            const expandedAccuracy =
+                baseAccuracy +
+                totalOfflineTime * TIME_DRIFT_RATE +
+                distanceMoved * DIST_DRIFT_RATE
+
             const updatedLocation: UserLocation = {
                 lat: updatedCoords.lat,
                 lon: updatedCoords.lon,
                 heading: headingDeg,
+                accuracy: expandedAccuracy
             };
 
             lastGpsLoc.current = updatedLocation;
