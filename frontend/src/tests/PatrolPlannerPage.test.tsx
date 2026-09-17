@@ -392,12 +392,12 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
 
         expect(await screen.findByText("Route A")).toBeInTheDocument();
-        expect(screen.getByText("55 min")).toBeInTheDocument();
+        expect(screen.getByText("55.0 km")).toBeInTheDocument();
 
         await waitFor(() => {
             const call = addSourceSpy.mock.calls.find(
@@ -437,7 +437,7 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
 
@@ -457,17 +457,17 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
-        expect(await screen.findByText("55 min")).toBeInTheDocument();
+        expect(await screen.findByText("55.0 km")).toBeInTheDocument();
 
         await userEvent.click(
             screen.getByRole("button", { name: /generate routes/i }),
         );
 
-        expect(await screen.findByText("38 min")).toBeInTheDocument();
-        expect(screen.queryByText("55 min")).not.toBeInTheDocument();
+        expect(await screen.findByText("38.0 km")).toBeInTheDocument();
+        expect(screen.queryByText("55.0 km")).not.toBeInTheDocument();
     });
 
     it("clearing routes removes a previously loaded route", async () => {
@@ -476,10 +476,10 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
-        expect(await screen.findByText("55 min")).toBeInTheDocument();
+        expect(await screen.findByText("55.0 km")).toBeInTheDocument();
 
         await userEvent.click(
             screen.getByRole("button", { name: /^clear routes$/i }),
@@ -489,7 +489,7 @@ describe("PatrolPlannerPage", () => {
         });
         await userEvent.click(clearButtons[clearButtons.length - 1]);
 
-        expect(screen.queryByText("55 min")).not.toBeInTheDocument();
+        expect(screen.queryByText("55.0 km")).not.toBeInTheDocument();
         expect(
             screen.getByText(/generate routes to see alternatives/i),
         ).toBeInTheDocument();

@@ -99,7 +99,7 @@ def _valid_save_payload(**overrides) -> dict:
                 "type": "LineString",
                 "coordinates": [[31.18, -24.2], [31.19, -24.21]],
             },
-            "estimated_time_min": 90.0,
+            "distance_km": 90.0,
             "risk_coverage": 0.7,
         },
     }

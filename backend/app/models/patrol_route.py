@@ -51,7 +51,7 @@ class PatrolRoute(Base):
     suggested_path: Mapped[str] = mapped_column(
         _GEOGRAPHY_LINESTRING_COLUMN, nullable=False,
     )
-    estimated_time: Mapped[float] = mapped_column(Float, nullable=False)
+    distance_km: Mapped[float] = mapped_column(Float, nullable=False)
     risk_coverage: Mapped[float] = mapped_column(Float, nullable=False)
     risk_heatmap: Mapped[dict] = mapped_column(_JSONB_COLUMN, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

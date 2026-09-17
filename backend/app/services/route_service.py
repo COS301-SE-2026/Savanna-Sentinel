@@ -71,7 +71,7 @@ def _deserialize_route(data: dict) -> PlannedRoute:
     return PlannedRoute(
         suggested_path=data["suggested_path"],
         path_geometry=GeoLineString(**data["path_geometry"]),
-        estimated_time_min=data["estimated_time_min"],
+        distance_km=data["distance_km"],
         risk_coverage=data["risk_coverage"],
     )
 
@@ -169,7 +169,7 @@ async def save_route(
         end_point_wkt=_to_wkt_point(req.end_point),
         risk_heatmap=req.risk_by_cell,
         path_wkt=_to_wkt_linestring(req.route.path_geometry),
-        estimated_time=req.route.estimated_time_min,
+        distance_km=req.route.distance_km,
         risk_coverage=req.route.risk_coverage,
     )
     return SavedRouteResponse(
@@ -179,7 +179,7 @@ async def save_route(
         end_point=req.end_point,
         risk_by_cell=req.risk_by_cell,
         path_geometry=req.route.path_geometry,
-        estimated_time_min=req.route.estimated_time_min,
+        distance_km=req.route.distance_km,
         risk_coverage=req.route.risk_coverage,
         created_at=result["created_at"].isoformat(),
     )
@@ -201,7 +201,7 @@ async def list_saved_routes(
             end_point=r["end_point"],
             risk_by_cell=r["risk_heatmap"],
             path_geometry=r["path_geometry"],
-            estimated_time_min=r["estimated_time"],
+            distance_km=r["distance_km"],
             risk_coverage=r["risk_coverage"],
             created_at=r["created_at"].isoformat(),
         )

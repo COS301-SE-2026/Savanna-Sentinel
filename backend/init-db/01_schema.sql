@@ -149,7 +149,7 @@ CREATE TABLE patrol_routes (
     start_point    GEOGRAPHY(Point, 4326)     NOT NULL,
     end_point      GEOGRAPHY(Point, 4326)     NOT NULL,
     suggested_path GEOGRAPHY(LineString, 4326) NOT NULL,
-    estimated_time FLOAT                      NOT NULL,
+    distance_km    FLOAT                      NOT NULL,
     risk_coverage  FLOAT                      NOT NULL,
     risk_heatmap   JSONB                      NOT NULL,
     created_at     TIMESTAMPTZ                NOT NULL DEFAULT NOW()

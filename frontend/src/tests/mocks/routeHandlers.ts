@@ -24,7 +24,7 @@ export const COMPLETED_ROUTES: RouteListResponse = {
                     [31.01, -24.31],
                 ],
             },
-            estimated_time_min: 38,
+            distance_km: 38,
             risk_coverage: 0.74,
         },
         {
@@ -36,7 +36,7 @@ export const COMPLETED_ROUTES: RouteListResponse = {
                     [31.02, -24.32],
                 ],
             },
-            estimated_time_min: 45,
+            distance_km: 45,
             risk_coverage: 0.58,
         },
     ],

@@ -30,7 +30,7 @@ def _fake_save_request(request_id: str = "req-1") -> SaveRouteRequest:
             path_geometry=GeoLineString(
                 coordinates=[(31.18, -24.2), (31.19, -24.21)],
             ),
-            estimated_time_min=90.0,
+            distance_km=90.0,
             risk_coverage=0.7,
         ),
     )

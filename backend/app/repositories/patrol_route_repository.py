@@ -21,7 +21,7 @@ class PatrolRouteRepository:
         end_point_wkt: str,
         risk_heatmap: dict[str, float],
         path_wkt: str,
-        estimated_time: float,
+        distance_km: float,
         risk_coverage: float,
     ) -> dict:
         row = (
@@ -29,12 +29,12 @@ class PatrolRouteRepository:
                 text("""
                     INSERT INTO patrol_routes
                         (request_id, requested_by, start_point, end_point,
-                         suggested_path, estimated_time,
+                         suggested_path, distance_km,
                          risk_coverage, risk_heatmap)
                     VALUES
                         (:request_id, :user_id, ST_GeogFromText(:start_wkt),
                          ST_GeogFromText(:end_wkt),
-                         ST_GeogFromText(:path_wkt), :estimated_time,
+                         ST_GeogFromText(:path_wkt), :distance_km,
                          :risk_coverage, (:risk_heatmap)::jsonb)
                     RETURNING id, created_at
                 """),
@@ -44,7 +44,7 @@ class PatrolRouteRepository:
                     "start_wkt": start_point_wkt,
                     "end_wkt": end_point_wkt,
                     "path_wkt": path_wkt,
-                    "estimated_time": estimated_time,
+                    "distance_km": distance_km,
                     "risk_coverage": risk_coverage,
                     "risk_heatmap": json.dumps(risk_heatmap),
                 },
@@ -72,7 +72,7 @@ class PatrolRouteRepository:
                         risk_heatmap,
                         ST_AsGeoJSON(suggested_path::geometry)::json
                             AS path_geometry,
-                        estimated_time, risk_coverage,
+                        distance_km, risk_coverage,
                         created_at
                     FROM patrol_routes
                     WHERE requested_by = :user_id

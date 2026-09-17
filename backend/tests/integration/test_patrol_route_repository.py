@@ -45,7 +45,7 @@ async def test_create_and_list_by_user(db_session, user):
         end_point_wkt="POINT(31.19 -24.21)",
         risk_heatmap={"cell-1": 0.5, "cell-2": 0.9},
         path_wkt="LINESTRING(31.18 -24.2, 31.19 -24.21)",
-        estimated_time=90,
+        distance_km=90,
         risk_coverage=0.7,
     )
     assert result["id"] is not None
@@ -67,7 +67,7 @@ async def test_delete_removes_route_owned_by_user(db_session, user):
         end_point_wkt="POINT(31.19 -24.21)",
         risk_heatmap={"cell-1": 0.5},
         path_wkt="LINESTRING(31.18 -24.2, 31.19 -24.21)",
-        estimated_time=90,
+        distance_km=90,
         risk_coverage=0.7,
     )
 

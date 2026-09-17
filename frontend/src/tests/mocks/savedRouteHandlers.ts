@@ -19,7 +19,7 @@ export const SAVED_ROUTE: SavedRoute = {
             [31.06, -24.31],
         ],
     },
-    estimated_time_min: 55,
+    distance_km: 55,
     risk_coverage: 0.42,
     created_at: "2026-01-15T09:30:00Z",
 };

@@ -940,7 +940,7 @@ def test_to_planned_route_builds_geometry_and_sums_edge_costs():
 
     assert isinstance(route, PlannedRoute)
     assert route.suggested_path == ["start", "mid", "end"]
-    assert route.estimated_time_min == pytest.approx(20.0)
+    assert route.distance_km == pytest.approx(2.0)
     assert route.risk_coverage == pytest.approx(0.83)
     assert route.path_geometry.type == "LineString"
     assert len(route.path_geometry.coordinates) >= 2
@@ -1321,7 +1321,7 @@ def test_plan_routes_returns_a_real_loop_when_start_equals_end():
         assert len(route.suggested_path) > 1
         assert route.suggested_path[0] == "p1"
         assert route.suggested_path[-1] == "p1"
-        assert route.estimated_time_min > 0
+        assert route.distance_km > 0
 
 
 def test_plan_routes_never_emits_a_single_point_geometry():
@@ -1606,19 +1606,48 @@ def test_meet_coverage_target_keeps_hubs_the_target_needs():
     assert waypoints == tour
 
 
-def test_plan_routes_orders_alternatives_from_most_coverage_down():
+def test_plan_routes_lists_the_shortest_route_first():
     route_planner.clear_path_cache()
     graph = _branch_graph()
     config = route_planner.ACOConfig(
-        num_ants=4, total_iterations=12, seed=3, risk_weight=10.0,
+        num_ants=4, total_iterations=12, seed=3, max_extra_distance=10.0,
     )
 
     plan = route_planner.plan_routes(graph, "br-s", "br-e", 3, config)
 
-    coverages = [r.risk_coverage for r in plan.routes]
-    assert coverages == sorted(coverages, reverse=True)
-    assert coverages[0] == pytest.approx(1.0)
-    assert coverages[-1] == pytest.approx(0.5)
+    distances = [r.distance_km for r in plan.routes]
+    assert distances == sorted(distances)
+
+
+_LONG_WAY = ["n0", "n1", "n2", "n3", "n4"]
+_SHORT_WAY = ["n0", "n1", "n3", "n4"]
+
+
+def _long_then_short_plan(monkeypatch, max_extra_distance):
+    _phase_stub(monkeypatch, [(_LONG_WAY, 0.9)] + [(_SHORT_WAY, 0.9)] * 5)
+    config = _three_phase_config(
+        diversity_threshold=0.9,
+        min_diversity=0.05,
+        max_extra_distance=max_extra_distance,
+    )
+    return route_planner.plan_routes(
+        _shortcut_graph(), "n0", "n4", 2, config,
+    )
+
+
+def test_plan_routes_hides_routes_much_longer_than_the_best(monkeypatch):
+    # the long way is 4 km against 3 km, a third longer
+    plan = _long_then_short_plan(monkeypatch, 0.15)
+
+    assert [r.suggested_path for r in plan.routes] == [_SHORT_WAY]
+    assert plan.shortfall == route_planner.LONGER_THAN_BEST
+
+
+def test_plan_routes_keeps_a_route_just_inside_the_limit(monkeypatch):
+    plan = _long_then_short_plan(monkeypatch, 0.34)
+
+    assert [r.suggested_path for r in plan.routes] == [_SHORT_WAY, _LONG_WAY]
+    assert plan.shortfall is None
 
 
 def test_equal_tiers_give_distinct_routes_of_equal_coverage():
@@ -1628,6 +1657,7 @@ def test_equal_tiers_give_distinct_routes_of_equal_coverage():
         num_ants=4, total_iterations=12, seed=3,
         phase_split=(0.5, 0.5, 0.0),
         coverage_tiers=(0.5, 0.5),
+        max_extra_distance=10.0,
     )
 
     plan = route_planner.plan_routes(graph, "br-s", "br-e", 2, config)
@@ -1661,7 +1691,8 @@ def test_later_tiers_shrink_when_the_first_falls_short(monkeypatch):
 
     route_planner.plan_routes(graph, "br-s", "br-e", 2, config)
 
-    assert targets == [1.0, pytest.approx(0.4)]
+    assert targets[0] == 1.0
+    assert targets[1:] == [pytest.approx(0.4)] * (len(targets) - 1)
 
 
 def test_later_tiers_stay_put_when_the_first_overshoots(monkeypatch):
@@ -2058,7 +2089,9 @@ def test_a_similar_route_is_kept_rather_than_dropped(monkeypatch):
     assert route_planner.route_distance(long_way, short_way) > 0.05
 
     _phase_stub(monkeypatch, [(long_way, 0.9)] + [(short_way, 0.9)] * 5)
-    config = _three_phase_config(diversity_threshold=0.9, min_diversity=0.05)
+    config = _three_phase_config(
+        diversity_threshold=0.9, min_diversity=0.05, max_extra_distance=1.0,
+    )
 
     plan = route_planner.plan_routes(
         graph, "n0", "n4", 2, config,

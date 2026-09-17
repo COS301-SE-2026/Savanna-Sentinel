@@ -37,6 +37,8 @@ export interface RouteComparisonViewProps {
 const SHORTFALL_MESSAGES: Record<string, string> = {
     duplicate_route: "the remaining options retraced a route already shown",
     no_tour_found: "no further route could be completed",
+    longer_than_best:
+        "the remaining options were more than 15% longer than the shortest route",
 };
 
 function shortfallNote(
@@ -132,11 +134,6 @@ export function RouteComparisonView({
                     {note}
                 </p>
             )}
-            {routes.length > 1 && (
-                <p className="mb-2 text-xs text-color-text-secondary">
-                    Ordered from most risk coverage to shortest drive.
-                </p>
-            )}
             <div
                 className="flex flex-col gap-3"
                 aria-label="Route alternatives"
@@ -214,11 +211,10 @@ export function RouteComparisonView({
                             <dl className="flex flex-col gap-1 text-sm">
                                 <div className="flex justify-between">
                                     <dt className="text-color-text-secondary">
-                                        Est. Drive Time
+                                        Distance
                                     </dt>
                                     <dd className="font-medium">
-                                        {Math.round(route.estimated_time_min)}{" "}
-                                        min
+                                        {route.distance_km.toFixed(1)} km
                                     </dd>
                                 </div>
                                 <div className="flex justify-between">

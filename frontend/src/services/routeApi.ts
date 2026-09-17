@@ -13,7 +13,7 @@ export interface GeoLineString {
 export interface PlannedRoute {
     suggested_path: string[];
     path_geometry: GeoLineString;
-    estimated_time_min: number;
+    distance_km: number;
     risk_coverage: number;
 }
 
@@ -59,7 +59,7 @@ export interface SavedRoute {
     end_point: GeoPoint;
     risk_by_cell: Record<string, number>;
     path_geometry: GeoLineString;
-    estimated_time_min: number;
+    distance_km: number;
     risk_coverage: number;
     created_at: string;
 }

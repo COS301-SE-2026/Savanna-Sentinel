@@ -31,7 +31,7 @@ describe("LoadPreviousRoutesDialog", () => {
         );
 
         const routeButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         expect(routeButton).toBeInTheDocument();
         expect(routeButton).toHaveAccessibleName(/42% risk/i);
@@ -75,7 +75,7 @@ describe("LoadPreviousRoutesDialog", () => {
         );
 
         const routeButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(routeButton);
 
@@ -114,7 +114,7 @@ describe("LoadPreviousRoutesDialog", () => {
         );
 
         const routeButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         routeButton.focus();
         await userEvent.keyboard("{Enter}");

@@ -28,7 +28,7 @@ function route(id: string, createdAt: string): SavedRoute {
                 [31.2, -24.1],
             ],
         },
-        estimated_time_min: 40,
+        distance_km: 40,
         risk_coverage: 0.5,
         created_at: createdAt,
     };

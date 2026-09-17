@@ -15,7 +15,7 @@ def test_patrol_route_table_and_column_types():
         "start_point",
         "end_point",
         "suggested_path",
-        "estimated_time",
+        "distance_km",
         "risk_coverage",
         "risk_heatmap",
         "created_at",

@@ -29,7 +29,8 @@ class ACOConfig:
     seed: int | None = None
     # risk units charged per minute of patrol time
     risk_weight: float = 0.1
-    coverage_tiers: tuple[float | None, ...] = (1.0, 0.7, 0.4)
+    coverage_tiers: tuple[float | None, ...] = (1.0, 1.0, 1.0)
+    max_extra_distance: float = 0.15
     max_waypoints: int = 60
     # 2-opt/or-opt shorten transit, which costs coverage picked up in
     # transit, so this is off by default. See improve_hub_sequence.
@@ -852,7 +853,7 @@ def _drop_hubs(
             )
             if (
                 candidate is None
-                or candidate.covered < needed - COVERAGE_EPS
+                or candidate.covered < needed - slack - COVERAGE_EPS
                 or candidate.time >= tour.time
                 or any(
                     route_distance(candidate.path, prior) < min_distance
@@ -1086,6 +1087,7 @@ def is_sufficiently_diverse(
 
 NO_TOUR_FOUND = "no_tour_found"
 DUPLICATE_ROUTE = "duplicate_route"
+LONGER_THAN_BEST = "longer_than_best"
 
 
 @dataclass
@@ -1106,11 +1108,13 @@ def _run_phase_with_retries(
     rng: random.Random,
     accepted_expanded_paths: list[list[str]],
     seed_tour: tuple[list[str], list[str], float, float, float] | None = None,
+    reshape=None,
 ) -> tuple[list[str], list[str], float, dict]:
     """Run a phase, penalising and retrying while it repeats an accepted route.
 
-    Returns the last attempt either way. A candidate that is merely similar
-    is still worth offering, so judging it is left to the caller.
+    Diversity is judged on the reshaped tour, since reshaping can pull two
+    different colony tours onto the same route. Returns the last attempt
+    either way; a merely similar candidate is left to the caller to judge.
     """
     best: tuple[list[str], list[str], float, dict] | None = None
     for attempt in range(config.diversity_retries + 1):
@@ -1126,6 +1130,8 @@ def _run_phase_with_retries(
             rng,
             seed_tour=seed_tour if attempt == 0 else None,
         )
+        if waypoint_path and reshape is not None:
+            waypoint_path, expanded_path = reshape(waypoint_path, expanded_path)
         best = (waypoint_path, expanded_path, candidate_risk, pheromones)
         if not waypoint_path:
             break
@@ -1181,6 +1187,20 @@ def plan_routes(
     shortfalls: list[str] = []
     tier_scale = 1.0
     for n_iter, tier in zip(iterations_per_phase, config.coverage_tiers):
+        target = None if tier is None else tier * tier_scale
+
+        def reshape(waypoint_path, expanded_path, target=target):
+            return meet_coverage_target(
+                graph,
+                distance_matrix,
+                waypoint_ids,
+                waypoint_path,
+                expanded_path,
+                target,
+                accepted_expanded_paths,
+                config.min_diversity,
+            )
+
         phase = _run_phase_with_retries(
             graph,
             distance_matrix,
@@ -1193,21 +1213,12 @@ def plan_routes(
             rng,
             accepted_expanded_paths,
             seed_tour=seed_tour if not accepted_expanded_paths else None,
+            reshape=reshape,
         )
         waypoint_path, expanded_path, _, pheromones = phase
         if not waypoint_path:
             shortfalls.append(NO_TOUR_FOUND)
             continue
-        waypoint_path, expanded_path = meet_coverage_target(
-            graph,
-            distance_matrix,
-            waypoint_ids,
-            waypoint_path,
-            expanded_path,
-            None if tier is None else tier * tier_scale,
-            accepted_expanded_paths,
-            config.min_diversity,
-        )
         distance = min(
             (
                 route_distance(expanded_path, prior)
@@ -1224,11 +1235,20 @@ def plan_routes(
         accepted_waypoint_paths.append(waypoint_path)
         accepted_expanded_paths.append(expanded_path)
         pheromones = apply_partial_penalty(pheromones, waypoint_path, config)
-    routes = [
-        _to_planned_route(graph, p, compute_risk_coverage(graph, p))
-        for p in accepted_expanded_paths
-        if len(p) > 1
-    ]
+    routes = sorted(
+        (
+            _to_planned_route(graph, p, compute_risk_coverage(graph, p))
+            for p in accepted_expanded_paths
+            if len(p) > 1
+        ),
+        key=lambda r: r.distance_km,
+    )
+    if routes:
+        limit = routes[0].distance_km * (1 + config.max_extra_distance)
+        close = [r for r in routes if r.distance_km <= limit + COVERAGE_EPS]
+        if len(close) < len(routes):
+            shortfalls.append(LONGER_THAN_BEST)
+        routes = close
     shortfall = shortfalls[0] if len(routes) < num_alternatives else None
     return RoutePlan(routes=routes, shortfall=shortfall)
 
@@ -1257,6 +1277,6 @@ def _to_planned_route(
     return PlannedRoute(
         suggested_path=path,
         path_geometry=GeoLineString(coordinates=smoothed),
-        estimated_time_min=sum(e.est_time_min for e in edges_used),
+        distance_km=sum(e.distance_km for e in edges_used),
         risk_coverage=risk_coverage,
     )

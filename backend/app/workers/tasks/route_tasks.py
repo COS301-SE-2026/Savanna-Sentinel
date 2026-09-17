@@ -11,7 +11,7 @@ def _serialize_route(route: PlannedRoute) -> dict:
     return {
         "suggested_path": route.suggested_path,
         "path_geometry": route.path_geometry.model_dump(),
-        "estimated_time_min": route.estimated_time_min,
+        "distance_km": route.distance_km,
         "risk_coverage": route.risk_coverage,
     }
 

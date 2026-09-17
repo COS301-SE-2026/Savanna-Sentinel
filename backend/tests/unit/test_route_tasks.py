@@ -12,7 +12,7 @@ def _make_route(path, risk):
     return PlannedRoute(
         suggested_path=path,
         path_geometry=GeoLineString(coordinates=[(0.0, 0.0), (1.0, 1.0)]),
-        estimated_time_min=6.0,
+        distance_km=6.0,
         risk_coverage=risk,
     )
 
@@ -31,7 +31,7 @@ def test_serialize_route_returns_plain_dict_with_geometry_dumped():
             "type": "LineString",
             "coordinates": [(0.0, 0.0), (1.0, 1.0)],
         },
-        "estimated_time_min": 6.0,
+        "distance_km": 6.0,
         "risk_coverage": 0.75,
     }
 

@@ -304,7 +304,7 @@ export default function PatrolPlannerPage() {
         setLoadedRoute({
             suggested_path: [],
             path_geometry: saved.path_geometry,
-            estimated_time_min: saved.estimated_time_min,
+            distance_km: saved.distance_km,
             risk_coverage: saved.risk_coverage,
         });
         setSavedRiskByCell(new Map(Object.entries(saved.risk_by_cell)));

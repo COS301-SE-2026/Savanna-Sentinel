@@ -36,7 +36,7 @@ class ParkGraph:
 class PlannedRoute:
     suggested_path: list[str]
     path_geometry: GeoLineString
-    estimated_time_min: float
+    distance_km: float
     risk_coverage: float
 
 
@@ -106,7 +106,7 @@ class SavedRouteResponse(BaseModel):
     end_point: GeoPoint
     risk_by_cell: dict[str, float]
     path_geometry: GeoLineString
-    estimated_time_min: float
+    distance_km: float
     risk_coverage: float
     created_at: str
 

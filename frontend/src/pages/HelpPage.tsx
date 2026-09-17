@@ -196,8 +196,7 @@ function Patrol() {
                     </p>
                     <ul className="text-base list-disc pl-5 space-y-1">
                         <li>
-                            Est. Drive Time: The estimated time to drive the
-                            route. Sections covered on foot will take longer.
+                            Distance: The length of the route in kilometres.
                         </li>
                         <li>
                             Risk Coverage: The share of the risk in Medium, High
@@ -206,9 +205,9 @@ function Patrol() {
                         </li>
                     </ul>
                     <p className="text-base space-y-2">
-                        Routes are listed from the most risk coverage to the
-                        shortest drive, so you can pick the one that fits the
-                        time you have.
+                        The shortest route is listed first. Alternatives cover a
+                        similar amount of risk along a different path, and are
+                        only shown when they are at most 15% longer.
                     </p>
                 </div>
 
