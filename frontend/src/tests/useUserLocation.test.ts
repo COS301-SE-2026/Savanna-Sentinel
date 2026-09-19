@@ -218,16 +218,11 @@ describe("useUserLocation", () => {
 });
 
 describe("dead reckoning for useUserLocation", () => {
-    //Ignore added since it is used, yet eslint says it is not
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    let performanceNowSpy: ReturnType<typeof vi.spyOn>;
     let currentTime = 1000;
 
     beforeEach(() => {
         currentTime = 1000;
-        performanceNowSpy = vi
-            .spyOn(performance, "now")
-            .mockImplementation(() => currentTime);
+        vi.spyOn(performance, "now").mockImplementation(() => currentTime);
 
         //Add DeviceMotionEvent if it is missing from the environment
         if (typeof window.DeviceMotionEvent === "undefined") {
