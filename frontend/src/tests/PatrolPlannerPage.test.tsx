@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
+    beforeEach,
     beforeAll,
     afterEach,
     afterAll,
@@ -51,7 +52,6 @@ import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
 import type { FakeMap } from "./mocks/maplibreMock";
 import { useMapStore, initialMapState } from "@/store/mapStore";
 import { RISK_LEVEL_COLORS } from "@/lib/mapTokens";
-import { beforeEach } from "node:test";
 
 const server = setupServer(
     ...riskHandlers,
