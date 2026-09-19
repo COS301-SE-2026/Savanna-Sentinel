@@ -245,6 +245,8 @@ describe("Permission and Location settings", () => {
             )
         })
 
+        renderPanel()
+
         await userEvent.click(
             screen.getByRole("checkbox", {name: /my location/i})
         )

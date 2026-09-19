@@ -1,5 +1,4 @@
 import { render, screen, fireEvent, act, cleanup } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { MotionSimulator } from "@/components/dev/MotionSimulator"
 
@@ -10,7 +9,7 @@ if (typeof globalThis.DeviceMotionEvent === "undefined") {
         rotationRate: unknown;
         interval: number;
 
-        constructor(type: string, eventInitDict?: any) {
+        constructor(type: string, eventInitDict?: DeviceMotionEventInit) {
             super(type, eventInitDict);
             this.acceleration = eventInitDict?.acceleration;
             this.accelerationIncludingGravity = eventInitDict?.accelerationIncludingGravity;
