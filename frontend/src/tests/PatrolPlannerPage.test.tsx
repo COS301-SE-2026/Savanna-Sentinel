@@ -51,7 +51,6 @@ import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
 import type { FakeMap } from "./mocks/maplibreMock";
 import { useMapStore, initialMapState } from "@/store/mapStore";
 import { RISK_LEVEL_COLORS } from "@/lib/mapTokens";
-import { useUserLocation } from "@/hooks/useUserLocation";
 import { beforeEach } from "node:test";
 
 const server = setupServer(
