@@ -103,6 +103,7 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
             const now = performance.now() / 1000;
             if(!lastMotionTime.current) {
                 lastMotionTime.current = now;
+                deadReckoningStartTime.current = now
                 return;
             }
 

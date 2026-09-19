@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
 import { useUserLocation } from "@/hooks/useUserLocation";
 
@@ -92,6 +92,7 @@ describe("useUserLocation", () => {
 
         await waitFor(() => expect(result.current.status).toBe("tracking"));
         expect(result.current.location).toEqual({
+            accuracy: 12,
             lat: -24.3,
             lon: 31.05,
             heading: 90,
@@ -144,7 +145,7 @@ describe("useUserLocation", () => {
 
         act(() => geo.failure?.(positionError(3)));
 
-        expect(result.current.status).toBe("tracking");
+        expect(result.current.status).toBe("dead-reckoning");
         expect(result.current.location?.lat).toBeCloseTo(-24.3);
     });
 
@@ -215,3 +216,63 @@ describe("useUserLocation", () => {
         expect(result.current.location?.lat).toBeCloseTo(-24.5);
     });
 });
+
+describe("dead reckoning for useUserLocation", () => {
+    let performanceNowSpy: ReturnType<typeof vi.spyOn>
+    let currentTime = 1000;
+
+    beforeEach(() => {
+        currentTime = 1000;
+        performanceNowSpy = vi
+            .spyOn(performance, "now")
+            .mockImplementation(() => currentTime);
+        
+        //Add DeviceMotionEvent if it is missing from the environment
+        if (typeof window.DeviceMotionEvent === "undefined") {
+            class CustomDeviceMotionEvent extends Event {
+                acceleration: {
+                    x: number | null;
+                    y: number | null;
+                    z: number | null;
+                } | null;
+                constructor(type: string, init? : {
+                    acceleration?: {
+                        x?: number;
+                        y?: number;
+                        z?: number;
+                    }
+                }) {
+                    super(type);
+                    this.acceleration = init?.acceleration
+                        ? {
+                            x: init.acceleration.x ?? 0,
+                            y: init.acceleration.y ?? 0,
+                            z: init.acceleration.z ?? 0
+                        } : null
+                }
+            }
+            (window as unknown as Record<string, unknown>).DeviceMotionEvent = CustomDeviceMotionEvent;
+        }
+    })
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        removeGeolocation();
+    });
+
+    it("Moves from tracking to dead-reckoning on GPS failure", async () => {
+        const geo = installGeolocation();
+        const { result } = renderHook(() => useUserLocation());
+
+        act(() => geo.success?.(position()));
+        await waitFor(() => expect(result.current.status).toBe("tracking"));
+
+        act(() => geo.failure?.(positionError(2)));
+        await waitFor(() => expect(result.current.status).toBe("dead-reckoning"))
+
+        expect(result.current.location?.lat).toBeCloseTo(-24.3);
+        expect(result.current.location?.lon).toBeCloseTo(31.05);
+    })
+
+
+})
