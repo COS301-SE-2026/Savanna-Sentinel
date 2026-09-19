@@ -56,15 +56,22 @@ export function ExplainabilityPanel({
 
     const handleLocationChange = async (checked: boolean) => {
         if (checked && typeof DeviceMotionEvent !== "undefined") {
-            const deviceMotionEventPermission = DeviceMotionEvent as unknown as {
-                requestPermission?: () => Promise<"granted" | "denied" | "default">;
-            };
+            const deviceMotionEventPermission =
+                DeviceMotionEvent as unknown as {
+                    requestPermission?: () => Promise<
+                        "granted" | "denied" | "default"
+                    >;
+                };
 
-            if (typeof deviceMotionEventPermission.requestPermission === "function") {
+            if (
+                typeof deviceMotionEventPermission.requestPermission ===
+                "function"
+            ) {
                 try {
-                    const permission = await deviceMotionEventPermission.requestPermission();
+                    const permission =
+                        await deviceMotionEventPermission.requestPermission();
                     if (permission !== "granted") {
-                        return; 
+                        return;
                     }
                 } catch (error) {
                     console.warn("Motion sensor permission failed:", error);
@@ -100,7 +107,9 @@ export function ExplainabilityPanel({
                     <label className="flex min-h-11 w-full cursor-pointer items-center gap-2">
                         <Checkbox
                             checked={locationVisible}
-                            onChange={(e) => handleLocationChange(e.target.checked)}
+                            onChange={(e) =>
+                                handleLocationChange(e.target.checked)
+                            }
                         />
                         <span className="text-sm text-color-text-primary">
                             My Location

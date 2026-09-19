@@ -3,7 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import type { UserLocation } from "@/types/location";
 
 export type UserLocationStatus =
-    "idle" | "locating" | "tracking" | "dead-reckoning" | "denied" | "unavailable";
+    | "idle"
+    | "locating"
+    | "tracking"
+    | "dead-reckoning"
+    | "denied"
+    | "unavailable";
 
 export interface UseUserLocationResult {
     location: UserLocation | null;
@@ -22,13 +27,13 @@ const WATCH_OPTIONS: PositionOptions = {
 const TIME_DRIFT_RATE = 0.5;
 const DIST_DRIFT_RATE = 0.15;
 
-function offsetToLatLon(lat: number, lon: number, dx: number, dy: number){
+function offsetToLatLon(lat: number, lon: number, dx: number, dy: number) {
     const deltaLat = dy / 111139;
     const deltaLon = dx / (111139 * Math.cos((lat * Math.PI) / 180));
     return {
         lat: lat + deltaLat,
-        lon : lon + deltaLon
-    }
+        lon: lon + deltaLon,
+    };
 }
 
 export function useUserLocation(enabled = true): UseUserLocationResult {
@@ -37,7 +42,7 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
         navigator.geolocation ? "locating" : "unavailable",
     );
 
-    const lastGpsLoc = useRef<UserLocation | null>(null)
+    const lastGpsLoc = useRef<UserLocation | null>(null);
     const currentVelocity = useRef<number>(0);
     const lastMotionTime = useRef<number | null>(null);
     const deadReckoningStartTime = useRef<number | null>(null);
@@ -50,7 +55,8 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
 
         const watchId = geolocation.watchPosition(
             (position) => {
-                const { latitude, longitude, heading, accuracy } = position.coords;
+                const { latitude, longitude, heading, accuracy } =
+                    position.coords;
                 const newLoc: UserLocation = {
                     lat: latitude,
                     lon: longitude,
@@ -65,7 +71,7 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
                 lastMotionTime.current = null;
                 deadReckoningStartTime.current = null;
 
-                setLocation(newLoc)
+                setLocation(newLoc);
                 setStatus("tracking");
             },
             (error) => {
@@ -74,10 +80,9 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
                     setStatus("denied");
                     return;
                 }
-                if(lastGpsLoc.current) {
-                    setStatus("dead-reckoning")
-                }
-                else {
+                if (lastGpsLoc.current) {
+                    setStatus("dead-reckoning");
+                } else {
                     setStatus("unavailable");
                 }
             },
@@ -89,21 +94,21 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
 
     //Offline location tracking
     useEffect(() => {
-        if(status !== "dead-reckoning" || !window.DeviceMotionEvent){
+        if (status !== "dead-reckoning" || !window.DeviceMotionEvent) {
             return;
         }
 
         const handleMotion = (event: DeviceMotionEvent) => {
             //End offline handling when there is no known reference point
-            if (!lastGpsLoc.current){
+            if (!lastGpsLoc.current) {
                 return;
             }
 
             //Get the current time for displacement calculations
             const now = performance.now() / 1000;
-            if(!lastMotionTime.current) {
+            if (!lastMotionTime.current) {
                 lastMotionTime.current = now;
-                deadReckoningStartTime.current = now
+                deadReckoningStartTime.current = now;
                 return;
             }
 
@@ -111,20 +116,21 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
             const dt = now - lastMotionTime.current;
             lastMotionTime.current = now;
 
-            const totalOfflineTime = now - (deadReckoningStartTime.current ?? now);
+            const totalOfflineTime =
+                now - (deadReckoningStartTime.current ?? now);
 
             //calculate acceleration
             let accelY = event.acceleration?.y || 0;
 
             //Filter out noise to prevent engine drift
-            if (Math.abs(accelY) < 0.2){
+            if (Math.abs(accelY) < 0.2) {
                 accelY = 0;
             }
-            
+
             //Calculate the displacement from acceleration and change in time
             currentVelocity.current += accelY * dt;
             //0 out reverse movement
-            if(currentVelocity.current < 0){
+            if (currentVelocity.current < 0) {
                 currentVelocity.current = 0;
             }
             const distanceMoved = currentVelocity.current * dt;
@@ -138,8 +144,8 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
                 lastGpsLoc.current.lat,
                 lastGpsLoc.current.lon,
                 dx,
-                dy
-            )
+                dy,
+            );
 
             const baseAccuracy = lastGpsLoc.current.accuracy;
             //Accuracy decreases the longer the application has been tracking for
@@ -147,23 +153,22 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
             const expandedAccuracy =
                 baseAccuracy +
                 totalOfflineTime * TIME_DRIFT_RATE +
-                distanceMoved * DIST_DRIFT_RATE
+                distanceMoved * DIST_DRIFT_RATE;
 
             const updatedLocation: UserLocation = {
                 lat: updatedCoords.lat,
                 lon: updatedCoords.lon,
                 heading: headingDeg,
-                accuracy: expandedAccuracy
+                accuracy: expandedAccuracy,
             };
 
             lastGpsLoc.current = updatedLocation;
-            setLocation(updatedLocation)
-        }
+            setLocation(updatedLocation);
+        };
 
         window.addEventListener("devicemotion", handleMotion);
         return () => window.removeEventListener("devicemotion", handleMotion);
-    }, [status])
-
+    }, [status]);
 
     if (!enabled) return { location: null, status: "idle" };
 

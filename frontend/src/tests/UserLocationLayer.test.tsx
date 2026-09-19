@@ -16,7 +16,7 @@ const FIX: UserLocation = {
     lat: -24.3,
     lon: 31.05,
     heading: 45,
-    accuracy: 12
+    accuracy: 12,
 };
 
 function createMap(): FakeMap {

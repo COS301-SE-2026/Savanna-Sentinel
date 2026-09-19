@@ -100,7 +100,7 @@ function SidebarContent({
     onLoadDialogOpenChange,
     onLoadRoute,
     locationVisible,
-    onLocationVisibleChange
+    onLocationVisibleChange,
 }: SidebarContentProps) {
     return (
         <div className="flex flex-col gap-5 p-4">
@@ -261,30 +261,35 @@ export default function PatrolPlannerPage() {
 
     const bottomAnchorStyle = isMobile
         ? {
-                bottom: `calc(${Math.min(
-                    getSnapHeightPx(drawerSnap ?? COLLAPSED_SNAP),
-                    getSnapHeightPx(EXPANDED_SNAP),
-                )}px + 0.5rem)`,
-            }
+              bottom: `calc(${Math.min(
+                  getSnapHeightPx(drawerSnap ?? COLLAPSED_SNAP),
+                  getSnapHeightPx(EXPANDED_SNAP),
+              )}px + 0.5rem)`,
+          }
         : undefined;
 
     const handleLocationVisibleChange = async (visible: boolean) => {
         if (visible && typeof DeviceMotionEvent !== "undefined") {
-            const deviceMotionEventPermission = DeviceMotionEvent as unknown as {
-                requestPermission?: () => Promise<"granted" | "denied" | "default">;
-            };
+            const deviceMotionEventPermission =
+                DeviceMotionEvent as unknown as {
+                    requestPermission?: () => Promise<
+                        "granted" | "denied" | "default"
+                    >;
+                };
 
-            if (typeof deviceMotionEventPermission.requestPermission === "function") {
+            if (
+                typeof deviceMotionEventPermission.requestPermission ===
+                "function"
+            ) {
                 try {
                     await deviceMotionEventPermission.requestPermission();
-                }
-                catch {
-                    console.warn("Motion sensor permission failed or denied")
+                } catch {
+                    console.warn("Motion sensor permission failed or denied");
                 }
             }
         }
-        setLocationVisible(visible)
-    }
+        setLocationVisible(visible);
+    };
 
     useEffect(() => {
         loadGrid();

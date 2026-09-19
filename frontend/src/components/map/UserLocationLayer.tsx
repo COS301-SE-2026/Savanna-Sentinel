@@ -7,9 +7,9 @@ import type { UserLocation } from "@/types/location";
 import { USER_LOCATION_COLOR } from "@/lib/mapTokens";
 
 const PUCK_SIZE_PX = 24;
-const ACCURACY_SOURCE_ID = "user-location-accuracy-source"
-const ACCURACY_FILL_LAYER_ID = "user-location-accuracy-fill"
-const ACCURACY_LINE_LAYER_ID = "user-location-accuracy-line"
+const ACCURACY_SOURCE_ID = "user-location-accuracy-source";
+const ACCURACY_FILL_LAYER_ID = "user-location-accuracy-fill";
+const ACCURACY_LINE_LAYER_ID = "user-location-accuracy-line";
 
 export interface UserLocationLayerProps {
     map: maplibregl.Map | null;
@@ -19,8 +19,8 @@ export interface UserLocationLayerProps {
 function createCircle(
     center: [number, number],
     radius: number,
-    edges = 64
-) : GeoJSON.Feature<GeoJSON.Polygon> {
+    edges = 64,
+): GeoJSON.Feature<GeoJSON.Polygon> {
     const [lng, lat] = center;
     const coords: [number, number][] = [];
 
@@ -28,11 +28,11 @@ function createCircle(
     const distanceX = km / (111.32 * Math.cos((lat * Math.PI) / 180));
     const distanceY = km / 110.574;
 
-    for (let i = 0; i < edges; i++){
+    for (let i = 0; i < edges; i++) {
         const theta = (i / edges) * (2 * Math.PI);
         const x = distanceX * Math.cos(theta);
         const y = distanceY * Math.sin(theta);
-        coords.push([lng + x, lat + y])
+        coords.push([lng + x, lat + y]);
     }
     coords.push(coords[0]);
 
@@ -41,9 +41,9 @@ function createCircle(
         properties: {},
         geometry: {
             type: "Polygon",
-            coordinates: [coords]
-        }
-    }
+            coordinates: [coords],
+        },
+    };
 }
 
 export function UserLocationLayer({ map, location }: UserLocationLayerProps) {
@@ -73,24 +73,25 @@ export function UserLocationLayer({ map, location }: UserLocationLayerProps) {
     }, [map, location, element]);
 
     useEffect(() => {
-        if(!map || !location || location.accuracy <= 0){
+        if (!map || !location || location.accuracy <= 0) {
             return;
         }
 
         const circle = createCircle(
             [location.lon, location.lat],
-            location.accuracy
+            location.accuracy,
         );
 
-        const source = map.getSource(ACCURACY_SOURCE_ID) as maplibregl.GeoJSONSource
+        const source = map.getSource(
+            ACCURACY_SOURCE_ID,
+        ) as maplibregl.GeoJSONSource;
 
         if (source) {
-            source.setData(circle)
-        }
-        else{
+            source.setData(circle);
+        } else {
             map.addSource(ACCURACY_SOURCE_ID, {
                 type: "geojson",
-                data: circle
+                data: circle,
             });
 
             map.addLayer({
@@ -99,9 +100,9 @@ export function UserLocationLayer({ map, location }: UserLocationLayerProps) {
                 source: ACCURACY_SOURCE_ID,
                 paint: {
                     "fill-color": USER_LOCATION_COLOR,
-                    "fill-opacity": 0.15
-                }
-            })
+                    "fill-opacity": 0.15,
+                },
+            });
 
             map.addLayer({
                 id: ACCURACY_LINE_LAYER_ID,
@@ -110,26 +111,26 @@ export function UserLocationLayer({ map, location }: UserLocationLayerProps) {
                 paint: {
                     "line-color": USER_LOCATION_COLOR,
                     "line-width": 1.5,
-                    "line-opacity": 0.5
-                }
-            })
+                    "line-opacity": 0.5,
+                },
+            });
         }
-    }, [map, location])
+    }, [map, location]);
 
     useEffect(() => {
         return () => {
             markerRef.current?.remove();
             markerRef.current = null;
 
-            if(map && map.getStyle()) {
-                if(map.getLayer(ACCURACY_LINE_LAYER_ID)) {
-                    map.removeLayer(ACCURACY_LINE_LAYER_ID)
+            if (map && map.getStyle()) {
+                if (map.getLayer(ACCURACY_LINE_LAYER_ID)) {
+                    map.removeLayer(ACCURACY_LINE_LAYER_ID);
                 }
-                if(map.getLayer(ACCURACY_FILL_LAYER_ID)) {
-                    map.removeLayer(ACCURACY_FILL_LAYER_ID)
+                if (map.getLayer(ACCURACY_FILL_LAYER_ID)) {
+                    map.removeLayer(ACCURACY_FILL_LAYER_ID);
                 }
-                if(map.getLayer(ACCURACY_SOURCE_ID)) {
-                    map.removeLayer(ACCURACY_SOURCE_ID)
+                if (map.getLayer(ACCURACY_SOURCE_ID)) {
+                    map.removeLayer(ACCURACY_SOURCE_ID);
                 }
             }
         };

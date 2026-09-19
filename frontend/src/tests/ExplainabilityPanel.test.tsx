@@ -160,13 +160,13 @@ describe("Permission and Location settings", () => {
 
     beforeEach(() => {
         originalDeviceMotionEvent = window.DeviceMotionEvent;
-    })
+    });
 
     afterEach(() => {
         Object.defineProperty(window, "DeviceMotionEvent", {
             writable: true,
             configurable: true,
-            value: originalDeviceMotionEvent
+            value: originalDeviceMotionEvent,
         });
         vi.restoreAllMocks();
     });
@@ -177,21 +177,20 @@ describe("Permission and Location settings", () => {
         Object.defineProperty(window, "DeviceMotionEvent", {
             writable: true,
             configurable: true,
-            value: Object.assign(
-                function DeviceMotionEvent() {},
-                { requestPermission: mockRequestPermission}
-            )
-        })
+            value: Object.assign(function DeviceMotionEvent() {}, {
+                requestPermission: mockRequestPermission,
+            }),
+        });
 
-        const props = renderPanel({ locationVisible: false});
+        const props = renderPanel({ locationVisible: false });
 
         await userEvent.click(
-            screen.getByRole("checkbox", {name: /my location/i})
-        )
+            screen.getByRole("checkbox", { name: /my location/i }),
+        );
 
         expect(mockRequestPermission).toHaveBeenCalledTimes(1);
         expect(props.onLocationVisibleChange).toHaveBeenCalledWith(true);
-    })
+    });
 
     it("does not request permission when location is unchecked", async () => {
         const mockRequestPermission = vi.fn().mockResolvedValue("granted");
@@ -199,21 +198,20 @@ describe("Permission and Location settings", () => {
         Object.defineProperty(window, "DeviceMotionEvent", {
             writable: true,
             configurable: true,
-            value: Object.assign(
-                function DeviceMotionEvent() {},
-                { requestPermission: mockRequestPermission}
-            )
-        })
+            value: Object.assign(function DeviceMotionEvent() {}, {
+                requestPermission: mockRequestPermission,
+            }),
+        });
 
-        const props = renderPanel({ locationVisible: true});
+        const props = renderPanel({ locationVisible: true });
 
-         await userEvent.click(
-            screen.getByRole("checkbox", {name: /my location/i})
-        )
+        await userEvent.click(
+            screen.getByRole("checkbox", { name: /my location/i }),
+        );
 
         expect(mockRequestPermission).not.toHaveBeenCalled();
         expect(props.onLocationVisibleChange).toHaveBeenCalledWith(false);
-    })
+    });
 
     it("handles browsers where requestPermission is undefined", async () => {
         Object.defineProperty(window, "DeviceMotionEvent", {
@@ -222,39 +220,40 @@ describe("Permission and Location settings", () => {
             value: function DeviceMotionEvent() {},
         });
 
-         const props = renderPanel({ locationVisible: false});
+        const props = renderPanel({ locationVisible: false });
 
         await userEvent.click(
-            screen.getByRole("checkbox", {name: /my location/i})
-        )
+            screen.getByRole("checkbox", { name: /my location/i }),
+        );
 
         expect(props.onLocationVisibleChange).toHaveBeenCalledWith(true);
-    })
+    });
 
     it("catches permission failures", async () => {
-        const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+        const consoleWarnSpy = vi
+            .spyOn(console, "warn")
+            .mockImplementation(() => {});
         const mockError = new Error("User denied permission");
         const mockRequestPermission = vi.fn().mockRejectedValue(mockError);
 
         Object.defineProperty(window, "DeviceMotionEvent", {
             writable: true,
             configurable: true,
-            value: Object.assign(
-                function DeviceMotionEvent() {},
-                { requestPermission: mockRequestPermission}
-            )
-        })
+            value: Object.assign(function DeviceMotionEvent() {}, {
+                requestPermission: mockRequestPermission,
+            }),
+        });
 
-        renderPanel()
+        renderPanel();
 
         await userEvent.click(
-            screen.getByRole("checkbox", {name: /my location/i})
-        )
+            screen.getByRole("checkbox", { name: /my location/i }),
+        );
 
         expect(mockRequestPermission).toHaveBeenCalledTimes(1);
         expect(consoleWarnSpy).toHaveBeenCalledWith(
             "Motion sensor permission failed:",
             mockError,
         );
-    })
-})
+    });
+});
