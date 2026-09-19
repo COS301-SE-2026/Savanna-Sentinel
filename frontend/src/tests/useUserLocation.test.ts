@@ -274,5 +274,153 @@ describe("dead reckoning for useUserLocation", () => {
         expect(result.current.location?.lon).toBeCloseTo(31.05);
     })
 
+    it("calculates forward velocity and correctly increases accuracy", async () => {
+        const geo = installGeolocation();
+        const { result } = renderHook(() => useUserLocation());
 
+        act(() => geo.success?.(position({
+            latitude: -24.3,
+            longitude: 31.05,
+            heading: 0,
+            accuracy: 10
+        })));
+        act(() => geo.failure?.(positionError(2)));
+        await waitFor(() => expect(result.current.status).toBe("dead-reckoning"));
+
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: {
+                        y: 1.0
+                    }
+                }),
+            );
+        })
+
+        currentTime += 1000;
+
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: {
+                        y: 1.0
+                    }
+                }),
+            )
+        })
+
+        expect(result.current.location?.lat).toBeGreaterThan(-24.3);
+        expect(result.current.location?.accuracy).toBeGreaterThan(10);
+    })
+
+    it("calculates displacement in the current heading, 90 degrees", async () => {
+        const geo = installGeolocation();
+        const { result } = renderHook(() => useUserLocation());
+
+        act(() => geo.success?.(position({
+            latitude: -24.3,
+            longitude: 31.05,
+            heading: 90
+        })));
+        act(() => geo.failure?.(positionError(2)));
+        await waitFor(() => expect(result.current.status).toBe("dead-reckoning"));
+
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: {
+                        y: 2.0
+                    }
+                }),
+            );
+        })
+
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: {
+                        y: 2.0
+                    }
+                }),
+            );
+        })
+
+        expect(result.current.location?.lon).toBeCloseTo(31.05);
+        expect(result.current.location?.lat).toBeCloseTo(-24.3, 5);
+    })
+
+    it("filters out acceleration noise which is below the threshold <0.2 m/s^2", async () => {
+        const geo = installGeolocation();
+        const { result } = renderHook(() => useUserLocation());
+
+        act(() => geo.success?.(position({
+            latitude: -24.3,
+            longitude: 31.05,
+            heading: 90
+        })));
+        act(() => geo.failure?.(positionError(2)));
+        await waitFor(() => expect(result.current.status).toBe("dead-reckoning"));
+
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: {
+                        y: 0.1
+                    }
+                }),
+            );
+        })
+
+        currentTime += 1000;
+
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: {
+                        y: 0.1
+                    }
+                }),
+            );
+        })
+
+        expect(result.current.location?.lat).toBe(-24.3);
+        expect(result.current.location?.lon).toBe(31.05);
+    })
+
+    it("velocity resets and returns to tracking when signal returns", async () => {
+        const geo = installGeolocation();
+        const { result } = renderHook(() => useUserLocation());
+
+        act(() => geo.success?.(position({
+            latitude: -24.3,
+            longitude: 31.05,
+            heading: 90
+        })));
+        act(() => geo.failure?.(positionError(2)));
+        await waitFor(() => expect(result.current.status).toBe("dead-reckoning"));
+
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: {
+                        y: 2.0
+                    }
+                }),
+            );
+        })
+
+        act(() => geo.success?.(position({
+            latitude: -24.5,
+            longitude: 31.2,
+            heading: 180,
+            accuracy: 5
+        })));
+
+        expect(result.current.location).toEqual({
+            lat: -24.5,
+            lon: 31.2,
+            heading: 180,
+            accuracy: 5,
+        });
+    })
 })
