@@ -218,6 +218,8 @@ describe("useUserLocation", () => {
 });
 
 describe("dead reckoning for useUserLocation", () => {
+    //Ignore added since it is used, yet eslint says it is not
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let performanceNowSpy: ReturnType<typeof vi.spyOn>
     let currentTime = 1000;
 

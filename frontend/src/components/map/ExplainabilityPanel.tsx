@@ -62,9 +62,13 @@ export function ExplainabilityPanel({
 
             if (typeof deviceMotionEventPermission.requestPermission === "function") {
                 try {
-                    await deviceMotionEventPermission.requestPermission();
+                    const permission = await deviceMotionEventPermission.requestPermission();
+                    if (permission !== "granted") {
+                        return; 
+                    }
                 } catch (error) {
                     console.warn("Motion sensor permission failed:", error);
+                    return;
                 }
             }
         }
