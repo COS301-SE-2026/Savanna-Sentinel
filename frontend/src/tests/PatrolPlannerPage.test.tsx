@@ -1,4 +1,5 @@
 import { render, screen, waitFor, act, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -34,6 +35,9 @@ import { routeHandlers, ROUTE_REQUEST_ID } from "./mocks/routeHandlers";
 import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
 import type { FakeMap } from "./mocks/maplibreMock";
 import { useMapStore, initialMapState } from "@/store/mapStore";
+import { useAuthStore } from "@/store/authStore";
+import { loadPinnedRoute } from "@/offline/pinnedRouteCache";
+import { db } from "@/offline/db";
 import { RISK_LEVEL_COLORS } from "@/lib/mapTokens";
 
 const server = setupServer(
@@ -42,11 +46,17 @@ const server = setupServer(
     ...savedRouteHandlers,
 );
 beforeAll(() => server.listen());
-afterEach(() => {
+afterEach(async () => {
     server.resetHandlers();
     mapRegistry.instances.length = 0;
     vi.restoreAllMocks();
     useMapStore.setState(initialMapState, true);
+    await db.cache.clear();
+    useAuthStore.setState({
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+    });
 });
 afterAll(() => server.close());
 
@@ -70,10 +80,13 @@ async function enterBothPoints() {
 
 function renderPage() {
     return render(
-        <>
+        <MemoryRouter initialEntries={["/patrol"]}>
             <Toaster />
-            <PatrolPlannerPage />
-        </>,
+            <Routes>
+                <Route path="/patrol" element={<PatrolPlannerPage />} />
+                <Route path="/map" element={<div>heatmap page</div>} />
+            </Routes>
+        </MemoryRouter>,
     );
 }
 
@@ -511,6 +524,44 @@ describe("PatrolPlannerPage", () => {
         expect(data.geometry.coordinates).toEqual(
             SAVED_ROUTE.path_geometry.coordinates,
         );
+    });
+
+    it("sending a saved route to the heatmap stores it and navigates there", async () => {
+        useAuthStore.setState({
+            user: { id: "u1", username: "tester", role: "ranger" },
+            accessToken: "token",
+            refreshToken: "refresh",
+        });
+
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        await userEvent.click(
+            await screen.findByRole("button", {
+                name: /show saved route on heatmap/i,
+            }),
+        );
+
+        expect(await screen.findByText("heatmap page")).toBeInTheDocument();
+        expect(await loadPinnedRoute("u1")).toEqual(SAVED_ROUTE);
+    });
+
+    it("warns instead of navigating when there is no account to store the route against", async () => {
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        await userEvent.click(
+            await screen.findByRole("button", {
+                name: /show saved route on heatmap/i,
+            }),
+        );
+
+        expect(
+            await screen.findByText(/could not send the route to the heatmap/i),
+        ).toBeInTheDocument();
+        expect(screen.queryByText("heatmap page")).not.toBeInTheDocument();
     });
 
     it("loading a saved route shows its historical risk_by_cell on the heatmap, not the live data", async () => {

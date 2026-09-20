@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { MapPinned, Trash2 } from "lucide-react";
 
 import {
     Dialog,
@@ -18,6 +18,7 @@ import {
     loadSavedRoutes,
     MAX_CACHED_ROUTES,
 } from "@/offline/routesCache";
+import { unpinDeletedRoute } from "@/offline/pinnedRouteCache";
 import { useAuthStore } from "@/store/authStore";
 import { formatRelativeTime } from "@/lib/utils";
 
@@ -25,12 +26,14 @@ interface LoadPreviousRoutesDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onLoad: (route: SavedRoute) => void;
+    onSendToHeatmap: (route: SavedRoute) => void;
 }
 
 export function LoadPreviousRoutesDialog({
     open,
     onOpenChange,
     onLoad,
+    onSendToHeatmap,
 }: LoadPreviousRoutesDialogProps) {
     const user = useAuthStore((s) => s.user);
     const [routes, setRoutes] = useState<SavedRoute[]>([]);
@@ -71,6 +74,7 @@ export function LoadPreviousRoutesDialog({
         try {
             await routeApi.deleteSavedRoute(routeId);
             await forgetCachedRoute(routeId).catch(() => {});
+            await unpinDeletedRoute(user?.id ?? null, routeId).catch(() => {});
             setRoutes((prev) => prev.filter((r) => r.id !== routeId));
         } catch {
             setError("Failed to delete saved route.");
@@ -219,25 +223,40 @@ export function LoadPreviousRoutesDialog({
                                                     L
                                                 </span>
                                             </div>
-                                            <Button
-                                                type="button"
-                                                size="icon-xs"
-                                                variant="outline"
-                                                className="border-status-critical hover:bg-status-critical/5"
-                                                aria-label="Delete saved route"
-                                                disabled={
-                                                    deletingId === route.id ||
-                                                    cachedAt !== null
-                                                }
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setPendingDeleteId(
-                                                        route.id,
-                                                    );
-                                                }}
-                                            >
-                                                <Trash2 className="text-status-critical" />
-                                            </Button>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    type="button"
+                                                    size="icon-xs"
+                                                    variant="outline"
+                                                    aria-label="Show saved route on heatmap"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onSendToHeatmap(route);
+                                                    }}
+                                                >
+                                                    <MapPinned className="text-brand-primary" />
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="icon-xs"
+                                                    variant="outline"
+                                                    className="border-status-critical hover:bg-status-critical/5"
+                                                    aria-label="Delete saved route"
+                                                    disabled={
+                                                        deletingId ===
+                                                            route.id ||
+                                                        cachedAt !== null
+                                                    }
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPendingDeleteId(
+                                                            route.id,
+                                                        );
+                                                    }}
+                                                >
+                                                    <Trash2 className="text-status-critical" />
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 </li>
