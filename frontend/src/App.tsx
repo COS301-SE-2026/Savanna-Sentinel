@@ -18,6 +18,7 @@ import AdminPage from "@/pages/AdminPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import HelpPage from "@/pages/HelpPage";
+import WorkspacePage from "@/pages/WorkspacePage";
 import ParkZoneUploadPage from "./pages/ParkZoneUploadPage";
 
 const App = () => {
@@ -42,6 +43,7 @@ const App = () => {
                         <Route path="/patrol" element={<PatrolPlannerPage />} />
                         <Route path="/tipoffs" element={<TipoffPage />} />
                         <Route path="/ingestion" element={<IngestionPage />} />
+                        <Route path="/workspace" element={<WorkspacePage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/help" element={<HelpPage />} />
                     </Route>
