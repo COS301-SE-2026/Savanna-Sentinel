@@ -4,6 +4,7 @@ import { authApi, type TokenResponse } from "../services/authApi";
 import { clearOfflineData } from "../offline/db";
 import { prefetchMapData } from "@/offline/riskGridCache";
 import { prefetchSavedRoutes } from "@/offline/routesCache";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 export interface AuthUser {
     id: string;
@@ -90,6 +91,7 @@ export const useAuthStore = create<AuthState>()(
                         authApi.logout(refreshToken).catch(() => {});
                     }
                     clearOfflineData().catch(() => {});
+                    useWorkspaceStore.getState().resetWorkspace();
                     set({ accessToken: null, refreshToken: null, user: null });
                 },
 
