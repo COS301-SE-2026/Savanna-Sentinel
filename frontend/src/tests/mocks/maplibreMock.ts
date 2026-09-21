@@ -84,9 +84,10 @@ export class FakeMap {
         return this.sources[id];
     }
 
-    addLayer(layer: { id: string }) {
+    addLayer(layer: { id: string }, beforeId?: string) {
         this.assertNotRemoved();
         this.layers[layer.id] = layer;
+        void beforeId;
     }
 
     removeLayer(id: string) {
@@ -101,17 +102,44 @@ export class FakeMap {
 
     setLayoutProperty = vi.fn();
     setPaintProperty = vi.fn();
+    setFilter = vi.fn((id: string, filter: unknown) => {
+        const layer = this.layers[id] as Record<string, unknown> | undefined;
+        if (layer) layer.filter = filter;
+    });
     zoomIn = vi.fn();
     zoomOut = vi.fn();
     resetNorthPitch = vi.fn();
     fitBounds = vi.fn();
+    addImage = vi.fn();
+    hasImage = vi.fn(() => false);
 
     queryRenderedFeaturesResult: unknown[] = [];
-    queryRenderedFeatures = vi.fn(() => this.queryRenderedFeaturesResult);
+    queryRenderedFeatures = vi.fn(
+        (bbox?: unknown, options?: { layers?: string[] }) => {
+            void bbox;
+            void options;
+            return this.queryRenderedFeaturesResult;
+        },
+    );
+
+    getCenter = vi.fn(() => ({ lng: 0, lat: 0 }));
+    project = vi.fn((lngLat: { lng: number; lat: number }) => ({
+        x: lngLat.lng * 100,
+        y: lngLat.lat * 100,
+    }));
+    unproject = vi.fn(([x, y]: [number, number]) => ({
+        lng: x / 100,
+        lat: y / 100,
+    }));
 
     private container: HTMLElement = document.createElement("div");
     getContainer() {
         return this.container;
+    }
+
+    private canvas: HTMLCanvasElement = document.createElement("canvas");
+    getCanvas() {
+        return this.canvas;
     }
 
     fireClick(lngLat: { lng: number; lat: number }) {
@@ -126,6 +154,10 @@ export class FakeMap {
 
     fireLayerClick(layerId: string, event: unknown) {
         this.layerListeners.click?.[layerId]?.forEach((h) => h(event));
+    }
+
+    fire(event: string, payload?: unknown) {
+        this.listeners[event]?.forEach((h) => h(payload));
     }
 }
 
