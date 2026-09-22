@@ -12,6 +12,7 @@
         "build": "tsc -b && vite build",
         "lint": "eslint .",
         "format:check": "prettier --check \"src/**/*/*.{ts,tsx}\"",
+        "format:write": "prettier --write \"src/**/*/*.{ts,tsx}\"",
         "test:coverage": "vitest run --coverage",
         "preview": "vite preview",
         "postinstall": "patch-package"

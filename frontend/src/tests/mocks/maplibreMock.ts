@@ -99,6 +99,20 @@ export class FakeMap {
         return this.layers[id];
     }
 
+    getStyle() {
+        this.assertNotRemoved();
+        return {
+            version: 8,
+            sources: this.sources,
+            layers: Object.values(this.layers),
+        };
+    }
+
+    isStyleLoaded() {
+        this.assertNotRemoved();
+        return true;
+    }
+
     setLayoutProperty = vi.fn();
     setPaintProperty = vi.fn();
     zoomIn = vi.fn();

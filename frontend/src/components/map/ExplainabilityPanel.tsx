@@ -54,6 +54,35 @@ export function ExplainabilityPanel({
         return { criticalCount, highCount };
     }, [cellsByRef]);
 
+    const handleLocationChange = async (checked: boolean) => {
+        if (checked && typeof DeviceMotionEvent !== "undefined") {
+            const deviceMotionEventPermission =
+                DeviceMotionEvent as unknown as {
+                    requestPermission?: () => Promise<
+                        "granted" | "denied" | "default"
+                    >;
+                };
+
+            if (
+                typeof deviceMotionEventPermission.requestPermission ===
+                "function"
+            ) {
+                try {
+                    const permission =
+                        await deviceMotionEventPermission.requestPermission();
+                    if (permission !== "granted") {
+                        return;
+                    }
+                } catch (error) {
+                    console.warn("Motion sensor permission failed:", error);
+                    return;
+                }
+            }
+        }
+
+        onLocationVisibleChange(checked);
+    };
+
     return (
         <div className="flex flex-col gap-5 p-4">
             <div>
@@ -79,7 +108,7 @@ export function ExplainabilityPanel({
                         <Checkbox
                             checked={locationVisible}
                             onChange={(e) =>
-                                onLocationVisibleChange(e.target.checked)
+                                handleLocationChange(e.target.checked)
                             }
                         />
                         <span className="text-sm text-color-text-primary">
