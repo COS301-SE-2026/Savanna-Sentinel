@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { routeApi } from "@/services/routeApi";
 import { cacheSavedRoute } from "@/offline/routesCache";
 import { pinRouteToHeatmap } from "@/offline/pinnedRouteCache";
-import { toLatLon, toPlannedRoute } from "@/lib/patrolRoute";
+import { toPlannedRoute } from "@/lib/patrolRoute";
 import { useAuthStore } from "@/store/authStore";
 import type { SavedRoute, PlannedRoute } from "@/services/routeApi";
 import { usePollRouteJob } from "@/hooks/usePollRouteJob";
