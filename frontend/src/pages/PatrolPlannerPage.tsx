@@ -353,8 +353,8 @@ export default function PatrolPlannerPage() {
                     type: "Point",
                     coordinates: [endPoint.lon, endPoint.lat],
                 },
-                max_time: maxTime.trim() === "" ? undefined : Number(maxTime),
-                max_fuel: maxFuel.trim() === "" ? undefined : Number(maxFuel),
+                max_time: undefined,
+                max_fuel: undefined,
                 num_alternatives: 3,
                 risk_by_cell: Object.fromEntries(riskByCell),
             });
@@ -376,10 +376,16 @@ export default function PatrolPlannerPage() {
         setLoadedRoute(toPlannedRoute(saved));
         setSavedRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
         setSelectedIndex(0);
-        setStartPoint(toLatLon(saved.start_point));
-        setEndPoint(toLatLon(saved.end_point));
-        setMaxTime(saved.max_time === null ? "" : String(saved.max_time));
-        setMaxFuel(saved.max_fuel === null ? "" : String(saved.max_fuel));
+        setStartPoint({
+            lat: saved.start_point.coordinates[1],
+            lon: saved.start_point.coordinates[0],
+        });
+        setEndPoint({
+            lat: saved.end_point.coordinates[1],
+            lon: saved.end_point.coordinates[0],
+        });
+        // setMaxTime(saved.max_time === null ? "" : String(saved.max_time));
+        // setMaxFuel(saved.max_fuel === null ? "" : String(saved.max_fuel));
     }
 
     async function handleSendRouteToHeatmap(saved: SavedRoute) {
@@ -413,8 +419,8 @@ export default function PatrolPlannerPage() {
                     type: "Point",
                     coordinates: [endPoint.lon, endPoint.lat],
                 },
-                max_time: maxTime.trim() === "" ? null : Number(maxTime),
-                max_fuel: maxFuel.trim() === "" ? null : Number(maxFuel),
+                max_time: null,
+                max_fuel: null,
                 risk_by_cell: Object.fromEntries(riskByCell),
                 route: routes[index],
             });

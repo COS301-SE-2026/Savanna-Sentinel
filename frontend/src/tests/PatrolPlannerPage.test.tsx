@@ -233,8 +233,6 @@ describe("PatrolPlannerPage", () => {
             screen.getByLabelText(/^end point$/i),
             "-24.32, 31.08",
         );
-        await userEvent.clear(screen.getByLabelText(/max time/i));
-        await userEvent.clear(screen.getByLabelText(/max fuel/i));
         await userEvent.click(
             screen.getByRole("button", { name: /generate routes/i }),
         );
@@ -407,8 +405,6 @@ describe("PatrolPlannerPage", () => {
     it("saves the selected route and marks its card as saved", async () => {
         renderPage();
         await enterBothPoints();
-        await userEvent.type(screen.getByLabelText(/max time/i), "120");
-        await userEvent.type(screen.getByLabelText(/max fuel/i), "40");
         await userEvent.click(
             screen.getByRole("button", { name: /generate routes/i }),
         );
@@ -491,8 +487,6 @@ describe("PatrolPlannerPage", () => {
             screen.getByLabelText(/^end point$/i),
             "-24.32, 31.08",
         );
-        await userEvent.type(screen.getByLabelText(/max time/i), "120");
-        await userEvent.type(screen.getByLabelText(/max fuel/i), "40");
         await userEvent.click(
             screen.getByRole("button", { name: /generate routes/i }),
         );
