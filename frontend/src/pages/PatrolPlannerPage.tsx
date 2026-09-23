@@ -33,6 +33,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import type { ArmedField, LatLon } from "@/types/patrol";
 import { getSnapHeightPx } from "@/lib/utils";
 import { useMapStore } from "@/store/mapStore";
+import { UserLocationLayer } from "@/components/map/UserLocationLayer";
+import { useUserLocation } from "@/hooks/useUserLocation";
+import { UserLocationNotice } from "@/components/map/UserLocationNotice";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { MotionSimulator } from "@/components/dev/MotionSimulator";
 
 const DEFAULT_ZOOM = 10;
 
@@ -67,6 +73,8 @@ interface SidebarContentProps {
     onLoadDialogOpenChange: (open: boolean) => void;
     onLoadRoute: (saved: SavedRoute) => void;
     onSendRouteToHeatmap: (saved: SavedRoute) => void;
+    locationVisible: boolean;
+    onLocationVisibleChange: (visible: boolean) => void;
 }
 
 function SidebarContent({
@@ -96,6 +104,8 @@ function SidebarContent({
     onLoadDialogOpenChange,
     onLoadRoute,
     onSendRouteToHeatmap,
+    locationVisible,
+    onLocationVisibleChange,
 }: SidebarContentProps) {
     return (
         <div className="flex flex-col gap-5 p-4">
@@ -145,6 +155,21 @@ function SidebarContent({
                     savedIndices={savedIndices}
                     canSave={canSave}
                 />
+            </div>
+            <div className="flex min-h-11 w-full cursor-pointer items-center gap-2">
+                <Checkbox
+                    id="show-location"
+                    checked={locationVisible}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        onLocationVisibleChange(e.target.checked)
+                    }
+                />
+                <Label
+                    htmlFor="show-location"
+                    className="cursor-pointer text-sm font-medium text-color-text-primary select-none"
+                >
+                    My Location
+                </Label>
             </div>
         </div>
     );
@@ -237,6 +262,41 @@ export default function PatrolPlannerPage() {
     const isGridLoading = gridStatus !== "error" && grid === null;
     const [isNoDataBannerDismissed, setIsNoDataBannerDismissed] =
         useState(false);
+    const [isLocationVisible, setLocationVisible] = useState(false);
+    const { location: userLocation, status: userLocationStatus } =
+        useUserLocation(isLocationVisible);
+
+    const bottomAnchorStyle = isMobile
+        ? {
+              bottom: `calc(${Math.min(
+                  getSnapHeightPx(drawerSnap ?? COLLAPSED_SNAP),
+                  getSnapHeightPx(EXPANDED_SNAP),
+              )}px + 0.5rem)`,
+          }
+        : undefined;
+
+    const handleLocationVisibleChange = async (visible: boolean) => {
+        if (visible && typeof DeviceMotionEvent !== "undefined") {
+            const deviceMotionEventPermission =
+                DeviceMotionEvent as unknown as {
+                    requestPermission?: () => Promise<
+                        "granted" | "denied" | "default"
+                    >;
+                };
+
+            if (
+                typeof deviceMotionEventPermission.requestPermission ===
+                "function"
+            ) {
+                try {
+                    await deviceMotionEventPermission.requestPermission();
+                } catch {
+                    console.warn("Motion sensor permission failed or denied");
+                }
+            }
+        }
+        setLocationVisible(visible);
+    };
 
     useEffect(() => {
         loadGrid();
@@ -398,6 +458,8 @@ export default function PatrolPlannerPage() {
         onLoadDialogOpenChange: setIsLoadDialogOpen,
         onLoadRoute: handleLoadRoute,
         onSendRouteToHeatmap: handleSendRouteToHeatmap,
+        locationVisible: isLocationVisible,
+        onLocationVisibleChange: handleLocationVisibleChange,
     };
 
     return (
@@ -461,6 +523,16 @@ export default function PatrolPlannerPage() {
                     routes={displayRoutes}
                     selectedIndex={selectedIndex}
                 />
+                {isLocationVisible && (
+                    <>
+                        <UserLocationLayer map={map} location={userLocation} />
+                        <UserLocationNotice
+                            status={userLocationStatus}
+                            bottomClassName={isMobile ? "" : "bottom-2"}
+                            style={bottomAnchorStyle}
+                        />
+                    </>
+                )}
                 {isGridLoading && <LoadingPill label="Loading..." />}
                 {isGenerating && <LoadingPill label="Planning route..." />}
                 <NoDataBanner
@@ -495,6 +567,8 @@ export default function PatrolPlannerPage() {
                     </DrawerContent>
                 </Drawer>
             )}
+
+            <MotionSimulator />
         </div>
     );
 }

@@ -25,6 +25,8 @@ export interface HeatmapLayerProps {
     pickingActive: boolean;
     isMobile: boolean;
     opacityOverride?: number;
+    beforeId?: string;
+    visible?: boolean;
 }
 
 interface SelectedCell {
@@ -46,6 +48,8 @@ export function HeatmapLayer({
     pickingActive,
     isMobile,
     opacityOverride,
+    beforeId,
+    visible = true,
 }: HeatmapLayerProps) {
     const pickingActiveRef = useRef(pickingActive);
     useEffect(() => {
@@ -99,26 +103,35 @@ export function HeatmapLayer({
             opacityOverrideRef.current,
         );
 
+        const effectiveBeforeId =
+            beforeId && map.getLayer(beforeId) ? beforeId : undefined;
+
         map.addSource(SOURCE_ID, { type: "geojson", data });
-        map.addLayer({
-            id: LAYER_ID,
-            type: "fill",
-            source: SOURCE_ID,
-            paint: {
-                "fill-color": ["get", "fillColor"],
-                "fill-opacity": ["get", "fillOpacity"],
-                "fill-antialias": false,
+        map.addLayer(
+            {
+                id: LAYER_ID,
+                type: "fill",
+                source: SOURCE_ID,
+                paint: {
+                    "fill-color": ["get", "fillColor"],
+                    "fill-opacity": ["get", "fillOpacity"],
+                    "fill-antialias": false,
+                },
             },
-        });
-        map.addLayer({
-            id: OUTLINE_LAYER_ID,
-            type: "line",
-            source: SOURCE_ID,
-            paint: {
-                "line-color": "rgba(255, 255, 255, 0.25)",
-                "line-width": 0.5,
+            effectiveBeforeId,
+        );
+        map.addLayer(
+            {
+                id: OUTLINE_LAYER_ID,
+                type: "line",
+                source: SOURCE_ID,
+                paint: {
+                    "line-color": "rgba(255, 255, 255, 0.25)",
+                    "line-width": 0.5,
+                },
             },
-        });
+            effectiveBeforeId,
+        );
 
         const handleClick = (e: maplibregl.MapMouseEvent) => {
             if (pickingActiveRef.current) return;
@@ -153,7 +166,16 @@ export function HeatmapLayer({
             if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
             setSelected(null);
         };
-    }, [map, grid]);
+    }, [map, grid, beforeId]);
+
+    useEffect(() => {
+        if (!map) return;
+        const visibility = visible ? "visible" : "none";
+        if (map.getLayer(LAYER_ID))
+            map.setLayoutProperty(LAYER_ID, "visibility", visibility);
+        if (map.getLayer(OUTLINE_LAYER_ID))
+            map.setLayoutProperty(OUTLINE_LAYER_ID, "visibility", visibility);
+    }, [map, grid, visible]);
 
     useEffect(() => {
         if (!map || !grid) return;

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
+    beforeEach,
     beforeAll,
     afterEach,
     afterAll,
@@ -14,6 +15,22 @@ import {
 } from "vitest";
 
 const mapRegistry = vi.hoisted(() => ({ instances: [] as unknown[] }));
+
+vi.mock("../hooks/useUserLocation", () => ({
+    useUserLocation: vi.fn((enabled: boolean) => ({
+        location: enabled ? { lat: -24.3, lng: 31.05 } : null,
+        status: enabled ? "ACTIVE" : "IDLE",
+    })),
+}));
+
+vi.mock("../components/map/UserLocationLayer", () => ({
+    UserLocationLayer: () => <div data-testid="user-location-layer" />,
+}));
+vi.mock("../components/map/UserLocationNotice", () => ({
+    UserLocationNotice: ({ status }: { status: string }) => (
+        <div data-testid="user-location-notice">Status: {status}</div>
+    ),
+}));
 
 vi.mock("maplibre-gl", async () => {
     const maplibre = await import("./mocks/maplibreMock");
@@ -641,5 +658,93 @@ describe("PatrolPlannerPage", () => {
         expect(
             screen.getByText(/generate routes to see alternatives/i),
         ).toBeInTheDocument();
+    });
+});
+
+describe("Location Handling", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("renders my location unchecked by default without rendering the location layer", async () => {
+        renderPage();
+
+        const checkbox = screen.getByRole("checkbox", { name: /my location/i });
+        expect(checkbox).not.toBeChecked();
+
+        expect(
+            screen.queryByTestId("user-location-layer"),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByTestId("user-location-notice"),
+        ).not.toBeInTheDocument();
+    });
+
+    it("renders location layer when my location is checked", async () => {
+        renderPage();
+
+        const checkbox = screen.getByRole("checkbox", { name: /my location/i });
+        await userEvent.click(checkbox);
+
+        expect(checkbox).toBeChecked();
+        expect(screen.getByTestId("user-location-layer")).toBeInTheDocument();
+        expect(screen.getByTestId("user-location-notice")).toBeInTheDocument();
+        expect(screen.getByText("Status: ACTIVE")).toBeInTheDocument();
+    });
+
+    it("removes location layer and notice when toggled off", async () => {
+        renderPage();
+
+        const checkbox = screen.getByRole("checkbox", { name: /my location/i });
+        await userEvent.click(checkbox);
+        expect(screen.getByTestId("user-location-layer")).toBeInTheDocument();
+
+        await userEvent.click(checkbox);
+        expect(checkbox).not.toBeChecked();
+
+        expect(
+            screen.queryByTestId("user-location-layer"),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByTestId("user-location-notice"),
+        ).not.toBeInTheDocument();
+    });
+
+    it("requests DeviceMotionEvent permission iOS devices", async () => {
+        const mockRequestPermission = vi.fn().mockResolvedValue("granted");
+
+        vi.stubGlobal("DeviceMotionEvent", {
+            requestPermission: mockRequestPermission,
+        });
+
+        renderPage();
+
+        const checkbox = screen.getByRole("checkbox", { name: /my location/i });
+        await userEvent.click(checkbox);
+
+        expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+        expect(checkbox).toBeChecked();
+        expect(screen.getByTestId("user-location-layer")).toBeInTheDocument();
+    });
+
+    it("does not trigger motion permission request when unchecking location", async () => {
+        const mockRequestPermission = vi.fn().mockResolvedValue("granted");
+
+        vi.stubGlobal("DeviceMotionEvent", {
+            requestPermission: mockRequestPermission,
+        });
+
+        renderPage();
+
+        const checkbox = screen.getByRole("checkbox", { name: /my location/i });
+        await userEvent.click(checkbox);
+        expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+
+        await userEvent.click(checkbox);
+        expect(mockRequestPermission).toHaveBeenCalledTimes(1);
     });
 });

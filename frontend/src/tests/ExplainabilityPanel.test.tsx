@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
 import { ExplainabilityPanel } from "@/components/map/ExplainabilityPanel";
 import { useMapStore, initialMapState } from "@/store/mapStore";
@@ -152,5 +152,108 @@ describe("ExplainabilityPanel", () => {
         expect(
             screen.getByText(/last updated/i).closest("div")!,
         ).toHaveTextContent("2 hr ago");
+    });
+});
+
+describe("Permission and Location settings", () => {
+    let originalDeviceMotionEvent: typeof window.DeviceMotionEvent;
+
+    beforeEach(() => {
+        originalDeviceMotionEvent = window.DeviceMotionEvent;
+    });
+
+    afterEach(() => {
+        Object.defineProperty(window, "DeviceMotionEvent", {
+            writable: true,
+            configurable: true,
+            value: originalDeviceMotionEvent,
+        });
+        vi.restoreAllMocks();
+    });
+
+    it("requests DeviceMotionEvent permission on iOS when checking My Location", async () => {
+        const mockRequestPermission = vi.fn().mockResolvedValue("granted");
+
+        Object.defineProperty(window, "DeviceMotionEvent", {
+            writable: true,
+            configurable: true,
+            value: Object.assign(function DeviceMotionEvent() {}, {
+                requestPermission: mockRequestPermission,
+            }),
+        });
+
+        const props = renderPanel({ locationVisible: false });
+
+        await userEvent.click(
+            screen.getByRole("checkbox", { name: /my location/i }),
+        );
+
+        expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+        expect(props.onLocationVisibleChange).toHaveBeenCalledWith(true);
+    });
+
+    it("does not request permission when location is unchecked", async () => {
+        const mockRequestPermission = vi.fn().mockResolvedValue("granted");
+
+        Object.defineProperty(window, "DeviceMotionEvent", {
+            writable: true,
+            configurable: true,
+            value: Object.assign(function DeviceMotionEvent() {}, {
+                requestPermission: mockRequestPermission,
+            }),
+        });
+
+        const props = renderPanel({ locationVisible: true });
+
+        await userEvent.click(
+            screen.getByRole("checkbox", { name: /my location/i }),
+        );
+
+        expect(mockRequestPermission).not.toHaveBeenCalled();
+        expect(props.onLocationVisibleChange).toHaveBeenCalledWith(false);
+    });
+
+    it("handles browsers where requestPermission is undefined", async () => {
+        Object.defineProperty(window, "DeviceMotionEvent", {
+            writable: true,
+            configurable: true,
+            value: function DeviceMotionEvent() {},
+        });
+
+        const props = renderPanel({ locationVisible: false });
+
+        await userEvent.click(
+            screen.getByRole("checkbox", { name: /my location/i }),
+        );
+
+        expect(props.onLocationVisibleChange).toHaveBeenCalledWith(true);
+    });
+
+    it("catches permission failures", async () => {
+        const consoleWarnSpy = vi
+            .spyOn(console, "warn")
+            .mockImplementation(() => {});
+        const mockError = new Error("User denied permission");
+        const mockRequestPermission = vi.fn().mockRejectedValue(mockError);
+
+        Object.defineProperty(window, "DeviceMotionEvent", {
+            writable: true,
+            configurable: true,
+            value: Object.assign(function DeviceMotionEvent() {}, {
+                requestPermission: mockRequestPermission,
+            }),
+        });
+
+        renderPanel();
+
+        await userEvent.click(
+            screen.getByRole("checkbox", { name: /my location/i }),
+        );
+
+        expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+            "Motion sensor permission failed:",
+            mockError,
+        );
     });
 });
