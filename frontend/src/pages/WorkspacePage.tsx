@@ -6,6 +6,14 @@ import { MapControls } from "@/components/map/MapControls";
 import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { LoadingPill } from "@/components/map/LoadingPill";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { notifyCritical, notifySafe } from "@/components/ui/toast";
 import { WorkspaceMapLayers } from "@/components/workspace/WorkspaceMapLayers";
 import { DrawToolbar } from "@/components/workspace/DrawToolbar";
@@ -33,7 +41,9 @@ export default function WorkspacePage() {
     const memberships = useWorkspaceStore((s) => s.memberships);
     const features = useWorkspaceStore((s) => s.features);
     const hasUnsavedChanges = useWorkspaceStore((s) => s.hasUnsavedChanges);
+    const workspaceStatus = useWorkspaceStore((s) => s.status);
     const saveWorkspace = useWorkspaceStore((s) => s.saveWorkspace);
+    const loadWorkspace = useWorkspaceStore((s) => s.loadWorkspace);
 
     const [selection, setSelection] = useState<WorkspaceSelection>(null);
     const [editingFeatureId, setEditingFeatureId] = useState<string | null>(
@@ -42,6 +52,8 @@ export default function WorkspacePage() {
     const [finishEditSignal, setFinishEditSignal] = useState(0);
     const [cancelEditSignal, setCancelEditSignal] = useState(0);
     const [activeDrawMode, setActiveDrawMode] = useState("select");
+    const [isSaving, setSaving] = useState(false);
+    const [isConflictOpen, setConflictOpen] = useState(false);
     const lastDrawnAtRef = useRef(-Infinity);
     const isDrawToolActive = activeDrawMode !== "select";
 
@@ -65,7 +77,9 @@ export default function WorkspacePage() {
     useEffect(() => {
         loadGrid();
         loadSnapshots();
-    }, [loadGrid, loadSnapshots]);
+        const status = useWorkspaceStore.getState().status;
+        if (status === "idle" || status === "error") loadWorkspace();
+    }, [loadGrid, loadSnapshots, loadWorkspace]);
 
     function handleSelectLayer(layerId: string) {
         setActiveLayer(layerId);
@@ -118,15 +132,30 @@ export default function WorkspacePage() {
         setSelection({ kind: "membership", membershipId });
     }
 
-    function handleSave() {
-        if (saveWorkspace()) {
+    async function handleSave() {
+        setSaving(true);
+        const result = await saveWorkspace();
+        setSaving(false);
+
+        if (result === "saved") {
             notifySafe("Workspace saved");
-        } else {
-            notifyCritical(
-                "Could not save workspace",
-                "Browser storage is full or unavailable. Your changes are still open but will be lost on reload.",
-            );
+            return;
         }
+        if (result === "conflict") {
+            setConflictOpen(true);
+            return;
+        }
+        notifyCritical(
+            "Could not save workspace",
+            "The server could not be reached.",
+        );
+    }
+
+    async function handleLoadLatest() {
+        setConflictOpen(false);
+        setSelection(null);
+        setEditingFeatureId(null);
+        await loadWorkspace();
     }
 
     return (
@@ -191,13 +220,16 @@ export default function WorkspacePage() {
                         variant="outline"
                         size="sm"
                         className="absolute right-2 bottom-2 z-[var(--z-sticky)] bg-color-surface-raised shadow-sm"
-                        disabled={!hasUnsavedChanges}
+                        disabled={!hasUnsavedChanges || isSaving}
                         onClick={handleSave}
                     >
-                        Save
+                        {isSaving ? "Saving..." : "Save"}
                     </Button>
                 )}
-                {gridStatus === "loading" && <LoadingPill label="Loading..." />}
+                {(gridStatus === "loading" ||
+                    workspaceStatus === "loading") && (
+                    <LoadingPill label="Loading..." />
+                )}
             </div>
 
             {!isMobile && (
@@ -210,6 +242,31 @@ export default function WorkspacePage() {
                     />
                 </aside>
             )}
+
+            <Dialog open={isConflictOpen} onOpenChange={setConflictOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Workspace changed elsewhere</DialogTitle>
+                        <DialogDescription>
+                            Someone else saved the workspace while you were
+                            working, so nothing was saved. Loading the latest
+                            version discards your unsaved edits.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setConflictOpen(false)}
+                        >
+                            Keep editing
+                        </Button>
+                        <Button type="button" onClick={handleLoadLatest}>
+                            Load latest version
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
