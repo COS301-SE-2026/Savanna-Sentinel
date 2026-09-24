@@ -18,6 +18,7 @@ from app.api.v1.tipoffs import router as tipoff_router
 
 # As other routers are built, import and include them here:
 from app.api.v1.users import router as users_router
+from app.api.v1.workspace import router as workspace_router
 
 # As other routers are built, import and include them here:
 # from app.api.v1.reports import router as reports_router
@@ -66,6 +67,7 @@ app.include_router(risk_router, prefix="/v1")
 app.include_router(tipoff_router, prefix="/v1")
 app.include_router(dashboard_router, prefix="/v1")
 app.include_router(notifications_router, prefix="/v1")
+app.include_router(workspace_router, prefix="/v1")
 
 
 @app.get("/v1/health", tags=["health"])
