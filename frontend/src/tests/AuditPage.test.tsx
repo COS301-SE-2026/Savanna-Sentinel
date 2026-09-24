@@ -95,7 +95,9 @@ describe("AuditLog Component Testing", () => {
     it("renders 'No details to display' fallback", async () => {
         mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 2, 20));
         render(<AuditLog />);
-        expect(await screen.findByText("No details to display")).toBeInTheDocument();
+        expect(
+            await screen.findByText("No details to display"),
+        ).toBeInTheDocument();
     });
 
     it("calls api when page changes", async () => {

@@ -101,7 +101,7 @@ export default function AuditLog() {
         // Ingestion
         if ("record_count" in details) {
             // Mize the 0 or 1 record input, its gonna be records
-            return `${("filename" in details) ? details.filename : 'CSV file'} uploaded with ${details.record_count} records`
+            return `${"filename" in details ? details.filename : "CSV file"} uploaded with ${details.record_count} records`;
         }
 
         // Fallback case
