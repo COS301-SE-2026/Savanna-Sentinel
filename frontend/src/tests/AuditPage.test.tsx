@@ -92,10 +92,10 @@ describe("AuditLog Component Testing", () => {
         expect(screen.queryByText("actor-1")).not.toBeInTheDocument();
     });
 
-    it("renders 'No details' fallback", async () => {
+    it("renders 'No details to display' fallback", async () => {
         mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 2, 20));
         render(<AuditLog />);
-        expect(await screen.findByText("No details")).toBeInTheDocument();
+        expect(await screen.findByText("No details to display")).toBeInTheDocument();
     });
 
     it("calls api when page changes", async () => {
