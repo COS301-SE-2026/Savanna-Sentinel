@@ -9,12 +9,17 @@ import type {
 } from "@/lib/workspace/types";
 import { wouldCreateCycle, getDescendantLayerIds } from "@/lib/workspace/tree";
 import { resolveMembershipStyle } from "@/lib/workspace/styleResolution";
+import {
+    fetchWorkspace,
+    saveVisibility,
+    saveWorkspace as putWorkspace,
+    WorkspaceConflictError,
+    type VisibilityEntry,
+} from "@/services/workspaceApi";
 
 function newId(): string {
     return crypto.randomUUID();
 }
-
-const STORAGE_KEY = "workspace-storage";
 
 function withoutOrphans(
     features: WorkspaceFeature[],
@@ -31,11 +36,16 @@ function nextOrder(siblings: { order: number }[]): number {
     return siblings.reduce((max, s) => Math.max(max, s.order + 1), 0);
 }
 
+export type WorkspaceStatus = "idle" | "loading" | "ready" | "error";
+export type WorkspaceSaveResult = "saved" | "conflict" | "error";
+
 export interface WorkspaceDataState {
     layers: WorkspaceLayer[];
     features: WorkspaceFeature[];
     memberships: WorkspaceMembership[];
     activeLayerId: string | null;
+    version: number;
+    status: WorkspaceStatus;
 }
 
 const initialData: WorkspaceDataState = {
@@ -43,22 +53,14 @@ const initialData: WorkspaceDataState = {
     features: [],
     memberships: [],
     activeLayerId: null,
+    version: 0,
+    status: "idle",
 };
-
-function loadPersistedData(): WorkspaceDataState {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return initialData;
-        const parsed = JSON.parse(raw);
-        return { ...initialData, ...parsed.state };
-    } catch {
-        return initialData;
-    }
-}
 
 export interface WorkspaceState extends WorkspaceDataState {
     hasUnsavedChanges: boolean;
-    saveWorkspace: () => boolean;
+    loadWorkspace: () => Promise<void>;
+    saveWorkspace: () => Promise<WorkspaceSaveResult>;
     resetWorkspace: () => void;
     addLayer: (name: string | undefined, parentId: string | null) => string;
     renameLayer: (layerId: string, name: string) => void;
@@ -119,36 +121,57 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
     const markDirty = (partial: Partial<WorkspaceDataState>) =>
         set({ ...partial, hasUnsavedChanges: true });
 
+    const pushVisibility = (entries: VisibilityEntry[]) => {
+        if (get().status !== "ready" || get().hasUnsavedChanges) return;
+        void saveVisibility(entries).catch(() => {});
+    };
+
     const state: WorkspaceState = {
-        ...loadPersistedData(),
+        ...initialData,
         hasUnsavedChanges: false,
 
-        saveWorkspace: () => {
-            const { layers, features, memberships, activeLayerId } = get();
-            const data: WorkspaceDataState = {
-                layers,
-                features,
-                memberships,
-                activeLayerId,
-            };
+        loadWorkspace: async () => {
+            set({ status: "loading" });
             try {
-                localStorage.setItem(
-                    STORAGE_KEY,
-                    JSON.stringify({ state: data, version: 0 }),
-                );
+                const snapshot = await fetchWorkspace();
+                set({
+                    layers: snapshot.layers,
+                    features: snapshot.features,
+                    memberships: snapshot.memberships,
+                    version: snapshot.version,
+                    activeLayerId: null,
+                    status: "ready",
+                    hasUnsavedChanges: false,
+                });
             } catch {
-                return false;
+                set({ status: "error" });
             }
-            set({ hasUnsavedChanges: false });
-            return true;
+        },
+
+        saveWorkspace: async () => {
+            const { layers, features, memberships, version } = get();
+            try {
+                const snapshot = await putWorkspace(version, {
+                    layers,
+                    features,
+                    memberships,
+                });
+                set({
+                    layers: snapshot.layers,
+                    features: snapshot.features,
+                    memberships: snapshot.memberships,
+                    version: snapshot.version,
+                    status: "ready",
+                    hasUnsavedChanges: false,
+                });
+                return "saved";
+            } catch (error) {
+                if (error instanceof WorkspaceConflictError) return "conflict";
+                return "error";
+            }
         },
 
         resetWorkspace: () => {
-            try {
-                localStorage.removeItem(STORAGE_KEY);
-            } catch {
-                // Storage unavailable
-            }
             set({ ...initialData, hasUnsavedChanges: false });
         },
 
@@ -257,7 +280,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
             });
         },
 
-        setActiveLayer: (layerId) => markDirty({ activeLayerId: layerId }),
+        setActiveLayer: (layerId) => set({ activeLayerId: layerId }),
 
         drawFeature: (type, geometry) => {
             const activeLayerId = get().activeLayerId;
@@ -449,11 +472,12 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
         },
 
         toggleMembershipVisibility: (membershipId, visible) => {
-            markDirty({
+            set({
                 memberships: get().memberships.map((m) =>
                     m.id === membershipId ? { ...m, visible } : m,
                 ),
             });
+            pushVisibility([{ membershipId, visible }]);
         },
 
         toggleLayerVisibility: (layerId, visible) => {
@@ -461,11 +485,15 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
                 layerId,
                 ...getDescendantLayerIds(get().layers, layerId),
             ]);
-            markDirty({
+            const affected = get()
+                .memberships.filter((m) => subtree.has(m.layerId))
+                .map((m) => ({ membershipId: m.id, visible }));
+            set({
                 memberships: get().memberships.map((m) =>
                     subtree.has(m.layerId) ? { ...m, visible } : m,
                 ),
             });
+            pushVisibility(affected);
         },
     };
 
