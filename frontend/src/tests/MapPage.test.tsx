@@ -28,17 +28,38 @@ import * as maplibregl from "maplibre-gl";
 import MapPage from "@/pages/MapPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers } from "./mocks/riskHandlers";
+import { SAVED_ROUTE } from "./mocks/savedRouteHandlers";
 import { useMapStore, initialMapState } from "@/store/mapStore";
+import { useAuthStore } from "@/store/authStore";
+import { loadPinnedRoute, pinRouteToHeatmap } from "@/offline/pinnedRouteCache";
+import { db } from "@/offline/db";
 import type { FakeMap } from "./mocks/maplibreMock";
+
+const USER_ID = "u1";
 
 const server = setupServer(...riskHandlers);
 beforeAll(() => server.listen());
-afterEach(() => {
+afterEach(async () => {
     server.resetHandlers();
     vi.restoreAllMocks();
     useMapStore.setState(initialMapState, true);
+    await db.cache.clear();
+    useAuthStore.setState({
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+    });
 });
 afterAll(() => server.close());
+
+async function signInWithPinnedRoute() {
+    useAuthStore.setState({
+        user: { id: USER_ID, username: "tester", role: "ranger" },
+        accessToken: "token",
+        refreshToken: "refresh",
+    });
+    await pinRouteToHeatmap(USER_ID, SAVED_ROUTE);
+}
 
 function renderPage() {
     return render(
@@ -261,6 +282,83 @@ describe("MapPage", () => {
             configurable: true,
             value: undefined,
         });
+    });
+
+    it("has no Patrol Route layer control until a route has been sent over", async () => {
+        renderPage();
+        await screen.findByRole("checkbox", { name: /risk heatmap/i });
+
+        expect(
+            screen.queryByRole("checkbox", { name: /patrol route/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("draws a route sent from the patrol planner, with its start and end markers", async () => {
+        await signInWithPinnedRoute();
+        const addSourceSpy = vi.spyOn(maplibregl.Map.prototype, "addSource");
+        renderPage();
+
+        await waitFor(() => {
+            const ids = addSourceSpy.mock.calls.map(([id]) => id);
+            expect(ids).toContain("patrol-route-0");
+        });
+
+        const map = addSourceSpy.mock.instances[0] as unknown as FakeMap;
+        const source = map.getSource("patrol-route-0") as unknown as {
+            data: { geometry: { coordinates: [number, number][] } };
+        };
+        expect(source.data.geometry.coordinates).toEqual(
+            SAVED_ROUTE.path_geometry.coordinates,
+        );
+        await waitFor(() => expect(map.markers.size).toBe(2));
+    });
+
+    it("draws the route sent over even when the risk grid cannot be fetched", async () => {
+        server.use(
+            http.get("http://localhost:8000/v1/risk/grid", () =>
+                HttpResponse.json({ detail: "offline" }, { status: 500 }),
+            ),
+        );
+        await signInWithPinnedRoute();
+        const addSourceSpy = vi.spyOn(maplibregl.Map.prototype, "addSource");
+        renderPage();
+
+        await waitFor(() => {
+            const ids = addSourceSpy.mock.calls.map(([id]) => id);
+            expect(ids).toContain("patrol-route-0");
+        });
+    });
+
+    it("removes the route line when the Patrol Route layer is unchecked", async () => {
+        await signInWithPinnedRoute();
+        const removeLayerSpy = vi.spyOn(
+            maplibregl.Map.prototype,
+            "removeLayer",
+        );
+        renderPage();
+
+        await userEvent.click(
+            await screen.findByRole("checkbox", { name: /patrol route/i }),
+        );
+
+        await waitFor(() =>
+            expect(removeLayerSpy).toHaveBeenCalledWith("patrol-route-0-line"),
+        );
+    });
+
+    it("forgets the route on this device when Remove is clicked", async () => {
+        await signInWithPinnedRoute();
+        renderPage();
+        await screen.findByRole("checkbox", { name: /patrol route/i });
+
+        await userEvent.click(screen.getByRole("button", { name: /remove/i }));
+
+        await waitFor(() =>
+            expect(
+                screen.queryByRole("checkbox", { name: /patrol route/i }),
+            ).not.toBeInTheDocument(),
+        );
+        expect(await loadPinnedRoute(USER_ID)).toBeNull();
     });
 
     it("tears down cleanly on unmount", async () => {

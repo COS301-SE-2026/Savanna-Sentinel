@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type * as maplibregl from "maplibre-gl";
 
 import { MapView } from "@/components/map/MapView";
@@ -21,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { routeApi } from "@/services/routeApi";
 import { cacheSavedRoute } from "@/offline/routesCache";
+import { pinRouteToHeatmap } from "@/offline/pinnedRouteCache";
+import { toPlannedRoute } from "@/lib/patrolRoute";
 import { useAuthStore } from "@/store/authStore";
 import type { SavedRoute, PlannedRoute } from "@/services/routeApi";
 import { usePollRouteJob } from "@/hooks/usePollRouteJob";
@@ -69,6 +72,7 @@ interface SidebarContentProps {
     isLoadDialogOpen: boolean;
     onLoadDialogOpenChange: (open: boolean) => void;
     onLoadRoute: (saved: SavedRoute) => void;
+    onSendRouteToHeatmap: (saved: SavedRoute) => void;
     locationVisible: boolean;
     onLocationVisibleChange: (visible: boolean) => void;
 }
@@ -99,6 +103,7 @@ function SidebarContent({
     isLoadDialogOpen,
     onLoadDialogOpenChange,
     onLoadRoute,
+    onSendRouteToHeatmap,
     locationVisible,
     onLocationVisibleChange,
 }: SidebarContentProps) {
@@ -117,6 +122,7 @@ function SidebarContent({
                 open={isLoadDialogOpen}
                 onOpenChange={onLoadDialogOpenChange}
                 onLoad={onLoadRoute}
+                onSendToHeatmap={onSendRouteToHeatmap}
             />
             <PatrolPlannerForm
                 startPoint={startPoint}
@@ -198,6 +204,7 @@ const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
 
 export default function PatrolPlannerPage() {
     const user = useAuthStore((s) => s.user);
+    const navigate = useNavigate();
     const isMobile = useIsMobile();
     const [map, setMap] = useState<maplibregl.Map | null>(null);
     const [mapCenter, setMapCenter] = useState<[number, number]>([
@@ -366,13 +373,7 @@ export default function PatrolPlannerPage() {
 
     function handleLoadRoute(saved: SavedRoute) {
         setRequestId(null);
-        setLoadedRoute({
-            suggested_path: [],
-            path_geometry: saved.path_geometry,
-            estimated_time_min: saved.estimated_time_min,
-            estimated_fuel_l: saved.estimated_fuel_l,
-            risk_coverage: saved.risk_coverage,
-        });
+        setLoadedRoute(toPlannedRoute(saved));
         setSavedRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
         setSelectedIndex(0);
         setStartPoint({
@@ -385,6 +386,21 @@ export default function PatrolPlannerPage() {
         });
         // setMaxTime(saved.max_time === null ? "" : String(saved.max_time));
         // setMaxFuel(saved.max_fuel === null ? "" : String(saved.max_fuel));
+    }
+
+    async function handleSendRouteToHeatmap(saved: SavedRoute) {
+        if (!user?.id) {
+            notifyCritical("Could not send the route to the heatmap");
+            return;
+        }
+        try {
+            await pinRouteToHeatmap(user.id, saved);
+        } catch {
+            notifyCritical("Could not send the route to the heatmap");
+            return;
+        }
+        setIsLoadDialogOpen(false);
+        navigate("/map");
     }
 
     const canSave = requestId !== null;
@@ -447,6 +463,7 @@ export default function PatrolPlannerPage() {
         isLoadDialogOpen,
         onLoadDialogOpenChange: setIsLoadDialogOpen,
         onLoadRoute: handleLoadRoute,
+        onSendRouteToHeatmap: handleSendRouteToHeatmap,
         locationVisible: isLocationVisible,
         onLocationVisibleChange: handleLocationVisibleChange,
     };

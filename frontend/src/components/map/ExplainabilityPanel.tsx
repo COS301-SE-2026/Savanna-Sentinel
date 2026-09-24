@@ -23,6 +23,10 @@ export interface ExplainabilityPanelProps {
     opacity: number;
     onOpacityChange: (opacity: number) => void;
     gridStale?: boolean;
+    hasRoute?: boolean;
+    routeVisible?: boolean;
+    onRouteVisibleChange?: (visible: boolean) => void;
+    onRemoveRoute?: () => void;
 }
 
 export function ExplainabilityPanel({
@@ -33,6 +37,10 @@ export function ExplainabilityPanel({
     opacity,
     onOpacityChange,
     gridStale = false,
+    hasRoute = false,
+    routeVisible = false,
+    onRouteVisibleChange,
+    onRemoveRoute,
 }: ExplainabilityPanelProps) {
     const cellsByRef = useMapStore((s) => s.cellsByRef);
     const summary = useMapStore((s) => s.summary);
@@ -115,6 +123,28 @@ export function ExplainabilityPanel({
                             My Location
                         </span>
                     </label>
+                    {hasRoute && (
+                        <div className="flex min-h-11 w-full items-center gap-2">
+                            <label className="flex flex-1 cursor-pointer items-center gap-2">
+                                <Checkbox
+                                    checked={routeVisible}
+                                    onChange={(e) =>
+                                        onRouteVisibleChange?.(e.target.checked)
+                                    }
+                                />
+                                <span className="text-sm text-color-text-primary">
+                                    Patrol Route
+                                </span>
+                            </label>
+                            <button
+                                type="button"
+                                onClick={onRemoveRoute}
+                                className="rounded-sm px-1 text-xs text-color-text-secondary underline hover:text-color-text-primary focus-visible:ring-2 focus-visible:ring-brand-primary"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
