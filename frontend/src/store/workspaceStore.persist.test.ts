@@ -1,94 +1,219 @@
-import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
+import {
+    describe,
+    it,
+    expect,
+    afterEach,
+    afterAll,
+    beforeAll,
+    beforeEach,
+} from "vitest";
+
 import { useWorkspaceStore, initialWorkspaceState } from "./workspaceStore";
+import {
+    workspaceHandlers,
+    workspaceState,
+    resetWorkspaceMock,
+} from "@/tests/mocks/workspaceHandlers";
 
-beforeEach(() => {
-    localStorage.clear();
-});
+const server = setupServer(...workspaceHandlers);
 
+beforeAll(() => server.listen());
+beforeEach(() => resetWorkspaceMock());
 afterEach(() => {
+    server.resetHandlers();
     useWorkspaceStore.setState(initialWorkspaceState, true);
-    localStorage.clear();
 });
+afterAll(() => server.close());
 
-describe("workspaceStore persistence", () => {
-    it("does not write to localStorage when a change is made", () => {
-        useWorkspaceStore.getState().addLayer("Water", null);
-        expect(localStorage.getItem("workspace-storage")).toBeNull();
-    });
+const A_LAYER = {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Water",
+    parent_id: null,
+    order: 0,
+    default_style: { colour: "#0070bf", stroke_width: 3 },
+};
 
-    it("marks hasUnsavedChanges true after a change", () => {
+describe("workspaceStore server persistence", () => {
+    it("does not touch the server when a change is made", async () => {
         useWorkspaceStore.getState().addLayer("Water", null);
+
+        expect(workspaceState.saveCalls).toHaveLength(0);
         expect(useWorkspaceStore.getState().hasUnsavedChanges).toBe(true);
     });
 
-    it("writes state to localStorage under the workspace-storage key when saveWorkspace is called", () => {
-        useWorkspaceStore.getState().addLayer("Water", null);
-        useWorkspaceStore.getState().saveWorkspace();
-        const raw = localStorage.getItem("workspace-storage");
-        expect(raw).not.toBeNull();
-        const parsed = JSON.parse(raw!);
-        expect(parsed.state.layers).toHaveLength(1);
-        expect(parsed.state.layers[0].name).toBe("Water");
+    it("loads the stored workspace and its version", async () => {
+        workspaceState.current = {
+            version: 4,
+            layers: [A_LAYER],
+            features: [],
+            memberships: [],
+        };
+
+        await useWorkspaceStore.getState().loadWorkspace();
+
+        const state = useWorkspaceStore.getState();
+        expect(state.version).toBe(4);
+        expect(state.status).toBe("ready");
+        expect(state.hasUnsavedChanges).toBe(false);
+        expect(state.layers).toHaveLength(1);
+        expect(state.layers[0].name).toBe("Water");
+        expect(state.layers[0].defaultStyle).toEqual({
+            colour: "#0070bf",
+            strokeWidth: 3,
+        });
     });
 
-    it("clears hasUnsavedChanges after saveWorkspace is called", () => {
+    it("sends the whole workspace and the loaded version on save", async () => {
+        await useWorkspaceStore.getState().loadWorkspace();
         useWorkspaceStore.getState().addLayer("Water", null);
-        useWorkspaceStore.getState().saveWorkspace();
+
+        const result = await useWorkspaceStore.getState().saveWorkspace();
+
+        expect(result).toBe("saved");
+        expect(workspaceState.saveCalls).toHaveLength(1);
+        expect(workspaceState.saveCalls[0].base_version).toBe(0);
+        expect(workspaceState.saveCalls[0].layers).toHaveLength(1);
+        expect(useWorkspaceStore.getState().version).toBe(1);
         expect(useWorkspaceStore.getState().hasUnsavedChanges).toBe(false);
     });
 
-    it("hydrates from a previously saved localStorage state on module load", async () => {
-        localStorage.setItem(
-            "workspace-storage",
-            JSON.stringify({
-                state: {
-                    layers: [
-                        {
-                            id: "l1",
-                            name: "Water",
-                            parentId: null,
-                            order: 0,
-                            defaultStyle: {},
-                        },
-                    ],
-                    features: [],
-                    memberships: [],
-                    activeLayerId: null,
-                },
-                version: 0,
-            }),
+    it("reports a conflict and keeps the edits when the version moved on", async () => {
+        await useWorkspaceStore.getState().loadWorkspace();
+        useWorkspaceStore.getState().addLayer("Water", null);
+        workspaceState.current = { ...workspaceState.current, version: 3 };
+
+        const result = await useWorkspaceStore.getState().saveWorkspace();
+
+        expect(result).toBe("conflict");
+        expect(useWorkspaceStore.getState().hasUnsavedChanges).toBe(true);
+        expect(useWorkspaceStore.getState().layers).toHaveLength(1);
+    });
+
+    it("reports an error and keeps the edits when the save fails", async () => {
+        await useWorkspaceStore.getState().loadWorkspace();
+        useWorkspaceStore.getState().addLayer("Water", null);
+        workspaceState.failSave = true;
+
+        const result = await useWorkspaceStore.getState().saveWorkspace();
+
+        expect(result).toBe("error");
+        expect(useWorkspaceStore.getState().hasUnsavedChanges).toBe(true);
+    });
+
+    it("marks the store as errored when the workspace cannot be loaded", async () => {
+        server.use(
+            http.get(
+                "http://localhost:8000/v1/workspace",
+                () => new HttpResponse(null, { status: 500 }),
+            ),
         );
 
-        vi.resetModules();
-        const mod = await import("./workspaceStore");
+        await useWorkspaceStore.getState().loadWorkspace();
 
-        expect(mod.useWorkspaceStore.getState().layers).toHaveLength(1);
-        expect(mod.useWorkspaceStore.getState().layers[0].name).toBe("Water");
-        expect(mod.useWorkspaceStore.getState().hasUnsavedChanges).toBe(false);
+        expect(useWorkspaceStore.getState().status).toBe("error");
     });
 
-    it("saveWorkspace returns false and keeps unsaved changes when storage throws", () => {
-        useWorkspaceStore.getState().addLayer("Water", null);
-        vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-            throw new DOMException("full", "QuotaExceededError");
-        });
+    it("loading again replaces unsaved edits", async () => {
+        await useWorkspaceStore.getState().loadWorkspace();
+        useWorkspaceStore.getState().addLayer("Scratch", null);
+        workspaceState.current = {
+            version: 9,
+            layers: [A_LAYER],
+            features: [],
+            memberships: [],
+        };
 
-        const hasSaved = useWorkspaceStore.getState().saveWorkspace();
+        await useWorkspaceStore.getState().loadWorkspace();
 
-        expect(hasSaved).toBe(false);
-        expect(useWorkspaceStore.getState().hasUnsavedChanges).toBe(true);
-        vi.restoreAllMocks();
+        const state = useWorkspaceStore.getState();
+        expect(state.version).toBe(9);
+        expect(state.layers.map((l) => l.name)).toEqual(["Water"]);
+        expect(state.hasUnsavedChanges).toBe(false);
     });
 
-    it("resetWorkspace clears in-memory data and the persisted copy", () => {
+    it("resetWorkspace clears the in-memory workspace", async () => {
+        await useWorkspaceStore.getState().loadWorkspace();
         useWorkspaceStore.getState().addLayer("Water", null);
-        useWorkspaceStore.getState().saveWorkspace();
-        expect(localStorage.getItem("workspace-storage")).not.toBeNull();
 
         useWorkspaceStore.getState().resetWorkspace();
 
-        expect(localStorage.getItem("workspace-storage")).toBeNull();
-        expect(useWorkspaceStore.getState().layers).toEqual([]);
+        const state = useWorkspaceStore.getState();
+        expect(state.layers).toEqual([]);
+        expect(state.version).toBe(0);
+        expect(state.status).toBe("idle");
+        expect(state.hasUnsavedChanges).toBe(false);
+    });
+
+    it("selecting a layer is not an unsaved change", async () => {
+        await useWorkspaceStore.getState().loadWorkspace();
+        const layerId = useWorkspaceStore.getState().addLayer("Water", null);
+        await useWorkspaceStore.getState().saveWorkspace();
+
+        useWorkspaceStore.getState().setActiveLayer(layerId);
+
         expect(useWorkspaceStore.getState().hasUnsavedChanges).toBe(false);
+    });
+});
+
+describe("workspace visibility", () => {
+    async function savedWorkspaceWithOneFeature() {
+        await useWorkspaceStore.getState().loadWorkspace();
+        const layerId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(layerId);
+        const created = useWorkspaceStore.getState().drawFeature("point", {
+            type: "Point",
+            coordinates: [31.1, -24.4],
+        });
+        await useWorkspaceStore.getState().saveWorkspace();
+        return { layerId, membershipId: created!.membershipId };
+    }
+
+    it("pushes a toggle on its own once the workspace is saved", async () => {
+        const { membershipId } = await savedWorkspaceWithOneFeature();
+
+        useWorkspaceStore
+            .getState()
+            .toggleMembershipVisibility(membershipId, false);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(workspaceState.visibilityCalls).toEqual([
+            { entries: [{ membership_id: membershipId, visible: false }] },
+        ]);
+        expect(useWorkspaceStore.getState().hasUnsavedChanges).toBe(false);
+    });
+
+    it("pushes every membership under a layer in one request", async () => {
+        const { layerId, membershipId } = await savedWorkspaceWithOneFeature();
+
+        useWorkspaceStore.getState().toggleLayerVisibility(layerId, false);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(workspaceState.visibilityCalls).toEqual([
+            { entries: [{ membership_id: membershipId, visible: false }] },
+        ]);
+    });
+
+    it("leaves a toggle to the pending save while there are unsaved edits", async () => {
+        await useWorkspaceStore.getState().loadWorkspace();
+        const layerId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(layerId);
+        const created = useWorkspaceStore.getState().drawFeature("point", {
+            type: "Point",
+            coordinates: [31.1, -24.4],
+        });
+
+        useWorkspaceStore
+            .getState()
+            .toggleMembershipVisibility(created!.membershipId, false);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(workspaceState.visibilityCalls).toEqual([]);
+
+        await useWorkspaceStore.getState().saveWorkspace();
+        expect(workspaceState.saveCalls[0].memberships).toEqual([
+            expect.objectContaining({ visible: false }),
+        ]);
     });
 });

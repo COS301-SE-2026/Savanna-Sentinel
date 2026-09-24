@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime  # noqa: TC003
 from typing import Any, Optional
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Text
