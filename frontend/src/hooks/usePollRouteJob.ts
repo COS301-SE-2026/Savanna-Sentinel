@@ -38,8 +38,6 @@ export function usePollRouteJob(
                 ? (result?.num_alternatives_found ?? null)
                 : null,
         shortfallReason:
-            status === "completed"
-                ? (result?.shortfall_reason ?? null)
-                : null,
+            status === "completed" ? (result?.shortfall_reason ?? null) : null,
     };
 }
