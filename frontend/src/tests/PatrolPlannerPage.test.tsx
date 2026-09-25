@@ -200,48 +200,6 @@ describe("PatrolPlannerPage", () => {
         }
     });
 
-    it("omits max_time and max_fuel from the request when left blank", async () => {
-        let requestBody: { max_time?: number; max_fuel?: number } | null = null;
-        server.use(
-            http.post(
-                "http://localhost:8000/v1/routes",
-                async ({ request }) => {
-                    requestBody = (await request.json()) as {
-                        max_time?: number;
-                        max_fuel?: number;
-                    };
-                    return HttpResponse.json(
-                        {
-                            job_id: ROUTE_REQUEST_ID,
-                            request_id: ROUTE_REQUEST_ID,
-                            park_id: "klaserie",
-                            status: "queued",
-                            queued_at: new Date().toISOString(),
-                        },
-                        { status: 202 },
-                    );
-                },
-            ),
-        );
-
-        renderPage();
-        await userEvent.type(
-            screen.getByLabelText(/^start point$/i),
-            "-24.3, 31.05",
-        );
-        await userEvent.type(
-            screen.getByLabelText(/^end point$/i),
-            "-24.32, 31.08",
-        );
-        await userEvent.click(
-            screen.getByRole("button", { name: /generate routes/i }),
-        );
-
-        await waitFor(() => expect(requestBody).not.toBeNull());
-        expect(requestBody!.max_time).toBeUndefined();
-        expect(requestBody!.max_fuel).toBeUndefined();
-    });
-
     it("tears down cleanly when navigated away from mid-session", async () => {
         const { unmount } = renderPage();
         await userEvent.type(

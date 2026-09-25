@@ -52,8 +52,6 @@ export function PatrolPlannerForm({
     onArmField,
     onStartPointChange,
     onEndPointChange,
-    maxTime,
-    maxFuel,
     onGenerate,
     isGenerating,
     heatmapHasNoData,
