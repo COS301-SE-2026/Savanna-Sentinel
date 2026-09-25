@@ -278,7 +278,7 @@ def select_next_waypoint(
     node_risk: dict[str, float],
     config: ACOConfig,
     rng: random.Random,
-    covered: frozenset[str] = frozenset(),
+    covered: frozenset[str] | set[str] = frozenset(),
 ) -> str | None:
     if not candidates:
         return None
@@ -354,7 +354,7 @@ def construct_waypoint_tour(
             node_risk,
             config,
             rng,
-            frozenset(covered),
+            covered,
         )
         if chosen is None:
             break
@@ -363,9 +363,7 @@ def construct_waypoint_tour(
         # Union the whole hop's coverage before diffing against covered,
         # so an earlier node's radius cant shadow a later node's credit
         # based on loop order.
-        hop_covered: set[str] = set()
-        for node_id in hop.path[1:]:
-            hop_covered |= coverage_neighbors.get(node_id, {node_id})
+        hop_covered = _hop_coverage(graph, hop)
         newly_covered = hop_covered - covered
         risk_total += sum(node_risk.get(n, 0.0) for n in newly_covered)
         covered |= hop_covered
@@ -391,6 +389,32 @@ def evaluate_hub_sequence(
     Scores risk exactly as construct_waypoint_tour does, so a local search
     move is compared against the tour on the same terms.
     """
+    scored = _evaluate_hubs(graph, distance_matrix, sequence)
+    return None if scored is None else scored[:3]
+
+
+def _hop_coverage(graph: ParkGraph, hop: PathResult) -> set[str]:
+    # built exactly as before, so set order and risk sums are unchanged
+    cache = getattr(graph, "_hop_coverage_cache", None)
+    if cache is None:
+        cache = {}
+        graph._hop_coverage_cache = cache
+    entry = cache.get(id(hop))
+    if entry is not None and entry[0] is hop:
+        return entry[1]
+    coverage_neighbors = _coverage_neighbors(graph)
+    hop_covered: set[str] = set()
+    for node_id in hop.path[1:]:
+        hop_covered |= coverage_neighbors.get(node_id, {node_id})
+    cache[id(hop)] = (hop, hop_covered)
+    return hop_covered
+
+
+def _evaluate_hubs(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    sequence: list[str],
+) -> tuple[list[str], float, float, set[str]] | None:
     if len(sequence) < 2:
         return None
     node_risk = _node_risk(graph)
@@ -404,13 +428,11 @@ def evaluate_hub_sequence(
         if hop is None:
             return None
         time_used += hop.time_min
-        hop_covered: set[str] = set()
-        for node_id in hop.path[1:]:
-            hop_covered |= coverage_neighbors.get(node_id, {node_id})
+        hop_covered = _hop_coverage(graph, hop)
         risk_total += sum(node_risk.get(n, 0.0) for n in hop_covered - covered)
         covered |= hop_covered
         expanded.extend(hop.path[1:])
-    return expanded, time_used, risk_total
+    return expanded, time_used, risk_total, covered
 
 
 def _sequence_time(
@@ -426,25 +448,104 @@ def _sequence_time(
     return total
 
 
-def _two_opt_candidates(sequence: list[str]):
+# estimates only skip clearly-worse moves, the rest get exact times
+SEQUENCE_TIME_MARGIN = 1e-6
+REVERSE_TIME_TOLERANCE = 1e-9
+
+
+def _hop_time(
+    distance_matrix: dict[tuple[str, str], PathResult],
+    a: str,
+    b: str,
+) -> float:
+    hop = distance_matrix.get((a, b))
+    return math.inf if hop is None else hop.time_min
+
+
+def _reversible(
+    distance_matrix: dict[tuple[str, str], PathResult],
+    sequence: list[str],
+) -> bool:
+    for a, b in zip(sequence, sequence[1:]):
+        forward = distance_matrix.get((a, b))
+        back = distance_matrix.get((b, a))
+        if forward is None or back is None:
+            return False
+        if abs(forward.time_min - back.time_min) > REVERSE_TIME_TOLERANCE:
+            return False
+    return True
+
+
+def _two_opt_moves(
+    distance_matrix: dict[tuple[str, str], PathResult],
+    sequence: list[str],
+):
+    # only boundary hops change when the segment costs the same reversed
+    estimate = _reversible(distance_matrix, sequence)
     for i in range(1, len(sequence) - 2):
+        before, first = sequence[i - 1], sequence[i]
         for j in range(i + 1, len(sequence) - 1):
-            yield sequence[:i] + sequence[i : j + 1][::-1] + sequence[j + 1 :]
+            if not estimate:
+                yield None, i, j
+                continue
+            last, after = sequence[j], sequence[j + 1]
+            yield (
+                _hop_time(distance_matrix, before, last)
+                + _hop_time(distance_matrix, first, after)
+                - _hop_time(distance_matrix, before, first)
+                - _hop_time(distance_matrix, last, after)
+            ), i, j
 
 
-def _or_opt_candidates(sequence: list[str]):
+def _apply_two_opt(sequence: list[str], i: int, j: int) -> list[str]:
+    return sequence[:i] + sequence[i : j + 1][::-1] + sequence[j + 1 :]
+
+
+def _or_opt_moves(
+    distance_matrix: dict[tuple[str, str], PathResult],
+    sequence: list[str],
+):
     for i in range(1, len(sequence) - 1):
+        left, moved, right = sequence[i - 1], sequence[i], sequence[i + 1]
+        removal = (
+            _hop_time(distance_matrix, left, right)
+            - _hop_time(distance_matrix, left, moved)
+            - _hop_time(distance_matrix, moved, right)
+        )
         without = sequence[:i] + sequence[i + 1 :]
         for j in range(1, len(without)):
             if j == i:
                 continue
-            yield without[:j] + [sequence[i]] + without[j:]
+            a, b = without[j - 1], without[j]
+            yield removal + (
+                _hop_time(distance_matrix, a, moved)
+                + _hop_time(distance_matrix, moved, b)
+                - _hop_time(distance_matrix, a, b)
+            ), i, j
+
+
+def _apply_or_opt(sequence: list[str], i: int, j: int) -> list[str]:
+    without = sequence[:i] + sequence[i + 1 :]
+    return without[:j] + [sequence[i]] + without[j:]
+
+
+HUB_MOVES = ((_two_opt_moves, _apply_two_opt), (_or_opt_moves, _apply_or_opt))
+
+
+def _clearly_not_below(
+    base_time: float | None,
+    delta: float | None,
+    bound: float,
+) -> bool:
+    if base_time is None or delta is None:
+        return False
+    return base_time + delta >= bound + SEQUENCE_TIME_MARGIN
 
 
 def improve_hub_sequence(
     distance_matrix: dict[tuple[str, str], PathResult],
     sequence: list[str],
-    moves=(_two_opt_candidates, _or_opt_candidates),
+    moves=HUB_MOVES,
 ) -> list[str]:
     """Shorten a hub order by 2-opt and or-opt, keeping the same stops.
 
@@ -460,8 +561,12 @@ def improve_hub_sequence(
     improved = True
     while improved:
         improved = False
-        for move in moves:
-            for candidate in move(best):
+        for move, apply_move in moves:
+            start, start_time = best, best_time
+            for delta, i, j in move(distance_matrix, start):
+                if _clearly_not_below(start_time, delta, best_time):
+                    continue
+                candidate = apply_move(start, i, j)
                 candidate_time = _sequence_time(distance_matrix, candidate)
                 if candidate_time is not None and candidate_time < best_time:
                     best, best_time = candidate, candidate_time
@@ -702,6 +807,7 @@ def _covered_weight(weights: dict[str, float], covered) -> float:
     return math.fsum(weights[c] for c in covered if c in weights)
 
 
+QUICK_EFFORT_MARGIN = 1e-6
 TURN_PENALTY_MIN_PER_RAD = 4.0
 FREE_TURN_RAD = math.pi / 4
 REVISIT_PENALTY_MIN = 3.0
@@ -742,6 +848,110 @@ def route_effort(graph: ParkGraph, path: list[str], time_used: float) -> float:
     )
 
 
+def _turn_terms(graph: ParkGraph, path: list[str]) -> tuple[float, ...]:
+    at = _node_locations(graph)
+    return tuple(
+        max(_turn_angle(at[a], at[b], at[c]) - FREE_TURN_RAD, 0.0)
+        for a, b, c in zip(path, path[1:], path[2:])
+        if a != b and b != c
+    )
+
+
+def _hop_turn_terms(graph: ParkGraph, hop: PathResult) -> tuple[float, ...]:
+    cache = getattr(graph, "_hop_turn_terms_cache", None)
+    if cache is None:
+        cache = {}
+        graph._hop_turn_terms_cache = cache
+    entry = cache.get(id(hop))
+    if entry is not None and entry[0] is hop:
+        return entry[1]
+    terms = _turn_terms(graph, hop.path)
+    cache[id(hop)] = (hop, terms)
+    return terms
+
+
+def _joint_turn_terms(
+    graph: ParkGraph,
+    joint: tuple[str, str, str],
+) -> tuple[float, ...]:
+    cache = getattr(graph, "_joint_turn_terms_cache", None)
+    if cache is None:
+        cache = {}
+        graph._joint_turn_terms_cache = cache
+    terms = cache.get(joint)
+    if terms is None:
+        terms = _turn_terms(graph, list(joint))
+        cache[joint] = terms
+    return terms
+
+
+def _hop_turning(graph: ParkGraph, hop: PathResult) -> float:
+    cache = getattr(graph, "_hop_turning_cache", None)
+    if cache is None:
+        cache = {}
+        graph._hop_turning_cache = cache
+    entry = cache.get(id(hop))
+    if entry is not None and entry[0] is hop:
+        return entry[1]
+    turning = math.fsum(_hop_turn_terms(graph, hop))
+    cache[id(hop)] = (hop, turning)
+    return turning
+
+
+def _effort_floor(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    hubs: list[str],
+) -> float | None:
+    # lower bound on _quick_effort (no revisits), O(hubs)
+    time_used = turning = 0.0
+    prev = None
+    for a, b in zip(hubs, hubs[1:]):
+        hop = distance_matrix.get((a, b))
+        if hop is None:
+            return None
+        time_used += hop.time_min
+        turning += _hop_turning(graph, hop)
+        if prev is not None:
+            joint = (prev.path[-2], prev.path[-1], hop.path[1])
+            turning += sum(_joint_turn_terms(graph, joint))
+        prev = hop
+    return time_used + TURN_PENALTY_MIN_PER_RAD * turning
+
+
+def _quick_effort(
+    graph: ParkGraph,
+    distance_matrix: dict[tuple[str, str], PathResult],
+    hubs: list[str],
+) -> float | None:
+    # route_effort from cached per-hop and hub-joint turns
+    hops = []
+    time_used = 0.0
+    for a, b in zip(hubs, hubs[1:]):
+        hop = distance_matrix.get((a, b))
+        if hop is None:
+            return None
+        time_used += hop.time_min
+        hops.append(hop)
+    if not hops:
+        return None
+    pieces = [_hop_turn_terms(graph, hop) for hop in hops]
+    for prev, nxt in zip(hops, hops[1:]):
+        joint = (prev.path[-2], prev.path[-1], nxt.path[1])
+        pieces.append(_joint_turn_terms(graph, joint))
+    turning = math.fsum(t for piece in pieces for t in piece)
+    nodes = {hubs[0]}
+    length = 1
+    for hop in hops:
+        nodes.update(hop.path[1:])
+        length += len(hop.path) - 1
+    return (
+        time_used
+        + TURN_PENALTY_MIN_PER_RAD * turning
+        + REVISIT_PENALTY_MIN * (length - len(nodes))
+    )
+
+
 @dataclass
 class _ScoredTour:
     hubs: list[str]
@@ -758,11 +968,11 @@ def _score_tour(
     weights: dict[str, float],
     hubs: list[str],
 ) -> _ScoredTour | None:
-    scored = evaluate_hub_sequence(graph, distance_matrix, hubs)
+    scored = _evaluate_hubs(graph, distance_matrix, hubs)
     if scored is None:
         return None
-    path, time_used, risk_total = scored
-    covered = _covered_weight(weights, covered_nodes(graph, path))
+    path, time_used, risk_total, covered_cells = scored
+    covered = _covered_weight(weights, covered_cells)
     effort = route_effort(graph, path, time_used)
     return _ScoredTour(hubs, path, time_used, risk_total, covered, effort)
 
@@ -775,8 +985,17 @@ def _cheapest_insertion(
     hubs: list[str],
     stop: str,
 ) -> list[str] | None:
+    base_time = _sequence_time(distance_matrix, hubs)
     best, best_time = None, math.inf
     for position in range(1, len(hubs)):
+        left, right = hubs[position - 1], hubs[position]
+        delta = (
+            _hop_time(distance_matrix, left, stop)
+            + _hop_time(distance_matrix, stop, right)
+            - _hop_time(distance_matrix, left, right)
+        )
+        if _clearly_not_below(base_time, delta, best_time):
+            continue
         candidate = hubs[:position] + [stop] + hubs[position:]
         time_used = _sequence_time(distance_matrix, candidate)
         if time_used is not None and time_used < best_time:
@@ -877,10 +1096,22 @@ def _first_smoother_order(
     tour: _ScoredTour,
     floor: float,
 ) -> _ScoredTour | None:
-    for move in (_two_opt_candidates, _or_opt_candidates):
-        for hubs in move(tour.hubs):
+    base_time = _sequence_time(distance_matrix, tour.hubs)
+    for move, apply_move in HUB_MOVES:
+        for delta, i, j in move(distance_matrix, tour.hubs):
+            if _clearly_not_below(base_time, delta, tour.effort - COVERAGE_EPS):
+                continue
+            hubs = apply_move(tour.hubs, i, j)
             time_used = _sequence_time(distance_matrix, hubs)
             if time_used is None or time_used >= tour.effort - COVERAGE_EPS:
+                continue
+            # skip clearly-worse effort before the full score
+            too_much = tour.effort - COVERAGE_EPS + QUICK_EFFORT_MARGIN
+            least_effort = _effort_floor(graph, distance_matrix, hubs)
+            if least_effort is None or least_effort >= too_much:
+                continue
+            effort = _quick_effort(graph, distance_matrix, hubs)
+            if effort is None or effort >= too_much:
                 continue
             candidate = _score_tour(graph, distance_matrix, weights, hubs)
             if (
