@@ -18,17 +18,29 @@ export function SectionHeader({ children }: { children: string }) {
 export interface ExplainabilityPanelProps {
     heatmapVisible: boolean;
     onHeatmapVisibleChange: (visible: boolean) => void;
+    locationVisible: boolean;
+    onLocationVisibleChange: (visible: boolean) => void;
     opacity: number;
     onOpacityChange: (opacity: number) => void;
     gridStale?: boolean;
+    hasRoute?: boolean;
+    routeVisible?: boolean;
+    onRouteVisibleChange?: (visible: boolean) => void;
+    onRemoveRoute?: () => void;
 }
 
 export function ExplainabilityPanel({
     heatmapVisible,
     onHeatmapVisibleChange,
+    locationVisible,
+    onLocationVisibleChange,
     opacity,
     onOpacityChange,
     gridStale = false,
+    hasRoute = false,
+    routeVisible = false,
+    onRouteVisibleChange,
+    onRemoveRoute,
 }: ExplainabilityPanelProps) {
     const cellsByRef = useMapStore((s) => s.cellsByRef);
     const summary = useMapStore((s) => s.summary);
@@ -49,6 +61,35 @@ export function ExplainabilityPanel({
         }
         return { criticalCount, highCount };
     }, [cellsByRef]);
+
+    const handleLocationChange = async (checked: boolean) => {
+        if (checked && typeof DeviceMotionEvent !== "undefined") {
+            const deviceMotionEventPermission =
+                DeviceMotionEvent as unknown as {
+                    requestPermission?: () => Promise<
+                        "granted" | "denied" | "default"
+                    >;
+                };
+
+            if (
+                typeof deviceMotionEventPermission.requestPermission ===
+                "function"
+            ) {
+                try {
+                    const permission =
+                        await deviceMotionEventPermission.requestPermission();
+                    if (permission !== "granted") {
+                        return;
+                    }
+                } catch (error) {
+                    console.warn("Motion sensor permission failed:", error);
+                    return;
+                }
+            }
+        }
+
+        onLocationVisibleChange(checked);
+    };
 
     return (
         <div className="flex flex-col gap-5 p-4">
@@ -71,6 +112,39 @@ export function ExplainabilityPanel({
                             Risk Heatmap
                         </span>
                     </label>
+                    <label className="flex min-h-11 w-full cursor-pointer items-center gap-2">
+                        <Checkbox
+                            checked={locationVisible}
+                            onChange={(e) =>
+                                handleLocationChange(e.target.checked)
+                            }
+                        />
+                        <span className="text-sm text-color-text-primary">
+                            My Location
+                        </span>
+                    </label>
+                    {hasRoute && (
+                        <div className="flex min-h-11 w-full items-center gap-2">
+                            <label className="flex flex-1 cursor-pointer items-center gap-2">
+                                <Checkbox
+                                    checked={routeVisible}
+                                    onChange={(e) =>
+                                        onRouteVisibleChange?.(e.target.checked)
+                                    }
+                                />
+                                <span className="text-sm text-color-text-primary">
+                                    Patrol Route
+                                </span>
+                            </label>
+                            <button
+                                type="button"
+                                onClick={onRemoveRoute}
+                                className="rounded-sm px-1 text-xs text-color-text-secondary underline hover:text-color-text-primary focus-visible:ring-2 focus-visible:ring-brand-primary"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

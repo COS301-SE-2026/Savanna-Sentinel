@@ -14,21 +14,37 @@ import {
 
 import { LoadPreviousRoutesDialog } from "@/components/patrol/LoadPreviousRoutesDialog";
 import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
+import { loadPinnedRoute, pinRouteToHeatmap } from "@/offline/pinnedRouteCache";
+import { db } from "@/offline/db";
+import { useAuthStore } from "@/store/authStore";
 
 const server = setupServer(...savedRouteHandlers);
 beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
+afterEach(async () => {
+    server.resetHandlers();
+    await db.cache.clear();
+    useAuthStore.setState({
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+    });
+});
 afterAll(() => server.close());
+
+function renderDialog() {
+    const props = {
+        open: true,
+        onOpenChange: vi.fn(),
+        onLoad: vi.fn(),
+        onSendToHeatmap: vi.fn(),
+    };
+    render(<LoadPreviousRoutesDialog {...props} />);
+    return props;
+}
 
 describe("LoadPreviousRoutesDialog", () => {
     it("fetches and lists saved routes when opened", async () => {
-        render(
-            <LoadPreviousRoutesDialog
-                open
-                onOpenChange={vi.fn()}
-                onLoad={vi.fn()}
-            />,
-        );
+        renderDialog();
 
         const routeButton = await screen.findByRole("button", {
             name: /55\.0 km/i,
@@ -50,13 +66,7 @@ describe("LoadPreviousRoutesDialog", () => {
             ),
         );
 
-        render(
-            <LoadPreviousRoutesDialog
-                open
-                onOpenChange={vi.fn()}
-                onLoad={vi.fn()}
-            />,
-        );
+        renderDialog();
 
         expect(
             await screen.findByText(/no saved routes yet/i),
@@ -64,15 +74,7 @@ describe("LoadPreviousRoutesDialog", () => {
     });
 
     it("calls onLoad and closes when a route is clicked", async () => {
-        const onLoad = vi.fn();
-        const onOpenChange = vi.fn();
-        render(
-            <LoadPreviousRoutesDialog
-                open
-                onOpenChange={onOpenChange}
-                onLoad={onLoad}
-            />,
-        );
+        const { onLoad, onOpenChange } = renderDialog();
 
         const routeButton = await screen.findByRole("button", {
             name: /55\.0 km/i,
@@ -90,13 +92,7 @@ describe("LoadPreviousRoutesDialog", () => {
             ),
         );
 
-        render(
-            <LoadPreviousRoutesDialog
-                open
-                onOpenChange={vi.fn()}
-                onLoad={vi.fn()}
-            />,
-        );
+        renderDialog();
 
         expect(
             await screen.findByText(/failed to load saved routes/i),
@@ -104,14 +100,7 @@ describe("LoadPreviousRoutesDialog", () => {
     });
 
     it("calls onLoad when Enter is pressed on a route row", async () => {
-        const onLoad = vi.fn();
-        render(
-            <LoadPreviousRoutesDialog
-                open
-                onOpenChange={vi.fn()}
-                onLoad={onLoad}
-            />,
-        );
+        const { onLoad } = renderDialog();
 
         const routeButton = await screen.findByRole("button", {
             name: /55\.0 km/i,
@@ -122,14 +111,21 @@ describe("LoadPreviousRoutesDialog", () => {
         expect(onLoad).toHaveBeenCalledWith(SAVED_ROUTE);
     });
 
-    it("asks for confirmation before deleting; cancel dismisses, confirm deletes", async () => {
-        render(
-            <LoadPreviousRoutesDialog
-                open
-                onOpenChange={vi.fn()}
-                onLoad={vi.fn()}
-            />,
+    it("sends a route to the heatmap without also loading it into the planner", async () => {
+        const { onSendToHeatmap, onLoad } = renderDialog();
+
+        await userEvent.click(
+            await screen.findByRole("button", {
+                name: /show saved route on heatmap/i,
+            }),
         );
+
+        expect(onSendToHeatmap).toHaveBeenCalledWith(SAVED_ROUTE);
+        expect(onLoad).not.toHaveBeenCalled();
+    });
+
+    it("asks for confirmation before deleting; cancel dismisses, confirm deletes", async () => {
+        renderDialog();
 
         const deleteButton = await screen.findByRole("button", {
             name: /delete saved route/i,
@@ -158,5 +154,27 @@ describe("LoadPreviousRoutesDialog", () => {
         expect(
             await screen.findByText(/no saved routes yet/i),
         ).toBeInTheDocument();
+    });
+
+    it("stops showing a route on the heatmap once it is deleted", async () => {
+        useAuthStore.setState({
+            user: { id: "u1", username: "tester", role: "ranger" },
+            accessToken: "token",
+            refreshToken: "refresh",
+        });
+        await pinRouteToHeatmap("u1", SAVED_ROUTE);
+        renderDialog();
+
+        await userEvent.click(
+            await screen.findByRole("button", {
+                name: /delete saved route/i,
+            }),
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^delete$/i }),
+        );
+
+        await screen.findByText(/no saved routes yet/i);
+        expect(await loadPinnedRoute("u1")).toBeNull();
     });
 });

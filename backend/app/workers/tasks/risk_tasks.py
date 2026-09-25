@@ -49,11 +49,6 @@ async def _train(
             park_id,
             fetch_since,
         )
-        patrol_by_cell = await risk_repository.fetch_patrol_tracks_by_cell(
-            session,
-            park_id,
-            fetch_since,
-        )
         sightings_by_cell = await risk_repository.fetch_sightings_by_cell(
             session,
             park_id,
@@ -63,7 +58,6 @@ async def _train(
         examples = build_training_examples(
             cells,
             incidents_by_cell,
-            patrol_by_cell,
             window_start,
             window_end,
             feature_lookback_days=_FEATURE_LOOKBACK_DAYS,
@@ -152,11 +146,6 @@ async def _score(park_id: str, triggered_manually: bool = False) -> dict:
             park_id,
             fetch_since,
         )
-        patrol_by_cell = await risk_repository.fetch_patrol_tracks_by_cell(
-            session,
-            park_id,
-            fetch_since,
-        )
         sightings_by_cell = await risk_repository.fetch_sightings_by_cell(
             session,
             park_id,
@@ -166,7 +155,6 @@ async def _score(park_id: str, triggered_manually: bool = False) -> dict:
         features_per_cell = compute_cell_features(
             cells,
             incidents_by_cell,
-            patrol_by_cell,
             reference_time,
             lookback_days=_FEATURE_LOOKBACK_DAYS,
             sightings_by_cell=sightings_by_cell,
