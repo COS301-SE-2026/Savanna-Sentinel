@@ -350,6 +350,126 @@ describe("HeatmapLayer", () => {
         ).toBeTruthy();
     });
 
+    it("inserts the fill and outline layers before beforeId when that layer already exists", async () => {
+        const map = new maplibregl.Map({
+            container: document.createElement("div"),
+        }) as unknown as FakeMap;
+        map.addLayer({ id: "workspace-polygons-fill" });
+        const addLayerSpy = vi.spyOn(map, "addLayer");
+        render(
+            <HeatmapLayer
+                map={map as never}
+                grid={TEST_GRID}
+                riskByCell={makeRiskByCell(0.1)}
+                pickingActive={false}
+                isMobile={false}
+                beforeId="workspace-polygons-fill"
+            />,
+        );
+        await waitFor(() =>
+            expect(map.getLayer("patrol-risk-grid-fill")).toBeDefined(),
+        );
+
+        const fillCall = addLayerSpy.mock.calls.find(
+            ([layer]) =>
+                (layer as { id: string }).id === "patrol-risk-grid-fill",
+        );
+        const outlineCall = addLayerSpy.mock.calls.find(
+            ([layer]) =>
+                (layer as { id: string }).id === "patrol-risk-grid-outline",
+        );
+        expect(fillCall?.[1]).toBe("workspace-polygons-fill");
+        expect(outlineCall?.[1]).toBe("workspace-polygons-fill");
+    });
+
+    it("omits beforeId without throwing when the target layer does not exist yet", async () => {
+        const map = new maplibregl.Map({
+            container: document.createElement("div"),
+        }) as unknown as FakeMap;
+        const addLayerSpy = vi.spyOn(map, "addLayer");
+        expect(() =>
+            render(
+                <HeatmapLayer
+                    map={map as never}
+                    grid={TEST_GRID}
+                    riskByCell={makeRiskByCell(0.1)}
+                    pickingActive={false}
+                    isMobile={false}
+                    beforeId="does-not-exist"
+                />,
+            ),
+        ).not.toThrow();
+        await waitFor(() =>
+            expect(map.getLayer("patrol-risk-grid-fill")).toBeDefined(),
+        );
+
+        const fillCall = addLayerSpy.mock.calls.find(
+            ([layer]) =>
+                (layer as { id: string }).id === "patrol-risk-grid-fill",
+        );
+        expect(fillCall?.[1]).toBeUndefined();
+    });
+
+    it("toggles layer visibility via setLayoutProperty when visible changes", async () => {
+        const map = new maplibregl.Map({
+            container: document.createElement("div"),
+        }) as unknown as FakeMap;
+        const { rerender } = render(
+            <HeatmapLayer
+                map={map as never}
+                grid={TEST_GRID}
+                riskByCell={makeRiskByCell(0.1)}
+                pickingActive={false}
+                isMobile={false}
+                visible
+            />,
+        );
+        await waitFor(() =>
+            expect(map.getLayer("patrol-risk-grid-fill")).toBeDefined(),
+        );
+
+        rerender(
+            <HeatmapLayer
+                map={map as never}
+                grid={TEST_GRID}
+                riskByCell={makeRiskByCell(0.1)}
+                pickingActive={false}
+                isMobile={false}
+                visible={false}
+            />,
+        );
+        await waitFor(() => {
+            expect(map.setLayoutProperty).toHaveBeenCalledWith(
+                "patrol-risk-grid-fill",
+                "visibility",
+                "none",
+            );
+            expect(map.setLayoutProperty).toHaveBeenCalledWith(
+                "patrol-risk-grid-outline",
+                "visibility",
+                "none",
+            );
+        });
+
+        rerender(
+            <HeatmapLayer
+                map={map as never}
+                grid={TEST_GRID}
+                riskByCell={makeRiskByCell(0.1)}
+                pickingActive={false}
+                isMobile={false}
+                visible
+            />,
+        );
+        await waitFor(() =>
+            expect(map.setLayoutProperty).toHaveBeenCalledWith(
+                "patrol-risk-grid-fill",
+                "visibility",
+                "visible",
+            ),
+        );
+    });
+
     it("does not open a popup on a cell with no risk score", async () => {
         const map = new maplibregl.Map({
             container: document.createElement("div"),

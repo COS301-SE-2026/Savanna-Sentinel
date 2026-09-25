@@ -45,3 +45,6 @@ export const SELECTED_ROUTE_COLOR = "#103364";
 // spot-blue
 export const UNSELECTED_ROUTE_COLOR = "#0070bf";
 export const BRAND_PRIMARY_COLOR = "#003a6b";
+
+// brand-teal.
+export const USER_LOCATION_COLOR = "#056595";

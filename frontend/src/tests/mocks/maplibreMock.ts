@@ -84,9 +84,10 @@ export class FakeMap {
         return this.sources[id];
     }
 
-    addLayer(layer: { id: string }) {
+    addLayer(layer: { id: string }, beforeId?: string) {
         this.assertNotRemoved();
         this.layers[layer.id] = layer;
+        void beforeId;
     }
 
     removeLayer(id: string) {
@@ -99,19 +100,60 @@ export class FakeMap {
         return this.layers[id];
     }
 
+    getStyle() {
+        this.assertNotRemoved();
+        return {
+            version: 8,
+            sources: this.sources,
+            layers: Object.values(this.layers),
+        };
+    }
+
+    isStyleLoaded() {
+        this.assertNotRemoved();
+        return true;
+    }
+
     setLayoutProperty = vi.fn();
     setPaintProperty = vi.fn();
+    setFilter = vi.fn((id: string, filter: unknown) => {
+        const layer = this.layers[id] as Record<string, unknown> | undefined;
+        if (layer) layer.filter = filter;
+    });
     zoomIn = vi.fn();
     zoomOut = vi.fn();
     resetNorthPitch = vi.fn();
     fitBounds = vi.fn();
+    addImage = vi.fn();
+    hasImage = vi.fn(() => false);
 
     queryRenderedFeaturesResult: unknown[] = [];
-    queryRenderedFeatures = vi.fn(() => this.queryRenderedFeaturesResult);
+    queryRenderedFeatures = vi.fn(
+        (bbox?: unknown, options?: { layers?: string[] }) => {
+            void bbox;
+            void options;
+            return this.queryRenderedFeaturesResult;
+        },
+    );
+
+    getCenter = vi.fn(() => ({ lng: 0, lat: 0 }));
+    project = vi.fn((lngLat: { lng: number; lat: number }) => ({
+        x: lngLat.lng * 100,
+        y: lngLat.lat * 100,
+    }));
+    unproject = vi.fn(([x, y]: [number, number]) => ({
+        lng: x / 100,
+        lat: y / 100,
+    }));
 
     private container: HTMLElement = document.createElement("div");
     getContainer() {
         return this.container;
+    }
+
+    private canvas: HTMLCanvasElement = document.createElement("canvas");
+    getCanvas() {
+        return this.canvas;
     }
 
     fireClick(lngLat: { lng: number; lat: number }) {
@@ -127,19 +169,33 @@ export class FakeMap {
     fireLayerClick(layerId: string, event: unknown) {
         this.layerListeners.click?.[layerId]?.forEach((h) => h(event));
     }
+
+    fire(event: string, payload?: unknown) {
+        this.listeners[event]?.forEach((h) => h(payload));
+    }
 }
 
 export class FakeMarker {
     private lngLat = { lng: 0, lat: 0 };
+    private rotation = 0;
     private map: FakeMap | null = null;
     private handlers: Record<string, Handler[]> = {};
     element: HTMLElement;
+    options: Record<string, unknown>;
     constructor(options: { element: HTMLElement }) {
         this.element = options.element;
+        this.options = options;
     }
     setLngLat(coords: [number, number]) {
         this.lngLat = { lng: coords[0], lat: coords[1] };
         return this;
+    }
+    setRotation(rotation: number) {
+        this.rotation = rotation;
+        return this;
+    }
+    getRotation() {
+        return this.rotation;
     }
     on(event: string, handler: Handler) {
         (this.handlers[event] ??= []).push(handler);

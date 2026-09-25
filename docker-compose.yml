@@ -108,7 +108,7 @@ services:
 
   worker:
     image: ${ECR_REGISTRY:-local}/savanna-sentinel-backend:${IMAGE_TAG:-latest}
-    command: celery -A app.workers.celery_app worker --loglevel=info --beat --concurrency=1
+    command: celery -A app.workers.celery_app worker --loglevel=info --beat --schedule=/tmp/celerybeat-schedule --concurrency=1
     env_file:
       - ./backend/.env
     depends_on:

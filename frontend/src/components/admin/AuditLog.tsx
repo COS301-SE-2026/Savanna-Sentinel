@@ -90,6 +90,24 @@ export default function AuditLog() {
         }
     };
 
+    const handleDetailsDisplay = (details: Record<string, string> | null) => {
+        if (details === null) return "No details to display";
+
+        // Role change
+        if ("new_role" in details) {
+            return `Role changed to ${details.new_role}`;
+        }
+
+        // Ingestion
+        if ("record_count" in details) {
+            // Mize the 0 or 1 record input, its gonna be records
+            return `${"filename" in details ? details.filename : "CSV file"} uploaded with ${details.record_count} records`;
+        }
+
+        // Fallback case
+        return JSON.stringify(details);
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -170,11 +188,7 @@ export default function AuditLog() {
                                     {log.target_username ?? log.target_id}
                                 </TableCell>
                                 <TableCell className={`${cellClass}`}>
-                                    {log.details === null
-                                        ? "No details"
-                                        : "new_role" in log.details
-                                          ? `Role changed to ${log.details.new_role}`
-                                          : JSON.stringify(log.details)}
+                                    {handleDetailsDisplay(log.details)}
                                 </TableCell>
                                 <TableCell
                                     className={`${cellClass} text-nowrap`}

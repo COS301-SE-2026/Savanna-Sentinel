@@ -8,6 +8,9 @@ import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { LoadingPill } from "@/components/map/LoadingPill";
 import { ExplainabilityPanel } from "@/components/map/ExplainabilityPanel";
 import { NoDataBanner } from "@/components/map/NoDataBanner";
+import { UserLocationLayer } from "@/components/map/UserLocationLayer";
+import { UserLocationNotice } from "@/components/map/UserLocationNotice";
+import { PatrolRouteLayer } from "@/components/map/PatrolRouteLayer";
 import {
     Drawer,
     DrawerContent,
@@ -15,8 +18,13 @@ import {
     DrawerTitle,
 } from "@/components/ui/drawer";
 import { useMapStore } from "@/store/mapStore";
+import { useAuthStore } from "@/store/authStore";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUserLocation } from "@/hooks/useUserLocation";
 import { getSnapHeightPx } from "@/lib/utils";
+import { toLatLon, toPlannedRoute } from "@/lib/patrolRoute";
+import { clearPinnedRoute, loadPinnedRoute } from "@/offline/pinnedRouteCache";
+import type { SavedRoute } from "@/services/routeApi";
 import {
     PARK_CENTER_FALLBACK,
     getGridCenterAndBounds,
@@ -80,12 +88,57 @@ export default function MapPage() {
         }
     }, [heatmapStatus]);
 
+    const [isLocationVisible, setLocationVisible] = useState(false);
+    const { location: userLocation, status: userLocationStatus } =
+        useUserLocation(isLocationVisible);
+
+    const userId = useAuthStore((s) => s.user?.id ?? null);
+    const [pinnedRoute, setPinnedRoute] = useState<SavedRoute | null>(null);
+    const [isRouteVisible, setRouteVisible] = useState(true);
+
+    useEffect(() => {
+        let isCurrent = true;
+        loadPinnedRoute(userId)
+            .then((route) => {
+                if (isCurrent) setPinnedRoute(route);
+            })
+            .catch(() => {});
+        return () => {
+            isCurrent = false;
+        };
+    }, [userId]);
+
+    const routeForLayer = useMemo(
+        () => (pinnedRoute ? [toPlannedRoute(pinnedRoute)] : []),
+        [pinnedRoute],
+    );
+
+    async function handleRemoveRoute() {
+        await clearPinnedRoute().catch(() => {});
+        setPinnedRoute(null);
+    }
+
+    const bottomAnchorStyle = isMobile
+        ? {
+              bottom: `calc(${Math.min(
+                  getSnapHeightPx(drawerSnap ?? COLLAPSED_SNAP),
+                  getSnapHeightPx(EXPANDED_SNAP),
+              )}px + 0.5rem)`,
+          }
+        : undefined;
+
     const panelProps = {
         heatmapVisible: isHeatmapVisible,
         onHeatmapVisibleChange: setHeatmapVisible,
+        locationVisible: isLocationVisible,
+        onLocationVisibleChange: setLocationVisible,
         opacity,
         onOpacityChange: setOpacity,
         gridStale: isGridStale,
+        hasRoute: pinnedRoute !== null,
+        routeVisible: isRouteVisible,
+        onRouteVisibleChange: setRouteVisible,
+        onRemoveRoute: handleRemoveRoute,
     };
 
     return (
@@ -111,19 +164,10 @@ export default function MapPage() {
                 />
                 <MapLegend
                     bottomClassName={isMobile ? "" : "bottom-2"}
-                    style={
-                        isMobile
-                            ? {
-                                  bottom: `calc(${Math.min(
-                                      getSnapHeightPx(
-                                          drawerSnap ?? COLLAPSED_SNAP,
-                                      ),
-                                      getSnapHeightPx(EXPANDED_SNAP),
-                                  )}px + 0.5rem)`,
-                              }
-                            : undefined
-                    }
+                    style={bottomAnchorStyle}
                     defaultExpanded={!isMobile}
+                    showLocation={isLocationVisible}
+                    showRoute={pinnedRoute !== null && isRouteVisible}
                 />
                 {isHeatmapVisible && (
                     <HeatmapLayer
@@ -134,6 +178,25 @@ export default function MapPage() {
                         isMobile={isMobile}
                         opacityOverride={opacity / 100}
                     />
+                )}
+                {pinnedRoute && isRouteVisible && (
+                    <PatrolRouteLayer
+                        map={map}
+                        startPoint={toLatLon(pinnedRoute.start_point)}
+                        endPoint={toLatLon(pinnedRoute.end_point)}
+                        routes={routeForLayer}
+                        selectedIndex={0}
+                    />
+                )}
+                {isLocationVisible && (
+                    <>
+                        <UserLocationLayer map={map} location={userLocation} />
+                        <UserLocationNotice
+                            status={userLocationStatus}
+                            bottomClassName={isMobile ? "" : "bottom-2"}
+                            style={bottomAnchorStyle}
+                        />
+                    </>
                 )}
                 <NoDataBanner
                     visible={
