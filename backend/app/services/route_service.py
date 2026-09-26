@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 from app.repositories import route_job_repository
 from app.repositories.patrol_route_repository import PatrolRouteRepository
-from app.schemas.geo import GeoLineString
+from app.schemas.geo import GeoLineString, GeoPoint
 from app.schemas.route import (
     PlannedRoute,
     RouteJobResponse,
@@ -52,6 +52,7 @@ async def generate_route_job(
             "park_id": settings.PARK_ID,
             "start": request.start_point.coordinates,
             "end": request.end_point.coordinates,
+            "waypoints": [p.coordinates for p in request.waypoints],
             "num_alternatives": request.num_alternatives,
             "risk_by_cell": request.risk_by_cell,
         },
@@ -156,6 +157,21 @@ def _to_wkt_linestring(line) -> str:
     return f"LINESTRING({coords})"
 
 
+def _to_wkt_multipoint(points: list[GeoPoint]) -> str | None:
+    if not points:
+        return None
+    coords = ", ".join(
+        f"({lon} {lat})" for lon, lat in (p.coordinates for p in points)
+    )
+    return f"MULTIPOINT({coords})"
+
+
+def _waypoints_from_geojson(geometry: dict | None) -> list[GeoPoint]:
+    if not geometry:
+        return []
+    return [GeoPoint(coordinates=tuple(c)) for c in geometry["coordinates"]]
+
+
 async def save_route(
     db: "AsyncSession",
     current_user: "User",
@@ -171,12 +187,14 @@ async def save_route(
         path_wkt=_to_wkt_linestring(req.route.path_geometry),
         distance_km=req.route.distance_km,
         risk_coverage=req.route.risk_coverage,
+        waypoints_wkt=_to_wkt_multipoint(req.waypoints),
     )
     return SavedRouteResponse(
         id=result["id"],
         request_id=req.request_id,
         start_point=req.start_point,
         end_point=req.end_point,
+        waypoints=req.waypoints,
         risk_by_cell=req.risk_by_cell,
         path_geometry=req.route.path_geometry,
         distance_km=req.route.distance_km,
@@ -199,6 +217,7 @@ async def list_saved_routes(
             request_id=r["request_id"],
             start_point=r["start_point"],
             end_point=r["end_point"],
+            waypoints=_waypoints_from_geojson(r["waypoints"]),
             risk_by_cell=r["risk_heatmap"],
             path_geometry=r["path_geometry"],
             distance_km=r["distance_km"],
