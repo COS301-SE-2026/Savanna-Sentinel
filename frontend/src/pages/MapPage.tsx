@@ -31,6 +31,13 @@ import {
     parseGridCells,
     scoresByCell,
 } from "@/lib/riskGrid";
+import { LayerTreePanel } from "@/components/workspace/LayerTreePanel";
+import { WorkspaceMapLayers } from "@/components/workspace/WorkspaceMapLayers";
+import type { WorkspaceSelection } from "@/components/workspace/StyleEditorPanel";
+import { useWorkspaceStore } from "@/store/workspaceStore";
+import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Layers, SlidersHorizontal } from "lucide-react";
 
 const DEFAULT_ZOOM = 10;
 
@@ -64,6 +71,67 @@ export default function MapPage() {
     const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
         COLLAPSED_SNAP,
     );
+    const [selection, setSelection] = useState<WorkspaceSelection>(null);
+    const memberships = useWorkspaceStore((s) => s.memberships);
+    const loadWorkspace = useWorkspaceStore((s) => s.loadWorkspace);
+
+    const selectedFeatureId =
+        selection?.kind === "membership"
+            ? (memberships.find((m) => m.id === selection.membershipId)
+                  ?.featureId ?? null)
+            : null;
+
+    useEffect(() => {
+        const status = useWorkspaceStore.getState().status;
+        if (status === "idle" || status === "error") {
+            loadWorkspace();
+        }
+    }, [loadWorkspace]);
+
+    function handleFeatureClick(featureId: string | null) {
+        if (!featureId) {
+            setSelection(null);
+            return;
+        }
+
+        const current = useWorkspaceStore.getState();
+        const rendered = resolveVisibleFeatures(
+            current.layers,
+            current.features,
+            current.memberships,
+        ).find((r) => r.feature.id === featureId);
+
+        if (rendered) {
+            setSelection({
+                kind: "membership",
+                membershipId: rendered.membershipId,
+            });
+        }
+    }
+
+    function handleSelectLayer(layerId: string | undefined) {
+        if (!layerId) {
+            setSelection(null);
+            return;
+        }
+
+        setSelection({
+            kind: "layer",
+            layerId,
+        });
+    }
+
+    function handleSelectMembership(membershipId: string | undefined) {
+        if (!membershipId) {
+            setSelection(null);
+            return;
+        }
+
+        setSelection({
+            kind: "membership",
+            membershipId,
+        });
+    }
 
     useEffect(() => {
         loadGrid();
@@ -169,6 +237,12 @@ export default function MapPage() {
                     showLocation={isLocationVisible}
                     showRoute={pinnedRoute !== null && isRouteVisible}
                 />
+                <WorkspaceMapLayers
+                    map={map}
+                    excludedFeatureId={null}
+                    selectedFeatureId={selectedFeatureId}
+                    onFeatureClick={handleFeatureClick}
+                />
                 {isHeatmapVisible && (
                     <HeatmapLayer
                         map={map}
@@ -207,6 +281,20 @@ export default function MapPage() {
                 {gridStatus === "loading" && <LoadingPill label="Loading..." />}
             </div>
 
+            {!isMobile && (
+                <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-color-border bg-color-surface-raised">
+                    <LayerTreePanel
+                        activeLayerId={null}
+                        selection={selection}
+                        readOnly={true}
+                        heatmapVisible={isHeatmapVisible}
+                        onToggleHeatmap={setHeatmapVisible}
+                        onSelectLayer={handleSelectLayer}
+                        onSelectMembership={handleSelectMembership}
+                    />
+                </aside>
+            )}
+
             {isMobile && (
                 <Drawer
                     modal={false}
@@ -217,14 +305,55 @@ export default function MapPage() {
                     setActiveSnapPoint={setDrawerSnap}
                 >
                     <DrawerContent className="h-full">
-                        <DrawerTitle className="sr-only">Heatmap</DrawerTitle>
+                        <DrawerTitle className="sr-only">
+                            Heatmap and Layer Control
+                        </DrawerTitle>
                         <DrawerDescription className="sr-only">
                             Choose a snapshot date, toggle map layers, adjust
-                            heatmap opacity, and view the risk summary.
+                            heatmap opacity, and view the risk summary, and
+                            toggle map layers
                         </DrawerDescription>
-                        <div className="min-h-0 flex-1 overflow-y-auto">
-                            <ExplainabilityPanel {...panelProps} />
-                        </div>
+                        <Tabs>
+                            <div className="shrink-0 border-b border-color-border px-4 py-2 bg-color-surface-raised">
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger
+                                        value="layers"
+                                        className="gap-2"
+                                    >
+                                        <Layers className="size-4" />
+                                        Layers
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value="controls"
+                                        className="gap-2"
+                                    >
+                                        <SlidersHorizontal className="size-4" />
+                                        Controls
+                                    </TabsTrigger>
+                                </TabsList>
+                            </div>
+
+                            <TabsContent
+                                value="layers"
+                                className="flex-1 overflow-y-auto p-2 m-0"
+                            >
+                                <LayerTreePanel
+                                    activeLayerId={null}
+                                    selection={selection}
+                                    readOnly={true}
+                                    heatmapVisible={isHeatmapVisible}
+                                    onToggleHeatmap={setHeatmapVisible}
+                                    onSelectLayer={handleSelectLayer}
+                                    onSelectMembership={handleSelectMembership}
+                                />
+                            </TabsContent>
+                            <TabsContent
+                                value="controls"
+                                className="flex-1 overflow-y-auto p-2 m-0"
+                            >
+                                <ExplainabilityPanel {...panelProps} />
+                            </TabsContent>
+                        </Tabs>
                     </DrawerContent>
                 </Drawer>
             )}

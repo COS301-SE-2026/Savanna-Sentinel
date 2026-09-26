@@ -25,19 +25,55 @@ vi.mock("maplibre-gl", async () => {
 });
 
 import * as maplibregl from "maplibre-gl";
+import * as WorkspaceMapLayersModule from "@/components/workspace/WorkspaceMapLayers";
+import * as LayerTreePanelModule from "@/components/workspace/LayerTreePanel";
 import MapPage from "@/pages/MapPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers } from "./mocks/riskHandlers";
+import { workspaceHandlers } from "./mocks/workspaceHandlers";
 import { SAVED_ROUTE } from "./mocks/savedRouteHandlers";
 import { useMapStore, initialMapState } from "@/store/mapStore";
 import { useAuthStore } from "@/store/authStore";
 import { loadPinnedRoute, pinRouteToHeatmap } from "@/offline/pinnedRouteCache";
 import { db } from "@/offline/db";
 import type { FakeMap } from "./mocks/maplibreMock";
+import {
+    initialWorkspaceState,
+    useWorkspaceStore,
+} from "@/store/workspaceStore";
+import * as resolveModule from "@/lib/workspace/resolveVisibleFeatures";
 
 const USER_ID = "u1";
+const MOCK_LAYER = {
+    id: "layer-test",
+    name: "Test Layer",
+    parentId: null,
+    order: 0,
+    defaultStyle: {},
+};
+const MOCK_FEATURE = {
+    name: "Test feature",
+    id: "feature-1",
+    type: "point" as const,
+    geometry: {
+        type: "Point" as const,
+        coordinates: [31.18, -24.2],
+    },
+    properties: { name: "Test feature" },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+};
 
-const server = setupServer(...riskHandlers);
+const MOCK_MEMBERSHIP = {
+    id: "mem-1",
+    layerId: "layer-test",
+    featureId: "feature-1",
+    visible: true,
+    order: 0,
+    styleOverride: {},
+};
+
+const server = setupServer(...riskHandlers, ...workspaceHandlers);
 beforeAll(() => server.listen());
 afterEach(async () => {
     server.resetHandlers();
@@ -49,6 +85,7 @@ afterEach(async () => {
         accessToken: null,
         refreshToken: null,
     });
+    useWorkspaceStore.setState(initialWorkspaceState, true);
 });
 afterAll(() => server.close());
 
@@ -371,5 +408,297 @@ describe("MapPage", () => {
             expect(ids).toContain("patrol-risk-grid-fill");
         });
         expect(() => unmount()).not.toThrow();
+    });
+
+    it("loads workspace data on mount", async () => {
+        const loadWorkspaceSpy = vi.fn();
+        useWorkspaceStore.setState({
+            status: "idle",
+            loadWorkspace: loadWorkspaceSpy,
+        });
+
+        renderPage();
+
+        await waitFor(() => {
+            expect(loadWorkspaceSpy).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it("selects a layer when clicked", async () => {
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [],
+            features: [],
+        });
+
+        renderPage();
+
+        const layerButton = await screen.findByRole("button", {
+            name: "Test Layer",
+        });
+
+        expect(layerButton).not.toHaveAttribute("aria-current");
+        await userEvent.click(layerButton);
+
+        expect(layerButton).toHaveAttribute("aria-current", "true");
+    });
+
+    it("selects a membership item and figures out the id", async () => {
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+        });
+
+        renderPage();
+
+        const membershipButton = await screen.findByRole("button", {
+            name: "Test feature",
+        });
+
+        expect(membershipButton).not.toHaveAttribute("aria-current");
+        await userEvent.click(membershipButton);
+
+        expect(membershipButton).toHaveAttribute("aria-current", "true");
+    });
+
+    it("selects a feature when clicked on the map", async () => {
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+        });
+
+        vi.spyOn(resolveModule, "resolveVisibleFeatures").mockReturnValue([
+            {
+                membershipId: MOCK_MEMBERSHIP.id,
+                feature: MOCK_FEATURE,
+                style: {
+                    colour: "#000000",
+                    opacity: 1,
+                },
+            },
+        ]);
+
+        renderPage();
+
+        const membershipButton = await screen.findByRole("button", {
+            name: "Test feature",
+        });
+
+        await userEvent.click(membershipButton);
+        await waitFor(() => {
+            expect(membershipButton).toHaveAttribute("aria-current", "true");
+        });
+    });
+
+    it("clears selection when an empty area is clicked", async () => {
+        const onSpy = vi.spyOn(maplibregl.Map.prototype, "on");
+        vi.spyOn(resolveModule, "resolveVisibleFeatures").mockReturnValue([]);
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+
+        const layerButton = await screen.findByRole("button", {
+            name: "Test Layer",
+        });
+
+        await userEvent.click(layerButton);
+        expect(layerButton).toHaveAttribute("aria-current");
+
+        const map = onSpy.mock.instances[0] as unknown as FakeMap;
+        act(() => {
+            map.fire("click", {
+                point: { x: 100, y: 100 },
+                lngLat: { lng: 31.18, lat: -24.2 },
+            });
+        });
+
+        await waitFor(() => {
+            expect(layerButton).not.toHaveAttribute("aria-current");
+        });
+    });
+
+    it("ignores map feature clicks if a feature cannot be found", async () => {
+        const onSpy = vi.spyOn(maplibregl.Map.prototype, "on");
+        vi.spyOn(resolveModule, "resolveVisibleFeatures").mockReturnValue([]);
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+        const layerButton = await screen.findByRole("button", {
+            name: "Test Layer",
+        });
+
+        await userEvent.click(layerButton);
+        expect(layerButton).toHaveAttribute("aria-current");
+
+        const map = onSpy.mock.instances[0] as unknown as FakeMap;
+        act(() => {
+            map.fire("click", {
+                point: { x: 100, y: 100 },
+                lngLat: { lng: 31.18, lat: -24.2 },
+                features: [{ properties: { featureId: "error-feature" } }],
+            });
+        });
+
+        await waitFor(() => {
+            expect(layerButton).not.toHaveAttribute("aria-current");
+        });
+    });
+
+    it("clears selection when handleFeatureClick receives null", async () => {
+        const onSpy = vi.spyOn(maplibregl.Map.prototype, "on");
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+
+        const layerButton = await screen.findByRole("button", {
+            name: "Test Layer",
+        });
+        await userEvent.click(layerButton);
+        expect(layerButton).toHaveAttribute("aria-current", "true");
+
+        const map = onSpy.mock.instances[0] as unknown as FakeMap;
+        map.queryRenderedFeatures = vi.fn().mockReturnValue([]);
+        act(() => {
+            map.fire("click", {
+                point: { x: 100, y: 100 },
+                lngLat: { lng: 31.18, lat: -24.2 },
+            });
+        });
+
+        await waitFor(() => {
+            expect(layerButton).not.toHaveAttribute("aria-current");
+        });
+    });
+
+    it("ignores map feature clicks if a feature cannot be found", async () => {
+        let capturedOnFeatureClick: ((id: string | null) => void) | undefined;
+
+        vi.spyOn(
+            WorkspaceMapLayersModule,
+            "WorkspaceMapLayers",
+        ).mockImplementation((props) => {
+            capturedOnFeatureClick = props.onFeatureClick;
+            return null;
+        });
+
+        vi.spyOn(resolveModule, "resolveVisibleFeatures").mockReturnValue([]);
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+
+        const layerButton = await screen.findByRole("button", {
+            name: "Test Layer",
+        });
+        await userEvent.click(layerButton);
+        expect(layerButton).toHaveAttribute("aria-current", "true");
+
+        act(() => {
+            capturedOnFeatureClick?.("unresolvable-feature-id");
+        });
+
+        expect(layerButton).toHaveAttribute("aria-current", "true");
+    });
+
+    it("clears selection when handleSelectLayer receives undefined", async () => {
+        let capturedProps!: React.ComponentProps<
+            typeof LayerTreePanelModule.LayerTreePanel
+        >;
+        vi.spyOn(LayerTreePanelModule, "LayerTreePanel").mockImplementation(
+            (props) => {
+                capturedProps = props;
+                return <></>;
+            },
+        );
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+
+        act(() => {
+            capturedProps.onSelectLayer("layer-1");
+        });
+        expect(capturedProps?.selection).toEqual({
+            kind: "layer",
+            layerId: "layer-1",
+        });
+
+        act(() => {
+            capturedProps.onSelectLayer(undefined as unknown as string);
+        });
+        expect(capturedProps?.selection).toBeNull();
+    });
+
+    it("clears selection when handleSelectMembership receives undefined", async () => {
+        let capturedProps!: React.ComponentProps<
+            typeof LayerTreePanelModule.LayerTreePanel
+        >;
+        vi.spyOn(LayerTreePanelModule, "LayerTreePanel").mockImplementation(
+            (props) => {
+                capturedProps = props;
+                return <div data-testid="mock-layer-tree" />;
+            },
+        );
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+
+        act(() => {
+            capturedProps.onSelectMembership("membership-1");
+        });
+        expect(capturedProps.selection).toEqual({
+            kind: "membership",
+            membershipId: "membership-1",
+        });
+
+        act(() => {
+            capturedProps.onSelectMembership(undefined as unknown as string);
+        });
+        expect(capturedProps.selection).toBeNull();
     });
 });
