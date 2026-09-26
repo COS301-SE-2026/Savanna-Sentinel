@@ -148,11 +148,14 @@ CREATE TABLE patrol_routes (
     requested_by   UUID                       NOT NULL REFERENCES users(id),
     start_point    GEOGRAPHY(Point, 4326)     NOT NULL,
     end_point      GEOGRAPHY(Point, 4326)     NOT NULL,
+    waypoints      GEOGRAPHY(MultiPoint, 4326),
     suggested_path GEOGRAPHY(LineString, 4326) NOT NULL,
     distance_km    FLOAT                      NOT NULL,
     risk_coverage  FLOAT                      NOT NULL,
     risk_heatmap   JSONB                      NOT NULL,
-    created_at     TIMESTAMPTZ                NOT NULL DEFAULT NOW()
+    created_at     TIMESTAMPTZ                NOT NULL DEFAULT NOW(),
+    CONSTRAINT patrol_routes_max_waypoints
+        CHECK (waypoints IS NULL OR ST_NumGeometries(waypoints::geometry) <= 5)
 );
 
 CREATE TABLE risk_jobs (
