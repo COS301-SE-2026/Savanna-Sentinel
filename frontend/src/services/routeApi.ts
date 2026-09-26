@@ -20,6 +20,7 @@ export interface PlannedRoute {
 export interface RouteRequest {
     start_point: GeoPoint;
     end_point: GeoPoint;
+    waypoints?: GeoPoint[];
     num_alternatives?: number;
     risk_by_cell?: Record<string, number>;
 }
@@ -48,6 +49,7 @@ export interface SaveRouteRequest {
     request_id: string;
     start_point: GeoPoint;
     end_point: GeoPoint;
+    waypoints?: GeoPoint[];
     risk_by_cell: Record<string, number>;
     route: PlannedRoute;
 }
@@ -57,6 +59,7 @@ export interface SavedRoute {
     request_id: string;
     start_point: GeoPoint;
     end_point: GeoPoint;
+    waypoints?: GeoPoint[];
     risk_by_cell: Record<string, number>;
     path_geometry: GeoLineString;
     distance_km: number;
