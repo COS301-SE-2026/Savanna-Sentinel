@@ -262,7 +262,7 @@ describe("WorkspacePage", () => {
             ([layer]) =>
                 (layer as { id: string }).id === "patrol-risk-grid-fill",
         );
-        expect(fillCall?.[1]).toBe("workspace-polygons-fill");
+        expect(fillCall?.[1]).toBe("workspace-stack-bottom");
     });
 
     it("shows a loading pill while the grid is loading, then hides it", async () => {
