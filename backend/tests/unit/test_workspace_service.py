@@ -2,8 +2,13 @@ import uuid
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
-from app.schemas.workspace import WorkspaceSaveRequest, WorkspaceStyle
+from app.schemas.workspace import (
+    WorkspaceFeaturePayload,
+    WorkspaceSaveRequest,
+    WorkspaceStyle,
+)
 from app.services.workspace_service import (
     MAX_VERTICES_PER_FEATURE,
     WorkspaceService,
@@ -300,3 +305,77 @@ def test_vertex_budget_is_enforced():
         )
 
     assert "exceeds the limit" in caught.value.detail
+
+
+def _feature_payload(**overrides):
+    body = {
+        "id": str(uuid.uuid4()),
+        "type": "point",
+        "geometry": {"type": "Point", "coordinates": [31.1, -24.4]},
+    }
+    body.update(overrides)
+    return WorkspaceFeaturePayload(**body)
+
+
+def test_feature_defaults_are_in_effect_with_the_buffer_off():
+    feature = _feature_payload()
+
+    assert feature.in_effect is True
+    assert feature.buffer_enabled is False
+    assert feature.buffer_distance_m == 100
+
+
+@pytest.mark.parametrize("distance", [0, -5, 0.5, 20001, 1e9])
+def test_buffer_distance_outside_the_allowed_range_is_rejected(distance):
+    with pytest.raises(ValidationError):
+        _feature_payload(buffer_distance_m=distance)
+
+
+@pytest.mark.parametrize("distance", [1, 250.5, 20000])
+def test_buffer_distance_inside_the_allowed_range_is_accepted(distance):
+    assert _feature_payload(buffer_distance_m=distance).buffer_distance_m == (
+        distance
+    )
+
+
+def test_buffer_style_keys_are_accepted_and_stored():
+    style = WorkspaceStyle(buffer_colour="#00ff00", buffer_opacity=0.5)
+
+    assert style.to_stored() == {
+        "buffer_colour": "#00ff00",
+        "buffer_opacity": 0.5,
+    }
+
+
+def test_buffer_opacity_outside_zero_to_one_is_rejected():
+    with pytest.raises(ValidationError):
+        WorkspaceStyle(buffer_opacity=1.5)
+
+
+def test_unknown_style_keys_are_still_rejected():
+    with pytest.raises(ValidationError):
+        WorkspaceStyle(buffer_size=3)
+
+
+@pytest.mark.asyncio
+async def test_save_forwards_the_buffer_and_in_effect_fields():
+    repo = FakeWorkspaceRepo()
+    base = _request()
+    feature = {
+        **base.features[0].model_dump(),
+        "in_effect": False,
+        "buffer_enabled": True,
+        "buffer_distance_m": 250.0,
+    }
+    request = _request(
+        features=[feature],
+        layers=[layer.model_dump() for layer in base.layers],
+        memberships=[m.model_dump() for m in base.memberships],
+    )
+
+    await WorkspaceService(repo).save_workspace("user-1", request)
+
+    stored = repo.replaced["features"][0]
+    assert stored["in_effect"] is False
+    assert stored["buffer_enabled"] is True
+    assert stored["buffer_distance_m"] == 250.0
