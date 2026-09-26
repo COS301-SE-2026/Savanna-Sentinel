@@ -31,6 +31,8 @@ import {
     parseGridCells,
     scoresByCell,
 } from "@/lib/riskGrid";
+import { LayerTreePanel } from "@/components/workspace/LayerTreePanel";
+import { WorkspaceMapLayers } from "@/components/workspace/WorkspaceMapLayers";
 
 const DEFAULT_ZOOM = 10;
 
@@ -169,6 +171,12 @@ export default function MapPage() {
                     showLocation={isLocationVisible}
                     showRoute={pinnedRoute !== null && isRouteVisible}
                 />
+                <WorkspaceMapLayers
+                    map={map}
+                    excludedFeatureId={null}
+                    selectedFeatureId={null}
+                    onFeatureClick={() => {}}
+                />
                 {isHeatmapVisible && (
                     <HeatmapLayer
                         map={map}
@@ -206,6 +214,19 @@ export default function MapPage() {
                 />
                 {gridStatus === "loading" && <LoadingPill label="Loading..." />}
             </div>
+
+            {!isMobile && (
+                <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-color-border bg-color-surface-raised">
+                    <LayerTreePanel
+                        activeLayerId={null}
+                        readOnly={true}
+                        heatmapVisible={isHeatmapVisible}
+                        onToggleHeatmap={setHeatmapVisible}
+                        onSelectLayer={() => {}}
+                        onSelectMembership={() => {}}
+                    />
+                </aside>
+            )}
 
             {isMobile && (
                 <Drawer

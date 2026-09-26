@@ -144,7 +144,7 @@ export function LayerTreePanel({
 
                     <li className="list-none">
                         <div className="flex min-h-9 items-center gap-1 pr-2">
-                            <span className="size-5 shrink-0" />
+                            {!readOnly && <span className="size-5 shrink-0" />}
                             <span className="size-5 shrink-0" />
                             <Checkbox
                                 checked={heatmapVisible}
