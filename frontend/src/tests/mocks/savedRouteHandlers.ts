@@ -11,6 +11,7 @@ export const SAVED_ROUTE: SavedRoute = {
     request_id: "job-123",
     start_point: { type: "Point", coordinates: [31.05, -24.3] },
     end_point: { type: "Point", coordinates: [31.08, -24.32] },
+    waypoints: [{ type: "Point", coordinates: [31.06, -24.31] }],
     risk_by_cell: { "cell-1": 0.5, "cell-2": 0.9 },
     path_geometry: {
         type: "LineString",

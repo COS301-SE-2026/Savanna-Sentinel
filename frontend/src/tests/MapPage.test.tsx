@@ -293,7 +293,7 @@ describe("MapPage", () => {
         ).not.toBeInTheDocument();
     });
 
-    it("draws a route sent from the patrol planner, with its start and end markers", async () => {
+    it("draws a route sent from the patrol planner, with its start, stop and end markers", async () => {
         await signInWithPinnedRoute();
         const addSourceSpy = vi.spyOn(maplibregl.Map.prototype, "addSource");
         renderPage();
@@ -310,7 +310,11 @@ describe("MapPage", () => {
         expect(source.data.geometry.coordinates).toEqual(
             SAVED_ROUTE.path_geometry.coordinates,
         );
-        await waitFor(() => expect(map.markers.size).toBe(2));
+        await waitFor(() => expect(map.markers.size).toBe(3));
+        const stopMarker = [...map.markers].find(
+            (m) => m.element.textContent === "1",
+        );
+        expect(stopMarker?.getLngLat()).toEqual({ lng: 31.06, lat: -24.31 });
     });
 
     it("draws the route sent over even when the risk grid cannot be fetched", async () => {

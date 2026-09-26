@@ -155,4 +155,47 @@ describe("PatrolRouteLayer", () => {
             ),
         );
     });
+
+    it("adds a numbered marker per set waypoint, keeping numbers for unset stops", async () => {
+        const map = new maplibregl.Map({
+            container: document.createElement("div"),
+        }) as unknown as FakeMap;
+        render(
+            <PatrolRouteLayer
+                map={map as never}
+                startPoint={null}
+                endPoint={null}
+                waypoints={[
+                    { lat: -24.31, lon: 31.06 },
+                    null,
+                    { lat: -24.33, lon: 31.07 },
+                ]}
+                routes={[]}
+                selectedIndex={0}
+            />,
+        );
+        await waitFor(() => {
+            const labels = [...map.markers].map((m) => m.element.textContent);
+            expect(labels).toEqual(["1", "3"]);
+        });
+    });
+
+    it("removes waypoint markers on unmount", async () => {
+        const map = new maplibregl.Map({
+            container: document.createElement("div"),
+        }) as unknown as FakeMap;
+        const { unmount } = render(
+            <PatrolRouteLayer
+                map={map as never}
+                startPoint={null}
+                endPoint={null}
+                waypoints={[{ lat: -24.31, lon: 31.06 }]}
+                routes={[]}
+                selectedIndex={0}
+            />,
+        );
+        await waitFor(() => expect(map.markers.size).toBe(1));
+        unmount();
+        expect(map.markers.size).toBe(0);
+    });
 });

@@ -1,7 +1,8 @@
+import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { beforeAll, afterEach, afterAll, describe, it, expect } from "vitest";
 
-import { routeApi } from "@/services/routeApi";
+import { routeApi, type RouteRequest } from "@/services/routeApi";
 import {
     routeHandlers,
     ROUTE_REQUEST_ID,
@@ -54,5 +55,41 @@ describe("routeApi", () => {
     it("listSavedRoutes gets /routes/saved", async () => {
         const result = await routeApi.listSavedRoutes();
         expect(result).toEqual(SAVED_ROUTES_LIST);
+    });
+
+    it("generateRoute sends waypoints in stop order", async () => {
+        let body: RouteRequest | null = null;
+        server.use(
+            http.post(
+                "http://localhost:8000/v1/routes",
+                async ({ request }) => {
+                    body = (await request.json()) as RouteRequest;
+                    return HttpResponse.json(
+                        {
+                            job_id: ROUTE_REQUEST_ID,
+                            request_id: ROUTE_REQUEST_ID,
+                            park_id: "klaserie",
+                            status: "queued",
+                            queued_at: new Date().toISOString(),
+                        },
+                        { status: 202 },
+                    );
+                },
+            ),
+        );
+
+        await routeApi.generateRoute({
+            start_point: { type: "Point", coordinates: [31.05, -24.3] },
+            end_point: { type: "Point", coordinates: [31.08, -24.32] },
+            waypoints: [
+                { type: "Point", coordinates: [31.06, -24.31] },
+                { type: "Point", coordinates: [31.07, -24.315] },
+            ],
+        });
+
+        expect(body!.waypoints!.map((p) => p.coordinates)).toEqual([
+            [31.06, -24.31],
+            [31.07, -24.315],
+        ]);
     });
 });
