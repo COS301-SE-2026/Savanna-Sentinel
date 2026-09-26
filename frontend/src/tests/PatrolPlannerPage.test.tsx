@@ -650,4 +650,143 @@ describe("Location Handling", () => {
         await userEvent.click(checkbox);
         expect(mockRequestPermission).toHaveBeenCalledTimes(1);
     });
+
+    it("sends added stops as ordered waypoints", async () => {
+        let requestBody: { waypoints?: { coordinates: number[] }[] } | null =
+            null;
+        server.use(
+            http.post(
+                "http://localhost:8000/v1/routes",
+                async ({ request }) => {
+                    requestBody = (await request.json()) as {
+                        waypoints?: { coordinates: number[] }[];
+                    };
+                    return HttpResponse.json(
+                        {
+                            job_id: ROUTE_REQUEST_ID,
+                            request_id: ROUTE_REQUEST_ID,
+                            park_id: "klaserie",
+                            status: "queued",
+                            queued_at: new Date().toISOString(),
+                        },
+                        { status: 202 },
+                    );
+                },
+            ),
+        );
+
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /add stop/i }),
+        );
+        await userEvent.type(
+            screen.getByLabelText(/^stop 1$/i),
+            "-24.31, 31.06",
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+
+        await waitFor(() => expect(requestBody).not.toBeNull());
+        expect(requestBody!.waypoints!.map((p) => p.coordinates)).toEqual([
+            [31.06, -24.31],
+        ]);
+    });
+
+    it("keeps Generate Routes disabled while a stop is empty", async () => {
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /add stop/i }),
+        );
+        expect(
+            screen.getByRole("button", { name: /generate routes/i }),
+        ).toBeDisabled();
+        expect(
+            screen.getByText(/set stop 1 or remove it/i),
+        ).toBeInTheDocument();
+    });
+
+    it("fills an armed stop from a map click", async () => {
+        renderPage();
+        const map = await currentMap();
+        await userEvent.click(
+            screen.getByRole("button", { name: /add stop/i }),
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: "Pick stop 1 on map" }),
+        );
+        await act(async () => {
+            map.fireClick({ lng: 31.06, lat: -24.31 });
+        });
+        expect(screen.getByLabelText(/^stop 1$/i)).toHaveValue(
+            "-24.31000, 31.06000",
+        );
+    });
+
+    it("restores a saved route's stops when it is loaded", async () => {
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        await userEvent.click(
+            await screen.findByRole("button", { name: /55\.0 km/i }),
+        );
+
+        expect(await screen.findByLabelText(/^stop 1$/i)).toHaveValue(
+            "-24.31000, 31.06000",
+        );
+        expect(screen.getByLabelText(/^start point$/i)).toHaveValue(
+            "-24.30000, 31.05000",
+        );
+        expect(screen.getByLabelText(/^end point$/i)).toHaveValue(
+            "-24.32000, 31.08000",
+        );
+    });
+
+    it("saves the stops that were planned, not later edits", async () => {
+        let saveBody: { waypoints?: { coordinates: number[] }[] } | null = null;
+        server.use(
+            http.post(
+                "http://localhost:8000/v1/routes/save",
+                async ({ request }) => {
+                    saveBody = (await request.json()) as {
+                        waypoints?: { coordinates: number[] }[];
+                    };
+                    return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+                },
+            ),
+        );
+
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /add stop/i }),
+        );
+        await userEvent.type(
+            screen.getByLabelText(/^stop 1$/i),
+            "-24.31, 31.06",
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+
+        const stop = screen.getByLabelText(/^stop 1$/i);
+        await userEvent.clear(stop);
+        await userEvent.type(stop, "-24.4, 31.2");
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route a/i }),
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
+
+        await waitFor(() => expect(saveBody).not.toBeNull());
+        expect(saveBody!.waypoints!.map((p) => p.coordinates)).toEqual([
+            [31.06, -24.31],
+        ]);
+    });
 });
