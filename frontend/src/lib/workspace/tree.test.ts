@@ -5,8 +5,13 @@ import {
     computeLayerCheckboxState,
     getPrecedenceOrderedLayerIds,
     computeReorderedSiblingIds,
+    computeLayerInEffectState,
 } from "./tree";
-import type { WorkspaceLayer, WorkspaceMembership } from "./types";
+import type {
+    WorkspaceFeature,
+    WorkspaceLayer,
+    WorkspaceMembership,
+} from "./types";
 
 function layer(id: string, parentId: string | null, order = 0): WorkspaceLayer {
     return { id, name: id, parentId, order, defaultStyle: {} };
@@ -116,5 +121,82 @@ describe("computeReorderedSiblingIds", () => {
             "a",
             "b",
         ]);
+    });
+});
+
+describe("computeLayerInEffectState", () => {
+    const layers: WorkspaceLayer[] = [
+        { id: "water", parentId: null, order: 0, defaultStyle: {} },
+        { id: "western", parentId: "water", order: 0, defaultStyle: {} },
+        { id: "empty", parentId: null, order: 1, defaultStyle: {} },
+    ];
+    const feature = (id: string, inEffect: boolean): WorkspaceFeature => ({
+        id,
+        type: "point",
+        geometry: { type: "Point", coordinates: [0, 0] },
+        createdAt: "now",
+        updatedAt: "now",
+        inEffect,
+        bufferEnabled: false,
+        bufferDistanceM: 100,
+    });
+    const membership = (
+        id: string,
+        featureId: string,
+        layerId: string,
+    ): WorkspaceMembership => ({
+        id,
+        featureId,
+        layerId,
+        order: 0,
+        styleOverride: {},
+        visible: true,
+    });
+
+    it("is empty for a layer with no features anywhere below it", () => {
+        expect(computeLayerInEffectState(layers, [], [], "empty")).toBe(
+            "empty",
+        );
+    });
+
+    it("is disabled only when every feature in the subtree is out of effect", () => {
+        const features = [feature("a", false), feature("b", false)];
+        const memberships = [
+            membership("m1", "a", "water"),
+            membership("m2", "b", "western"),
+        ];
+        expect(
+            computeLayerInEffectState(layers, memberships, features, "water"),
+        ).toBe("disabled");
+    });
+
+    it("is mixed when some features are in effect and some are not", () => {
+        const features = [feature("a", false), feature("b", true)];
+        const memberships = [
+            membership("m1", "a", "water"),
+            membership("m2", "b", "western"),
+        ];
+        expect(
+            computeLayerInEffectState(layers, memberships, features, "water"),
+        ).toBe("mixed");
+    });
+
+    it("is enabled when every feature in the subtree is in effect", () => {
+        const features = [feature("a", true)];
+        const memberships = [membership("m1", "a", "western")];
+        expect(
+            computeLayerInEffectState(layers, memberships, features, "water"),
+        ).toBe("enabled");
+    });
+
+    it("counts a feature shared with another layer once", () => {
+        const features = [feature("a", false)];
+        const memberships = [
+            membership("m1", "a", "water"),
+            membership("m2", "a", "western"),
+        ];
+        expect(
+            computeLayerInEffectState(layers, memberships, features, "water"),
+        ).toBe("disabled");
     });
 });
