@@ -292,3 +292,55 @@ CREATE TABLE notifications (
 
 CREATE INDEX notifications_user_unread_idx ON notifications (user_id, read_at);
 CREATE INDEX notifications_user_created_idx ON notifications (user_id, created_at DESC);
+
+CREATE TYPE workspace_feature_type AS ENUM (
+    'point',
+    'line',
+    'polygon'
+);
+
+CREATE TABLE workspace_meta (
+    id         BOOLEAN     PRIMARY KEY DEFAULT TRUE CHECK (id),
+    version    INT         NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by UUID        REFERENCES users(id) ON DELETE SET NULL
+);
+
+INSERT INTO workspace_meta (id) VALUES (TRUE);
+
+CREATE TABLE workspace_layers (
+    id            UUID  PRIMARY KEY,
+    name          TEXT,
+    parent_id     UUID  REFERENCES workspace_layers(id) ON DELETE CASCADE,
+    display_order INT   NOT NULL,
+    default_style JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX workspace_layers_parent_idx ON workspace_layers (parent_id);
+
+CREATE TABLE workspace_features (
+    id           UUID                   PRIMARY KEY,
+    feature_type workspace_feature_type NOT NULL,
+    name         TEXT,
+    geometry     JSONB                  NOT NULL,
+    created_at   TIMESTAMPTZ            NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ            NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE workspace_memberships (
+    id             UUID  PRIMARY KEY,
+    feature_id     UUID  NOT NULL REFERENCES workspace_features(id) ON DELETE CASCADE,
+    layer_id       UUID  NOT NULL REFERENCES workspace_layers(id) ON DELETE CASCADE,
+    display_order  INT   NOT NULL,
+    style_override JSONB NOT NULL DEFAULT '{}'::jsonb,
+    UNIQUE (feature_id, layer_id) DEFERRABLE INITIALLY DEFERRED
+);
+
+CREATE INDEX workspace_memberships_layer_idx ON workspace_memberships (layer_id);
+
+CREATE TABLE workspace_membership_visibility (
+    membership_id UUID    NOT NULL REFERENCES workspace_memberships(id) ON DELETE CASCADE,
+    user_id       UUID    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    visible       BOOLEAN NOT NULL,
+    PRIMARY KEY (membership_id, user_id)
+);

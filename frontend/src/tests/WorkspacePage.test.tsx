@@ -14,6 +14,7 @@ import {
     afterEach,
     beforeAll,
     afterAll,
+    beforeEach,
     vi,
 } from "vitest";
 
@@ -48,10 +49,19 @@ import * as useMobileModule from "@/hooks/use-mobile";
 import { NAV_ITEMS } from "@/components/layout/navLinks";
 import { notifyCritical, notifySafe } from "@/components/ui/toast";
 import { riskHandlers } from "./mocks/riskHandlers";
+import {
+    workspaceHandlers,
+    workspaceState,
+    resetWorkspaceMock,
+} from "./mocks/workspaceHandlers";
 import type { FakeMap } from "./mocks/maplibreMock";
 
-const server = setupServer(...riskHandlers);
+const server = setupServer(...riskHandlers, ...workspaceHandlers);
 beforeAll(() => server.listen());
+beforeEach(() => {
+    resetWorkspaceMock();
+    useWorkspaceStore.setState({ status: "ready" });
+});
 afterEach(() => {
     cleanup();
     server.resetHandlers();
@@ -318,20 +328,82 @@ describe("WorkspacePage", () => {
         ).toBeEnabled();
     });
 
-    it("persists workspace data and shows a confirmation toast when Save is clicked", async () => {
+    it("sends the workspace to the server and confirms when Save is clicked", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
-        useWorkspaceStore.getState().addLayer("Water", null);
         render(<WorkspacePage />);
+        useWorkspaceStore.getState().addLayer("Water", null);
 
         await userEvent.click(
             await screen.findByRole("button", { name: /save/i }),
         );
 
-        const raw = localStorage.getItem("workspace-storage");
-        expect(raw).not.toBeNull();
-        expect(JSON.parse(raw!).state.layers).toHaveLength(1);
+        await waitFor(() => expect(notifySafe).toHaveBeenCalled());
+        expect(workspaceState.saveCalls).toHaveLength(1);
+        expect(workspaceState.current.layers).toHaveLength(1);
         expect(useWorkspaceStore.getState().hasUnsavedChanges).toBe(false);
-        expect(notifySafe).toHaveBeenCalled();
+    });
+
+    it("loads the stored workspace on mount", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        useWorkspaceStore.setState({ status: "idle" });
+        workspaceState.current = {
+            version: 2,
+            layers: [
+                {
+                    id: "11111111-1111-4111-8111-111111111111",
+                    name: "Waterholes",
+                    parent_id: null,
+                    order: 0,
+                    default_style: {},
+                },
+            ],
+            features: [],
+            memberships: [],
+        };
+
+        render(<WorkspacePage />);
+
+        expect(await screen.findByText("Waterholes")).toBeInTheDocument();
+        expect(useWorkspaceStore.getState().version).toBe(2);
+    });
+
+    it("offers to load the latest version when somebody else saved first", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        vi.mocked(notifySafe).mockClear();
+        render(<WorkspacePage />);
+        useWorkspaceStore.getState().addLayer("Mine", null);
+        workspaceState.current = {
+            version: 5,
+            layers: [
+                {
+                    id: "22222222-2222-4222-8222-222222222222",
+                    name: "Theirs",
+                    parent_id: null,
+                    order: 0,
+                    default_style: {},
+                },
+            ],
+            features: [],
+            memberships: [],
+        };
+
+        await userEvent.click(
+            await screen.findByRole("button", { name: /save/i }),
+        );
+
+        await screen.findByText("Workspace changed elsewhere");
+        expect(notifySafe).not.toHaveBeenCalled();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /load latest version/i }),
+        );
+
+        await waitFor(() =>
+            expect(useWorkspaceStore.getState().version).toBe(5),
+        );
+        expect(useWorkspaceStore.getState().layers.map((l) => l.name)).toEqual([
+            "Theirs",
+        ]);
     });
 
     it("hides the Save button on mobile", async () => {
@@ -385,20 +457,18 @@ describe("WorkspacePage", () => {
         );
     });
 
-    it("shows an error toast and keeps the Save button enabled when storage rejects the save", async () => {
+    it("shows an error toast and keeps the Save button enabled when the server rejects the save", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
         vi.mocked(notifySafe).mockClear();
-        useWorkspaceStore.getState().addLayer("Water", null);
-        vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-            throw new DOMException("full", "QuotaExceededError");
-        });
         render(<WorkspacePage />);
+        useWorkspaceStore.getState().addLayer("Water", null);
+        workspaceState.failSave = true;
 
         await userEvent.click(
             await screen.findByRole("button", { name: /save/i }),
         );
 
-        expect(notifyCritical).toHaveBeenCalled();
+        await waitFor(() => expect(notifyCritical).toHaveBeenCalled());
         expect(notifySafe).not.toHaveBeenCalled();
         expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
     });
