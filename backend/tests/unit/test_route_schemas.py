@@ -2,7 +2,13 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.geo import GeoPoint
-from app.schemas.route import MAX_NUM_ALTERNATIVES, RouteRequest
+from app.schemas.route import (
+    MAX_NUM_ALTERNATIVES,
+    MAX_WAYPOINTS,
+    RouteRequest,
+)
+
+_STOP = GeoPoint(coordinates=(31.06, -24.25))
 
 
 def _make_request(**overrides):
@@ -54,3 +60,24 @@ def test_risk_by_cell_accepts_valid_scores():
 def test_risk_by_cell_clamps_out_of_range_scores():
     request = _make_request(risk_by_cell={"cell-1": -0.4, "cell-2": 1.7})
     assert request.risk_by_cell == {"cell-1": 0.0, "cell-2": 1.0}
+
+
+def test_waypoints_default_to_empty_list():
+    assert _make_request().waypoints == []
+
+
+def test_waypoints_accept_max_allowed():
+    request = _make_request(waypoints=[_STOP] * MAX_WAYPOINTS)
+    assert len(request.waypoints) == MAX_WAYPOINTS
+
+
+def test_waypoints_above_max_are_rejected():
+    with pytest.raises(ValidationError):
+        _make_request(waypoints=[_STOP] * (MAX_WAYPOINTS + 1))
+
+
+def test_waypoints_keep_their_order():
+    first = GeoPoint(coordinates=(31.06, -24.25))
+    second = GeoPoint(coordinates=(31.07, -24.26))
+    request = _make_request(waypoints=[first, second])
+    assert request.waypoints == [first, second]
