@@ -3,6 +3,7 @@ import uuid
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from app.models.user import User
 from app.repositories.patrol_route_repository import PatrolRouteRepository
@@ -79,3 +80,54 @@ async def test_delete_removes_route_owned_by_user(db_session, user):
 
     deleted_again = await repo.delete(created["id"], user.id)
     assert deleted_again is False
+
+
+def _route_kwargs(user, **overrides) -> dict:
+    kwargs = {
+        "user_id": user.id,
+        "request_id": str(uuid.uuid4()),
+        "start_point_wkt": "POINT(31.18 -24.2)",
+        "end_point_wkt": "POINT(31.19 -24.21)",
+        "risk_heatmap": {},
+        "path_wkt": "LINESTRING(31.18 -24.2, 31.185 -24.205, 31.19 -24.21)",
+        "distance_km": 12,
+        "risk_coverage": 0.4,
+    }
+    kwargs.update(overrides)
+    return kwargs
+
+
+@pytest.mark.asyncio
+async def test_create_persists_waypoints_in_order(db_session, user):
+    repo = PatrolRouteRepository(db_session)
+    await repo.create(**_route_kwargs(
+        user,
+        waypoints_wkt="MULTIPOINT((31.185 -24.205), (31.182 -24.207))",
+    ))
+
+    routes, _ = await repo.list_by_user(user.id, page=1, page_size=20)
+    assert routes[0]["waypoints"]["type"] == "MultiPoint"
+    assert routes[0]["waypoints"]["coordinates"] == [
+        [31.185, -24.205],
+        [31.182, -24.207],
+    ]
+
+
+@pytest.mark.asyncio
+async def test_create_without_waypoints_stores_null(db_session, user):
+    repo = PatrolRouteRepository(db_session)
+    await repo.create(**_route_kwargs(user))
+
+    routes, _ = await repo.list_by_user(user.id, page=1, page_size=20)
+    assert routes[0]["waypoints"] is None
+
+
+@pytest.mark.asyncio
+async def test_more_than_five_waypoints_is_rejected(db_session, user):
+    repo = PatrolRouteRepository(db_session)
+    six = ", ".join(f"(31.18{i} -24.2)" for i in range(6))
+    with pytest.raises(IntegrityError):
+        await repo.create(
+            **_route_kwargs(user, waypoints_wkt=f"MULTIPOINT({six})"),
+        )
+    await db_session.rollback()
