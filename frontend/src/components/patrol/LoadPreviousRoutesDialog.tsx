@@ -216,6 +216,21 @@ export function LoadPreviousRoutesDialog({
                                                     )}{" "}
                                                     km
                                                 </span>
+                                                {route.waypoints &&
+                                                    route.waypoints.length >
+                                                        0 && (
+                                                        <span>
+                                                            Via{" "}
+                                                            {
+                                                                route.waypoints
+                                                                    .length
+                                                            }{" "}
+                                                            {route.waypoints
+                                                                .length === 1
+                                                                ? "stop"
+                                                                : "stops"}
+                                                        </span>
+                                                    )}
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <Button
