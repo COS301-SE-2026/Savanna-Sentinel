@@ -71,9 +71,13 @@ class WorkspaceRepository:
                     select(
                         _memberships,
                         _visibility.c.visible,
+                        _features.c.in_effect.label("feature_in_effect"),
                     )
                     .select_from(
-                        _memberships.outerjoin(
+                        _memberships.join(
+                            _features,
+                            _features.c.id == _memberships.c.feature_id,
+                        ).outerjoin(
                             _visibility,
                             (_visibility.c.membership_id == _memberships.c.id)
                             & (_visibility.c.user_id == user_id),
@@ -109,6 +113,9 @@ class WorkspaceRepository:
                     "type": row["feature_type"],
                     "name": row["name"],
                     "geometry": row["geometry"],
+                    "in_effect": row["in_effect"],
+                    "buffer_enabled": row["buffer_enabled"],
+                    "buffer_distance_m": row["buffer_distance_m"],
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
                 }
@@ -122,7 +129,9 @@ class WorkspaceRepository:
                     "order": row["display_order"],
                     "style_override": row["style_override"] or {},
                     "visible": (
-                        True if row["visible"] is None else row["visible"]
+                        row["feature_in_effect"]
+                        if row["visible"] is None
+                        else row["visible"]
                     ),
                 }
                 for row in membership_rows
@@ -246,6 +255,9 @@ class WorkspaceRepository:
                     "feature_type": stmt.excluded.feature_type,
                     "name": stmt.excluded.name,
                     "geometry": stmt.excluded.geometry,
+                    "in_effect": stmt.excluded.in_effect,
+                    "buffer_enabled": stmt.excluded.buffer_enabled,
+                    "buffer_distance_m": stmt.excluded.buffer_distance_m,
                     "updated_at": stmt.excluded.updated_at,
                 },
             ),
@@ -255,6 +267,9 @@ class WorkspaceRepository:
                     "feature_type": feature["type"],
                     "name": feature["name"],
                     "geometry": feature["geometry"],
+                    "in_effect": feature["in_effect"],
+                    "buffer_enabled": feature["buffer_enabled"],
+                    "buffer_distance_m": feature["buffer_distance_m"],
                     "created_at": feature["created_at"],
                     "updated_at": feature["updated_at"],
                 }

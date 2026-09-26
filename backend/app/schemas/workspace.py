@@ -32,6 +32,10 @@ _UUID = (
     r"-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 )
 
+MIN_BUFFER_DISTANCE_M = 1
+MAX_BUFFER_DISTANCE_M = 20000
+DEFAULT_BUFFER_DISTANCE_M = 100
+
 
 class WorkspaceStyle(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -44,6 +48,8 @@ class WorkspaceStyle(BaseModel):
     line_dash: Optional[Literal["solid", "dashed", "dotted"]] = None
     label: Optional[str] = Field(default=None, max_length=200)
     outline_opacity: Optional[float] = Field(default=None, ge=0, le=1)
+    buffer_colour: Optional[str] = Field(default=None, pattern=_HEX_COLOUR)
+    buffer_opacity: Optional[float] = Field(default=None, ge=0, le=1)
 
     @field_validator("icon")
     @classmethod
@@ -71,6 +77,13 @@ class WorkspaceFeaturePayload(BaseModel):
     geometry: dict[str, Any]
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    in_effect: bool = True
+    buffer_enabled: bool = False
+    buffer_distance_m: float = Field(
+        default=DEFAULT_BUFFER_DISTANCE_M,
+        ge=MIN_BUFFER_DISTANCE_M,
+        le=MAX_BUFFER_DISTANCE_M,
+    )
 
 
 class WorkspaceMembershipPayload(BaseModel):
@@ -104,6 +117,9 @@ class WorkspaceFeatureOut(BaseModel):
     geometry: dict[str, Any]
     created_at: datetime
     updated_at: datetime
+    in_effect: bool
+    buffer_enabled: bool
+    buffer_distance_m: float
 
 
 class WorkspaceMembershipOut(BaseModel):

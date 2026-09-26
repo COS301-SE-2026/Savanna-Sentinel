@@ -316,12 +316,16 @@ CREATE TABLE workspace_layers (
 CREATE INDEX workspace_layers_parent_idx ON workspace_layers (parent_id);
 
 CREATE TABLE workspace_features (
-    id           UUID                   PRIMARY KEY,
-    feature_type workspace_feature_type NOT NULL,
-    name         TEXT,
-    geometry     JSONB                  NOT NULL,
-    created_at   TIMESTAMPTZ            NOT NULL DEFAULT NOW(),
-    updated_at   TIMESTAMPTZ            NOT NULL DEFAULT NOW()
+    id                UUID                   PRIMARY KEY,
+    feature_type      workspace_feature_type NOT NULL,
+    name              TEXT,
+    geometry          JSONB                  NOT NULL,
+    in_effect         BOOLEAN                NOT NULL DEFAULT TRUE,
+    buffer_enabled    BOOLEAN                NOT NULL DEFAULT FALSE,
+    buffer_distance_m DOUBLE PRECISION       NOT NULL DEFAULT 100
+        CHECK (buffer_distance_m BETWEEN 1 AND 20000),
+    created_at        TIMESTAMPTZ            NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ            NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE workspace_memberships (
