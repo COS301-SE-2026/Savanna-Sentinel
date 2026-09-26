@@ -83,14 +83,14 @@ export default function MapPage() {
 
     useEffect(() => {
         const status = useWorkspaceStore.getState().status;
-        if (status === "idle" || status === "error"){
+        if (status === "idle" || status === "error") {
             loadWorkspace();
-        } 
+        }
     }, [loadWorkspace]);
 
-    function handleFeatureClick(featureId: string | null){
-        if(!featureId){
-            setSelection(null)
+    function handleFeatureClick(featureId: string | null) {
+        if (!featureId) {
+            setSelection(null);
             return;
         }
 
@@ -99,13 +99,13 @@ export default function MapPage() {
             current.layers,
             current.features,
             current.memberships,
-        ).find((r) => r.feature.id === featureId)
+        ).find((r) => r.feature.id === featureId);
 
-        if(rendered){
+        if (rendered) {
             setSelection({
                 kind: "membership",
-                membershipId: rendered.membershipId
-            })
+                membershipId: rendered.membershipId,
+            });
         }
     }
 
@@ -121,8 +121,8 @@ export default function MapPage() {
         });
     }
 
-    function handleSelectMembership(membershipId: string | undefined){
-        if(!membershipId){
+    function handleSelectMembership(membershipId: string | undefined) {
+        if (!membershipId) {
             setSelection(null);
             return;
         }
@@ -305,26 +305,38 @@ export default function MapPage() {
                     setActiveSnapPoint={setDrawerSnap}
                 >
                     <DrawerContent className="h-full">
-                        <DrawerTitle className="sr-only">Heatmap and Layer Control</DrawerTitle>
+                        <DrawerTitle className="sr-only">
+                            Heatmap and Layer Control
+                        </DrawerTitle>
                         <DrawerDescription className="sr-only">
                             Choose a snapshot date, toggle map layers, adjust
-                            heatmap opacity, and view the risk summary, and toggle map layers
+                            heatmap opacity, and view the risk summary, and
+                            toggle map layers
                         </DrawerDescription>
                         <Tabs>
                             <div className="shrink-0 border-b border-color-border px-4 py-2 bg-color-surface-raised">
                                 <TabsList className="grid w-full grid-cols-2">
-                                    <TabsTrigger value="layers" className="gap-2">
+                                    <TabsTrigger
+                                        value="layers"
+                                        className="gap-2"
+                                    >
                                         <Layers className="size-4" />
                                         Layers
                                     </TabsTrigger>
-                                    <TabsTrigger value="controls" className="gap-2">
+                                    <TabsTrigger
+                                        value="controls"
+                                        className="gap-2"
+                                    >
                                         <SlidersHorizontal className="size-4" />
                                         Controls
                                     </TabsTrigger>
                                 </TabsList>
                             </div>
 
-                            <TabsContent value="layers" className="flex-1 overflow-y-auto p-2 m-0">
+                            <TabsContent
+                                value="layers"
+                                className="flex-1 overflow-y-auto p-2 m-0"
+                            >
                                 <LayerTreePanel
                                     activeLayerId={null}
                                     selection={selection}
@@ -335,7 +347,10 @@ export default function MapPage() {
                                     onSelectMembership={handleSelectMembership}
                                 />
                             </TabsContent>
-                            <TabsContent value="controls" className="flex-1 overflow-y-auto p-2 m-0">
+                            <TabsContent
+                                value="controls"
+                                className="flex-1 overflow-y-auto p-2 m-0"
+                            >
                                 <ExplainabilityPanel {...panelProps} />
                             </TabsContent>
                         </Tabs>
