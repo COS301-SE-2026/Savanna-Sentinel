@@ -1,7 +1,7 @@
 import math
 import random
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from app.schemas.geo import GeoLineString
 from app.schemas.route import ParkGraph, PlannedRoute
@@ -1387,6 +1387,7 @@ def plan_routes(
     end_node_id: str,
     num_alternatives: int = 3,
     config: ACOConfig | None = None,
+    hotspot_ids: set[str] | None = None,
 ) -> RoutePlan:
     config = config or ACOConfig()
 
@@ -1394,7 +1395,9 @@ def plan_routes(
     waypoint_ids = [
         stop
         for stop, cells in hotspot_zones(graph)[: config.max_waypoints]
-        if start_node_id not in cells and end_node_id not in cells
+        if start_node_id not in cells
+        and end_node_id not in cells
+        and (hotspot_ids is None or stop in hotspot_ids)
     ]
     hub_ids = list(dict.fromkeys([start_node_id, end_node_id, *waypoint_ids]))
     distance_matrix = build_waypoint_distance_matrix(graph, hub_ids)
@@ -1481,6 +1484,119 @@ def plan_routes(
             shortfalls.append(LONGER_THAN_BEST)
         routes = close
     shortfall = shortfalls[0] if len(routes) < num_alternatives else None
+    return RoutePlan(routes=routes, shortfall=shortfall)
+
+
+MIN_LEG_ITERATIONS = 40
+
+
+def assign_hotspots_to_legs(
+    distance_matrix: dict[tuple[str, str], PathResult],
+    stop_ids: list[str],
+    hotspot_ids: list[str],
+) -> list[list[str]]:
+    """Give each hotspot to the one leg it adds the least time to."""
+    legs: list[list[str]] = [[] for _ in stop_ids[1:]]
+    for hub in hotspot_ids:
+        best_leg, best_detour = None, math.inf
+        for i, (a, b) in enumerate(zip(stop_ids, stop_ids[1:])):
+            to_hub = distance_matrix.get((a, hub))
+            from_hub = distance_matrix.get((hub, b))
+            if to_hub is None or from_hub is None:
+                continue
+            direct = distance_matrix.get((a, b))
+            detour = to_hub.time_min + from_hub.time_min - (
+                direct.time_min if direct else 0.0
+            )
+            if detour < best_detour:
+                best_leg, best_detour = i, detour
+        if best_leg is not None:
+            legs[best_leg].append(hub)
+    return legs
+
+
+def _stitch_legs(leg_plans: list[RoutePlan], k: int) -> list[str]:
+    path: list[str] = []
+    for plan in leg_plans:
+        leg = plan.routes[min(k, len(plan.routes) - 1)].suggested_path
+        path.extend(leg if not path else leg[1:])
+    return path
+
+
+def plan_routes_via(
+    graph: ParkGraph,
+    stop_node_ids: list[str],
+    num_alternatives: int = 3,
+    config: ACOConfig | None = None,
+) -> RoutePlan:
+    """Plan through the user's stops in order, one leg at a time.
+
+    Alternative k joins every leg's k-th route, falling back to a leg's
+    best route when that leg found fewer alternatives.
+    """
+    config = config or ACOConfig()
+    if len(stop_node_ids) == 2:
+        return plan_routes(
+            graph, stop_node_ids[0], stop_node_ids[1], num_alternatives, config,
+        )
+
+    stops = [
+        node
+        for i, node in enumerate(stop_node_ids)
+        if i == 0 or node != stop_node_ids[i - 1]
+    ]
+    if len(stops) < 2:
+        return plan_routes(graph, stops[0], stops[0], num_alternatives, config)
+
+    stop_set = set(stops)
+    hotspot_ids = [
+        hub
+        for hub, cells in hotspot_zones(graph)[: config.max_waypoints]
+        if stop_set.isdisjoint(cells)
+    ]
+    matrix = build_waypoint_distance_matrix(
+        graph, list(dict.fromkeys([*stops, *hotspot_ids])),
+    )
+    leg_hotspots = assign_hotspots_to_legs(matrix, stops, hotspot_ids)
+    leg_config = replace(
+        config,
+        total_iterations=max(
+            MIN_LEG_ITERATIONS, config.total_iterations // (len(stops) - 1),
+        ),
+    )
+
+    leg_plans: list[RoutePlan] = []
+    for (a, b), hubs in zip(zip(stops, stops[1:]), leg_hotspots):
+        plan = plan_routes(
+            graph, a, b, num_alternatives, leg_config, hotspot_ids=set(hubs),
+        )
+        if not plan.routes:
+            return RoutePlan(
+                routes=[], shortfall=plan.shortfall or NO_TOUR_FOUND,
+            )
+        leg_plans.append(plan)
+
+    paths: list[list[str]] = []
+    for k in range(num_alternatives):
+        path = _stitch_legs(leg_plans, k)
+        if all(
+            route_distance(path, prior) >= config.min_diversity
+            for prior in paths
+        ):
+            paths.append(path)
+
+    routes = sorted(
+        (
+            _to_planned_route(graph, p, compute_risk_coverage(graph, p))
+            for p in paths
+        ),
+        key=lambda r: r.distance_km,
+    )
+    shortfall = None
+    if len(routes) < num_alternatives:
+        shortfall = next(
+            (p.shortfall for p in leg_plans if p.shortfall), DUPLICATE_ROUTE,
+        )
     return RoutePlan(routes=routes, shortfall=shortfall)
 
 
