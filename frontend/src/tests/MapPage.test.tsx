@@ -25,6 +25,8 @@ vi.mock("maplibre-gl", async () => {
 });
 
 import * as maplibregl from "maplibre-gl";
+import * as WorkspaceMapLayersModule from "@/components/workspace/WorkspaceMapLayers";
+import * as LayerTreePanelModule from "@/components/workspace/LayerTreePanel";
 import MapPage from "@/pages/MapPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers } from "./mocks/riskHandlers";
@@ -525,5 +527,178 @@ describe("MapPage", () => {
         await waitFor(() => {
             expect(layerButton).not.toHaveAttribute("aria-current");
         });
+    });
+
+    it("ignores map feature clicks if a feature cannot be found", async () => {
+        const onSpy = vi.spyOn(maplibregl.Map.prototype, "on");
+        vi.spyOn(resolveModule, "resolveVisibleFeatures").mockReturnValue([]);
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+        const layerButton = await screen.findByRole("button", {
+            name: "Test Layer",
+        });
+
+        await userEvent.click(layerButton);
+        expect(layerButton).toHaveAttribute("aria-current");
+
+        const map = onSpy.mock.instances[0] as unknown as FakeMap;
+        act(() => {
+            map.fire("click", {
+                point: { x: 100, y: 100 },
+                lngLat: { lng: 31.18, lat: -24.2 },
+                features: [{ properties: { featureId: "error-feature" } }],
+            });
+        });
+
+        await waitFor(() => {
+            expect(layerButton).not.toHaveAttribute("aria-current");
+        });
+    });
+
+    it("clears selection when handleFeatureClick receives null", async () => {
+        const onSpy = vi.spyOn(maplibregl.Map.prototype, "on");
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+
+        const layerButton = await screen.findByRole("button", {
+            name: "Test Layer",
+        });
+        await userEvent.click(layerButton);
+        expect(layerButton).toHaveAttribute("aria-current", "true");
+
+        const map = onSpy.mock.instances[0] as unknown as FakeMap;
+        map.queryRenderedFeatures = vi.fn().mockReturnValue([]);
+        act(() => {
+            map.fire("click", {
+                point: { x: 100, y: 100 },
+                lngLat: { lng: 31.18, lat: -24.2 },
+            });
+        });
+
+        await waitFor(() => {
+            expect(layerButton).not.toHaveAttribute("aria-current");
+        });
+    });
+
+    it("ignores map feature clicks if a feature cannot be found", async () => {
+        let capturedOnFeatureClick: ((id: string | null) => void) | undefined;
+
+        vi.spyOn(
+            WorkspaceMapLayersModule,
+            "WorkspaceMapLayers",
+        ).mockImplementation((props) => {
+            capturedOnFeatureClick = props.onFeatureClick;
+            return null;
+        });
+
+        vi.spyOn(resolveModule, "resolveVisibleFeatures").mockReturnValue([]);
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+
+        const layerButton = await screen.findByRole("button", {
+            name: "Test Layer",
+        });
+        await userEvent.click(layerButton);
+        expect(layerButton).toHaveAttribute("aria-current", "true");
+
+        act(() => {
+            capturedOnFeatureClick?.("unresolvable-feature-id");
+        });
+
+        expect(layerButton).toHaveAttribute("aria-current", "true");
+    });
+
+    it("clears selection when handleSelectLayer receives undefined", async () => {
+        let capturedProps!: React.ComponentProps<
+            typeof LayerTreePanelModule.LayerTreePanel
+        >;
+        vi.spyOn(LayerTreePanelModule, "LayerTreePanel").mockImplementation(
+            (props) => {
+                capturedProps = props;
+                return <></>;
+            },
+        );
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+
+        act(() => {
+            capturedProps.onSelectLayer("layer-1");
+        });
+        expect(capturedProps?.selection).toEqual({
+            kind: "layer",
+            layerId: "layer-1",
+        });
+
+        act(() => {
+            capturedProps.onSelectLayer(undefined as unknown as string);
+        });
+        expect(capturedProps?.selection).toBeNull();
+    });
+
+    it("clears selection when handleSelectMembership receives undefined", async () => {
+        let capturedProps!: React.ComponentProps<
+            typeof LayerTreePanelModule.LayerTreePanel
+        >;
+        vi.spyOn(LayerTreePanelModule, "LayerTreePanel").mockImplementation(
+            (props) => {
+                capturedProps = props;
+                return <div data-testid="mock-layer-tree" />;
+            },
+        );
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+            loadWorkspace: vi.fn(),
+        });
+
+        renderPage();
+
+        act(() => {
+            capturedProps.onSelectMembership("membership-1");
+        });
+        expect(capturedProps.selection).toEqual({
+            kind: "membership",
+            membershipId: "membership-1",
+        });
+
+        act(() => {
+            capturedProps.onSelectMembership(undefined as unknown as string);
+        });
+        expect(capturedProps.selection).toBeNull();
     });
 });
