@@ -13,7 +13,5 @@ export interface PlannerStop {
     point: LatLon | null;
 }
 
-export type ArmedField = "start" | "end" | null;
-
 export type RouteJobStatus =
     "idle" | "queued" | "processing" | "completed" | "failed";

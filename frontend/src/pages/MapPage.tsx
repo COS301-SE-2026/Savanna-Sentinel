@@ -108,6 +108,10 @@ export default function MapPage() {
         };
     }, [userId]);
 
+    const pinnedWaypoints = useMemo(
+        () => (pinnedRoute?.waypoints ?? []).map(toLatLon),
+        [pinnedRoute],
+    );
     const routeForLayer = useMemo(
         () => (pinnedRoute ? [toPlannedRoute(pinnedRoute)] : []),
         [pinnedRoute],
@@ -184,6 +188,7 @@ export default function MapPage() {
                         map={map}
                         startPoint={toLatLon(pinnedRoute.start_point)}
                         endPoint={toLatLon(pinnedRoute.end_point)}
+                        waypoints={pinnedWaypoints}
                         routes={routeForLayer}
                         selectedIndex={0}
                     />
