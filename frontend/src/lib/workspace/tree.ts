@@ -1,4 +1,8 @@
-import type { WorkspaceLayer, WorkspaceMembership } from "./types";
+import type {
+    WorkspaceFeature,
+    WorkspaceLayer,
+    WorkspaceMembership,
+} from "./types";
 
 export function wouldCreateCycle(
     layers: WorkspaceLayer[],
@@ -86,4 +90,29 @@ export function computeReorderedSiblingIds(
     result.splice(fromIndex, 1);
     result.splice(toIndex, 0, activeId);
     return result;
+}
+
+export type LayerInEffectState = "enabled" | "disabled" | "mixed" | "empty";
+
+export function computeLayerInEffectState(
+    layers: WorkspaceLayer[],
+    memberships: WorkspaceMembership[],
+    features: WorkspaceFeature[],
+    layerId: string,
+): LayerInEffectState {
+    const subtreeLayerIds = new Set([
+        layerId,
+        ...getDescendantLayerIds(layers, layerId),
+    ]);
+    const featureIds = new Set(
+        memberships
+            .filter((m) => subtreeLayerIds.has(m.layerId))
+            .map((m) => m.featureId),
+    );
+    const inSubtree = features.filter((f) => featureIds.has(f.id));
+    if (inSubtree.length === 0) return "empty";
+    const inEffectCount = inSubtree.filter((f) => f.inEffect).length;
+    if (inEffectCount === 0) return "disabled";
+    if (inEffectCount === inSubtree.length) return "enabled";
+    return "mixed";
 }

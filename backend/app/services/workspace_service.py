@@ -204,6 +204,9 @@ class WorkspaceService:
                     "geometry": feature.geometry,
                     "created_at": feature.created_at or now,
                     "updated_at": feature.updated_at or now,
+                    "in_effect": feature.in_effect,
+                    "buffer_enabled": feature.buffer_enabled,
+                    "buffer_distance_m": feature.buffer_distance_m,
                 }
                 for feature in payload.features
             ],

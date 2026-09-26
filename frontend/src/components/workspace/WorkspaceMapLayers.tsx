@@ -3,6 +3,7 @@ import type * as maplibregl from "maplibre-gl";
 
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
+    getStackedLayerIds,
     resolveVisibleFeatures,
     toWorkspaceFeatureCollections,
 } from "@/lib/workspace/resolveVisibleFeatures";
@@ -12,12 +13,16 @@ import { pixelToleranceToDegrees } from "@/lib/workspace/terraDrawGeometry";
 
 const SOURCE_POINTS = "workspace-points";
 const SOURCE_LINES = "workspace-lines";
+const SOURCE_BUFFERS = "workspace-buffers";
+const BUFFERS_FILL = "workspace-buffers-fill";
 const SOURCE_POLYGONS = "workspace-polygons";
 const SOURCE_LINE_ICONS = "workspace-line-icons";
 const SOURCE_POLYGON_ICONS = "workspace-polygon-icons";
 
 const SOURCE_HALO_OUTLINE = "workspace-halo-outline";
 const HALO_OUTLINE = "workspace-selection-halo-outline";
+export const STACK_BOTTOM = "workspace-stack-bottom";
+export const STACK_TOP = "workspace-stack-top";
 const HALO_POINTS = "workspace-selection-halo-points";
 
 const SELECTION_COLOUR = "#003a6b";
@@ -93,6 +98,116 @@ const DASH_ARRAY_EXPRESSION = [
     ["literal", [1, 0]],
 ] as unknown as maplibregl.ExpressionSpecification;
 
+const CLICKABLE_PARTS = ["points-dot", "lines-stroke", "polygons-fill"];
+
+function groupLayerId(layerId: string, part: string): string {
+    return `workspace-${layerId}-${part}`;
+}
+
+function symbolLayout(): maplibregl.SymbolLayerSpecification["layout"] {
+    return {
+        "icon-image": ["get", "icon"],
+        "icon-anchor": SYMBOL_ICON_ANCHOR,
+        "icon-offset": SYMBOL_ICON_OFFSET,
+        "icon-allow-overlap": true,
+        "icon-size": SYMBOL_ICON_SIZE,
+        "text-field": ["get", "label"],
+        "text-offset": SYMBOL_TEXT_OFFSET,
+        "text-anchor": "top",
+        "text-size": SYMBOL_TEXT_SIZE,
+        "symbol-sort-key": ["get", "z"],
+    };
+}
+
+const SYMBOL_PAINT: maplibregl.SymbolLayerSpecification["paint"] = {
+    "icon-color": ["get", "iconColour"],
+    "text-halo-color": "#ffffff",
+    "text-halo-width": 1.5,
+};
+
+function groupLayerSpecs(layerId: string): maplibregl.LayerSpecification[] {
+    const filter = [
+        "==",
+        ["get", "layerId"],
+        layerId,
+    ] as unknown as maplibregl.FilterSpecification;
+    return [
+        {
+            id: groupLayerId(layerId, "polygons-fill"),
+            type: "fill",
+            source: SOURCE_POLYGONS,
+            filter,
+            layout: { "fill-sort-key": ["get", "z"] },
+            paint: {
+                "fill-color": ["get", "colour"],
+                "fill-opacity": ["get", "opacity"],
+            },
+        },
+        {
+            id: groupLayerId(layerId, "polygons-outline"),
+            type: "line",
+            source: SOURCE_POLYGONS,
+            filter,
+            layout: { "line-sort-key": ["get", "z"] },
+            paint: {
+                "line-color": ["get", "colour"],
+                "line-opacity": ["get", "outlineOpacity"],
+                "line-width": ["get", "strokeWidth"],
+                "line-dasharray": DASH_ARRAY_EXPRESSION,
+            },
+        },
+        {
+            id: groupLayerId(layerId, "polygons-symbol"),
+            type: "symbol",
+            source: SOURCE_POLYGON_ICONS,
+            filter,
+            layout: symbolLayout(),
+            paint: SYMBOL_PAINT,
+        },
+        {
+            id: groupLayerId(layerId, "lines-stroke"),
+            type: "line",
+            source: SOURCE_LINES,
+            filter,
+            layout: { "line-sort-key": ["get", "z"] },
+            paint: {
+                "line-color": ["get", "colour"],
+                "line-opacity": ["get", "opacity"],
+                "line-width": ["get", "strokeWidth"],
+                "line-dasharray": DASH_ARRAY_EXPRESSION,
+            },
+        },
+        {
+            id: groupLayerId(layerId, "lines-symbol"),
+            type: "symbol",
+            source: SOURCE_LINE_ICONS,
+            filter,
+            layout: symbolLayout(),
+            paint: SYMBOL_PAINT,
+        },
+        {
+            id: groupLayerId(layerId, "points-dot"),
+            type: "circle",
+            source: SOURCE_POINTS,
+            filter,
+            layout: { "circle-sort-key": ["get", "z"] },
+            paint: {
+                "circle-color": ["get", "colour"],
+                "circle-opacity": ["get", "opacity"],
+                "circle-radius": POINT_CIRCLE_RADIUS,
+            },
+        },
+        {
+            id: groupLayerId(layerId, "points-symbol"),
+            type: "symbol",
+            source: SOURCE_POINTS,
+            filter,
+            layout: symbolLayout(),
+            paint: SYMBOL_PAINT,
+        },
+    ];
+}
+
 export interface WorkspaceMapLayersProps {
     map: maplibregl.Map | null;
     excludedFeatureId: string | null;
@@ -110,14 +225,27 @@ export function WorkspaceMapLayers({
     const features = useWorkspaceStore((s) => s.features);
     const memberships = useWorkspaceStore((s) => s.memberships);
 
-    const collections = useMemo(() => {
-        const resolved = resolveVisibleFeatures(
-            layers,
-            features,
-            memberships,
-        ).filter((r) => r.feature.id !== excludedFeatureId);
-        return toWorkspaceFeatureCollections(resolved);
-    }, [layers, features, memberships, excludedFeatureId]);
+    const resolved = useMemo(
+        () =>
+            resolveVisibleFeatures(layers, features, memberships).filter(
+                (r) => r.feature.id !== excludedFeatureId,
+            ),
+        [layers, features, memberships, excludedFeatureId],
+    );
+    const collections = useMemo(
+        () => toWorkspaceFeatureCollections(resolved, selectedFeatureId),
+        [resolved, selectedFeatureId],
+    );
+    const stackedKey = useMemo(
+        () => JSON.stringify(getStackedLayerIds(resolved)),
+        [resolved],
+    );
+    const selectedLayerId = useMemo(
+        () =>
+            resolved.find((r) => r.feature.id === selectedFeatureId)?.layerId ??
+            null,
+        [resolved, selectedFeatureId],
+    );
 
     const selectedFeatureGeometry = useMemo(() => {
         const feature = features.find((f) => f.id === selectedFeatureId);
@@ -126,6 +254,9 @@ export function WorkspaceMapLayers({
     }, [features, selectedFeatureId]);
 
     const lastSourceDataRef = useRef<Record<string, string>>({});
+
+    const groupLayerIdsRef = useRef<string[]>([]);
+    const clickableLayerIdsRef = useRef<string[]>([]);
 
     const onFeatureClickRef = useRef(onFeatureClick);
     useEffect(() => {
@@ -138,6 +269,10 @@ export function WorkspaceMapLayers({
         registerWorkspaceIcons(map).catch(() => {});
         lastSourceDataRef.current = {};
 
+        map.addSource(SOURCE_BUFFERS, {
+            type: "geojson",
+            data: collections.buffers,
+        });
         map.addSource(SOURCE_POLYGONS, {
             type: "geojson",
             data: collections.polygons,
@@ -164,112 +299,28 @@ export function WorkspaceMapLayers({
         });
 
         map.addLayer({
-            id: "workspace-polygons-fill",
-            type: "fill",
-            source: SOURCE_POLYGONS,
-            paint: {
-                "fill-color": ["get", "colour"],
-                "fill-opacity": ["get", "opacity"],
-            },
+            id: STACK_BOTTOM,
+            type: "background",
+            paint: { "background-opacity": 0 },
         });
         map.addLayer({
-            id: "workspace-polygons-outline",
-            type: "line",
-            source: SOURCE_POLYGONS,
-            paint: {
-                "line-color": ["get", "colour"],
-                "line-opacity": ["get", "outlineOpacity"],
-                "line-width": ["get", "strokeWidth"],
-                "line-dasharray": DASH_ARRAY_EXPRESSION,
-            },
-        });
-        map.addLayer({
-            id: "workspace-polygons-symbol",
-            type: "symbol",
-            source: SOURCE_POLYGON_ICONS,
-            layout: {
-                "icon-image": ["get", "icon"],
-                "icon-anchor": SYMBOL_ICON_ANCHOR,
-                "icon-offset": SYMBOL_ICON_OFFSET,
-                "icon-allow-overlap": true,
-                "icon-size": SYMBOL_ICON_SIZE,
-                "text-field": ["get", "label"],
-                "text-offset": SYMBOL_TEXT_OFFSET,
-                "text-anchor": "top",
-                "text-size": SYMBOL_TEXT_SIZE,
-            },
-            paint: {
-                "icon-color": ["get", "iconColour"],
-                "text-halo-color": "#ffffff",
-                "text-halo-width": 1.5,
-            },
+            id: STACK_TOP,
+            type: "background",
+            paint: { "background-opacity": 0 },
         });
 
-        map.addLayer({
-            id: "workspace-lines-stroke",
-            type: "line",
-            source: SOURCE_LINES,
-            paint: {
-                "line-color": ["get", "colour"],
-                "line-opacity": ["get", "opacity"],
-                "line-width": ["get", "strokeWidth"],
-                "line-dasharray": DASH_ARRAY_EXPRESSION,
+        map.addLayer(
+            {
+                id: BUFFERS_FILL,
+                type: "fill",
+                source: SOURCE_BUFFERS,
+                paint: {
+                    "fill-color": ["get", "colour"],
+                    "fill-opacity": ["get", "opacity"],
+                },
             },
-        });
-        map.addLayer({
-            id: "workspace-lines-symbol",
-            type: "symbol",
-            source: SOURCE_LINE_ICONS,
-            layout: {
-                "icon-image": ["get", "icon"],
-                "icon-anchor": SYMBOL_ICON_ANCHOR,
-                "icon-offset": SYMBOL_ICON_OFFSET,
-                "icon-allow-overlap": true,
-                "icon-size": SYMBOL_ICON_SIZE,
-                "text-field": ["get", "label"],
-                "text-offset": SYMBOL_TEXT_OFFSET,
-                "text-anchor": "top",
-                "text-size": SYMBOL_TEXT_SIZE,
-            },
-            paint: {
-                "icon-color": ["get", "iconColour"],
-                "text-halo-color": "#ffffff",
-                "text-halo-width": 1.5,
-            },
-        });
-
-        map.addLayer({
-            id: "workspace-points-dot",
-            type: "circle",
-            source: SOURCE_POINTS,
-            paint: {
-                "circle-color": ["get", "colour"],
-                "circle-opacity": ["get", "opacity"],
-                "circle-radius": POINT_CIRCLE_RADIUS,
-            },
-        });
-        map.addLayer({
-            id: "workspace-points-symbol",
-            type: "symbol",
-            source: SOURCE_POINTS,
-            layout: {
-                "icon-image": ["get", "icon"],
-                "icon-anchor": SYMBOL_ICON_ANCHOR,
-                "icon-offset": SYMBOL_ICON_OFFSET,
-                "icon-allow-overlap": true,
-                "icon-size": SYMBOL_ICON_SIZE,
-                "text-field": ["get", "label"],
-                "text-offset": SYMBOL_TEXT_OFFSET,
-                "text-anchor": "top",
-                "text-size": SYMBOL_TEXT_SIZE,
-            },
-            paint: {
-                "icon-color": ["get", "iconColour"],
-                "text-halo-color": "#ffffff",
-                "text-halo-width": 1.5,
-            },
-        });
-
+            STACK_TOP,
+        );
         map.addLayer(
             {
                 id: HALO_OUTLINE,
@@ -282,7 +333,7 @@ export function WorkspaceMapLayers({
                     "line-opacity": STATIC_HALO_LINE_OPACITY,
                 },
             },
-            "workspace-polygons-fill",
+            STACK_TOP,
         );
         map.addLayer(
             {
@@ -297,43 +348,51 @@ export function WorkspaceMapLayers({
                     "circle-blur": 0.4,
                 },
             },
-            "workspace-points-dot",
+            STACK_TOP,
         );
 
-        const clickableLayers = [
-            "workspace-points-dot",
-            "workspace-lines-stroke",
-            "workspace-polygons-fill",
-        ];
         const handleClick = (e: maplibregl.MapMouseEvent) => {
             const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
                 [e.point.x - CLICK_BUFFER_PX, e.point.y - CLICK_BUFFER_PX],
                 [e.point.x + CLICK_BUFFER_PX, e.point.y + CLICK_BUFFER_PX],
             ];
-            const hits = map.queryRenderedFeatures(bbox, {
-                layers: clickableLayers,
-            });
-            const id = hits[0]?.properties?.id;
-            onFeatureClickRef.current(typeof id === "string" ? id : null);
+            const layers = clickableLayerIdsRef.current;
+            if (layers.length === 0) {
+                onFeatureClickRef.current(null);
+                return;
+            }
+            let topId: unknown = null;
+            let topZ = -Infinity;
+            let hasHit = false;
+            for (const hit of map.queryRenderedFeatures(bbox, { layers })) {
+                const z = hit.properties?.z;
+                const hitZ = typeof z === "number" ? z : -Infinity;
+                if (!hasHit || hitZ > topZ) {
+                    hasHit = true;
+                    topZ = hitZ;
+                    topId = hit.properties?.id;
+                }
+            }
+            onFeatureClickRef.current(typeof topId === "string" ? topId : null);
         };
         map.on("click", handleClick);
 
         return () => {
             map.off("click", handleClick);
             for (const id of [
-                "workspace-polygons-fill",
-                "workspace-polygons-outline",
-                "workspace-polygons-symbol",
-                "workspace-lines-stroke",
-                "workspace-lines-symbol",
-                "workspace-points-dot",
-                "workspace-points-symbol",
+                ...groupLayerIdsRef.current,
+                BUFFERS_FILL,
                 HALO_OUTLINE,
                 HALO_POINTS,
+                STACK_BOTTOM,
+                STACK_TOP,
             ]) {
                 if (map.getLayer(id)) map.removeLayer(id);
             }
+            groupLayerIdsRef.current = [];
+            clickableLayerIdsRef.current = [];
             for (const id of [
+                SOURCE_BUFFERS,
                 SOURCE_POLYGONS,
                 SOURCE_LINES,
                 SOURCE_POINTS,
@@ -348,10 +407,50 @@ export function WorkspaceMapLayers({
     }, [map]);
 
     useEffect(() => {
+        if (!map) return undefined;
+
+        const stackedLayerIds = JSON.parse(stackedKey) as string[];
+        const added: string[] = [];
+        for (const layerId of stackedLayerIds) {
+            for (const spec of groupLayerSpecs(layerId)) {
+                map.addLayer(spec, STACK_TOP);
+                added.push(spec.id);
+            }
+        }
+        groupLayerIdsRef.current = added;
+        clickableLayerIdsRef.current = stackedLayerIds.flatMap((layerId) =>
+            CLICKABLE_PARTS.map((part) => groupLayerId(layerId, part)),
+        );
+
+        return () => {
+            for (const id of added) {
+                if (map.getLayer(id)) map.removeLayer(id);
+            }
+            groupLayerIdsRef.current = [];
+            clickableLayerIdsRef.current = [];
+        };
+    }, [map, stackedKey]);
+
+    useEffect(() => {
+        if (!map) return;
+        const isStacked =
+            selectedLayerId !== null &&
+            (JSON.parse(stackedKey) as string[]).includes(selectedLayerId);
+        const before = (part: string) =>
+            isStacked ? groupLayerId(selectedLayerId, part) : STACK_TOP;
+        if (map.getLayer(HALO_OUTLINE))
+            map.moveLayer(HALO_OUTLINE, before("polygons-fill"));
+        if (map.getLayer(HALO_POINTS))
+            map.moveLayer(HALO_POINTS, before("points-dot"));
+    }, [map, stackedKey, selectedLayerId]);
+
+    useEffect(() => {
         if (!map) return;
         const pointsSource = map.getSource(SOURCE_POINTS) as
             maplibregl.GeoJSONSource | undefined;
         const linesSource = map.getSource(SOURCE_LINES) as
+            maplibregl.GeoJSONSource | undefined;
+        const buffersSource = map.getSource(SOURCE_BUFFERS) as
             maplibregl.GeoJSONSource | undefined;
         const polygonsSource = map.getSource(SOURCE_POLYGONS) as
             maplibregl.GeoJSONSource | undefined;
@@ -370,6 +469,7 @@ export function WorkspaceMapLayers({
             lastSourceDataRef.current[id] = serialized;
             source?.setData(data);
         };
+        setIfChanged(SOURCE_BUFFERS, buffersSource, collections.buffers);
         setIfChanged(SOURCE_POINTS, pointsSource, collections.points);
         setIfChanged(SOURCE_LINES, linesSource, collections.lines);
         setIfChanged(SOURCE_POLYGONS, polygonsSource, collections.polygons);

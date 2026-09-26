@@ -126,6 +126,9 @@ describe("DrawToolbar", () => {
                     geometry: { type: "Point", coordinates: [0, 0] },
                     createdAt: "now",
                     updatedAt: "now",
+                    inEffect: true,
+                    bufferEnabled: false,
+                    bufferDistanceM: 100,
                 }}
                 onEditingFeatureHandled={onEditingFeatureHandled}
                 finishEditSignal={0}
@@ -189,6 +192,9 @@ describe("DrawToolbar", () => {
                     geometry: { type: "Point", coordinates: [0, 0] },
                     createdAt: "now",
                     updatedAt: "now",
+                    inEffect: true,
+                    bufferEnabled: false,
+                    bufferDistanceM: 100,
                 }}
                 onEditingFeatureHandled={onEditingFeatureHandled}
                 finishEditSignal={0}
@@ -228,6 +234,9 @@ describe("DrawToolbar", () => {
                     geometry: { type: "Point", coordinates: [0, 0] },
                     createdAt: "now",
                     updatedAt: "now",
+                    inEffect: true,
+                    bufferEnabled: false,
+                    bufferDistanceM: 100,
                 }}
                 onEditingFeatureHandled={onEditingFeatureHandled}
                 finishEditSignal={0}
@@ -278,6 +287,9 @@ describe("DrawToolbar", () => {
             geometry: { type: "Point" as const, coordinates: [0, 0] },
             createdAt: "now",
             updatedAt: "now",
+            inEffect: true,
+            bufferEnabled: false,
+            bufferDistanceM: 100,
         };
         const { container, rerender } = render(
             <DrawToolbar
@@ -342,6 +354,9 @@ describe("DrawToolbar", () => {
             geometry: { type: "Point" as const, coordinates: [0, 0] },
             createdAt: "now",
             updatedAt: "now",
+            inEffect: true,
+            bufferEnabled: false,
+            bufferDistanceM: 100,
         };
         const { container, rerender } = render(
             <DrawToolbar
@@ -912,6 +927,9 @@ describe("DrawToolbar", () => {
             geometry: { type: "Point" as const, coordinates: [0, 0] },
             createdAt: "now",
             updatedAt: "now",
+            inEffect: true,
+            bufferEnabled: false,
+            bufferDistanceM: 100,
         };
         const { container, rerender } = render(
             <DrawToolbar
@@ -961,6 +979,9 @@ describe("DrawToolbar", () => {
                     geometry: { type: "Point", coordinates: [0, 0] },
                     createdAt: "now",
                     updatedAt: "now",
+                    inEffect: true,
+                    bufferEnabled: false,
+                    bufferDistanceM: 100,
                 }}
                 onEditingFeatureHandled={vi.fn()}
                 finishEditSignal={0}

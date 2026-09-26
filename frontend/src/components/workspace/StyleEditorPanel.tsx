@@ -17,6 +17,10 @@ import {
 import type { FeatureStyle } from "@/lib/workspace/types";
 import { IconPicker } from "./IconPicker";
 import { ColourPickerPopover } from "./ColourPickerPopover";
+import { BufferSection } from "./BufferSection";
+import { BufferStyleFields } from "./BufferStyleFields";
+import { InEffectSection } from "./InEffectSection";
+import { ResetButton } from "./ResetButton";
 
 export type WorkspaceSelection =
     | { kind: "membership"; membershipId: string }
@@ -95,6 +99,23 @@ export function StyleEditorPanel({
                     }
                     showOutlineOpacity={false}
                 />
+                <div className="flex flex-col gap-4 border-t border-color-border p-3">
+                    <p className="text-sm font-semibold text-color-text-primary">
+                        Buffer style
+                    </p>
+                    <BufferStyleFields
+                        resolved={resolveLayerChainStyle(layers, layer.id)}
+                        isOverridden={(prop) =>
+                            layer.defaultStyle[prop] !== undefined
+                        }
+                        onChange={(patch) =>
+                            setLayerDefaultStyle(layer.id, patch)
+                        }
+                        onReset={(prop) =>
+                            clearLayerDefaultStyleProperty(layer.id, prop)
+                        }
+                    />
+                </div>
             </div>
         );
     }
@@ -143,6 +164,8 @@ export function StyleEditorPanel({
                 showOutlineOpacity={feature.type === "polygon"}
             />
 
+            <BufferSection feature={feature} membership={membership} />
+
             <div className="flex gap-2 border-t border-color-border p-3">
                 <Button
                     type="button"
@@ -184,6 +207,8 @@ export function StyleEditorPanel({
                     </ul>
                 </div>
             )}
+
+            <InEffectSection featureId={feature.id} />
         </div>
     );
 }
@@ -195,25 +220,6 @@ interface StyleFieldsProps {
     onChange: (patch: Partial<FeatureStyle>) => void;
     onReset: (prop: keyof FeatureStyle) => void;
     showOutlineOpacity: boolean;
-}
-
-function ResetButton({
-    show,
-    onClick,
-}: {
-    show: boolean;
-    onClick: () => void;
-}) {
-    if (!show) return null;
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className="text-xs text-brand-primary underline"
-        >
-            Reset
-        </button>
-    );
 }
 
 const MIN_STROKE_WIDTH = 1;

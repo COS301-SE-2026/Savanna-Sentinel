@@ -341,4 +341,95 @@ describe("LayerTreePanel", () => {
         expect(state.features.map((f) => f.id)).toEqual([created!.featureId]);
         expect(state.memberships.map((m) => m.layerId)).toEqual([riverId]);
     });
+
+    it("marks a feature that is not in effect with an accessible icon", async () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] })!;
+        useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [1, 1] });
+        useWorkspaceStore
+            .getState()
+            .setFeatureInEffect(created.featureId, false);
+
+        renderPanel();
+        await screen.findByText("Water");
+
+        expect(
+            screen.getAllByRole("img", { name: "Not in effect" }),
+        ).toHaveLength(1);
+    });
+
+    it("marks the layer row too when every feature under it is out of effect", async () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] })!;
+        useWorkspaceStore
+            .getState()
+            .setFeatureInEffect(created.featureId, false);
+
+        renderPanel();
+        await screen.findByText("Water");
+
+        expect(
+            screen.getAllByRole("img", { name: "Not in effect" }),
+        ).toHaveLength(2);
+    });
+
+    it("shows no icon on an empty layer or a layer with a mix of features", async () => {
+        useWorkspaceStore.getState().addLayer("Empty", null);
+        const mixedId = useWorkspaceStore.getState().addLayer("Mixed", null);
+        useWorkspaceStore.getState().setActiveLayer(mixedId);
+        const a = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] })!;
+        useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [1, 1] });
+        useWorkspaceStore.getState().setFeatureInEffect(a.featureId, false);
+
+        renderPanel();
+        await screen.findByText("Empty");
+
+        const emptyRow = screen.getByText("Empty").closest("div")!;
+        const mixedRow = screen.getByText("Mixed").closest("div")!;
+        expect(within(emptyRow).queryByRole("img")).toBeNull();
+        expect(within(mixedRow).queryByRole("img")).toBeNull();
+    });
+
+    it("Disable all children and Enable all children act on every feature under the layer", async () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] });
+        useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [1, 1] });
+
+        renderPanel();
+        const waterRow = (await screen.findByText("Water")).closest("div")!;
+        await userEvent.click(
+            within(waterRow).getByRole("button", { name: "Options for Water" }),
+        );
+        await userEvent.click(await screen.findByText("Disable all children"));
+
+        expect(
+            useWorkspaceStore.getState().features.every((f) => !f.inEffect),
+        ).toBe(true);
+
+        await userEvent.click(
+            within(waterRow).getByRole("button", { name: "Options for Water" }),
+        );
+        await userEvent.click(await screen.findByText("Enable all children"));
+
+        expect(
+            useWorkspaceStore.getState().features.every((f) => f.inEffect),
+        ).toBe(true);
+    });
 });

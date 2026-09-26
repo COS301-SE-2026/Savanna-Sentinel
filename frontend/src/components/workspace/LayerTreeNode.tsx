@@ -4,6 +4,7 @@ import {
     ChevronDown,
     MoreVertical,
     GripVertical,
+    CircleSlash,
 } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import {
@@ -15,7 +16,10 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { useWorkspaceStore } from "@/store/workspaceStore";
-import { computeLayerCheckboxState } from "@/lib/workspace/tree";
+import {
+    computeLayerCheckboxState,
+    computeLayerInEffectState,
+} from "@/lib/workspace/tree";
 import {
     getFeatureDisplayName,
     getLayerDisplayName,
@@ -46,6 +50,19 @@ const menuItemClass =
     "cursor-pointer rounded px-2 py-1.5 text-sm text-color-text-primary outline-none hover:bg-color-surface-bg";
 const dangerMenuItemClass =
     "cursor-pointer rounded px-2 py-1.5 text-sm text-status-critical-text outline-none hover:bg-color-surface-bg";
+
+function NotInEffectIcon() {
+    return (
+        <span
+            role="img"
+            aria-label="Not in effect"
+            title="Not in effect"
+            className="flex size-4 shrink-0 items-center justify-center text-color-text-secondary"
+        >
+            <CircleSlash className="size-4" aria-hidden="true" />
+        </span>
+    );
+}
 
 export function LayerTreeNode({
     layer,
@@ -78,6 +95,9 @@ export function LayerTreeNode({
     const toggleLayerVisibility = useWorkspaceStore(
         (s) => s.toggleLayerVisibility,
     );
+    const setLayerChildrenInEffect = useWorkspaceStore(
+        (s) => s.setLayerChildrenInEffect,
+    );
 
     const childLayers = layers
         .filter((l) => l.parentId === layer.id)
@@ -89,6 +109,12 @@ export function LayerTreeNode({
     const checkboxState = computeLayerCheckboxState(
         layers,
         memberships,
+        layer.id,
+    );
+    const inEffectState = computeLayerInEffectState(
+        layers,
+        memberships,
+        features,
         layer.id,
     );
     const { attributes, listeners, setNodeRef, transform, transition } =
@@ -173,6 +199,8 @@ export function LayerTreeNode({
                     </button>
                 )}
 
+                {inEffectState === "disabled" && <NotInEffectIcon />}
+
                 {!readOnly && (
                     <DropdownMenu.Root>
                         <DropdownMenu.Trigger asChild>
@@ -206,6 +234,25 @@ export function LayerTreeNode({
                                     }
                                 >
                                     Add child layer
+                                </DropdownMenu.Item>
+                                <DropdownMenu.Item
+                                    className={menuItemClass}
+                                    onSelect={() =>
+                                        setLayerChildrenInEffect(
+                                            layer.id,
+                                            false,
+                                        )
+                                    }
+                                >
+                                    Disable all children
+                                </DropdownMenu.Item>
+                                <DropdownMenu.Item
+                                    className={menuItemClass}
+                                    onSelect={() =>
+                                        setLayerChildrenInEffect(layer.id, true)
+                                    }
+                                >
+                                    Enable all children
                                 </DropdownMenu.Item>
                                 <DropdownMenu.Item
                                     className={dangerMenuItemClass}
@@ -381,6 +428,7 @@ function MembershipRow({
                     {displayName}
                 </button>
             )}
+            {!feature.inEffect && <NotInEffectIcon />}
             {!readOnly && (
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>

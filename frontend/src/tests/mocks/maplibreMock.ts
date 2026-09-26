@@ -87,7 +87,23 @@ export class FakeMap {
     addLayer(layer: { id: string }, beforeId?: string) {
         this.assertNotRemoved();
         this.layers[layer.id] = layer;
-        void beforeId;
+        if (beforeId) this.moveLayer(layer.id, beforeId);
+    }
+
+    getLayerOrder(): string[] {
+        return Object.keys(this.layers);
+    }
+
+    moveLayer(id: string, beforeId?: string) {
+        this.assertNotRemoved();
+        const layer = this.layers[id];
+        if (!layer) return;
+        const entries = Object.entries(this.layers).filter(([k]) => k !== id);
+        const index = beforeId
+            ? entries.findIndex(([k]) => k === beforeId)
+            : -1;
+        entries.splice(index === -1 ? entries.length : index, 0, [id, layer]);
+        this.layers = Object.fromEntries(entries);
     }
 
     removeLayer(id: string) {

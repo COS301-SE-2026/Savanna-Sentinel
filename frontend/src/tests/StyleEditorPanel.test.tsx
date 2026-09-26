@@ -445,4 +445,154 @@ describe("StyleEditorPanel", () => {
         fireEvent.blur(input);
         expect(input).toHaveValue(5);
     });
+
+    function renderForNewFeature(enableBuffer = false) {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] })!;
+        if (enableBuffer) {
+            useWorkspaceStore
+                .getState()
+                .setFeatureBuffer(created.featureId, { enabled: true });
+        }
+        render(
+            <StyleEditorPanel
+                selection={{
+                    kind: "membership",
+                    membershipId: created.membershipId,
+                }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+        return { waterId, created };
+    }
+
+    it("enabling the buffer writes to the feature", async () => {
+        const { created } = renderForNewFeature();
+        await userEvent.click(screen.getByLabelText("Enable buffer"));
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === created.featureId)
+                ?.bufferEnabled,
+        ).toBe(true);
+    });
+
+    it("typing a valid buffer distance commits it", () => {
+        const { created } = renderForNewFeature(true);
+        fireEvent.change(screen.getByLabelText("Buffer distance in metres"), {
+            target: { value: "250" },
+        });
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === created.featureId)
+                ?.bufferDistanceM,
+        ).toBe(250);
+    });
+
+    it.each(["0", "20001", ""])(
+        "typing an invalid buffer distance of %j does not commit it",
+        (value) => {
+            const { created } = renderForNewFeature(true);
+            fireEvent.change(
+                screen.getByLabelText("Buffer distance in metres"),
+                { target: { value } },
+            );
+            expect(
+                useWorkspaceStore
+                    .getState()
+                    .features.find((f) => f.id === created.featureId)
+                    ?.bufferDistanceM,
+            ).toBe(100);
+        },
+    );
+
+    it("moving the buffer distance slider commits the distance", () => {
+        const { created } = renderForNewFeature(true);
+        fireEvent.change(screen.getByLabelText("Buffer distance slider"), {
+            target: { value: "1500" },
+        });
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === created.featureId)
+                ?.bufferDistanceM,
+        ).toBe(1500);
+    });
+
+    it("editing buffer opacity writes to the membership's styleOverride and can be reset", async () => {
+        const { created } = renderForNewFeature(true);
+        fireEvent.change(screen.getByLabelText("Buffer opacity"), {
+            target: { value: "60" },
+        });
+        expect(
+            useWorkspaceStore
+                .getState()
+                .memberships.find((m) => m.id === created.membershipId)
+                ?.styleOverride.bufferOpacity,
+        ).toBeCloseTo(0.6);
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /reset buffer opacity/i }),
+        );
+        expect(
+            useWorkspaceStore
+                .getState()
+                .memberships.find((m) => m.id === created.membershipId)
+                ?.styleOverride.bufferOpacity,
+        ).toBeUndefined();
+    });
+
+    it("shows the In effect checkbox last, after the Edit geometry button, and toggling it updates the feature", async () => {
+        const { created } = renderForNewFeature();
+        const editButton = screen.getByRole("button", {
+            name: "Edit geometry",
+        });
+        const checkbox = screen.getByLabelText("In effect");
+        expect(
+            editButton.compareDocumentPosition(checkbox) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(checkbox).toBeChecked();
+
+        await userEvent.click(checkbox);
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === created.featureId)?.inEffect,
+        ).toBe(false);
+        expect(
+            useWorkspaceStore
+                .getState()
+                .memberships.find((m) => m.id === created.membershipId)
+                ?.visible,
+        ).toBe(false);
+    });
+
+    it("a selected layer edits only the buffer colour and opacity defaults", () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        render(
+            <StyleEditorPanel
+                selection={{ kind: "layer", layerId: waterId }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+        expect(screen.queryByLabelText("Enable buffer")).toBeNull();
+        expect(screen.queryByLabelText("In effect")).toBeNull();
+
+        fireEvent.change(screen.getByLabelText("Buffer opacity"), {
+            target: { value: "35" },
+        });
+        expect(
+            useWorkspaceStore.getState().layers.find((l) => l.id === waterId)
+                ?.defaultStyle.bufferOpacity,
+        ).toBeCloseTo(0.35);
+    });
 });

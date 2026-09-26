@@ -10,6 +10,11 @@ import type {
 import { wouldCreateCycle, getDescendantLayerIds } from "@/lib/workspace/tree";
 import { resolveMembershipStyle } from "@/lib/workspace/styleResolution";
 import {
+    DEFAULT_BUFFER_DISTANCE_M,
+    MAX_BUFFER_DISTANCE_M,
+    MIN_BUFFER_DISTANCE_M,
+} from "@/lib/workspace/types";
+import {
     fetchWorkspace,
     saveVisibility,
     saveWorkspace as putWorkspace,
@@ -34,6 +39,22 @@ function withoutOrphans(
 
 function nextOrder(siblings: { order: number }[]): number {
     return siblings.reduce((max, s) => Math.max(max, s.order + 1), 0);
+}
+
+function applyInEffect(
+    features: WorkspaceFeature[],
+    memberships: WorkspaceMembership[],
+    featureIds: Set<string>,
+    inEffect: boolean,
+): { features: WorkspaceFeature[]; memberships: WorkspaceMembership[] } {
+    return {
+        features: features.map((f) =>
+            featureIds.has(f.id) ? { ...f, inEffect } : f,
+        ),
+        memberships: memberships.map((m) =>
+            featureIds.has(m.featureId) ? { ...m, visible: inEffect } : m,
+        ),
+    };
 }
 
 export type WorkspaceStatus = "idle" | "loading" | "ready" | "error";
@@ -86,6 +107,12 @@ export interface WorkspaceState extends WorkspaceDataState {
         geometry: GeoJSON.Geometry,
     ) => void;
     renameFeature: (featureId: string, name: string) => void;
+    setFeatureInEffect: (featureId: string, inEffect: boolean) => void;
+    setFeatureBuffer: (
+        featureId: string,
+        patch: { enabled?: boolean; distanceM?: number },
+    ) => void;
+    setLayerChildrenInEffect: (layerId: string, inEffect: boolean) => void;
     setMembershipStyleOverride: (
         membershipId: string,
         styleOverride: Partial<FeatureStyle>,
@@ -297,6 +324,9 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
                 geometry,
                 createdAt: now,
                 updatedAt: now,
+                inEffect: true,
+                bufferEnabled: false,
+                bufferDistanceM: DEFAULT_BUFFER_DISTANCE_M,
             };
             const membership: WorkspaceMembership = {
                 id: membershipId,
@@ -333,6 +363,58 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
                     f.id === featureId ? { ...f, name } : f,
                 ),
             });
+        },
+
+        setFeatureInEffect: (featureId, inEffect) => {
+            markDirty(
+                applyInEffect(
+                    get().features,
+                    get().memberships,
+                    new Set([featureId]),
+                    inEffect,
+                ),
+            );
+        },
+
+        setFeatureBuffer: (featureId, patch) => {
+            const { distanceM } = patch;
+            const isDistanceValid =
+                distanceM === undefined ||
+                (Number.isFinite(distanceM) &&
+                    distanceM >= MIN_BUFFER_DISTANCE_M &&
+                    distanceM <= MAX_BUFFER_DISTANCE_M);
+            if (!isDistanceValid) return;
+            markDirty({
+                features: get().features.map((f) =>
+                    f.id === featureId
+                        ? {
+                              ...f,
+                              bufferEnabled: patch.enabled ?? f.bufferEnabled,
+                              bufferDistanceM: distanceM ?? f.bufferDistanceM,
+                          }
+                        : f,
+                ),
+            });
+        },
+
+        setLayerChildrenInEffect: (layerId, inEffect) => {
+            const subtree = new Set([
+                layerId,
+                ...getDescendantLayerIds(get().layers, layerId),
+            ]);
+            const featureIds = new Set(
+                get()
+                    .memberships.filter((m) => subtree.has(m.layerId))
+                    .map((m) => m.featureId),
+            );
+            markDirty(
+                applyInEffect(
+                    get().features,
+                    get().memberships,
+                    featureIds,
+                    inEffect,
+                ),
+            );
         },
 
         setMembershipStyleOverride: (membershipId, styleOverride) => {

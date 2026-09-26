@@ -38,6 +38,8 @@ const FULL_STYLE = {
     lineDash: "dashed" as const,
     label: "Camp one",
     outlineOpacity: 0.25,
+    bufferColour: "#22c55e",
+    bufferOpacity: 0.3,
 };
 
 const FULL_STYLE_WIRE = {
@@ -49,6 +51,8 @@ const FULL_STYLE_WIRE = {
     line_dash: "dashed" as const,
     label: "Camp one",
     outline_opacity: 0.25,
+    buffer_colour: "#22c55e",
+    buffer_opacity: 0.3,
 };
 
 describe("style mapping", () => {
@@ -153,6 +157,9 @@ describe("workspace requests", () => {
                     geometry: { type: "Point", coordinates: [31.1, -24.4] },
                     createdAt: "2026-01-01T00:00:00Z",
                     updatedAt: "2026-01-01T00:00:00Z",
+                    inEffect: true,
+                    bufferEnabled: false,
+                    bufferDistanceM: 100,
                 },
             ],
             memberships: [
@@ -211,5 +218,64 @@ describe("workspace requests", () => {
         await expect(
             saveWorkspace(0, { layers: [], features: [], memberships: [] }),
         ).rejects.not.toBeInstanceOf(WorkspaceConflictError);
+    });
+});
+
+describe("feature buffer and in-effect mapping", () => {
+    it("sends and restores in_effect, buffer_enabled and buffer_distance_m", async () => {
+        const featureId = "11111111-1111-4111-8111-111111111111";
+        const layerId = "22222222-2222-4222-8222-222222222222";
+        const membershipId = "33333333-3333-4333-8333-333333333333";
+
+        const saved = await saveWorkspace(0, {
+            layers: [
+                {
+                    id: layerId,
+                    parentId: null,
+                    order: 0,
+                    defaultStyle: {},
+                },
+            ],
+            features: [
+                {
+                    id: featureId,
+                    type: "point",
+                    geometry: { type: "Point", coordinates: [1, 2] },
+                    createdAt: "2026-01-01T00:00:00Z",
+                    updatedAt: "2026-01-01T00:00:00Z",
+                    inEffect: false,
+                    bufferEnabled: true,
+                    bufferDistanceM: 250,
+                },
+            ],
+            memberships: [
+                {
+                    id: membershipId,
+                    featureId,
+                    layerId,
+                    order: 0,
+                    styleOverride: {},
+                    visible: true,
+                },
+            ],
+        });
+
+        expect(workspaceState.saveCalls[0].features[0]).toMatchObject({
+            in_effect: false,
+            buffer_enabled: true,
+            buffer_distance_m: 250,
+        });
+        expect(saved.features[0]).toMatchObject({
+            inEffect: false,
+            bufferEnabled: true,
+            bufferDistanceM: 250,
+        });
+
+        const fetched = await fetchWorkspace();
+        expect(fetched.features[0]).toMatchObject({
+            inEffect: false,
+            bufferEnabled: true,
+            bufferDistanceM: 250,
+        });
     });
 });

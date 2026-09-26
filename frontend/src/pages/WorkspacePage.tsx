@@ -15,7 +15,10 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { notifyCritical, notifySafe } from "@/components/ui/toast";
-import { WorkspaceMapLayers } from "@/components/workspace/WorkspaceMapLayers";
+import {
+    STACK_BOTTOM,
+    WorkspaceMapLayers,
+} from "@/components/workspace/WorkspaceMapLayers";
 import { DrawToolbar } from "@/components/workspace/DrawToolbar";
 import { LayerTreePanel } from "@/components/workspace/LayerTreePanel";
 import {
@@ -29,7 +32,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { PARK_CENTER_FALLBACK, scoresByCell } from "@/lib/riskGrid";
 
 const DEFAULT_ZOOM = 10;
-const HEATMAP_BEFORE_ID = "workspace-polygons-fill";
 const DRAW_CLICK_GUARD_MS = 300;
 
 export default function WorkspacePage() {
@@ -197,7 +199,7 @@ export default function WorkspacePage() {
                     riskByCell={riskByCell}
                     pickingActive
                     isMobile={isMobile}
-                    beforeId={HEATMAP_BEFORE_ID}
+                    beforeId={STACK_BOTTOM}
                     visible={isHeatmapVisible}
                 />
                 {!isMobile && (

@@ -3,7 +3,15 @@ from __future__ import annotations
 from datetime import datetime  # noqa: TC003
 from typing import Any, Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -62,6 +70,21 @@ class WorkspaceFeature(_Base):
     )
     name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     geometry: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    in_effect: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    buffer_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    buffer_distance_m: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        default=100.0,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

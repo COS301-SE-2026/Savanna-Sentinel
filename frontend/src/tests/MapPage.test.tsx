@@ -62,6 +62,9 @@ const MOCK_FEATURE = {
     properties: { name: "Test feature" },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    inEffect: true,
+    bufferEnabled: false,
+    bufferDistanceM: 100,
 };
 
 const MOCK_MEMBERSHIP = {
@@ -475,6 +478,8 @@ describe("MapPage", () => {
         vi.spyOn(resolveModule, "resolveVisibleFeatures").mockReturnValue([
             {
                 membershipId: MOCK_MEMBERSHIP.id,
+                layerId: MOCK_MEMBERSHIP.layerId,
+                z: 0,
                 feature: MOCK_FEATURE,
                 style: {
                     colour: "#000000",

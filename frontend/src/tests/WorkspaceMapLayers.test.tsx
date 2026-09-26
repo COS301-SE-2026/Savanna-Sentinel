@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 
 vi.mock("maplibre-gl", async () => {
@@ -23,6 +23,42 @@ function makeMap(): FakeMap {
         container: document.createElement("div"),
     }) as unknown as FakeMap;
 }
+
+function seedOneOfEach(): { layerId: string; polygonId: string } {
+    const store = useWorkspaceStore.getState();
+    const layerId = store.addLayer("Water", null);
+    store.setActiveLayer(layerId);
+    store.drawFeature("point", { type: "Point", coordinates: [1, 2] });
+    store.drawFeature("line", {
+        type: "LineString",
+        coordinates: [
+            [0, 0],
+            [10, 0],
+        ],
+    });
+    const polygon = store.drawFeature("polygon", {
+        type: "Polygon",
+        coordinates: [
+            [
+                [0, 0],
+                [10, 0],
+                [10, 10],
+                [0, 10],
+                [0, 0],
+            ],
+        ],
+    })!;
+    return { layerId, polygonId: polygon.featureId };
+}
+
+function findGroupLayer(map: FakeMap, part: string): unknown {
+    const id = map
+        .getLayerOrder()
+        .find((layerId) => layerId.endsWith(`-${part}`));
+    return id ? map.getLayer(id) : undefined;
+}
+
+const SYMBOL_PARTS = ["points-symbol", "lines-symbol", "polygons-symbol"];
 
 describe("WorkspaceMapLayers", () => {
     it("adds a geojson source per geometry type and populates it from visible features", async () => {
@@ -167,12 +203,12 @@ describe("WorkspaceMapLayers", () => {
             expect(map.sources["workspace-points"]).toBeDefined(),
         );
 
-        const lineSymbolLayer = map.getLayer("workspace-lines-symbol") as {
+        const lineSymbolLayer = findGroupLayer(map, "lines-symbol") as {
             source: string;
         };
-        const polygonSymbolLayer = map.getLayer(
-            "workspace-polygons-symbol",
-        ) as { source: string };
+        const polygonSymbolLayer = findGroupLayer(map, "polygons-symbol") as {
+            source: string;
+        };
         expect(lineSymbolLayer.source).not.toBe("workspace-lines");
         expect(polygonSymbolLayer.source).not.toBe("workspace-polygons");
 
@@ -238,12 +274,14 @@ describe("WorkspaceMapLayers", () => {
         map.fireClick({ lng: 1, lat: 2 });
 
         const [, options] = map.queryRenderedFeatures.mock.calls.at(-1)!;
-        expect(options?.layers).not.toContain("workspace-points-symbol");
-        expect(options?.layers).not.toContain("workspace-lines-symbol");
-        expect(options?.layers).not.toContain("workspace-polygons-symbol");
+        expect(options?.layers?.length).toBeGreaterThan(0);
+        for (const id of options?.layers ?? []) {
+            expect(id).not.toMatch(/-symbol$/);
+        }
     });
 
     it("anchors the icon above and the label below the feature with a gap, instead of centering on top of it", async () => {
+        seedOneOfEach();
         const map = makeMap();
         render(
             <WorkspaceMapLayers
@@ -257,12 +295,8 @@ describe("WorkspaceMapLayers", () => {
             expect(map.sources["workspace-points"]).toBeDefined(),
         );
 
-        for (const layerId of [
-            "workspace-points-symbol",
-            "workspace-lines-symbol",
-            "workspace-polygons-symbol",
-        ]) {
-            const layer = map.getLayer(layerId) as {
+        for (const layerId of SYMBOL_PARTS) {
+            const layer = findGroupLayer(map, layerId) as {
                 layout?: Record<string, unknown>;
             };
             const layout = layer.layout!;
@@ -306,6 +340,7 @@ describe("WorkspaceMapLayers", () => {
     }
 
     it("shrinks point dots, icons, and labels when zooming out instead of holding a fixed pixel size", async () => {
+        seedOneOfEach();
         const map = makeMap();
         render(
             <WorkspaceMapLayers
@@ -319,7 +354,7 @@ describe("WorkspaceMapLayers", () => {
             expect(map.sources["workspace-points"]).toBeDefined(),
         );
 
-        const dotLayer = map.getLayer("workspace-points-dot") as {
+        const dotLayer = findGroupLayer(map, "points-dot") as {
             paint?: Record<string, unknown>;
         };
         const dotRadiusAtLowZoom = evalZoomInterpolate(
@@ -332,12 +367,8 @@ describe("WorkspaceMapLayers", () => {
         );
         expect(dotRadiusAtLowZoom).toBeLessThan(dotRadiusAtHighZoom);
 
-        for (const layerId of [
-            "workspace-points-symbol",
-            "workspace-lines-symbol",
-            "workspace-polygons-symbol",
-        ]) {
-            const layer = map.getLayer(layerId) as {
+        for (const layerId of SYMBOL_PARTS) {
+            const layer = findGroupLayer(map, layerId) as {
                 layout?: Record<string, unknown>;
             };
             const layout = layer.layout!;
@@ -365,6 +396,7 @@ describe("WorkspaceMapLayers", () => {
     });
 
     it("shrinks sizing dramatically within a few zoom levels of the default, not just at extreme zoom", async () => {
+        seedOneOfEach();
         const map = makeMap();
         render(
             <WorkspaceMapLayers
@@ -380,7 +412,7 @@ describe("WorkspaceMapLayers", () => {
 
         const zoomedOutBy3 = 7;
 
-        const dotLayer = map.getLayer("workspace-points-dot") as {
+        const dotLayer = findGroupLayer(map, "points-dot") as {
             paint?: Record<string, unknown>;
         };
         const dotRadiusAtDefault = evalZoomInterpolate(
@@ -393,7 +425,7 @@ describe("WorkspaceMapLayers", () => {
         );
         expect(dotRadiusZoomedOut).toBeLessThan(dotRadiusAtDefault * 0.25);
 
-        const symbolLayer = map.getLayer("workspace-points-symbol") as {
+        const symbolLayer = findGroupLayer(map, "points-symbol") as {
             layout?: Record<string, unknown>;
         };
         const layout = symbolLayer.layout!;
@@ -414,6 +446,7 @@ describe("WorkspaceMapLayers", () => {
     });
 
     it("keeps the point dot small at the default zoom so it reads as a precise location, not a blob", async () => {
+        seedOneOfEach();
         const map = makeMap();
         render(
             <WorkspaceMapLayers
@@ -427,7 +460,7 @@ describe("WorkspaceMapLayers", () => {
             expect(map.sources["workspace-points"]).toBeDefined(),
         );
 
-        const dotLayer = map.getLayer("workspace-points-dot") as {
+        const dotLayer = findGroupLayer(map, "points-dot") as {
             paint?: Record<string, unknown>;
         };
         const radiusAtDefaultZoom = evalZoomInterpolate(
@@ -438,6 +471,7 @@ describe("WorkspaceMapLayers", () => {
     });
 
     it("colours each symbol layer's icon from its own iconColour property, independent of the feature's shape colour, without a halo", async () => {
+        seedOneOfEach();
         const map = makeMap();
         render(
             <WorkspaceMapLayers
@@ -451,12 +485,8 @@ describe("WorkspaceMapLayers", () => {
             expect(map.sources["workspace-points"]).toBeDefined(),
         );
 
-        for (const layerId of [
-            "workspace-points-symbol",
-            "workspace-lines-symbol",
-            "workspace-polygons-symbol",
-        ]) {
-            const layer = map.getLayer(layerId) as {
+        for (const layerId of SYMBOL_PARTS) {
+            const layer = findGroupLayer(map, layerId) as {
                 paint?: Record<string, unknown>;
             };
             expect(layer.paint!["icon-color"]).toEqual(["get", "iconColour"]);
@@ -466,6 +496,7 @@ describe("WorkspaceMapLayers", () => {
     });
 
     it("drives the polygon outline's opacity from its own outlineOpacity property, independent of the fill's opacity", async () => {
+        seedOneOfEach();
         const map = makeMap();
         render(
             <WorkspaceMapLayers
@@ -479,7 +510,7 @@ describe("WorkspaceMapLayers", () => {
             expect(map.sources["workspace-points"]).toBeDefined(),
         );
 
-        const outlineLayer = map.getLayer("workspace-polygons-outline") as {
+        const outlineLayer = findGroupLayer(map, "polygons-outline") as {
             paint?: Record<string, unknown>;
         };
         expect(outlineLayer.paint!["line-opacity"]).toEqual([
@@ -532,6 +563,7 @@ describe("WorkspaceMapLayers", () => {
     });
 
     it("keeps icons and labels small at the default zoom so a dense map of features doesn't get cluttered", async () => {
+        seedOneOfEach();
         const map = makeMap();
         render(
             <WorkspaceMapLayers
@@ -545,12 +577,8 @@ describe("WorkspaceMapLayers", () => {
             expect(map.sources["workspace-points"]).toBeDefined(),
         );
 
-        for (const layerId of [
-            "workspace-points-symbol",
-            "workspace-lines-symbol",
-            "workspace-polygons-symbol",
-        ]) {
-            const layer = map.getLayer(layerId) as {
+        for (const layerId of SYMBOL_PARTS) {
+            const layer = findGroupLayer(map, layerId) as {
                 layout?: Record<string, unknown>;
             };
             const layout = layer.layout!;
@@ -570,14 +598,14 @@ describe("WorkspaceMapLayers", () => {
     });
 
     describe("selection highlight", () => {
-        it("inserts the outline and point halos below the polygon fill and point dot so the throb buffers around the feature instead of overlapping onto it", async () => {
+        it("places the outline and point halos below the selected layer's polygon fill and point dot so the throb buffers around the feature instead of overlapping onto it", async () => {
+            const { layerId, polygonId } = seedOneOfEach();
             const map = makeMap();
-            const addLayerSpy = vi.spyOn(map, "addLayer");
             render(
                 <WorkspaceMapLayers
                     map={map as never}
                     excludedFeatureId={null}
-                    selectedFeatureId={null}
+                    selectedFeatureId={polygonId}
                     onFeatureClick={() => {}}
                 />,
             );
@@ -585,18 +613,13 @@ describe("WorkspaceMapLayers", () => {
                 expect(map.sources["workspace-points"]).toBeDefined(),
             );
 
-            const haloOutlineCall = addLayerSpy.mock.calls.find(
-                ([layer]) =>
-                    (layer as { id: string }).id ===
-                    "workspace-selection-halo-outline",
-            );
-            const haloPointsCall = addLayerSpy.mock.calls.find(
-                ([layer]) =>
-                    (layer as { id: string }).id ===
-                    "workspace-selection-halo-points",
-            );
-            expect(haloOutlineCall?.[1]).toBe("workspace-polygons-fill");
-            expect(haloPointsCall?.[1]).toBe("workspace-points-dot");
+            const order = map.getLayerOrder();
+            expect(
+                order.indexOf("workspace-selection-halo-outline"),
+            ).toBeLessThan(order.indexOf(`workspace-${layerId}-polygons-fill`));
+            expect(
+                order.indexOf("workspace-selection-halo-points"),
+            ).toBeLessThan(order.indexOf(`workspace-${layerId}-points-dot`));
         });
 
         function reducedMotion(matches: boolean) {
@@ -970,6 +993,325 @@ describe("WorkspaceMapLayers", () => {
                 "circle-opacity",
                 expect.any(Number),
             );
+        });
+    });
+});
+
+describe("WorkspaceMapLayers stacking", () => {
+    function seedTwoLayers() {
+        const store = useWorkspaceStore.getState();
+        const topId = store.addLayer("Top", null);
+        const bottomId = store.addLayer("Bottom", null);
+        store.setActiveLayer(bottomId);
+        const lo = store.drawFeature("point", {
+            type: "Point",
+            coordinates: [1, 2],
+        })!;
+        store.setActiveLayer(topId);
+        const hi = store.drawFeature("polygon", {
+            type: "Polygon",
+            coordinates: [
+                [
+                    [0, 0],
+                    [10, 0],
+                    [10, 10],
+                    [0, 10],
+                    [0, 0],
+                ],
+            ],
+        })!;
+        return { topId, bottomId, lo, hi };
+    }
+
+    function renderMap(
+        overrides: Partial<{
+            selectedFeatureId: string | null;
+            onFeatureClick: (id: string | null) => void;
+        }> = {},
+    ) {
+        const map = makeMap();
+        render(
+            <WorkspaceMapLayers
+                map={map as never}
+                excludedFeatureId={null}
+                selectedFeatureId={overrides.selectedFeatureId ?? null}
+                onFeatureClick={overrides.onFeatureClick ?? (() => {})}
+            />,
+        );
+        return map;
+    }
+
+    function groupIndices(map: FakeMap, layerId: string) {
+        const prefix = `workspace-${layerId}-`;
+        return map
+            .getLayerOrder()
+            .flatMap((id, index) => (id.startsWith(prefix) ? [index] : []));
+    }
+
+    it("draws every map layer of a lower workspace layer beneath every map layer of a higher one, even across geometry types", async () => {
+        const { topId, bottomId } = seedTwoLayers();
+        const map = renderMap();
+        await waitFor(() =>
+            expect(groupIndices(map, topId).length).toBeGreaterThan(0),
+        );
+
+        const top = groupIndices(map, topId);
+        const bottom = groupIndices(map, bottomId);
+        expect(bottom.length).toBeGreaterThan(0);
+        expect(Math.max(...bottom)).toBeLessThan(Math.min(...top));
+    });
+
+    it("limits each layer's map layers to that workspace layer's own features", async () => {
+        const { topId } = seedTwoLayers();
+        const map = renderMap();
+        await waitFor(() =>
+            expect(groupIndices(map, topId).length).toBeGreaterThan(0),
+        );
+
+        const layer = map.getLayer(`workspace-${topId}-polygons-fill`) as {
+            filter: unknown;
+        };
+        expect(layer.filter).toEqual(["==", ["get", "layerId"], topId]);
+    });
+
+    it("sorts features inside each map layer by their stacking position", async () => {
+        const { topId } = seedTwoLayers();
+        const map = renderMap();
+        await waitFor(() =>
+            expect(groupIndices(map, topId).length).toBeGreaterThan(0),
+        );
+
+        const layers = [
+            ["polygons-fill", "fill-sort-key"],
+            ["polygons-outline", "line-sort-key"],
+            ["lines-stroke", "line-sort-key"],
+            ["points-dot", "circle-sort-key"],
+            ["points-symbol", "symbol-sort-key"],
+        ] as const;
+        for (const [suffix, key] of layers) {
+            const layer = map.getLayer(`workspace-${topId}-${suffix}`) as {
+                layout: Record<string, unknown>;
+            };
+            expect(layer.layout[key]).toEqual(["get", "z"]);
+        }
+    });
+
+    it("keeps the same stacking after a layer is hidden and shown again", async () => {
+        const { topId } = seedTwoLayers();
+        const map = renderMap();
+        await waitFor(() =>
+            expect(groupIndices(map, topId).length).toBeGreaterThan(0),
+        );
+        const before = map.getLayerOrder();
+
+        act(() =>
+            useWorkspaceStore.getState().toggleLayerVisibility(topId, false),
+        );
+        await waitFor(() => expect(groupIndices(map, topId)).toHaveLength(0));
+        act(() =>
+            useWorkspaceStore.getState().toggleLayerVisibility(topId, true),
+        );
+        await waitFor(() =>
+            expect(groupIndices(map, topId).length).toBeGreaterThan(0),
+        );
+
+        expect(map.getLayerOrder()).toEqual(before);
+    });
+
+    it("follows a reorder of the workspace layers", async () => {
+        const { topId, bottomId } = seedTwoLayers();
+        const map = renderMap();
+        await waitFor(() =>
+            expect(groupIndices(map, topId).length).toBeGreaterThan(0),
+        );
+
+        act(() =>
+            useWorkspaceStore.getState().reorderLayer(null, [bottomId, topId]),
+        );
+
+        await waitFor(() => {
+            const top = groupIndices(map, topId);
+            const bottom = groupIndices(map, bottomId);
+            expect(Math.max(...top)).toBeLessThan(Math.min(...bottom));
+        });
+    });
+
+    it("keeps the stack between a bottom and a top anchor so other map layers can sit beneath or above it", async () => {
+        const { topId, bottomId } = seedTwoLayers();
+        const map = renderMap();
+        await waitFor(() =>
+            expect(groupIndices(map, topId).length).toBeGreaterThan(0),
+        );
+
+        const order = map.getLayerOrder();
+        const bottomAnchor = order.indexOf("workspace-stack-bottom");
+        const topAnchor = order.indexOf("workspace-stack-top");
+        expect(bottomAnchor).toBeGreaterThanOrEqual(0);
+        expect(bottomAnchor).toBeLessThan(
+            Math.min(...groupIndices(map, bottomId)),
+        );
+        expect(topAnchor).toBeGreaterThan(
+            Math.max(...groupIndices(map, topId)),
+        );
+    });
+
+    it("resolves a click on overlapping features to the one highest in the tree, whatever order the map reports them", async () => {
+        const { lo, hi } = seedTwoLayers();
+        const onFeatureClick = vi.fn();
+        const map = renderMap({ onFeatureClick });
+        await waitFor(() =>
+            expect(map.sources["workspace-points"]).toBeDefined(),
+        );
+
+        const hits = [
+            { properties: { id: lo.featureId, z: 0 } },
+            { properties: { id: hi.featureId, z: 1 } },
+        ];
+        for (const ordered of [hits, [...hits].reverse()]) {
+            onFeatureClick.mockClear();
+            map.queryRenderedFeaturesResult = ordered;
+            map.fireClick({ lng: 1, lat: 2 });
+            expect(onFeatureClick).toHaveBeenCalledWith(hi.featureId);
+        }
+    });
+
+    it("only hit-tests the shape layers of the groups that exist", async () => {
+        const { topId, bottomId } = seedTwoLayers();
+        const map = renderMap();
+        await waitFor(() =>
+            expect(groupIndices(map, topId).length).toBeGreaterThan(0),
+        );
+
+        map.fireClick({ lng: 1, lat: 2 });
+
+        const [, options] = map.queryRenderedFeatures.mock.calls.at(-1)!;
+        expect([...(options?.layers ?? [])].sort()).toEqual(
+            [topId, bottomId]
+                .flatMap((id) => [
+                    `workspace-${id}-points-dot`,
+                    `workspace-${id}-lines-stroke`,
+                    `workspace-${id}-polygons-fill`,
+                ])
+                .sort(),
+        );
+    });
+
+    it("draws the selection halo directly beneath the selected feature's layer so higher layers still cover it", async () => {
+        const { topId, bottomId, lo } = seedTwoLayers();
+        const map = renderMap({ selectedFeatureId: lo.featureId });
+        await waitFor(() =>
+            expect(groupIndices(map, topId).length).toBeGreaterThan(0),
+        );
+
+        const order = map.getLayerOrder();
+        const halo = order.indexOf("workspace-selection-halo-outline");
+        expect(halo).toBeGreaterThan(order.indexOf("workspace-stack-bottom"));
+        expect(halo).toBeLessThan(Math.min(...groupIndices(map, bottomId)));
+        expect(halo).toBeLessThan(Math.min(...groupIndices(map, topId)));
+        const haloPoints = order.indexOf("workspace-selection-halo-points");
+        expect(haloPoints).toBeLessThan(
+            order.indexOf(`workspace-${bottomId}-points-dot`),
+        );
+        expect(haloPoints).toBeGreaterThan(
+            order.indexOf(`workspace-${bottomId}-polygons-fill`),
+        );
+    });
+
+    it("draws a buffer polygon beneath the selected feature and follows geometry edits", async () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [30, -25] });
+        useWorkspaceStore.getState().setFeatureBuffer(created!.featureId, {
+            enabled: true,
+            distanceM: 1000,
+        });
+
+        const map = makeMap();
+        render(
+            <WorkspaceMapLayers
+                map={map as never}
+                excludedFeatureId={null}
+                selectedFeatureId={created!.featureId}
+                onFeatureClick={() => {}}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(map.sources["workspace-buffers"]).toBeDefined();
+        });
+        const order = map.getLayerOrder();
+        const buffer = order.indexOf("workspace-buffers-fill");
+        expect(buffer).toBeGreaterThan(order.indexOf("workspace-stack-bottom"));
+        expect(buffer).toBeLessThan(
+            order.indexOf(`workspace-${waterId}-points-dot`),
+        );
+        const before = map.sources["workspace-buffers"]
+            .data as GeoJSON.FeatureCollection;
+        expect(before.features).toHaveLength(1);
+        const firstLon = (before.features[0].geometry as GeoJSON.Polygon)
+            .coordinates[0][0][0];
+
+        act(() => {
+            useWorkspaceStore
+                .getState()
+                .editFeatureGeometry(created!.featureId, {
+                    type: "Point",
+                    coordinates: [31, -25],
+                });
+        });
+
+        await waitFor(() => {
+            const after = map.sources["workspace-buffers"]
+                .data as GeoJSON.FeatureCollection;
+            const movedLon = (after.features[0].geometry as GeoJSON.Polygon)
+                .coordinates[0][0][0];
+            expect(movedLon).toBeGreaterThan(firstLon + 0.5);
+        });
+    });
+
+    it("draws no buffer while the buffered feature is not selected", async () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [30, -25] });
+        useWorkspaceStore.getState().setFeatureBuffer(created!.featureId, {
+            enabled: true,
+            distanceM: 1000,
+        });
+
+        const map = makeMap();
+        const props = {
+            map: map as never,
+            excludedFeatureId: null,
+            onFeatureClick: () => {},
+        };
+        const { rerender } = render(
+            <WorkspaceMapLayers {...props} selectedFeatureId={null} />,
+        );
+        await waitFor(() => {
+            expect(map.sources["workspace-buffers"]).toBeDefined();
+        });
+        expect(
+            (map.sources["workspace-buffers"].data as GeoJSON.FeatureCollection)
+                .features,
+        ).toHaveLength(0);
+
+        rerender(
+            <WorkspaceMapLayers
+                {...props}
+                selectedFeatureId={created!.featureId}
+            />,
+        );
+        await waitFor(() => {
+            expect(
+                (
+                    map.sources["workspace-buffers"]
+                        .data as GeoJSON.FeatureCollection
+                ).features,
+            ).toHaveLength(1);
         });
     });
 });

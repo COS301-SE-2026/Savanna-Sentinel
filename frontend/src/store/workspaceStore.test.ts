@@ -414,3 +414,196 @@ describe("feature and membership CRUD", () => {
         );
     });
 });
+
+describe("in effect", () => {
+    function drawTwoInWater() {
+        const { addLayer, setActiveLayer, drawFeature } =
+            useWorkspaceStore.getState();
+        const waterId = addLayer("Water", null);
+        setActiveLayer(waterId);
+        const a = drawFeature("point", { type: "Point", coordinates: [0, 0] });
+        const b = drawFeature("point", { type: "Point", coordinates: [1, 1] });
+        return { waterId, a: a!, b: b! };
+    }
+
+    it("draws new features in effect with the buffer off", () => {
+        const { a } = drawTwoInWater();
+        const feature = useWorkspaceStore
+            .getState()
+            .features.find((f) => f.id === a.featureId);
+        expect(feature).toMatchObject({
+            inEffect: true,
+            bufferEnabled: false,
+            bufferDistanceM: 100,
+        });
+    });
+
+    it("switching a feature out of effect hides all of its memberships and marks the workspace dirty", () => {
+        const { waterId, a } = drawTwoInWater();
+        const { addLayer, duplicateFeatureToLayer } =
+            useWorkspaceStore.getState();
+        const riverId = addLayer("River", null);
+        duplicateFeatureToLayer(a.membershipId, riverId);
+
+        useWorkspaceStore.getState().setFeatureInEffect(a.featureId, false);
+
+        const state = useWorkspaceStore.getState();
+        expect(state.features.find((f) => f.id === a.featureId)?.inEffect).toBe(
+            false,
+        );
+        const own = state.memberships.filter(
+            (m) => m.featureId === a.featureId,
+        );
+        expect(own).toHaveLength(2);
+        expect(own.every((m) => !m.visible)).toBe(true);
+        expect(
+            state.memberships.find(
+                (m) => m.layerId === waterId && m.featureId !== a.featureId,
+            )?.visible,
+        ).toBe(true);
+        expect(state.hasUnsavedChanges).toBe(true);
+    });
+
+    it("switching a feature back into effect shows it again in every layer", () => {
+        const { a } = drawTwoInWater();
+        const { setFeatureInEffect } = useWorkspaceStore.getState();
+        setFeatureInEffect(a.featureId, false);
+        setFeatureInEffect(a.featureId, true);
+
+        const membership = useWorkspaceStore
+            .getState()
+            .memberships.find((m) => m.id === a.membershipId);
+        expect(membership?.visible).toBe(true);
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === a.featureId)?.inEffect,
+        ).toBe(true);
+    });
+
+    it("bulk disabling a layer covers nested layers", () => {
+        const { addLayer, setActiveLayer, drawFeature } =
+            useWorkspaceStore.getState();
+        const waterId = addLayer("Water", null);
+        const westernId = addLayer("Western", waterId);
+        setActiveLayer(waterId);
+        const top = drawFeature("point", {
+            type: "Point",
+            coordinates: [0, 0],
+        });
+        setActiveLayer(westernId);
+        const nested = drawFeature("point", {
+            type: "Point",
+            coordinates: [1, 1],
+        });
+
+        useWorkspaceStore.getState().setLayerChildrenInEffect(waterId, false);
+
+        const state = useWorkspaceStore.getState();
+        for (const created of [top!, nested!]) {
+            expect(
+                state.features.find((f) => f.id === created.featureId)
+                    ?.inEffect,
+            ).toBe(false);
+            expect(
+                state.memberships.find((m) => m.id === created.membershipId)
+                    ?.visible,
+            ).toBe(false);
+        }
+    });
+
+    it("bulk disabling a layer also disables a feature shared with a layer outside the subtree", () => {
+        const {
+            addLayer,
+            setActiveLayer,
+            drawFeature,
+            duplicateFeatureToLayer,
+        } = useWorkspaceStore.getState();
+        const waterId = addLayer("Water", null);
+        const roadsId = addLayer("Roads", null);
+        setActiveLayer(waterId);
+        const shared = drawFeature("point", {
+            type: "Point",
+            coordinates: [0, 0],
+        });
+        duplicateFeatureToLayer(shared!.membershipId, roadsId);
+
+        useWorkspaceStore.getState().setLayerChildrenInEffect(waterId, false);
+
+        const state = useWorkspaceStore.getState();
+        expect(
+            state.features.find((f) => f.id === shared!.featureId)?.inEffect,
+        ).toBe(false);
+        expect(
+            state.memberships
+                .filter((m) => m.featureId === shared!.featureId)
+                .every((m) => !m.visible),
+        ).toBe(true);
+    });
+
+    it("bulk enabling a layer sets features in effect and shows them", () => {
+        const { waterId, a } = drawTwoInWater();
+        useWorkspaceStore.getState().setLayerChildrenInEffect(waterId, false);
+        useWorkspaceStore.getState().setLayerChildrenInEffect(waterId, true);
+
+        const state = useWorkspaceStore.getState();
+        expect(state.features.find((f) => f.id === a.featureId)?.inEffect).toBe(
+            true,
+        );
+        expect(
+            state.memberships.find((m) => m.id === a.membershipId)?.visible,
+        ).toBe(true);
+    });
+});
+
+describe("feature buffer", () => {
+    function drawOne() {
+        const { addLayer, setActiveLayer, drawFeature } =
+            useWorkspaceStore.getState();
+        setActiveLayer(addLayer("Water", null));
+        return drawFeature("point", { type: "Point", coordinates: [0, 0] })!;
+    }
+
+    it("enables the buffer and keeps the distance", () => {
+        const created = drawOne();
+        useWorkspaceStore
+            .getState()
+            .setFeatureBuffer(created.featureId, { enabled: true });
+        const feature = useWorkspaceStore
+            .getState()
+            .features.find((f) => f.id === created.featureId);
+        expect(feature).toMatchObject({
+            bufferEnabled: true,
+            bufferDistanceM: 100,
+        });
+    });
+
+    it("stores a valid distance and marks the workspace dirty", () => {
+        const created = drawOne();
+        useWorkspaceStore
+            .getState()
+            .setFeatureBuffer(created.featureId, { distanceM: 750 });
+        const state = useWorkspaceStore.getState();
+        expect(
+            state.features.find((f) => f.id === created.featureId)
+                ?.bufferDistanceM,
+        ).toBe(750);
+        expect(state.hasUnsavedChanges).toBe(true);
+    });
+
+    it.each([0, -3, 20001, Number.NaN, Number.POSITIVE_INFINITY])(
+        "ignores an out of range distance of %s",
+        (distanceM) => {
+            const created = drawOne();
+            useWorkspaceStore
+                .getState()
+                .setFeatureBuffer(created.featureId, { distanceM });
+            expect(
+                useWorkspaceStore
+                    .getState()
+                    .features.find((f) => f.id === created.featureId)
+                    ?.bufferDistanceM,
+            ).toBe(100);
+        },
+    );
+});

@@ -676,3 +676,181 @@ async def test_unclosed_polygon_ring_is_rejected():
 
     assert response.status_code == 422
     assert "closed" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_save_round_trips_the_buffer_and_in_effect_fields():
+    user_id = await _create_user("test_ws_buffer")
+    layer_id = str(uuid.uuid4())
+    feature_id = str(uuid.uuid4())
+    membership_id = str(uuid.uuid4())
+    body = {
+        "base_version": 0,
+        "layers": [
+            _layer(
+                layer_id,
+                default_style={
+                    "buffer_colour": "#00ff00",
+                    "buffer_opacity": 0.4,
+                },
+            ),
+        ],
+        "features": [
+            _point_feature(
+                feature_id,
+                in_effect=False,
+                buffer_enabled=True,
+                buffer_distance_m=250.5,
+            ),
+        ],
+        "memberships": [_membership(membership_id, feature_id, layer_id)],
+    }
+
+    async with _client() as client:
+        saved = await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(user_id),
+        )
+        reloaded = await client.get(
+            "/v1/workspace",
+            headers=_auth_header(user_id),
+        )
+
+    assert saved.status_code == 200
+    feature = reloaded.json()["features"][0]
+    assert feature["in_effect"] is False
+    assert feature["buffer_enabled"] is True
+    assert feature["buffer_distance_m"] == 250.5
+    assert reloaded.json()["layers"][0]["default_style"] == {
+        "buffer_colour": "#00ff00",
+        "buffer_opacity": 0.4,
+    }
+
+
+@pytest.mark.asyncio
+async def test_save_defaults_a_missing_buffer_to_off_and_in_effect():
+    user_id = await _create_user("test_ws_defaults")
+    body, _, _, _ = _one_of_each()
+
+    async with _client() as client:
+        saved = await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(user_id),
+        )
+
+    feature = saved.json()["features"][0]
+    assert feature["in_effect"] is True
+    assert feature["buffer_enabled"] is False
+    assert feature["buffer_distance_m"] == 100
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("distance", [0, 20001])
+async def test_save_rejects_a_buffer_distance_out_of_range(distance):
+    user_id = await _create_user("test_ws_bad_buffer")
+    body, _, feature_id, _ = _one_of_each()
+    body["features"] = [
+        _point_feature(feature_id, buffer_distance_m=distance),
+    ]
+
+    async with _client() as client:
+        response = await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(user_id),
+        )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_out_of_effect_feature_loads_hidden_for_a_user_with_no_row():
+    saver_id = await _create_user("test_ws_saver_hidden")
+    other_id = await _create_user("test_ws_other_hidden")
+    layer_id = str(uuid.uuid4())
+    feature_id = str(uuid.uuid4())
+    membership_id = str(uuid.uuid4())
+    body = {
+        "base_version": 0,
+        "layers": [_layer(layer_id)],
+        "features": [_point_feature(feature_id, in_effect=False)],
+        "memberships": [_membership(membership_id, feature_id, layer_id)],
+    }
+
+    async with _client() as client:
+        await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(saver_id),
+        )
+        saver_view = await client.get(
+            "/v1/workspace",
+            headers=_auth_header(saver_id),
+        )
+        other_view = await client.get(
+            "/v1/workspace",
+            headers=_auth_header(other_id),
+        )
+
+    assert saver_view.json()["memberships"][0]["visible"] is True
+    assert other_view.json()["memberships"][0]["visible"] is False
+
+
+@pytest.mark.asyncio
+async def test_a_stored_visibility_choice_beats_the_in_effect_default():
+    saver_id = await _create_user("test_ws_saver_stored")
+    other_id = await _create_user("test_ws_other_stored")
+    layer_id = str(uuid.uuid4())
+    feature_id = str(uuid.uuid4())
+    membership_id = str(uuid.uuid4())
+    body = {
+        "base_version": 0,
+        "layers": [_layer(layer_id)],
+        "features": [_point_feature(feature_id, in_effect=False)],
+        "memberships": [_membership(membership_id, feature_id, layer_id)],
+    }
+
+    async with _client() as client:
+        await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(saver_id),
+        )
+        shown = await client.put(
+            "/v1/workspace/visibility",
+            json={
+                "entries": [
+                    {"membership_id": membership_id, "visible": True},
+                ],
+            },
+            headers=_auth_header(other_id),
+        )
+        other_view = await client.get(
+            "/v1/workspace",
+            headers=_auth_header(other_id),
+        )
+
+    assert shown.status_code == 204
+    assert other_view.json()["memberships"][0]["visible"] is True
+
+
+@pytest.mark.asyncio
+async def test_an_in_effect_feature_still_loads_visible_for_a_new_user():
+    saver_id = await _create_user("test_ws_saver_visible")
+    other_id = await _create_user("test_ws_other_visible")
+    body, _, _, _ = _one_of_each()
+
+    async with _client() as client:
+        await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(saver_id),
+        )
+        other_view = await client.get(
+            "/v1/workspace",
+            headers=_auth_header(other_id),
+        )
+
+    assert other_view.json()["memberships"][0]["visible"] is True
