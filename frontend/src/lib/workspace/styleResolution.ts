@@ -3,7 +3,7 @@ import type {
     WorkspaceLayer,
     WorkspaceMembership,
 } from "./types";
-import { APPLICATION_DEFAULT_STYLE } from "./types";
+import { APPLICATION_DEFAULT_STYLE, DEFAULT_BUFFER_OPACITY } from "./types";
 
 export function resolveLayerChainStyle(
     layers: WorkspaceLayer[],
@@ -30,4 +30,14 @@ export function resolveMembershipStyle(
 ): FeatureStyle {
     const layerStyle = resolveLayerChainStyle(layers, membership.layerId);
     return { ...layerStyle, ...membership.styleOverride };
+}
+
+export function resolveBufferAppearance(style: FeatureStyle): {
+    colour: string;
+    opacity: number;
+} {
+    return {
+        colour: style.bufferColour ?? style.colour,
+        opacity: style.bufferOpacity ?? DEFAULT_BUFFER_OPACITY,
+    };
 }

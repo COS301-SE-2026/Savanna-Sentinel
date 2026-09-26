@@ -16,6 +16,8 @@ interface ApiStyle {
     line_dash?: "solid" | "dashed" | "dotted";
     label?: string;
     outline_opacity?: number;
+    buffer_colour?: string;
+    buffer_opacity?: number;
 }
 
 interface ApiLayer {
@@ -33,6 +35,9 @@ interface ApiFeature {
     geometry: GeoJSON.Geometry;
     created_at: string;
     updated_at: string;
+    in_effect: boolean;
+    buffer_enabled: boolean;
+    buffer_distance_m: number;
 }
 
 interface ApiMembership {
@@ -72,6 +77,8 @@ const STYLE_KEYS: [keyof FeatureStyle, keyof ApiStyle][] = [
     ["lineDash", "line_dash"],
     ["label", "label"],
     ["outlineOpacity", "outline_opacity"],
+    ["bufferColour", "buffer_colour"],
+    ["bufferOpacity", "buffer_opacity"],
 ];
 
 export function styleToApi(style: Partial<FeatureStyle>): ApiStyle {
@@ -120,6 +127,9 @@ function fromApi(data: ApiWorkspace): WorkspaceSnapshot {
             geometry: feature.geometry,
             createdAt: feature.created_at,
             updatedAt: feature.updated_at,
+            inEffect: feature.in_effect,
+            bufferEnabled: feature.buffer_enabled,
+            bufferDistanceM: feature.buffer_distance_m,
         })),
         memberships: data.memberships.map((membership) => ({
             id: membership.id,
@@ -161,6 +171,9 @@ export async function saveWorkspace(
             geometry: feature.geometry,
             created_at: feature.createdAt,
             updated_at: feature.updatedAt,
+            in_effect: feature.inEffect,
+            buffer_enabled: feature.bufferEnabled,
+            buffer_distance_m: feature.bufferDistanceM,
         })),
         memberships: workspace.memberships.map((membership) => ({
             id: membership.id,
