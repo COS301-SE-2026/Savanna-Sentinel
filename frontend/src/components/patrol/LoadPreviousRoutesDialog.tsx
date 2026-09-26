@@ -211,16 +211,10 @@ export function LoadPreviousRoutesDialog({
                                         <div className="flex items-center justify-between gap-2">
                                             <div className="flex gap-3 text-xs text-color-text-secondary">
                                                 <span>
-                                                    {Math.round(
-                                                        route.estimated_time_min,
+                                                    {route.distance_km.toFixed(
+                                                        1,
                                                     )}{" "}
-                                                    min
-                                                </span>
-                                                <span>
-                                                    {Math.round(
-                                                        route.estimated_fuel_l,
-                                                    )}{" "}
-                                                    L
+                                                    km
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">

@@ -200,48 +200,6 @@ describe("PatrolPlannerPage", () => {
         }
     });
 
-    it("omits max_time and max_fuel from the request when left blank", async () => {
-        let requestBody: { max_time?: number; max_fuel?: number } | null = null;
-        server.use(
-            http.post(
-                "http://localhost:8000/v1/routes",
-                async ({ request }) => {
-                    requestBody = (await request.json()) as {
-                        max_time?: number;
-                        max_fuel?: number;
-                    };
-                    return HttpResponse.json(
-                        {
-                            job_id: ROUTE_REQUEST_ID,
-                            request_id: ROUTE_REQUEST_ID,
-                            park_id: "klaserie",
-                            status: "queued",
-                            queued_at: new Date().toISOString(),
-                        },
-                        { status: 202 },
-                    );
-                },
-            ),
-        );
-
-        renderPage();
-        await userEvent.type(
-            screen.getByLabelText(/^start point$/i),
-            "-24.3, 31.05",
-        );
-        await userEvent.type(
-            screen.getByLabelText(/^end point$/i),
-            "-24.32, 31.08",
-        );
-        await userEvent.click(
-            screen.getByRole("button", { name: /generate routes/i }),
-        );
-
-        await waitFor(() => expect(requestBody).not.toBeNull());
-        expect(requestBody!.max_time).toBeUndefined();
-        expect(requestBody!.max_fuel).toBeUndefined();
-    });
-
     it("tears down cleanly when navigated away from mid-session", async () => {
         const { unmount } = renderPage();
         await userEvent.type(
@@ -423,54 +381,6 @@ describe("PatrolPlannerPage", () => {
         ).toBeDisabled();
     });
 
-    it("saves a route successfully when Max Time and Max Fuel are left blank", async () => {
-        let requestBody: {
-            max_time?: number | null;
-            max_fuel?: number | null;
-        } | null = null;
-        server.use(
-            http.post(
-                "http://localhost:8000/v1/routes/save",
-                async ({ request }) => {
-                    requestBody = (await request.json()) as {
-                        max_time?: number | null;
-                        max_fuel?: number | null;
-                    };
-                    return HttpResponse.json(SAVED_ROUTE, { status: 201 });
-                },
-            ),
-        );
-
-        renderPage();
-        await userEvent.type(
-            screen.getByLabelText(/^start point$/i),
-            "-24.3, 31.05",
-        );
-        await userEvent.type(
-            screen.getByLabelText(/^end point$/i),
-            "-24.32, 31.08",
-        );
-        await userEvent.click(
-            screen.getByRole("button", { name: /generate routes/i }),
-        );
-        await screen.findByText("Route A");
-
-        expect(
-            screen.getByRole("button", { name: /^save route a/i }),
-        ).toBeEnabled();
-        await userEvent.click(
-            screen.getByRole("button", { name: /^save route a/i }),
-        );
-        await userEvent.click(
-            screen.getByRole("button", { name: /^save route$/i }),
-        );
-
-        expect(await screen.findByText("Route saved")).toBeInTheDocument();
-        await waitFor(() => expect(requestBody).not.toBeNull());
-        expect(requestBody!.max_time).toBeNull();
-        expect(requestBody!.max_fuel).toBeNull();
-    });
-
     it("shows a critical toast when saving fails", async () => {
         server.use(
             http.post("http://localhost:8000/v1/routes/save", () =>
@@ -512,13 +422,12 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
 
         expect(await screen.findByText("Route A")).toBeInTheDocument();
-        expect(screen.getByText("55 min")).toBeInTheDocument();
-        expect(screen.getByText("22 L")).toBeInTheDocument();
+        expect(screen.getByText("55.0 km")).toBeInTheDocument();
 
         await waitFor(() => {
             const call = addSourceSpy.mock.calls.find(
@@ -596,7 +505,7 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
 
@@ -616,17 +525,17 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
-        expect(await screen.findByText("55 min")).toBeInTheDocument();
+        expect(await screen.findByText("55.0 km")).toBeInTheDocument();
 
         await userEvent.click(
             screen.getByRole("button", { name: /generate routes/i }),
         );
 
-        expect(await screen.findByText("38 min")).toBeInTheDocument();
-        expect(screen.queryByText("55 min")).not.toBeInTheDocument();
+        expect(await screen.findByText("38.0 km")).toBeInTheDocument();
+        expect(screen.queryByText("55.0 km")).not.toBeInTheDocument();
     });
 
     it("clearing routes removes a previously loaded route", async () => {
@@ -635,10 +544,10 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
-        expect(await screen.findByText("55 min")).toBeInTheDocument();
+        expect(await screen.findByText("55.0 km")).toBeInTheDocument();
 
         await userEvent.click(
             screen.getByRole("button", { name: /^clear routes$/i }),
@@ -648,7 +557,7 @@ describe("PatrolPlannerPage", () => {
         });
         await userEvent.click(clearButtons[clearButtons.length - 1]);
 
-        expect(screen.queryByText("55 min")).not.toBeInTheDocument();
+        expect(screen.queryByText("55.0 km")).not.toBeInTheDocument();
         expect(
             screen.getByText(/generate routes to see alternatives/i),
         ).toBeInTheDocument();

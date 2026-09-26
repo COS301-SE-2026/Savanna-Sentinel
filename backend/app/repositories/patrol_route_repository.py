@@ -19,12 +19,9 @@ class PatrolRouteRepository:
         request_id: str,
         start_point_wkt: str,
         end_point_wkt: str,
-        max_time: float | None,
-        max_fuel: float | None,
         risk_heatmap: dict[str, float],
         path_wkt: str,
-        estimated_time: float,
-        estimated_fuel: float,
+        distance_km: float,
         risk_coverage: float,
     ) -> dict:
         row = (
@@ -32,14 +29,13 @@ class PatrolRouteRepository:
                 text("""
                     INSERT INTO patrol_routes
                         (request_id, requested_by, start_point, end_point,
-                         max_time, max_fuel, suggested_path, estimated_time,
-                         estimated_fuel, risk_coverage, risk_heatmap)
+                         suggested_path, distance_km,
+                         risk_coverage, risk_heatmap)
                     VALUES
                         (:request_id, :user_id, ST_GeogFromText(:start_wkt),
-                         ST_GeogFromText(:end_wkt), :max_time, :max_fuel,
-                         ST_GeogFromText(:path_wkt), :estimated_time,
-                         :estimated_fuel, :risk_coverage,
-                         (:risk_heatmap)::jsonb)
+                         ST_GeogFromText(:end_wkt),
+                         ST_GeogFromText(:path_wkt), :distance_km,
+                         :risk_coverage, (:risk_heatmap)::jsonb)
                     RETURNING id, created_at
                 """),
                 {
@@ -47,11 +43,8 @@ class PatrolRouteRepository:
                     "user_id": user_id,
                     "start_wkt": start_point_wkt,
                     "end_wkt": end_point_wkt,
-                    "max_time": max_time,
-                    "max_fuel": max_fuel,
                     "path_wkt": path_wkt,
-                    "estimated_time": estimated_time,
-                    "estimated_fuel": estimated_fuel,
+                    "distance_km": distance_km,
                     "risk_coverage": risk_coverage,
                     "risk_heatmap": json.dumps(risk_heatmap),
                 },
@@ -76,10 +69,10 @@ class PatrolRouteRepository:
                             AS start_point,
                         ST_AsGeoJSON(end_point::geometry)::json
                             AS end_point,
-                        max_time, max_fuel, risk_heatmap,
+                        risk_heatmap,
                         ST_AsGeoJSON(suggested_path::geometry)::json
                             AS path_geometry,
-                        estimated_time, estimated_fuel, risk_coverage,
+                        distance_km, risk_coverage,
                         created_at
                     FROM patrol_routes
                     WHERE requested_by = :user_id

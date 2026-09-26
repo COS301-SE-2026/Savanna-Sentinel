@@ -53,16 +53,14 @@ interface SidebarContentProps {
     onArmField: (field: "start" | "end") => void;
     onStartPointChange: (point: LatLon | null) => void;
     onEndPointChange: (point: LatLon | null) => void;
-    maxTime: string;
-    maxFuel: string;
-    onMaxTimeChange: (v: string) => void;
-    onMaxFuelChange: (v: string) => void;
     onGenerate: () => void;
     isGenerating: boolean;
     heatmapHasNoData: boolean;
     jobStatus: ReturnType<typeof usePollRouteJob>["status"];
     routes: ReturnType<typeof usePollRouteJob>["routes"];
     selectedIndex: number;
+    numAlternativesRequested: number | null;
+    shortfallReason: string | null;
     onSelectRoute: (index: number) => void;
     onClearRoutes: () => void;
     onSaveRoute: (index: number) => void;
@@ -84,16 +82,14 @@ function SidebarContent({
     onArmField,
     onStartPointChange,
     onEndPointChange,
-    maxTime,
-    maxFuel,
-    onMaxTimeChange,
-    onMaxFuelChange,
     onGenerate,
     isGenerating,
     heatmapHasNoData,
     jobStatus,
     routes,
     selectedIndex,
+    numAlternativesRequested,
+    shortfallReason,
     onSelectRoute,
     onClearRoutes,
     onSaveRoute,
@@ -131,10 +127,6 @@ function SidebarContent({
                 onArmField={onArmField}
                 onStartPointChange={onStartPointChange}
                 onEndPointChange={onEndPointChange}
-                maxTime={maxTime}
-                maxFuel={maxFuel}
-                onMaxTimeChange={onMaxTimeChange}
-                onMaxFuelChange={onMaxFuelChange}
                 onGenerate={onGenerate}
                 isGenerating={isGenerating}
                 heatmapHasNoData={heatmapHasNoData}
@@ -154,6 +146,8 @@ function SidebarContent({
                     savingIndex={savingIndex}
                     savedIndices={savedIndices}
                     canSave={canSave}
+                    numAlternativesRequested={numAlternativesRequested}
+                    shortfallReason={shortfallReason}
                 />
             </div>
             <div className="flex min-h-11 w-full cursor-pointer items-center gap-2">
@@ -214,12 +208,15 @@ export default function PatrolPlannerPage() {
     const [startPoint, setStartPoint] = useState<LatLon | null>(null);
     const [endPoint, setEndPoint] = useState<LatLon | null>(null);
     const [armedField, setArmedField] = useState<ArmedField>(null);
-    const [maxTime, setMaxTime] = useState("");
-    const [maxFuel, setMaxFuel] = useState("");
 
     const [requestId, setRequestId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
-    const { status: jobStatus, routes } = usePollRouteJob(requestId);
+    const {
+        status: jobStatus,
+        routes,
+        numAlternativesRequested,
+        shortfallReason,
+    } = usePollRouteJob(requestId);
 
     const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
         COLLAPSED_SNAP,
@@ -353,8 +350,6 @@ export default function PatrolPlannerPage() {
                     type: "Point",
                     coordinates: [endPoint.lon, endPoint.lat],
                 },
-                max_time: undefined,
-                max_fuel: undefined,
                 num_alternatives: 3,
                 risk_by_cell: Object.fromEntries(riskByCell),
             });
@@ -373,6 +368,12 @@ export default function PatrolPlannerPage() {
 
     function handleLoadRoute(saved: SavedRoute) {
         setRequestId(null);
+        setLoadedRoute({
+            suggested_path: [],
+            path_geometry: saved.path_geometry,
+            distance_km: saved.distance_km,
+            risk_coverage: saved.risk_coverage,
+        });
         setLoadedRoute(toPlannedRoute(saved));
         setSavedRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
         setSelectedIndex(0);
@@ -384,8 +385,6 @@ export default function PatrolPlannerPage() {
             lat: saved.end_point.coordinates[1],
             lon: saved.end_point.coordinates[0],
         });
-        // setMaxTime(saved.max_time === null ? "" : String(saved.max_time));
-        // setMaxFuel(saved.max_fuel === null ? "" : String(saved.max_fuel));
     }
 
     async function handleSendRouteToHeatmap(saved: SavedRoute) {
@@ -419,8 +418,6 @@ export default function PatrolPlannerPage() {
                     type: "Point",
                     coordinates: [endPoint.lon, endPoint.lat],
                 },
-                max_time: null,
-                max_fuel: null,
                 risk_by_cell: Object.fromEntries(riskByCell),
                 route: routes[index],
             });
@@ -444,10 +441,6 @@ export default function PatrolPlannerPage() {
         onArmField: handleArmField,
         onStartPointChange: setStartPoint,
         onEndPointChange: setEndPoint,
-        maxTime,
-        maxFuel,
-        onMaxTimeChange: setMaxTime,
-        onMaxFuelChange: setMaxFuel,
         onGenerate: handleGenerate,
         isGenerating,
         heatmapHasNoData: hasNoRiskData,
@@ -455,6 +448,8 @@ export default function PatrolPlannerPage() {
         jobStatus: displayStatus,
         routes: displayRoutes,
         selectedIndex,
+        numAlternativesRequested: loadedRoute ? null : numAlternativesRequested,
+        shortfallReason: loadedRoute ? null : shortfallReason,
         onSelectRoute: handleSelectRoute,
         onSaveRoute: handleSaveRoute,
         savingIndex,

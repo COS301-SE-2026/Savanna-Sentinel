@@ -23,8 +23,7 @@ const completedResponse = (
         {
             suggested_path: ["cell-1"],
             path_geometry: { type: "LineString", coordinates: [[31.0, -24.3]] },
-            estimated_time_min: 10,
-            estimated_fuel_l: 2,
+            distance_km: 10,
             risk_coverage: 0.5,
         },
     ],
@@ -103,8 +102,7 @@ describe("usePollRouteJob", () => {
                     {
                         suggested_path: [],
                         path_geometry: { type: "LineString", coordinates: [] },
-                        estimated_time_min: 0,
-                        estimated_fuel_l: 0,
+                        distance_km: 0,
                         risk_coverage: 0,
                     },
                 ],

@@ -9,31 +9,9 @@ def _make_request(**overrides):
     fields = {
         "start_point": GeoPoint(coordinates=(31.05, -24.3)),
         "end_point": GeoPoint(coordinates=(31.1, -24.2)),
-        "max_time": 120.0,
-        "max_fuel": 10.0,
         **overrides,
     }
     return RouteRequest(**fields)
-
-
-def test_max_time_defaults_to_none_when_omitted():
-    request = _make_request(max_time=None)
-    assert request.max_time is None
-
-
-def test_max_fuel_defaults_to_none_when_omitted():
-    request = _make_request(max_fuel=None)
-    assert request.max_fuel is None
-
-
-def test_max_time_and_max_fuel_are_not_required():
-    fields = {
-        "start_point": GeoPoint(coordinates=(31.05, -24.3)),
-        "end_point": GeoPoint(coordinates=(31.1, -24.2)),
-    }
-    request = RouteRequest(**fields)
-    assert request.max_time is None
-    assert request.max_fuel is None
 
 
 def test_num_alternatives_defaults_to_three():

@@ -21,10 +21,6 @@ export interface PatrolPlannerFormProps {
     onArmField: (field: "start" | "end") => void;
     onStartPointChange: (point: LatLon | null) => void;
     onEndPointChange: (point: LatLon | null) => void;
-    maxTime: string;
-    maxFuel: string;
-    onMaxTimeChange: (value: string) => void;
-    onMaxFuelChange: (value: string) => void;
     onGenerate: () => void;
     isGenerating: boolean;
     heatmapHasNoData: boolean;
@@ -56,8 +52,6 @@ export function PatrolPlannerForm({
     onArmField,
     onStartPointChange,
     onEndPointChange,
-    maxTime,
-    maxFuel,
     onGenerate,
     isGenerating,
     heatmapHasNoData,
@@ -66,14 +60,9 @@ export function PatrolPlannerForm({
 }: PatrolPlannerFormProps) {
     const [isClearOpen, setIsClearOpen] = useState(false);
 
-    const isBlankOrPositive = (value: string) =>
-        value.trim() === "" || Number(value) > 0;
-
     const canGenerate =
         startPoint !== null &&
         endPoint !== null &&
-        isBlankOrPositive(maxTime) &&
-        isBlankOrPositive(maxFuel) &&
         !isGenerating &&
         !heatmapHasNoData;
 

@@ -92,8 +92,6 @@ def _valid_save_payload(**overrides) -> dict:
         "request_id": str(uuid.uuid4()),
         "start_point": {"type": "Point", "coordinates": [31.18, -24.2]},
         "end_point": {"type": "Point", "coordinates": [31.19, -24.21]},
-        "max_time": 120.0,
-        "max_fuel": 40.0,
         "risk_by_cell": {"cell-1": 0.5},
         "route": {
             "suggested_path": ["a", "b"],
@@ -101,8 +99,7 @@ def _valid_save_payload(**overrides) -> dict:
                 "type": "LineString",
                 "coordinates": [[31.18, -24.2], [31.19, -24.21]],
             },
-            "estimated_time_min": 90.0,
-            "estimated_fuel_l": 30.0,
+            "distance_km": 90.0,
             "risk_coverage": 0.7,
         },
     }
@@ -114,19 +111,6 @@ def _valid_save_payload(**overrides) -> dict:
 async def test_save_route_requires_authentication(client):
     r = await client.post("/v1/routes/save", json=_valid_save_payload())
     assert r.status_code in (401, 403)
-
-
-@pytest.mark.asyncio
-async def test_save_route_without_max_time_or_max_fuel(client, ranger_token):
-    r = await client.post(
-        "/v1/routes/save",
-        json=_valid_save_payload(max_time=None, max_fuel=None),
-        headers={"Authorization": f"Bearer {ranger_token}"},
-    )
-    assert r.status_code == 201
-    body = r.json()
-    assert body["max_time"] is None
-    assert body["max_fuel"] is None
 
 
 @pytest.mark.asyncio
@@ -218,8 +202,6 @@ def _valid_route_request() -> dict:
     return {
         "start_point": {"type": "Point", "coordinates": [31.05, -24.3]},
         "end_point": {"type": "Point", "coordinates": [31.1, -24.2]},
-        "max_time": 120.0,
-        "max_fuel": 10.0,
         "num_alternatives": 2,
     }
 

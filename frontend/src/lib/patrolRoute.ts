@@ -5,8 +5,7 @@ export function toPlannedRoute(saved: SavedRoute): PlannedRoute {
     return {
         suggested_path: [],
         path_geometry: saved.path_geometry,
-        estimated_time_min: saved.estimated_time_min,
-        estimated_fuel_l: saved.estimated_fuel_l,
+        distance_km: saved.distance_km,
         risk_coverage: saved.risk_coverage,
     };
 }

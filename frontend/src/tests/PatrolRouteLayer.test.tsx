@@ -22,8 +22,7 @@ const ROUTES: PlannedRoute[] = [
                 [31.01, -24.31],
             ],
         },
-        estimated_time_min: 10,
-        estimated_fuel_l: 2,
+        distance_km: 10,
         risk_coverage: 0.5,
     },
     {
@@ -35,8 +34,7 @@ const ROUTES: PlannedRoute[] = [
                 [31.02, -24.32],
             ],
         },
-        estimated_time_min: 20,
-        estimated_fuel_l: 4,
+        distance_km: 20,
         risk_coverage: 0.3,
     },
 ];

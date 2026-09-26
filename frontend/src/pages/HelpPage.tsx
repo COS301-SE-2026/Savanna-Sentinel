@@ -171,14 +171,6 @@ function Patrol() {
                             click the location icon and click on the map to
                             select a starting point.
                         </li>
-                        <li>
-                            Max Time: An optional constraint to help generate a
-                            path that will conform to the restraint.
-                        </li>
-                        <li>
-                            Max Fuel: An optional constraint to help generate a
-                            path that will not consume more fuel than inputed.
-                        </li>
                     </ul>
                     <p className="text-base space-y-2">
                         Afterwards, click the generate routes button to generate
@@ -204,18 +196,19 @@ function Patrol() {
                     </p>
                     <ul className="text-base list-disc pl-5 space-y-1">
                         <li>
-                            Est. Time: The estimated time it will take to
-                            complete the route.
+                            Distance: The length of the route in kilometres.
                         </li>
                         <li>
-                            Est. Fuel: The estimated fuel consumption the route
-                            will take.
-                        </li>
-                        <li>
-                            Risk Coverage: The percentage of risk areas covered
-                            by the route.
+                            Risk Coverage: The share of the risk in Medium, High
+                            and Critical cells that the route passes through or
+                            next to. Higher-risk cells count for more.
                         </li>
                     </ul>
+                    <p className="text-base space-y-2">
+                        The shortest route is listed first. Alternatives cover a
+                        similar amount of risk along a different path, and are
+                        only shown when they are at most 15% longer.
+                    </p>
                 </div>
 
                 <div>

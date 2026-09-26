@@ -23,8 +23,7 @@ def _make_route(path, risk):
         path_geometry=GeoLineString(
             coordinates=[(0.0, 0.0), (1.0, 1.0)],
         ),
-        estimated_time_min=6.0,
-        estimated_fuel_l=0.3,
+        distance_km=6.0,
         risk_coverage=risk,
     )
 
@@ -33,8 +32,6 @@ def _make_request(num_alternatives=3, risk_by_cell=None):
     return RouteRequest(
         start_point=GeoPoint(coordinates=(31.05, -24.3)),
         end_point=GeoPoint(coordinates=(31.1, -24.2)),
-        max_time=120.0,
-        max_fuel=10.0,
         num_alternatives=num_alternatives,
         risk_by_cell=risk_by_cell or {},
     )
@@ -59,8 +56,6 @@ async def test_generate_route_job_enqueues_with_request_fields(
         "park_id": "klaserie",
         "start": (31.05, -24.3),
         "end": (31.1, -24.2),
-        "max_time_min": 120.0,
-        "max_fuel_l": 10.0,
         "num_alternatives": 2,
         "risk_by_cell": {},
     }
