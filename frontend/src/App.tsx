@@ -1,4 +1,11 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useState } from "react";
+import {
+    createBrowserRouter,
+    createRoutesFromElements,
+    Outlet,
+    Route,
+    RouterProvider,
+} from "react-router-dom";
 
 import { Toaster } from "@/components/ui/sonner";
 import LandingPage from "@/pages/LandingPage";
@@ -21,11 +28,17 @@ import HelpPage from "@/pages/HelpPage";
 import WorkspacePage from "@/pages/WorkspacePage";
 import ParkZoneUploadPage from "./pages/ParkZoneUploadPage";
 
-const App = () => {
-    return (
-        <BrowserRouter>
-            <Toaster />
-            <Routes>
+const RootLayout = () => (
+    <>
+        <Toaster />
+        <Outlet />
+    </>
+);
+
+const createAppRouter = () =>
+    createBrowserRouter(
+        createRoutesFromElements(
+            <Route element={<RootLayout />}>
                 {/* Public routes */}
                 <Route element={<GuestRoute />}>
                     <Route path="/" element={<LandingPage />} />
@@ -54,9 +67,13 @@ const App = () => {
                 <Route element={<ProtectedRoute />}>
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
-            </Routes>
-        </BrowserRouter>
+            </Route>,
+        ),
     );
+
+const App = () => {
+    const [router] = useState(createAppRouter);
+    return <RouterProvider router={router} />;
 };
 
 export default App;

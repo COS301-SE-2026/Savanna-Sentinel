@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type * as maplibregl from "maplibre-gl";
 import {
     TerraDraw,
@@ -59,6 +59,7 @@ export interface DrawToolbarProps {
     cancelEditSignal: number;
     onModeChange?: (mode: string) => void;
     onFeatureDrawn?: (membershipId: string) => void;
+    trailing?: ReactNode;
 }
 
 export function DrawToolbar({
@@ -70,6 +71,7 @@ export function DrawToolbar({
     cancelEditSignal,
     onModeChange,
     onFeatureDrawn,
+    trailing,
 }: DrawToolbarProps) {
     const drawRef = useRef<TerraDraw | null>(null);
     const [instanceKey] = useState(() => crypto.randomUUID());
@@ -352,41 +354,46 @@ export function DrawToolbar({
     return (
         <>
             <div ref={freehandRef}>
-                <div
-                    data-terra-draw-instance={instanceKey}
-                    className="absolute left-2 top-2 z-[var(--z-dropdown)] flex gap-1 rounded-lg border border-color-border bg-color-surface-raised p-1 shadow-md"
-                >
-                    {TOOLBAR_MODES.map(({ mode, label, Icon }) => {
-                        const isActive =
-                            mode === "freehand"
-                                ? FREEHAND_DRAW_MODES.has(activeMode)
-                                : activeMode === mode;
-                        return (
-                            <button
-                                key={mode}
-                                type="button"
-                                aria-label={label}
-                                aria-pressed={isActive}
-                                disabled={!activeLayerId}
-                                onClick={() => {
-                                    if (mode === "freehand") {
-                                        setIsFreehandMenuOpen((open) => !open);
-                                        return;
-                                    }
-                                    setIsFreehandMenuOpen(false);
-                                    drawRef.current?.setMode(mode);
-                                    updateActiveMode(mode);
-                                }}
-                                className={`flex size-8 items-center justify-center rounded hover:bg-color-surface-bg disabled:cursor-not-allowed disabled:opacity-40 ${
-                                    isActive
-                                        ? "bg-brand-primary/10 text-brand-primary"
-                                        : "text-color-text-primary"
-                                }`}
-                            >
-                                <Icon className="size-4" />
-                            </button>
-                        );
-                    })}
+                <div className="absolute left-2 top-2 z-[var(--z-dropdown)] flex items-stretch gap-2">
+                    <div
+                        data-terra-draw-instance={instanceKey}
+                        className="flex gap-1 rounded-lg border border-color-border bg-color-surface-raised p-1 shadow-md"
+                    >
+                        {TOOLBAR_MODES.map(({ mode, label, Icon }) => {
+                            const isActive =
+                                mode === "freehand"
+                                    ? FREEHAND_DRAW_MODES.has(activeMode)
+                                    : activeMode === mode;
+                            return (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    aria-label={label}
+                                    aria-pressed={isActive}
+                                    disabled={!activeLayerId}
+                                    onClick={() => {
+                                        if (mode === "freehand") {
+                                            setIsFreehandMenuOpen(
+                                                (open) => !open,
+                                            );
+                                            return;
+                                        }
+                                        setIsFreehandMenuOpen(false);
+                                        drawRef.current?.setMode(mode);
+                                        updateActiveMode(mode);
+                                    }}
+                                    className={`flex size-8 items-center justify-center rounded hover:bg-color-surface-bg disabled:cursor-not-allowed disabled:opacity-40 ${
+                                        isActive
+                                            ? "bg-brand-primary/10 text-brand-primary"
+                                            : "text-color-text-primary"
+                                    }`}
+                                >
+                                    <Icon className="size-4" />
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {trailing}
                 </div>
                 {isFreehandMenuOpen && (
                     <div className="absolute left-2 top-12 z-[var(--z-dropdown)] flex gap-1 rounded-lg border border-color-border bg-color-surface-raised p-1 shadow-md">

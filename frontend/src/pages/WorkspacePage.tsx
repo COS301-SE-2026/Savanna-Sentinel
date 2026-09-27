@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type * as maplibregl from "maplibre-gl";
+import { useBlocker } from "react-router-dom";
 
 import { MapView } from "@/components/map/MapView";
 import { MapControls } from "@/components/map/MapControls";
@@ -46,6 +47,7 @@ export default function WorkspacePage() {
     const workspaceStatus = useWorkspaceStore((s) => s.status);
     const saveWorkspace = useWorkspaceStore((s) => s.saveWorkspace);
     const loadWorkspace = useWorkspaceStore((s) => s.loadWorkspace);
+    const resetWorkspace = useWorkspaceStore((s) => s.resetWorkspace);
 
     const [selection, setSelection] = useState<WorkspaceSelection>(null);
     const [editingFeatureId, setEditingFeatureId] = useState<string | null>(
@@ -83,14 +85,34 @@ export default function WorkspacePage() {
         if (status === "idle" || status === "error") loadWorkspace();
     }, [loadGrid, loadSnapshots, loadWorkspace]);
 
+    const blocker = useBlocker(hasUnsavedChanges);
+
+    useEffect(() => {
+        if (!hasUnsavedChanges) return;
+        const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+        };
+        window.addEventListener("beforeunload", warnBeforeLeaving);
+        return () =>
+            window.removeEventListener("beforeunload", warnBeforeLeaving);
+    }, [hasUnsavedChanges]);
+
     function handleSelectLayer(layerId: string) {
         setActiveLayer(layerId);
         setSelection({ kind: "layer", layerId });
     }
 
+    function selectMembership(membershipId: string) {
+        const membership = useWorkspaceStore
+            .getState()
+            .memberships.find((m) => m.id === membershipId);
+        if (membership) setActiveLayer(membership.layerId);
+        setSelection({ kind: "membership", membershipId });
+    }
+
     function handleSelectMembership(membershipId: string) {
         if (editingFeatureId) return;
-        setSelection({ kind: "membership", membershipId });
+        selectMembership(membershipId);
     }
 
     function handleFeatureClick(featureId: string | null) {
@@ -110,11 +132,7 @@ export default function WorkspacePage() {
             current.features,
             current.memberships,
         ).find((r) => r.feature.id === featureId);
-        if (rendered)
-            setSelection({
-                kind: "membership",
-                membershipId: rendered.membershipId,
-            });
+        if (rendered) selectMembership(rendered.membershipId);
     }
 
     function handleToggleEditGeometry(featureId: string) {
@@ -151,6 +169,11 @@ export default function WorkspacePage() {
             "Could not save workspace",
             "The server could not be reached.",
         );
+    }
+
+    function handleLeaveAndDiscard() {
+        blocker.proceed?.();
+        resetWorkspace();
     }
 
     async function handleLoadLatest() {
@@ -214,19 +237,18 @@ export default function WorkspacePage() {
                         cancelEditSignal={cancelEditSignal}
                         onModeChange={setActiveDrawMode}
                         onFeatureDrawn={handleFeatureDrawn}
+                        trailing={
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="h-auto rounded-lg border border-color-border bg-color-surface-raised px-4 shadow-md"
+                                disabled={!hasUnsavedChanges || isSaving}
+                                onClick={handleSave}
+                            >
+                                {isSaving ? "Saving..." : "Save"}
+                            </Button>
+                        }
                     />
-                )}
-                {!isMobile && (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="absolute right-2 bottom-2 z-[var(--z-sticky)] bg-color-surface-raised shadow-sm"
-                        disabled={!hasUnsavedChanges || isSaving}
-                        onClick={handleSave}
-                    >
-                        {isSaving ? "Saving..." : "Save"}
-                    </Button>
                 )}
                 {(gridStatus === "loading" ||
                     workspaceStatus === "loading") && (
@@ -265,6 +287,35 @@ export default function WorkspacePage() {
                         </Button>
                         <Button type="button" onClick={handleLoadLatest}>
                             Load latest version
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={blocker.state === "blocked"}
+                onOpenChange={(open) => {
+                    if (!open) blocker.reset?.();
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Unsaved changes</DialogTitle>
+                    </DialogHeader>
+                    <DialogDescription>
+                        You have workspace changes that have not been saved.
+                        Leaving this page discards them.
+                    </DialogDescription>
+                    <DialogFooter className="grid grid-cols-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => blocker.reset?.()}
+                        >
+                            Stay
+                        </Button>
+                        <Button type="button" onClick={handleLeaveAndDiscard}>
+                            Discard and leave
                         </Button>
                     </DialogFooter>
                 </DialogContent>
