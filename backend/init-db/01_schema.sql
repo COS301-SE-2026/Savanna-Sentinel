@@ -347,3 +347,17 @@ CREATE TABLE workspace_membership_visibility (
     visible       BOOLEAN NOT NULL,
     PRIMARY KEY (membership_id, user_id)
 );
+
+CREATE TABLE terrain_cell_effects (
+    cell_ref         TEXT             PRIMARY KEY,
+    risk_delta       DOUBLE PRECISION NOT NULL,
+    route_multiplier DOUBLE PRECISION NOT NULL
+);
+
+CREATE TABLE terrain_effects_meta (
+    id               BOOLEAN     PRIMARY KEY DEFAULT TRUE CHECK (id),
+    requested_hash   TEXT        NOT NULL,
+    computed_hash    TEXT        NOT NULL,
+    computed_version INT,
+    computed_at      TIMESTAMPTZ
+);

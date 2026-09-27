@@ -140,6 +140,50 @@ class WorkspaceRepository:
             ],
         }
 
+    async def load_snapshot(self) -> dict[str, Any]:
+        layer_rows = (await self.db.execute(select(_layers))).mappings().all()
+        feature_rows = (
+            (await self.db.execute(select(_features))).mappings().all()
+        )
+        membership_rows = (
+            (await self.db.execute(select(_memberships))).mappings().all()
+        )
+
+        return {
+            "layers": [
+                {
+                    "id": str(row["id"]),
+                    "parent_id": (
+                        str(row["parent_id"]) if row["parent_id"] else None
+                    ),
+                    "order": row["display_order"],
+                    "default_rules": row["default_rules"] or {},
+                }
+                for row in layer_rows
+            ],
+            "features": [
+                {
+                    "id": str(row["id"]),
+                    "type": row["feature_type"],
+                    "geometry": row["geometry"],
+                    "in_effect": row["in_effect"],
+                    "buffer_enabled": row["buffer_enabled"],
+                    "buffer_distance_m": row["buffer_distance_m"],
+                    "rules": row["rules"] or {},
+                }
+                for row in feature_rows
+            ],
+            "memberships": [
+                {
+                    "id": str(row["id"]),
+                    "feature_id": str(row["feature_id"]),
+                    "layer_id": str(row["layer_id"]),
+                    "order": row["display_order"],
+                }
+                for row in membership_rows
+            ],
+        }
+
     async def replace(
         self,
         user_id: str,
