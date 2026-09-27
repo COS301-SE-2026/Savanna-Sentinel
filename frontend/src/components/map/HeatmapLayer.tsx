@@ -134,7 +134,7 @@ export function HeatmapLayer({
         );
 
         const handleClick = (e: maplibregl.MapMouseEvent) => {
-            if (pickingActiveRef.current) return;
+            if (pickingActiveRef.current || e.defaultPrevented) return;
             const feature = map.queryRenderedFeatures(e.point, {
                 layers: [LAYER_ID],
             })[0];

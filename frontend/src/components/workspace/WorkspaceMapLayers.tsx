@@ -373,6 +373,7 @@ export function WorkspaceMapLayers({
                     topId = hit.properties?.id;
                 }
             }
+            if (hasHit) e.preventDefault();
             onFeatureClickRef.current(typeof topId === "string" ? topId : null);
         };
         map.on("click", handleClick);
