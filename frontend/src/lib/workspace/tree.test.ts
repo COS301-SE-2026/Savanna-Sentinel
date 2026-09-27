@@ -14,7 +14,14 @@ import type {
 } from "./types";
 
 function layer(id: string, parentId: string | null, order = 0): WorkspaceLayer {
-    return { id, name: id, parentId, order, defaultStyle: {} };
+    return {
+        id,
+        name: id,
+        parentId,
+        order,
+        defaultStyle: {},
+        defaultRules: {},
+    };
 }
 
 describe("wouldCreateCycle", () => {
@@ -126,9 +133,27 @@ describe("computeReorderedSiblingIds", () => {
 
 describe("computeLayerInEffectState", () => {
     const layers: WorkspaceLayer[] = [
-        { id: "water", parentId: null, order: 0, defaultStyle: {} },
-        { id: "western", parentId: "water", order: 0, defaultStyle: {} },
-        { id: "empty", parentId: null, order: 1, defaultStyle: {} },
+        {
+            id: "water",
+            parentId: null,
+            order: 0,
+            defaultStyle: {},
+            defaultRules: {},
+        },
+        {
+            id: "western",
+            parentId: "water",
+            order: 0,
+            defaultStyle: {},
+            defaultRules: {},
+        },
+        {
+            id: "empty",
+            parentId: null,
+            order: 1,
+            defaultStyle: {},
+            defaultRules: {},
+        },
     ];
     const feature = (id: string, inEffect: boolean): WorkspaceFeature => ({
         id,
@@ -139,6 +164,7 @@ describe("computeLayerInEffectState", () => {
         inEffect,
         bufferEnabled: false,
         bufferDistanceM: 100,
+        rules: {},
     });
     const membership = (
         id: string,

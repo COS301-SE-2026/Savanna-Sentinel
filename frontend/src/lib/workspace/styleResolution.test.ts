@@ -13,6 +13,7 @@ const water: WorkspaceLayer = {
     parentId: null,
     order: 0,
     defaultStyle: { colour: "#2563eb", opacity: 0.8 },
+    defaultRules: {},
 };
 const westernWater: WorkspaceLayer = {
     id: "western-water",
@@ -20,6 +21,7 @@ const westernWater: WorkspaceLayer = {
     parentId: "water",
     order: 0,
     defaultStyle: { colour: "#0ea5e9" },
+    defaultRules: {},
 };
 
 describe("resolveLayerChainStyle", () => {
@@ -30,6 +32,7 @@ describe("resolveLayerChainStyle", () => {
             parentId: null,
             order: 0,
             defaultStyle: {},
+            defaultRules: {},
         };
         expect(resolveLayerChainStyle([root], "empty")).toEqual(
             APPLICATION_DEFAULT_STYLE,

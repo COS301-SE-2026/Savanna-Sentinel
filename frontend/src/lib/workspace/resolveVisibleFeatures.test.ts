@@ -16,6 +16,7 @@ const water: WorkspaceLayer = {
     parentId: null,
     order: 0,
     defaultStyle: { colour: "#2563eb" },
+    defaultRules: {},
 };
 const river: WorkspaceLayer = {
     id: "river",
@@ -23,6 +24,7 @@ const river: WorkspaceLayer = {
     parentId: null,
     order: 1,
     defaultStyle: { colour: "#16a34a" },
+    defaultRules: {},
 };
 
 const dam: WorkspaceFeature = {
@@ -34,6 +36,7 @@ const dam: WorkspaceFeature = {
     inEffect: true,
     bufferEnabled: false,
     bufferDistanceM: 100,
+    rules: {},
 };
 
 const fence: WorkspaceFeature = {
@@ -51,6 +54,7 @@ const fence: WorkspaceFeature = {
     inEffect: true,
     bufferEnabled: false,
     bufferDistanceM: 100,
+    rules: {},
 };
 
 const zone: WorkspaceFeature = {
@@ -73,6 +77,7 @@ const zone: WorkspaceFeature = {
     inEffect: true,
     bufferEnabled: false,
     bufferDistanceM: 100,
+    rules: {},
 };
 
 describe("resolveVisibleFeatures", () => {
@@ -287,18 +292,21 @@ describe("stacking order", () => {
         parentId: null,
         order: 0,
         defaultStyle: {},
+        defaultRules: {},
     };
     const topChild: WorkspaceLayer = {
         id: "top-child",
         parentId: "top",
         order: 0,
         defaultStyle: {},
+        defaultRules: {},
     };
     const bottom: WorkspaceLayer = {
         id: "bottom",
         parentId: null,
         order: 1,
         defaultStyle: {},
+        defaultRules: {},
     };
 
     function member(

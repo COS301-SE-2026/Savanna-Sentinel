@@ -50,6 +50,7 @@ const MOCK_LAYER = {
     parentId: null,
     order: 0,
     defaultStyle: {},
+    defaultRules: {},
 };
 const MOCK_FEATURE = {
     name: "Test feature",
@@ -65,6 +66,7 @@ const MOCK_FEATURE = {
     inEffect: true,
     bufferEnabled: false,
     bufferDistanceM: 100,
+    rules: {},
 };
 
 const MOCK_MEMBERSHIP = {

@@ -548,14 +548,14 @@ describe("StyleEditorPanel", () => {
         ).toBeUndefined();
     });
 
-    it("shows the In effect checkbox last, after the Edit geometry button, and toggling it updates the feature", async () => {
+    it("shows the In effect checkbox before the Edit geometry button, and toggling it updates the feature", async () => {
         const { created } = renderForNewFeature();
         const editButton = screen.getByRole("button", {
             name: "Edit geometry",
         });
         const checkbox = screen.getByLabelText("In effect");
         expect(
-            editButton.compareDocumentPosition(checkbox) &
+            checkbox.compareDocumentPosition(editButton) &
                 Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
         expect(checkbox).toBeChecked();
@@ -594,5 +594,38 @@ describe("StyleEditorPanel", () => {
             useWorkspaceStore.getState().layers.find((l) => l.id === waterId)
                 ?.defaultStyle.bufferOpacity,
         ).toBeCloseTo(0.35);
+    });
+    it("shows a Behaviour button above Edit geometry that opens the rule popup", async () => {
+        const { created } = renderForNewFeature();
+        const behaviour = screen.getByRole("button", { name: "Behaviour" });
+        const edit = screen.getByRole("button", { name: "Edit geometry" });
+        expect(
+            behaviour.compareDocumentPosition(edit) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+
+        await userEvent.click(behaviour);
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+        expect(screen.getByLabelText("Increase risk")).toBeInTheDocument();
+        expect(created.featureId).toBeDefined();
+    });
+
+    it("shows a Behaviour button for a selected layer too", async () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        render(
+            <StyleEditorPanel
+                selection={{ kind: "layer", layerId: waterId }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Behaviour" }),
+        );
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
     });
 });
