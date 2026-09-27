@@ -141,6 +141,33 @@ describe("mapStore", () => {
         expect(result).toBeNull();
     });
 
+    it("loadSummary stores the park-wide incident and sighting counts", async () => {
+        server.use(
+            http.get(`${BASE}/risk/summary`, () =>
+                HttpResponse.json({ incidents_60d: 7, sightings_7d: 42 }),
+            ),
+        );
+
+        await useMapStore.getState().loadSummary();
+
+        expect(useMapStore.getState().summary).toEqual({
+            incidents_60d: 7,
+            sightings_7d: 42,
+        });
+    });
+
+    it("loadSummary leaves summary null when the request fails", async () => {
+        server.use(
+            http.get(`${BASE}/risk/summary`, () =>
+                HttpResponse.json({ detail: "boom" }, { status: 500 }),
+            ),
+        );
+
+        await useMapStore.getState().loadSummary();
+
+        expect(useMapStore.getState().summary).toBeNull();
+    });
+
     it("loadActiveModel fetches once and caches", async () => {
         let callCount = 0;
         server.use(

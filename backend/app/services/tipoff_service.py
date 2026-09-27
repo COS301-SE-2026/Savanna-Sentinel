@@ -29,10 +29,10 @@ class TipoffService:
         self.notification_service = notification_service
 
     async def create_tipoff(
-            self,
-            current_user: "User",
-            data: "TipoffCreate",
-            ) -> dict:
+        self,
+        current_user: "User",
+        data: "TipoffCreate",
+    ) -> dict:
         now = datetime.now(timezone.utc)
         occurred = data.occurred_at
         if occurred.tzinfo is None:
@@ -116,9 +116,15 @@ class TipoffService:
     async def get_tipoffs(
         self,
         current_user: "User",
-        report_type: Optional[str] = None,
+        search: Optional[str] = None,
+        report_types: Optional[list[str]] = None,
+        severities: Optional[list[str]] = None,
+        species: Optional[list[str]] = None,
+        users: Optional[list[str]] = None,
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
+        sort_by: Optional[str] = None,
+        direction: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
@@ -129,9 +135,15 @@ class TipoffService:
         )
         results, total = await self.repo.get_list(
             owner_id=owner_id,
-            report_type=report_type,
+            search=search,
+            report_types=report_types,
+            severities=severities,
+            species=species,
+            users=users,
             from_dt=from_dt,
             to_dt=to_dt,
+            sort_by=sort_by,
+            direction=direction,
             page=page,
             page_size=page_size,
         )
@@ -139,6 +151,12 @@ class TipoffService:
             item["images"] = self._view_urls(item.get("images"))
             item.setdefault("submitted_by_username", None)
         return results, total
+
+    async def get_species(self) -> list[str]:
+        return await self.repo.get_species()
+
+    async def get_usernames(self) -> list[str]:
+        return await self.repo.get_usernames()
 
     def _view_urls(self, images: Optional[list]) -> list:
         return [self.media_service.generate_view_url(u) for u in (images or [])]

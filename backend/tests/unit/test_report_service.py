@@ -374,12 +374,16 @@ async def test_get_reports_passes_filters_to_repo():
         _admin(),
         report_types="incident",
         severities="high",
+        sort_by="occurred_at",
+        direction="asc",
         page=2,
         page_size=10,
     )
     call_kwargs = service.repo.get_list.call_args.kwargs
     assert call_kwargs["report_types"] == "incident"
     assert call_kwargs["severities"] == "high"
+    assert call_kwargs["sort_by"] == "occurred_at"
+    assert call_kwargs["direction"] == "asc"
     assert call_kwargs["page"] == 2
     assert call_kwargs["page_size"] == 10
 

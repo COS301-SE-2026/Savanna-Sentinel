@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
+from app.core.risk_windows import (
+    INCIDENT_LOOKBACK_DAYS as _FEATURE_LOOKBACK_DAYS,
+)
 from app.repositories import risk_repository
 from app.services.risk_model_storage import RiskModelStorage
 from app.workers.celery_app import celery_app
@@ -21,7 +24,6 @@ from app.workers.ml.risk_engine import (
     train_model,
 )
 
-_FEATURE_LOOKBACK_DAYS = 365
 _MIN_TRAINING_EXAMPLES = 20
 _engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 _TaskSessionLocal = async_sessionmaker(_engine, expire_on_commit=False)
@@ -47,11 +49,6 @@ async def _train(
             park_id,
             fetch_since,
         )
-        patrol_by_cell = await risk_repository.fetch_patrol_tracks_by_cell(
-            session,
-            park_id,
-            fetch_since,
-        )
         sightings_by_cell = await risk_repository.fetch_sightings_by_cell(
             session,
             park_id,
@@ -61,7 +58,6 @@ async def _train(
         examples = build_training_examples(
             cells,
             incidents_by_cell,
-            patrol_by_cell,
             window_start,
             window_end,
             feature_lookback_days=_FEATURE_LOOKBACK_DAYS,
@@ -150,11 +146,6 @@ async def _score(park_id: str, triggered_manually: bool = False) -> dict:
             park_id,
             fetch_since,
         )
-        patrol_by_cell = await risk_repository.fetch_patrol_tracks_by_cell(
-            session,
-            park_id,
-            fetch_since,
-        )
         sightings_by_cell = await risk_repository.fetch_sightings_by_cell(
             session,
             park_id,
@@ -164,7 +155,6 @@ async def _score(park_id: str, triggered_manually: bool = False) -> dict:
         features_per_cell = compute_cell_features(
             cells,
             incidents_by_cell,
-            patrol_by_cell,
             reference_time,
             lookback_days=_FEATURE_LOOKBACK_DAYS,
             sightings_by_cell=sightings_by_cell,

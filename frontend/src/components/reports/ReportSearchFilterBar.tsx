@@ -29,6 +29,7 @@ interface ReportSearchFilterBarProps {
     usernameFilter: string[];
     onUsernameFilterChange: (usernames: string[]) => void;
     usernameOptions: string[];
+    searchPlaceholder?: string;
 }
 
 function ReportSearchFilterBarBase({
@@ -44,6 +45,7 @@ function ReportSearchFilterBarBase({
     usernameFilter,
     onUsernameFilterChange,
     usernameOptions,
+    searchPlaceholder = "Search reports...",
 }: ReportSearchFilterBarProps) {
     const filterGroups: MultiSelectFilterGroup[] = React.useMemo(
         () => [
@@ -103,7 +105,7 @@ function ReportSearchFilterBarBase({
         <MultiSelectFilterBar
             search={search}
             onSearchChange={onSearchChange}
-            searchPlaceholder="Search reports..."
+            searchPlaceholder={searchPlaceholder}
             groups={filterGroups}
         />
     );

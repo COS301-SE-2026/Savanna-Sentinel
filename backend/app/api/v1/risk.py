@@ -15,6 +15,7 @@ from app.schemas.risk import (
     ParkGridResponse,
     RiskJobResponse,
     RiskScoreJobStatus,
+    RiskSummaryResponse,
     RiskTrainJobStatus,
     RiskTrainRequest,
 )
@@ -26,12 +27,14 @@ from app.services.risk_service import (
     get_heatmap,
     get_heatmap_snapshots,
     get_park_grid,
+    get_risk_summary,
     get_scoring_job,
     get_training_job,
     trigger_scoring_job,
     trigger_training_job,
     validate_boundaries,
 )
+from app.services.terrain_service import enqueue_recompute_quietly
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 
@@ -65,6 +68,7 @@ async def upload_geojson(
     content = await file.read()
 
     validate_boundaries(content)
+    enqueue_recompute_quietly()
 
 
 @router.get(
@@ -197,6 +201,21 @@ async def explain_cell_endpoint(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await get_cell_explanation(db, str(cell_id))
+
+
+@router.get(
+    "/summary",
+    response_model=RiskSummaryResponse,
+    summary="Park-wide recent incident (60d) and sighting (7d) counts",
+)
+async def get_risk_summary_endpoint(
+    current_user: Annotated[
+        User,
+        Depends(require_roles(["ranger", "analyst", "admin"])),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await get_risk_summary(db)
 
 
 @router.get(

@@ -52,8 +52,6 @@ async def generate_route_job(
             "park_id": settings.PARK_ID,
             "start": request.start_point.coordinates,
             "end": request.end_point.coordinates,
-            "max_time_min": request.max_time,
-            "max_fuel_l": request.max_fuel,
             "num_alternatives": request.num_alternatives,
             "risk_by_cell": request.risk_by_cell,
         },
@@ -73,8 +71,7 @@ def _deserialize_route(data: dict) -> PlannedRoute:
     return PlannedRoute(
         suggested_path=data["suggested_path"],
         path_geometry=GeoLineString(**data["path_geometry"]),
-        estimated_time_min=data["estimated_time_min"],
-        estimated_fuel_l=data["estimated_fuel_l"],
+        distance_km=data["distance_km"],
         risk_coverage=data["risk_coverage"],
     )
 
@@ -124,12 +121,14 @@ async def get_routes(
     routes: list[PlannedRoute] = []
     num_requested = None
     num_found = None
+    shortfall_reason = None
 
     if result.state == "SUCCESS":
         payload = result.result
         routes = [_deserialize_route(r) for r in payload["results"]]
         num_requested = payload["num_alternatives_requested"]
         num_found = payload["num_alternatives_found"]
+        shortfall_reason = payload.get("shortfall_reason")
 
     start = (page - 1) * page_size
     page_results = routes[start : start + page_size]
@@ -139,6 +138,7 @@ async def get_routes(
         status=status_value,
         num_alternatives_requested=num_requested,
         num_alternatives_found=num_found,
+        shortfall_reason=shortfall_reason,
         total=len(routes),
         page=page,
         page_size=page_size,
@@ -167,12 +167,9 @@ async def save_route(
         request_id=req.request_id,
         start_point_wkt=_to_wkt_point(req.start_point),
         end_point_wkt=_to_wkt_point(req.end_point),
-        max_time=req.max_time,
-        max_fuel=req.max_fuel,
         risk_heatmap=req.risk_by_cell,
         path_wkt=_to_wkt_linestring(req.route.path_geometry),
-        estimated_time=req.route.estimated_time_min,
-        estimated_fuel=req.route.estimated_fuel_l,
+        distance_km=req.route.distance_km,
         risk_coverage=req.route.risk_coverage,
     )
     return SavedRouteResponse(
@@ -180,12 +177,9 @@ async def save_route(
         request_id=req.request_id,
         start_point=req.start_point,
         end_point=req.end_point,
-        max_time=req.max_time,
-        max_fuel=req.max_fuel,
         risk_by_cell=req.risk_by_cell,
         path_geometry=req.route.path_geometry,
-        estimated_time_min=req.route.estimated_time_min,
-        estimated_fuel_l=req.route.estimated_fuel_l,
+        distance_km=req.route.distance_km,
         risk_coverage=req.route.risk_coverage,
         created_at=result["created_at"].isoformat(),
     )
@@ -205,12 +199,9 @@ async def list_saved_routes(
             request_id=r["request_id"],
             start_point=r["start_point"],
             end_point=r["end_point"],
-            max_time=r["max_time"],
-            max_fuel=r["max_fuel"],
             risk_by_cell=r["risk_heatmap"],
             path_geometry=r["path_geometry"],
-            estimated_time_min=r["estimated_time"],
-            estimated_fuel_l=r["estimated_fuel"],
+            distance_km=r["distance_km"],
             risk_coverage=r["risk_coverage"],
             created_at=r["created_at"].isoformat(),
         )

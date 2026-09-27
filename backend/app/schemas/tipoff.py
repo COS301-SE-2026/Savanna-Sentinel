@@ -23,6 +23,7 @@ class TipoffSubmitResponse(BaseModel):
     report_type: str
     status: str
     submitted_by: str
+    submitted_by_username: Optional[str] = None
     created_at: datetime
 
 
@@ -38,6 +39,7 @@ class TipoffListItem(BaseModel):
     count: Optional[int] = None
     images: list[str] = []
     submitted_by: str
+    submitted_by_username: Optional[str] = None
     created_at: datetime
 
 

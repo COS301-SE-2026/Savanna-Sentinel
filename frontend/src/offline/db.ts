@@ -75,6 +75,7 @@ export const cacheKeys = {
     heatmap: (heatmapId: string) => `heatmap:${heatmapId}`,
     reports: (query: string) => `reports:${query}`,
     savedRoutes: () => "saved-routes:list",
+    pinnedRoute: () => "heatmap:pinned-route",
     profile: () => "profile:me",
 };
 

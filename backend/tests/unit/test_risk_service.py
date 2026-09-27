@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -8,6 +9,7 @@ from app.services.risk_service import (
     check_if_uploaded,
     delete_geojson_file,
     get_park_grid,
+    get_risk_summary,
     validate_boundaries,
 )
 
@@ -210,3 +212,27 @@ def test_delete_geojson_file_failure(
     mock_unlink.assert_called_once_with(missing_ok=True)
     mock_invalidate.assert_not_called()
     mock_invalidate_route.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_risk_summary_wraps_repo_counts_with_60d_and_7d_windows():
+    with (
+        patch(
+            "app.services.risk_service.risk_repository.count_incidents_since",
+            return_value=7,
+        ) as mock_incidents,
+        patch(
+            "app.services.risk_service.risk_repository.count_sightings_since",
+            return_value=42,
+        ) as mock_sightings,
+    ):
+        response = await get_risk_summary(object())
+
+    assert response.incidents_60d == 7
+    assert response.sightings_7d == 42
+
+    now = datetime.now(timezone.utc)
+    incident_since = mock_incidents.call_args.args[1]
+    sighting_since = mock_sightings.call_args.args[1]
+    assert round((now - incident_since).total_seconds() / 86400) == 60
+    assert round((now - sighting_since).total_seconds() / 86400) == 7

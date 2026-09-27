@@ -108,7 +108,7 @@ services:
 
   worker:
     image: ${ECR_REGISTRY:-local}/savanna-sentinel-backend:${IMAGE_TAG:-latest}
-    command: celery -A app.workers.celery_app worker --loglevel=info --beat --concurrency=1
+    command: celery -A app.workers.celery_app worker --loglevel=info --beat --schedule=/tmp/celerybeat-schedule --concurrency=1
     env_file:
       - ./backend/.env
     depends_on:
@@ -120,7 +120,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.30"
+          cpus: "0.70"
           memory: 600M
 
   frontend:
@@ -131,7 +131,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.10"
           memory: 128M
 
   caddy:

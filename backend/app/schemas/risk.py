@@ -127,3 +127,8 @@ class ActiveModelResponse(BaseModel):
     training_window_end: str
     n_training_examples: int
     metrics: dict
+
+
+class RiskSummaryResponse(BaseModel):
+    incidents_60d: int
+    sightings_7d: int

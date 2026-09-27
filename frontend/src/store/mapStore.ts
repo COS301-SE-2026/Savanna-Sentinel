@@ -8,6 +8,7 @@ import type {
     HeatmapCell,
     ActiveModelResponse,
     CellExplainResponse,
+    RiskSummaryResponse,
 } from "@/services/riskApi";
 import { notifyCaution, notifyCritical } from "@/components/ui/toast";
 import {
@@ -24,7 +25,6 @@ type SnapshotsStatus = "idle" | "loading" | "error";
 interface MapDataState {
     grid: ParkGridResponse | null;
     gridStatus: GridStatus;
-    gridFetchedAt: number | null;
     gridStale: boolean;
 
     heatmapStatus: HeatmapStatus;
@@ -36,6 +36,8 @@ interface MapDataState {
 
     activeModel: ActiveModelResponse | null;
     explainByCellRef: Map<string, CellExplainResponse>;
+
+    summary: RiskSummaryResponse | null;
 }
 
 interface MapState extends MapDataState {
@@ -44,6 +46,7 @@ interface MapState extends MapDataState {
     selectSnapshot: (heatmapId: string) => Promise<void>;
     loadCellExplain: (cellRef: string) => Promise<CellExplainResponse | null>;
     loadActiveModel: () => Promise<void>;
+    loadSummary: () => Promise<void>;
 }
 
 function currentUserId(): string | null {
@@ -60,7 +63,6 @@ function noDataReset() {
 const initialData: MapDataState = {
     grid: null,
     gridStatus: "idle",
-    gridFetchedAt: null,
     gridStale: false,
 
     heatmapStatus: "idle",
@@ -72,6 +74,8 @@ const initialData: MapDataState = {
 
     activeModel: null,
     explainByCellRef: new Map(),
+
+    summary: null,
 };
 
 export let initialMapState: MapState;
@@ -87,7 +91,6 @@ export const useMapStore = create<MapState>()((set, get) => {
                 set({
                     grid: result.grid,
                     gridStatus: "idle",
-                    gridFetchedAt: result.fetchedAt,
                     gridStale: result.isStale,
                 });
                 if (result.isFromCache) {
@@ -180,6 +183,15 @@ export const useMapStore = create<MapState>()((set, get) => {
             try {
                 const activeModel = await riskApi.getActiveModel();
                 set({ activeModel });
+            } catch {
+                // leave null, UI shows "Not available yet"
+            }
+        },
+
+        loadSummary: async () => {
+            try {
+                const summary = await riskApi.getRiskSummary();
+                set({ summary });
             } catch {
                 // leave null, UI shows "Not available yet"
             }

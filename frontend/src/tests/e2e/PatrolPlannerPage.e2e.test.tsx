@@ -155,15 +155,15 @@ test.describe("Patrol Planner golden path", () => {
 
             await page.mouse.move(startX, startY);
             await page.mouse.down();
-            const steps = 20;
-            for (let i = 1; i <= steps; i++) {
-                const y = startY + ((targetY - startY) * i) / steps;
-                await page.mouse.move(startX, y);
-                await page.waitForTimeout(20);
-            }
+            await page.mouse.move(startX, targetY, { steps: 20 });
             await page.mouse.up();
             if (settle) {
-                await page.waitForTimeout(600);
+                await expect
+                    .poll(async () => {
+                        const currentBox = await drawer.boundingBox();
+                        return currentBox?.y;
+                    })
+                    .toBeDefined();
             }
         }
 

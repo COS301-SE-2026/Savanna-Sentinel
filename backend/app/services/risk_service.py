@@ -1,7 +1,7 @@
 import io
 import math
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import geopandas
 import numpy
@@ -34,6 +34,7 @@ from app.schemas.risk import (
     ParkGridResponse,
     RiskJobResponse,
     RiskScoreJobStatus,
+    RiskSummaryResponse,
     RiskTrainJobStatus,
     RiskTrainRequest,
     SightingDetail,
@@ -45,6 +46,8 @@ from app.workers.tasks.risk_tasks import (
 )
 
 _PARK_ID = settings.PARK_ID
+_SUMMARY_INCIDENT_DAYS = 60
+_SUMMARY_SIGHTING_DAYS = 7
 
 
 def get_park_grid() -> ParkGridResponse:
@@ -375,6 +378,22 @@ async def get_cell_explanation(session, cell_id: str) -> CellExplainResponse:
             SightingDetail(**sighting)
             for sighting in data["neighbor_sightings"]
         ],
+    )
+
+
+async def get_risk_summary(session) -> RiskSummaryResponse:
+    now = datetime.now(timezone.utc)
+    incidents = await risk_repository.count_incidents_since(
+        session,
+        now - timedelta(days=_SUMMARY_INCIDENT_DAYS),
+    )
+    sightings = await risk_repository.count_sightings_since(
+        session,
+        now - timedelta(days=_SUMMARY_SIGHTING_DAYS),
+    )
+    return RiskSummaryResponse(
+        incidents_60d=incidents,
+        sightings_7d=sightings,
     )
 
 

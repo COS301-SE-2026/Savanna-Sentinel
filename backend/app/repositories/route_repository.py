@@ -7,11 +7,11 @@ from pyproj import Transformer
 from app.repositories.risk_repository import GRID_FILE_PATH
 from app.schemas.geo import GeoPoint
 from app.schemas.route import GraphEdge, GraphNode, ParkGraph
+from app.workers.ml.route_planner import clear_path_cache
 
 # Placeholder patrol-vehicle profile - no vehicle telemetry/risk engine exists
-# yet to derive these from, so a flat off-road estimate is used for every edge.
+# yet to derive this from, so a flat off-road estimate is used for every edge.
 AVG_SPEED_KMH = 20.0
-FUEL_L_PER_KM = 0.15
 
 
 @lru_cache(maxsize=None)
@@ -84,7 +84,6 @@ def _load_grid() -> ParkGraph:
                         to_node_id=f"cell-{neighbor_id}",
                         distance_km=km,
                         est_time_min=km / AVG_SPEED_KMH * 60,
-                        est_fuel_l=km * FUEL_L_PER_KM,
                     ),
                 )
 
@@ -95,6 +94,7 @@ def _load_grid() -> ParkGraph:
 
 def invalidate_grid_cache() -> None:
     _load_grid.cache_clear()
+    clear_path_cache()
 
 
 def build_park_graph(
@@ -122,13 +122,28 @@ def build_park_graph(
     return ParkGraph(park_id=park_id, nodes=nodes, edges=base.edges)
 
 
+KM_PER_DEGREE = 111.0
+MAX_SNAP_CELLS = 1.5
+
+
+def _squared_km(a: tuple[float, float], b: tuple[float, float]) -> float:
+    lon_scale = math.cos(math.radians(b[1]))
+    d_lon = (a[0] - b[0]) * lon_scale * KM_PER_DEGREE
+    d_lat = (a[1] - b[1]) * KM_PER_DEGREE
+    return d_lon**2 + d_lat**2
+
+
 def find_nearest_node(graph: ParkGraph, point: tuple[float, float]) -> str:
-    """Nearest grid node to a (lon, lat) point, by simple squared distance."""
-    lon, lat = point
-    return min(
+    if not graph.nodes:
+        raise ValueError("Park grid has no cells")
+    nearest = min(
         graph.nodes,
-        key=lambda n: (
-            (n.location.coordinates[0] - lon) ** 2
-            + (n.location.coordinates[1] - lat) ** 2
-        ),
-    ).node_id
+        key=lambda n: _squared_km(n.location.coordinates, point),
+    )
+    cell_km = min((e.distance_km for e in graph.edges), default=1.0)
+    limit = MAX_SNAP_CELLS * cell_km
+    if _squared_km(nearest.location.coordinates, point) > limit**2:
+        raise ValueError(
+            f"Point {point} is more than {limit:.1f} km outside the park grid",
+        )
+    return nearest.node_id

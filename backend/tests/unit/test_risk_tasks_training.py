@@ -23,7 +23,6 @@ async def test_train_skips_when_not_enough_examples(
         return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
-    mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.persist_grid_cells = AsyncMock()
 
@@ -58,7 +57,6 @@ async def test_train_uploads_model_and_saves_version_on_success(
         return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
-    mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.persist_grid_cells = AsyncMock()
     mock_repo.save_model_version = AsyncMock(return_value="model-123")
@@ -123,7 +121,6 @@ async def test_train_reports_conflict_on_concurrent_active_model_insert(
         return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
-    mock_repo.fetch_patrol_tracks_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
     mock_repo.persist_grid_cells = AsyncMock()
     mock_repo.save_model_version = AsyncMock(

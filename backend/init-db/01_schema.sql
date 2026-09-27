@@ -106,7 +106,7 @@ CREATE TABLE audit_logs (
     actor_id    UUID        REFERENCES users(id) ON DELETE SET NULL,
     action      TEXT        NOT NULL,
     target_type TEXT,
-    target_id   UUID,
+    target_id   TEXT,
     details     JSONB,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -148,11 +148,8 @@ CREATE TABLE patrol_routes (
     requested_by   UUID                       NOT NULL REFERENCES users(id),
     start_point    GEOGRAPHY(Point, 4326)     NOT NULL,
     end_point      GEOGRAPHY(Point, 4326)     NOT NULL,
-    max_time       FLOAT,
-    max_fuel       FLOAT,
     suggested_path GEOGRAPHY(LineString, 4326) NOT NULL,
-    estimated_time FLOAT                      NOT NULL,
-    estimated_fuel FLOAT                      NOT NULL,
+    distance_km    FLOAT                      NOT NULL,
     risk_coverage  FLOAT                      NOT NULL,
     risk_heatmap   JSONB                      NOT NULL,
     created_at     TIMESTAMPTZ                NOT NULL DEFAULT NOW()
@@ -292,3 +289,75 @@ CREATE TABLE notifications (
 
 CREATE INDEX notifications_user_unread_idx ON notifications (user_id, read_at);
 CREATE INDEX notifications_user_created_idx ON notifications (user_id, created_at DESC);
+
+CREATE TYPE workspace_feature_type AS ENUM (
+    'point',
+    'line',
+    'polygon'
+);
+
+CREATE TABLE workspace_meta (
+    id         BOOLEAN     PRIMARY KEY DEFAULT TRUE CHECK (id),
+    version    INT         NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by UUID        REFERENCES users(id) ON DELETE SET NULL
+);
+
+INSERT INTO workspace_meta (id) VALUES (TRUE);
+
+CREATE TABLE workspace_layers (
+    id            UUID  PRIMARY KEY,
+    name          TEXT,
+    parent_id     UUID  REFERENCES workspace_layers(id) ON DELETE CASCADE,
+    display_order INT   NOT NULL,
+    default_style JSONB NOT NULL DEFAULT '{}'::jsonb,
+    default_rules JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX workspace_layers_parent_idx ON workspace_layers (parent_id);
+
+CREATE TABLE workspace_features (
+    id                UUID                   PRIMARY KEY,
+    feature_type      workspace_feature_type NOT NULL,
+    name              TEXT,
+    geometry          JSONB                  NOT NULL,
+    in_effect         BOOLEAN                NOT NULL DEFAULT TRUE,
+    buffer_enabled    BOOLEAN                NOT NULL DEFAULT FALSE,
+    buffer_distance_m DOUBLE PRECISION       NOT NULL DEFAULT 100
+        CHECK (buffer_distance_m BETWEEN 1 AND 20000),
+    rules             JSONB                  NOT NULL DEFAULT '{}'::jsonb,
+    created_at        TIMESTAMPTZ            NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ            NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE workspace_memberships (
+    id             UUID  PRIMARY KEY,
+    feature_id     UUID  NOT NULL REFERENCES workspace_features(id) ON DELETE CASCADE,
+    layer_id       UUID  NOT NULL REFERENCES workspace_layers(id) ON DELETE CASCADE,
+    display_order  INT   NOT NULL,
+    style_override JSONB NOT NULL DEFAULT '{}'::jsonb,
+    UNIQUE (feature_id, layer_id) DEFERRABLE INITIALLY DEFERRED
+);
+
+CREATE INDEX workspace_memberships_layer_idx ON workspace_memberships (layer_id);
+
+CREATE TABLE workspace_membership_visibility (
+    membership_id UUID    NOT NULL REFERENCES workspace_memberships(id) ON DELETE CASCADE,
+    user_id       UUID    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    visible       BOOLEAN NOT NULL,
+    PRIMARY KEY (membership_id, user_id)
+);
+
+CREATE TABLE terrain_cell_effects (
+    cell_ref         TEXT             PRIMARY KEY,
+    risk_delta       DOUBLE PRECISION NOT NULL,
+    route_multiplier DOUBLE PRECISION NOT NULL
+);
+
+CREATE TABLE terrain_effects_meta (
+    id               BOOLEAN     PRIMARY KEY DEFAULT TRUE CHECK (id),
+    requested_hash   TEXT        NOT NULL,
+    computed_hash    TEXT        NOT NULL,
+    computed_version INT,
+    computed_at      TIMESTAMPTZ
+);

@@ -17,18 +17,71 @@ const ROUTES: PlannedRoute[] = [
     {
         suggested_path: [],
         path_geometry: { type: "LineString", coordinates: [] },
-        estimated_time_min: 38,
-        estimated_fuel_l: 16,
+        distance_km: 38,
         risk_coverage: 0.74,
     },
     {
         suggested_path: [],
         path_geometry: { type: "LineString", coordinates: [] },
-        estimated_time_min: 45,
-        estimated_fuel_l: 21,
+        distance_km: 45,
         risk_coverage: 0.58,
     },
 ];
+
+describe("RouteComparisonView shortfall note", () => {
+    function renderWith(props: Record<string, unknown>) {
+        return render(
+            <RouteComparisonView
+                status="completed"
+                routes={ROUTES}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                {...SAVE_PROPS}
+                {...props}
+            />,
+        );
+    }
+
+    it("says nothing when every alternative was found", () => {
+        renderWith({ numAlternativesRequested: 2 });
+        expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("explains a duplicate shortfall", () => {
+        renderWith({
+            numAlternativesRequested: 3,
+            shortfallReason: "duplicate_route",
+        });
+        expect(screen.getByRole("status")).toHaveTextContent(
+            /showing 2 of 3 alternatives.*retraced a route already shown/i,
+        );
+    });
+
+    it("explains an incomplete tour shortfall", () => {
+        renderWith({
+            numAlternativesRequested: 3,
+            shortfallReason: "no_tour_found",
+        });
+        expect(screen.getByRole("status")).toHaveTextContent(
+            /no further route could be completed/i,
+        );
+    });
+
+    it("still reports the count for an unrecognised reason", () => {
+        renderWith({
+            numAlternativesRequested: 3,
+            shortfallReason: "something_new",
+        });
+        expect(screen.getByRole("status")).toHaveTextContent(
+            /showing 2 of 3 alternatives/i,
+        );
+    });
+
+    it("says nothing when the request count is unknown", () => {
+        renderWith({ numAlternativesRequested: null });
+        expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+});
 
 describe("RouteComparisonView", () => {
     it("shows an idle prompt before anything has run", () => {

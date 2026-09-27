@@ -1860,3 +1860,573 @@ SELECT ev.id,
     2
 FROM ev,
     r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger2'
+            ),
+            'sighting',
+            'Elephant sighted during routine observation.',
+            ST_GeogFromText('POINT(31.208300 -24.108800)'),
+            NOW() - INTERVAL '6 days'
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Elephant',
+    4
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger7'
+            ),
+            'sighting',
+            'Buffalo sighted during routine observation.',
+            ST_GeogFromText('POINT(31.211500 -24.110200)'),
+            NOW() - INTERVAL '6 days'
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Buffalo',
+    6
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger11'
+            ),
+            'sighting',
+            'Lion sighted during routine observation.',
+            ST_GeogFromText('POINT(31.209800 -24.111900)'),
+            NOW() - INTERVAL '6 days'
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Lion',
+    3
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger4'
+            ),
+            'sighting',
+            'Rhino sighted during routine observation.',
+            ST_GeogFromText('POINT(31.212600 -24.107500)'),
+            NOW() - INTERVAL '6 days'
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Rhino',
+    2
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger9'
+            ),
+            'sighting',
+            'Buffalo sighted during routine observation.',
+            ST_GeogFromText('POINT(31.207200 -24.112300)'),
+            NOW() - INTERVAL '6 days'
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Buffalo',
+    5
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger3'
+            ),
+            'sighting',
+            'Elephant sighted during routine observation.',
+            ST_GeogFromText('POINT(31.210500 -24.109400)'),
+            NOW() - INTERVAL '3 days'
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Elephant',
+    6
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger6'
+            ),
+            'sighting',
+            'Buffalo sighted during routine observation.',
+            ST_GeogFromText('POINT(31.211900 -24.110800)'),
+            NOW() - INTERVAL '3 days'
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Buffalo',
+    4
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger13'
+            ),
+            'sighting',
+            'Lion sighted during routine observation.',
+            ST_GeogFromText('POINT(31.208800 -24.110100)'),
+            NOW() - INTERVAL '3 days'
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Lion',
+    2
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger10'
+            ),
+            'sighting',
+            'Rhino sighted during routine observation.',
+            ST_GeogFromText('POINT(31.213100 -24.111900)'),
+            NOW() - INTERVAL '3 days'
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Rhino',
+    3
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger1'
+            ),
+            'sighting',
+            'Elephant sighted during routine observation.',
+            ST_GeogFromText('POINT(31.209400 -24.108200)'),
+            NOW() - INTERVAL '3 days'
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Elephant',
+    5
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger5'
+            ),
+            'sighting',
+            'Buffalo sighted during routine observation.',
+            ST_GeogFromText('POINT(31.210100 -24.109900)'),
+            NOW()
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Buffalo',
+    6
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger8'
+            ),
+            'sighting',
+            'Elephant sighted during routine observation.',
+            ST_GeogFromText('POINT(31.211300 -24.109100)'),
+            NOW()
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Elephant',
+    4
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger14'
+            ),
+            'sighting',
+            'Lion sighted during routine observation.',
+            ST_GeogFromText('POINT(31.208600 -24.111200)'),
+            NOW()
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Lion',
+    3
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger15'
+            ),
+            'sighting',
+            'Rhino sighted during routine observation.',
+            ST_GeogFromText('POINT(31.212200 -24.110400)'),
+            NOW()
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Rhino',
+    2
+FROM ev,
+    r;
+WITH r AS (
+    INSERT INTO field_reports (
+            submitted_by,
+            report_type,
+            description,
+            location,
+            occurred_at
+        )
+    VALUES (
+            (
+                SELECT id
+                FROM users
+                WHERE username = 'ranger12'
+            ),
+            'sighting',
+            'Buffalo sighted during routine observation.',
+            ST_GeogFromText('POINT(31.209700 -24.112300)'),
+            NOW()
+        )
+    RETURNING id,
+        location,
+        occurred_at
+),
+ev AS (
+    INSERT INTO geospatial_events (event_type, location, occurred_at)
+    SELECT 'sighting',
+        location,
+        occurred_at
+    FROM r
+    RETURNING id
+)
+INSERT INTO sightings (id, field_report_id, species, count)
+SELECT ev.id,
+    r.id,
+    'Buffalo',
+    5
+FROM ev,
+    r;

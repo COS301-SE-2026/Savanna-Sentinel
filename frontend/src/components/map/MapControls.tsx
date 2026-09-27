@@ -1,5 +1,5 @@
 import { Plus, Minus, Compass } from "lucide-react";
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 
 import { Button } from "@/components/ui/button";
 
@@ -7,12 +7,14 @@ export interface MapControlsProps {
     map: maplibregl.Map | null;
     defaultCenter?: [number, number];
     defaultZoom?: number;
+    zoomDisabled?: boolean;
 }
 
 export function MapControls({
     map,
     defaultCenter,
     defaultZoom,
+    zoomDisabled,
 }: MapControlsProps) {
     return (
         <div className="absolute top-2 right-2 z-[var(--z-sticky)] flex flex-col gap-1">
@@ -22,6 +24,7 @@ export function MapControls({
                 size="icon"
                 className="bg-color-surface-raised shadow-sm"
                 aria-label="Zoom in"
+                disabled={zoomDisabled}
                 onClick={() => map?.zoomIn()}
             >
                 <Plus />
@@ -32,6 +35,7 @@ export function MapControls({
                 size="icon"
                 className="bg-color-surface-raised shadow-sm"
                 aria-label="Zoom out"
+                disabled={zoomDisabled}
                 onClick={() => map?.zoomOut()}
             >
                 <Minus />
@@ -42,6 +46,7 @@ export function MapControls({
                 size="icon"
                 className="mt-1 bg-color-surface-raised shadow-sm"
                 aria-label="Reset view"
+                disabled={zoomDisabled}
                 onClick={() =>
                     map?.flyTo({
                         center: defaultCenter ?? map.getCenter(),

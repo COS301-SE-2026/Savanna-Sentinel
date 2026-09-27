@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import TipoffPage from "@/pages/TipoffPage";
@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { tipoffsApi } from "@/services/tipoffsApi";
 import { mediaApi } from "@/services/mediaApi";
+
+const originalGeolocation = navigator.geolocation;
 
 vi.mock("@/components/ui/toast", () => ({
     notifySafe: vi.fn(),
@@ -17,6 +19,8 @@ vi.mock("@/services/tipoffsApi", () => ({
     tipoffsApi: {
         listTipoffs: vi.fn(),
         submitTipoff: vi.fn(),
+        getSpecies: vi.fn(),
+        getUsernames: vi.fn(),
     },
 }));
 
@@ -26,12 +30,23 @@ vi.mock("@/services/mediaApi", () => ({
     },
 }));
 
+vi.mock("@/store/authStore", () => {
+    const mockStore = vi.fn();
+    (mockStore as unknown as { setState: ReturnType<typeof vi.fn> }).setState =
+        vi.fn();
+    return { useAuthStore: mockStore };
+});
+
 function setUser(role: string) {
-    useAuthStore.setState({
+    const mockState = {
         user: { id: "u1", username: "liaison1", role },
         accessToken: "token",
         refreshToken: "refresh",
-    });
+    };
+
+    vi.mocked(useAuthStore).mockImplementation(((selector) => {
+        return selector ? selector(mockState as never) : mockState;
+    }) as typeof useAuthStore);
 }
 
 function stubGeolocation(latitude: number, longitude: number) {
@@ -46,23 +61,74 @@ function stubGeolocation(latitude: number, longitude: number) {
     });
 }
 
+async function applyFilter(groupName: RegExp, optionLabel: string) {
+    if (!screen.queryByRole("button", { name: /^report type/i })) {
+        await userEvent.click(
+            screen.getByRole("button", { name: /^open filters/i }),
+        );
+    }
+    const trigger = screen
+        .getAllByRole("button", { name: groupName })
+        .find((button) => button.getAttribute("aria-haspopup") === "listbox");
+    await userEvent.click(trigger!);
+    await userEvent.click(
+        within(screen.getByRole("listbox")).getByLabelText(optionLabel),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+}
+
+function mockOneTipoff(overrides: Record<string, unknown> = {}) {
+    vi.mocked(tipoffsApi.listTipoffs).mockResolvedValue({
+        results: [
+            {
+                tipoff_id: "tip-1",
+                report_type: "incident",
+                description: "Suspicious tracks near the fence",
+                incident_type: "Suspicious Tracks",
+                severity: "medium",
+                occurred_at: "2026-01-01T00:00:00Z",
+                location: { lat: -24.205, lon: 31.185 },
+                images: [],
+                submitted_by: "2f9c1f42-1e2b-4a1c-9c2f-8c7a1d3b5e60",
+                submitted_by_username: "liaison1",
+                created_at: "2026-01-01T00:00:00Z",
+                ...overrides,
+            },
+        ],
+        total: 1,
+        page: 1,
+        page_size: 20,
+    });
+}
+
 async function fillAndSubmitTipoff() {
-    await userEvent.type(
-        screen.getByLabelText("Description"),
+    const user = userEvent.setup();
+    const activePanel = screen.getByRole("tabpanel", { name: "New Tip-off" });
+
+    await user.type(
+        within(activePanel).getByLabelText("Description"),
         "Snare seen near the north gate.",
     );
-    await userEvent.selectOptions(
-        screen.getByRole("combobox", { name: "Incident Type" }),
+
+    await user.selectOptions(
+        within(activePanel).getByRole("combobox", { name: "Incident Type" }),
         "Snare Found",
     );
-    const occurredAt = screen.getByLabelText("When did this happen?");
-    await userEvent.clear(occurredAt);
-    await userEvent.type(occurredAt, "2020-01-01T08:00");
-    await userEvent.click(
-        screen.getByRole("button", { name: "Use current location" }),
+
+    const occurredAt = within(activePanel).getByLabelText(
+        "When did this happen?",
     );
-    await userEvent.click(
-        screen.getByRole("button", { name: "Submit Tip-off" }),
+    await user.clear(occurredAt);
+    await user.type(occurredAt, "2020-01-01T08:00");
+
+    await user.click(
+        within(activePanel).getByRole("button", {
+            name: "Use current location",
+        }),
+    );
+
+    await user.click(
+        within(activePanel).getByRole("button", { name: "Submit Tip-off" }),
     );
 }
 
@@ -85,6 +151,10 @@ describe("TipoffPage", () => {
             submitted_by: "u1",
             created_at: new Date().toISOString(),
         });
+        vi.mocked(tipoffsApi.getSpecies).mockResolvedValue({ species: [] });
+        vi.mocked(tipoffsApi.getUsernames).mockResolvedValue({
+            usernames: [],
+        });
         vi.mocked(mediaApi.uploadPhoto).mockResolvedValue(
             "http://minio/tipoffs/uploaded.jpg",
         );
@@ -93,6 +163,12 @@ describe("TipoffPage", () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+
+        Object.defineProperty(navigator, "geolocation", {
+            configurable: true,
+            value: originalGeolocation,
+        });
+
         useAuthStore.setState({
             user: null,
             accessToken: null,
@@ -147,6 +223,7 @@ describe("TipoffPage", () => {
     });
 
     it("fetches and renders tip-offs for an admin", async () => {
+        const user = userEvent.setup();
         vi.mocked(tipoffsApi.listTipoffs).mockResolvedValueOnce({
             results: [
                 {
@@ -169,9 +246,7 @@ describe("TipoffPage", () => {
 
         setUser("admin");
         render(<TipoffPage />);
-        await userEvent.click(
-            screen.getByRole("tab", { name: "All Tip-offs" }),
-        );
+        await user.click(screen.getByRole("tab", { name: "All Tip-offs" }));
         expect(
             await screen.findByText("Suspicious tracks near the fence"),
         ).toBeInTheDocument();
@@ -202,6 +277,7 @@ describe("TipoffPage", () => {
     });
 
     it("adds the submitted tip-off to the list for an admin", async () => {
+        const user = userEvent.setup();
         stubGeolocation(-24.205, 31.185);
         setUser("admin");
         render(<TipoffPage />);
@@ -209,9 +285,7 @@ describe("TipoffPage", () => {
         await fillAndSubmitTipoff();
         await waitFor(() => expect(notifySafe).toHaveBeenCalled());
 
-        await userEvent.click(
-            screen.getByRole("tab", { name: "All Tip-offs" }),
-        );
+        await user.click(screen.getByRole("tab", { name: "All Tip-offs" }));
         expect(
             await screen.findByText("Snare seen near the north gate."),
         ).toBeInTheDocument();
@@ -265,5 +339,96 @@ describe("TipoffPage", () => {
                 "Failed to fetch tip-offs",
             );
         });
+    });
+
+    it("shows the submitter username instead of the user id", async () => {
+        mockOneTipoff();
+        setUser("analyst");
+        render(<TipoffPage />);
+
+        expect(await screen.findByText("liaison1")).toBeInTheDocument();
+        expect(
+            screen.queryByText("2f9c1f42-1e2b-4a1c-9c2f-8c7a1d3b5e60"),
+        ).not.toBeInTheDocument();
+    });
+
+    it("re-queries the backend as the search term changes", async () => {
+        mockOneTipoff();
+        setUser("analyst");
+        render(<TipoffPage />);
+        await screen.findByText("Suspicious tracks near the fence");
+
+        await userEvent.type(
+            screen.getByPlaceholderText("Search tip-offs..."),
+            "snare",
+        );
+
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({ search: "snare" }),
+            ),
+        );
+    });
+
+    it("re-queries the backend when a column header is sorted", async () => {
+        mockOneTipoff();
+        setUser("analyst");
+        render(<TipoffPage />);
+        await screen.findByText("Suspicious tracks near the fence");
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /occurred at/i }),
+        );
+
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    sort: "occurred_at",
+                    direction: "asc",
+                    page: 1,
+                }),
+            ),
+        );
+    });
+
+    it("re-queries the backend for each filter group", async () => {
+        vi.mocked(tipoffsApi.getSpecies).mockResolvedValue({
+            species: ["Rhino"],
+        });
+        vi.mocked(tipoffsApi.getUsernames).mockResolvedValue({
+            usernames: ["liaison1"],
+        });
+        mockOneTipoff();
+        setUser("analyst");
+        render(<TipoffPage />);
+        await screen.findByText("Suspicious tracks near the fence");
+
+        await applyFilter(/^report type/i, "Incident");
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({ report_type: ["incident"] }),
+            ),
+        );
+
+        await applyFilter(/^severity/i, "High");
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({ severity: ["high"] }),
+            ),
+        );
+
+        await applyFilter(/^species/i, "Rhino");
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({ species: ["Rhino"] }),
+            ),
+        );
+
+        await applyFilter(/^submitted by/i, "liaison1");
+        await waitFor(() =>
+            expect(tipoffsApi.listTipoffs).toHaveBeenLastCalledWith(
+                expect.objectContaining({ users: ["liaison1"] }),
+            ),
+        );
     });
 });

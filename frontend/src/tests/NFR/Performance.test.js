@@ -59,8 +59,8 @@ export const options = {
             executor: "constant-vus",
             exec: "upload10MediaCheck",
             vus: 10,
-            duration: "30s"
-        }
+            duration: "30s",
+        },
     },
     thresholds: {
         http_req_failed: ["rate<0.01"],
@@ -333,4 +333,4 @@ export const upload10MediaCheck = (data) => {
     }
 
     sleep(3);
-}
+};

@@ -23,7 +23,6 @@ class GraphEdge:
     to_node_id: str
     distance_km: float
     est_time_min: float
-    est_fuel_l: float
 
 
 @dataclass
@@ -37,16 +36,13 @@ class ParkGraph:
 class PlannedRoute:
     suggested_path: list[str]
     path_geometry: GeoLineString
-    estimated_time_min: float
-    estimated_fuel_l: float
+    distance_km: float
     risk_coverage: float
 
 
 class RouteRequest(BaseModel):
     start_point: GeoPoint
     end_point: GeoPoint
-    max_time: float | None = None
-    max_fuel: float | None = None
     num_alternatives: int = Field(default=3, ge=1, le=MAX_NUM_ALTERNATIVES)
     risk_by_cell: dict[str, float] = Field(default_factory=dict)
 
@@ -78,6 +74,7 @@ class RouteListResponse(BaseModel):
     status: str | None = None
     num_alternatives_requested: int | None = None
     num_alternatives_found: int | None = None
+    shortfall_reason: str | None = None
     total: int
     page: int
     page_size: int
@@ -90,8 +87,6 @@ class SaveRouteRequest(BaseModel):
     request_id: str
     start_point: GeoPoint
     end_point: GeoPoint
-    max_time: float | None = None
-    max_fuel: float | None = None
     risk_by_cell: dict[str, float] = Field(default_factory=dict)
     route: PlannedRoute
 
@@ -109,12 +104,9 @@ class SavedRouteResponse(BaseModel):
     request_id: str
     start_point: GeoPoint
     end_point: GeoPoint
-    max_time: float | None
-    max_fuel: float | None
     risk_by_cell: dict[str, float]
     path_geometry: GeoLineString
-    estimated_time_min: float
-    estimated_fuel_l: float
+    distance_km: float
     risk_coverage: float
     created_at: str
 

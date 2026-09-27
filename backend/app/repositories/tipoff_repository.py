@@ -28,11 +28,18 @@ if TYPE_CHECKING:
 
 _metadata = MetaData()
 _event_type = Enum(
-    "incident", "sighting", "patrol_track",
-    name="event_type", create_type=False,
+    "incident",
+    "sighting",
+    "patrol_track",
+    name="event_type",
+    create_type=False,
 )
 _severity_level = Enum(
-    "low", "medium", "high", name="severity_level", create_type=False,
+    "low",
+    "medium",
+    "high",
+    name="severity_level",
+    create_type=False,
 )
 _geospatial_events = Table(
     "geospatial_events",
@@ -64,6 +71,21 @@ _photos = Table(
     Column("geospatial_event_id", UUID(as_uuid=False), nullable=False),
     Column("image_url", Text, nullable=False),
 )
+
+
+_SORT_COLUMNS = {
+    "report_type": "t.report_type::text",
+    "description": "LOWER(t.description)",
+    "occurred_at": "t.occurred_at",
+    "submitted_by": "LOWER(u.username)",
+    "created_at": "t.created_at",
+}
+
+
+def _order_by(sort_by: Optional[str], direction: Optional[str]) -> str:
+    column = _SORT_COLUMNS.get(sort_by or "", _SORT_COLUMNS["created_at"])
+    order = "ASC" if (direction or "").lower() == "asc" else "DESC"
+    return f"{column} {order}, t.id"
 
 
 class TipoffRepository:
@@ -156,22 +178,46 @@ class TipoffRepository:
     async def get_list(
         self,
         owner_id: Optional[str],
-        report_type: Optional[str] = None,
+        search: Optional[str] = None,
+        report_types: Optional[list[str]] = None,
+        severities: Optional[list[str]] = None,
+        species: Optional[list[str]] = None,
+        users: Optional[list[str]] = None,
         from_dt: Optional[datetime] = None,
         to_dt: Optional[datetime] = None,
+        sort_by: Optional[str] = None,
+        direction: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
         conditions = ["t.deleted_at IS NULL"]
         params: dict = {}
 
+        if search and search.strip():
+            conditions.append(
+                "(t.description ILIKE :search OR s.species ILIKE :search)",
+            )
+            params["search"] = f"%{search.strip()}%"
+
         if owner_id is not None:
             conditions.append("t.submitted_by::text = :owner_id")
             params["owner_id"] = owner_id
 
-        if report_type is not None:
-            conditions.append("t.report_type::text = :report_type")
-            params["report_type"] = report_type
+        if report_types:
+            conditions.append("t.report_type::text = ANY(:report_types)")
+            params["report_types"] = report_types
+
+        if severities:
+            conditions.append("i.severity::text = ANY(:severities)")
+            params["severities"] = severities
+
+        if species:
+            conditions.append("s.species = ANY(:species)")
+            params["species"] = species
+
+        if users:
+            conditions.append("u.username = ANY(:users)")
+            params["users"] = users
 
         if from_dt:
             conditions.append("t.occurred_at >= :from_dt")
@@ -183,13 +229,15 @@ class TipoffRepository:
 
         where = " AND ".join(conditions)
 
-        count_sql = text(f"""
+        count_sql = text(
+            f"""
             SELECT COUNT(DISTINCT t.id)
             FROM tipoffs t
             LEFT JOIN incidents i ON i.tipoff_id = t.id
             LEFT JOIN sightings s ON s.tipoff_id = t.id
+            LEFT JOIN users u ON u.id = t.submitted_by
             WHERE {where}
-        """, # nosec B608
+        """,  # nosec B608
         )
 
         data_sql = text(
@@ -220,22 +268,26 @@ class TipoffRepository:
             LEFT JOIN sightings s ON s.tipoff_id = t.id
             LEFT JOIN users u ON u.id = t.submitted_by
             WHERE {where}
-            ORDER BY t.created_at DESC
+            ORDER BY {_order_by(sort_by, direction)}
             LIMIT :limit OFFSET :offset
-        """, # nosec B608
+        """,  # nosec B608
         )
 
         total = (await self.db.execute(count_sql, params)).scalar() or 0
         rows = (
-            await self.db.execute(
-                data_sql,
-                {
-                    **params,
-                    "limit": page_size,
-                    "offset": (page - 1) * page_size,
-                },
+            (
+                await self.db.execute(
+                    data_sql,
+                    {
+                        **params,
+                        "limit": page_size,
+                        "offset": (page - 1) * page_size,
+                    },
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
 
         results = []
         for row in rows:
@@ -245,3 +297,30 @@ class TipoffRepository:
             results.append(d)
 
         return results, total
+
+    async def get_species(self) -> list[str]:
+        sql = text("""
+            SELECT DISTINCT s.species
+            FROM sightings s
+            JOIN tipoffs t ON t.id = s.tipoff_id
+            WHERE t.deleted_at IS NULL
+            AND s.species IS NOT NULL AND TRIM(s.species) != ''
+            ORDER BY s.species ASC
+        """)
+
+        result = await self.db.execute(sql)
+        return list(result.scalars().all())
+
+    async def get_usernames(self) -> list[str]:
+        sql = text("""
+            SELECT DISTINCT u.username
+            FROM tipoffs t
+            JOIN users u ON u.id = t.submitted_by
+            WHERE t.deleted_at IS NULL
+            AND u.username IS NOT NULL
+            AND TRIM(u.username) != ''
+            ORDER BY u.username ASC
+        """)
+
+        result = await self.db.execute(sql)
+        return list(result.scalars().all())

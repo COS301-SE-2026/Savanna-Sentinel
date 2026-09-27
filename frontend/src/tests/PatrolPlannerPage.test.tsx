@@ -1,8 +1,10 @@
 import { render, screen, waitFor, act, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
+    beforeEach,
     beforeAll,
     afterEach,
     afterAll,
@@ -13,6 +15,22 @@ import {
 } from "vitest";
 
 const mapRegistry = vi.hoisted(() => ({ instances: [] as unknown[] }));
+
+vi.mock("../hooks/useUserLocation", () => ({
+    useUserLocation: vi.fn((enabled: boolean) => ({
+        location: enabled ? { lat: -24.3, lng: 31.05 } : null,
+        status: enabled ? "ACTIVE" : "IDLE",
+    })),
+}));
+
+vi.mock("../components/map/UserLocationLayer", () => ({
+    UserLocationLayer: () => <div data-testid="user-location-layer" />,
+}));
+vi.mock("../components/map/UserLocationNotice", () => ({
+    UserLocationNotice: ({ status }: { status: string }) => (
+        <div data-testid="user-location-notice">Status: {status}</div>
+    ),
+}));
 
 vi.mock("maplibre-gl", async () => {
     const maplibre = await import("./mocks/maplibreMock");
@@ -26,7 +44,7 @@ vi.mock("maplibre-gl", async () => {
     return { ...mod, default: mod };
 });
 
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers, TEST_GRID } from "./mocks/riskHandlers";
@@ -34,6 +52,9 @@ import { routeHandlers, ROUTE_REQUEST_ID } from "./mocks/routeHandlers";
 import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
 import type { FakeMap } from "./mocks/maplibreMock";
 import { useMapStore, initialMapState } from "@/store/mapStore";
+import { useAuthStore } from "@/store/authStore";
+import { loadPinnedRoute } from "@/offline/pinnedRouteCache";
+import { db } from "@/offline/db";
 import { RISK_LEVEL_COLORS } from "@/lib/mapTokens";
 
 const server = setupServer(
@@ -42,11 +63,17 @@ const server = setupServer(
     ...savedRouteHandlers,
 );
 beforeAll(() => server.listen());
-afterEach(() => {
+afterEach(async () => {
     server.resetHandlers();
     mapRegistry.instances.length = 0;
     vi.restoreAllMocks();
     useMapStore.setState(initialMapState, true);
+    await db.cache.clear();
+    useAuthStore.setState({
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+    });
 });
 afterAll(() => server.close());
 
@@ -70,10 +97,13 @@ async function enterBothPoints() {
 
 function renderPage() {
     return render(
-        <>
+        <MemoryRouter initialEntries={["/patrol"]}>
             <Toaster />
-            <PatrolPlannerPage />
-        </>,
+            <Routes>
+                <Route path="/patrol" element={<PatrolPlannerPage />} />
+                <Route path="/map" element={<div>heatmap page</div>} />
+            </Routes>
+        </MemoryRouter>,
     );
 }
 
@@ -168,50 +198,6 @@ describe("PatrolPlannerPage", () => {
             expect(score).toBeGreaterThanOrEqual(0);
             expect(score).toBeLessThanOrEqual(1);
         }
-    });
-
-    it("omits max_time and max_fuel from the request when left blank", async () => {
-        let requestBody: { max_time?: number; max_fuel?: number } | null = null;
-        server.use(
-            http.post(
-                "http://localhost:8000/v1/routes",
-                async ({ request }) => {
-                    requestBody = (await request.json()) as {
-                        max_time?: number;
-                        max_fuel?: number;
-                    };
-                    return HttpResponse.json(
-                        {
-                            job_id: ROUTE_REQUEST_ID,
-                            request_id: ROUTE_REQUEST_ID,
-                            park_id: "klaserie",
-                            status: "queued",
-                            queued_at: new Date().toISOString(),
-                        },
-                        { status: 202 },
-                    );
-                },
-            ),
-        );
-
-        renderPage();
-        await userEvent.type(
-            screen.getByLabelText(/^start point$/i),
-            "-24.3, 31.05",
-        );
-        await userEvent.type(
-            screen.getByLabelText(/^end point$/i),
-            "-24.32, 31.08",
-        );
-        await userEvent.clear(screen.getByLabelText(/max time/i));
-        await userEvent.clear(screen.getByLabelText(/max fuel/i));
-        await userEvent.click(
-            screen.getByRole("button", { name: /generate routes/i }),
-        );
-
-        await waitFor(() => expect(requestBody).not.toBeNull());
-        expect(requestBody!.max_time).toBeUndefined();
-        expect(requestBody!.max_fuel).toBeUndefined();
     });
 
     it("tears down cleanly when navigated away from mid-session", async () => {
@@ -377,8 +363,6 @@ describe("PatrolPlannerPage", () => {
     it("saves the selected route and marks its card as saved", async () => {
         renderPage();
         await enterBothPoints();
-        await userEvent.type(screen.getByLabelText(/max time/i), "120");
-        await userEvent.type(screen.getByLabelText(/max fuel/i), "40");
         await userEvent.click(
             screen.getByRole("button", { name: /generate routes/i }),
         );
@@ -397,54 +381,6 @@ describe("PatrolPlannerPage", () => {
         ).toBeDisabled();
     });
 
-    it("saves a route successfully when Max Time and Max Fuel are left blank", async () => {
-        let requestBody: {
-            max_time?: number | null;
-            max_fuel?: number | null;
-        } | null = null;
-        server.use(
-            http.post(
-                "http://localhost:8000/v1/routes/save",
-                async ({ request }) => {
-                    requestBody = (await request.json()) as {
-                        max_time?: number | null;
-                        max_fuel?: number | null;
-                    };
-                    return HttpResponse.json(SAVED_ROUTE, { status: 201 });
-                },
-            ),
-        );
-
-        renderPage();
-        await userEvent.type(
-            screen.getByLabelText(/^start point$/i),
-            "-24.3, 31.05",
-        );
-        await userEvent.type(
-            screen.getByLabelText(/^end point$/i),
-            "-24.32, 31.08",
-        );
-        await userEvent.click(
-            screen.getByRole("button", { name: /generate routes/i }),
-        );
-        await screen.findByText("Route A");
-
-        expect(
-            screen.getByRole("button", { name: /^save route a/i }),
-        ).toBeEnabled();
-        await userEvent.click(
-            screen.getByRole("button", { name: /^save route a/i }),
-        );
-        await userEvent.click(
-            screen.getByRole("button", { name: /^save route$/i }),
-        );
-
-        expect(await screen.findByText("Route saved")).toBeInTheDocument();
-        await waitFor(() => expect(requestBody).not.toBeNull());
-        expect(requestBody!.max_time).toBeNull();
-        expect(requestBody!.max_fuel).toBeNull();
-    });
-
     it("shows a critical toast when saving fails", async () => {
         server.use(
             http.post("http://localhost:8000/v1/routes/save", () =>
@@ -461,8 +397,6 @@ describe("PatrolPlannerPage", () => {
             screen.getByLabelText(/^end point$/i),
             "-24.32, 31.08",
         );
-        await userEvent.type(screen.getByLabelText(/max time/i), "120");
-        await userEvent.type(screen.getByLabelText(/max fuel/i), "40");
         await userEvent.click(
             screen.getByRole("button", { name: /generate routes/i }),
         );
@@ -488,13 +422,12 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
 
         expect(await screen.findByText("Route A")).toBeInTheDocument();
-        expect(screen.getByText("55 min")).toBeInTheDocument();
-        expect(screen.getByText("22 L")).toBeInTheDocument();
+        expect(screen.getByText("55.0 km")).toBeInTheDocument();
 
         await waitFor(() => {
             const call = addSourceSpy.mock.calls.find(
@@ -511,6 +444,44 @@ describe("PatrolPlannerPage", () => {
         expect(data.geometry.coordinates).toEqual(
             SAVED_ROUTE.path_geometry.coordinates,
         );
+    });
+
+    it("sending a saved route to the heatmap stores it and navigates there", async () => {
+        useAuthStore.setState({
+            user: { id: "u1", username: "tester", role: "ranger" },
+            accessToken: "token",
+            refreshToken: "refresh",
+        });
+
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        await userEvent.click(
+            await screen.findByRole("button", {
+                name: /show saved route on heatmap/i,
+            }),
+        );
+
+        expect(await screen.findByText("heatmap page")).toBeInTheDocument();
+        expect(await loadPinnedRoute("u1")).toEqual(SAVED_ROUTE);
+    });
+
+    it("warns instead of navigating when there is no account to store the route against", async () => {
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        await userEvent.click(
+            await screen.findByRole("button", {
+                name: /show saved route on heatmap/i,
+            }),
+        );
+
+        expect(
+            await screen.findByText(/could not send the route to the heatmap/i),
+        ).toBeInTheDocument();
+        expect(screen.queryByText("heatmap page")).not.toBeInTheDocument();
     });
 
     it("loading a saved route shows its historical risk_by_cell on the heatmap, not the live data", async () => {
@@ -534,7 +505,7 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
 
@@ -554,17 +525,17 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
-        expect(await screen.findByText("55 min")).toBeInTheDocument();
+        expect(await screen.findByText("55.0 km")).toBeInTheDocument();
 
         await userEvent.click(
             screen.getByRole("button", { name: /generate routes/i }),
         );
 
-        expect(await screen.findByText("38 min")).toBeInTheDocument();
-        expect(screen.queryByText("55 min")).not.toBeInTheDocument();
+        expect(await screen.findByText("38.0 km")).toBeInTheDocument();
+        expect(screen.queryByText("55.0 km")).not.toBeInTheDocument();
     });
 
     it("clearing routes removes a previously loaded route", async () => {
@@ -573,10 +544,10 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /load previous/i }),
         );
         const savedRouteButton = await screen.findByRole("button", {
-            name: /55 min/i,
+            name: /55\.0 km/i,
         });
         await userEvent.click(savedRouteButton);
-        expect(await screen.findByText("55 min")).toBeInTheDocument();
+        expect(await screen.findByText("55.0 km")).toBeInTheDocument();
 
         await userEvent.click(
             screen.getByRole("button", { name: /^clear routes$/i }),
@@ -586,9 +557,97 @@ describe("PatrolPlannerPage", () => {
         });
         await userEvent.click(clearButtons[clearButtons.length - 1]);
 
-        expect(screen.queryByText("55 min")).not.toBeInTheDocument();
+        expect(screen.queryByText("55.0 km")).not.toBeInTheDocument();
         expect(
             screen.getByText(/generate routes to see alternatives/i),
         ).toBeInTheDocument();
+    });
+});
+
+describe("Location Handling", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("renders my location unchecked by default without rendering the location layer", async () => {
+        renderPage();
+
+        const checkbox = screen.getByRole("checkbox", { name: /my location/i });
+        expect(checkbox).not.toBeChecked();
+
+        expect(
+            screen.queryByTestId("user-location-layer"),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByTestId("user-location-notice"),
+        ).not.toBeInTheDocument();
+    });
+
+    it("renders location layer when my location is checked", async () => {
+        renderPage();
+
+        const checkbox = screen.getByRole("checkbox", { name: /my location/i });
+        await userEvent.click(checkbox);
+
+        expect(checkbox).toBeChecked();
+        expect(screen.getByTestId("user-location-layer")).toBeInTheDocument();
+        expect(screen.getByTestId("user-location-notice")).toBeInTheDocument();
+        expect(screen.getByText("Status: ACTIVE")).toBeInTheDocument();
+    });
+
+    it("removes location layer and notice when toggled off", async () => {
+        renderPage();
+
+        const checkbox = screen.getByRole("checkbox", { name: /my location/i });
+        await userEvent.click(checkbox);
+        expect(screen.getByTestId("user-location-layer")).toBeInTheDocument();
+
+        await userEvent.click(checkbox);
+        expect(checkbox).not.toBeChecked();
+
+        expect(
+            screen.queryByTestId("user-location-layer"),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByTestId("user-location-notice"),
+        ).not.toBeInTheDocument();
+    });
+
+    it("requests DeviceMotionEvent permission iOS devices", async () => {
+        const mockRequestPermission = vi.fn().mockResolvedValue("granted");
+
+        vi.stubGlobal("DeviceMotionEvent", {
+            requestPermission: mockRequestPermission,
+        });
+
+        renderPage();
+
+        const checkbox = screen.getByRole("checkbox", { name: /my location/i });
+        await userEvent.click(checkbox);
+
+        expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+        expect(checkbox).toBeChecked();
+        expect(screen.getByTestId("user-location-layer")).toBeInTheDocument();
+    });
+
+    it("does not trigger motion permission request when unchecking location", async () => {
+        const mockRequestPermission = vi.fn().mockResolvedValue("granted");
+
+        vi.stubGlobal("DeviceMotionEvent", {
+            requestPermission: mockRequestPermission,
+        });
+
+        renderPage();
+
+        const checkbox = screen.getByRole("checkbox", { name: /my location/i });
+        await userEvent.click(checkbox);
+        expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+
+        await userEvent.click(checkbox);
+        expect(mockRequestPermission).toHaveBeenCalledTimes(1);
     });
 });

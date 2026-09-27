@@ -92,10 +92,90 @@ describe("AuditLog Component Testing", () => {
         expect(screen.queryByText("actor-1")).not.toBeInTheDocument();
     });
 
-    it("renders 'No details' fallback", async () => {
+    it("renders 'No details to display' fallback", async () => {
         mockedGetLogs.mockResolvedValueOnce(createMockResponse(1, 2, 20));
         render(<AuditLog />);
-        expect(await screen.findByText("No details")).toBeInTheDocument();
+        expect(
+            await screen.findByText("No details to display"),
+        ).toBeInTheDocument();
+    });
+
+    it("renders the record count when details contain record_count", async () => {
+        mockedGetLogs.mockResolvedValueOnce({
+            total: 1,
+            page: 1,
+            page_size: 20,
+            results: [
+                {
+                    id: "log-1",
+                    actor_id: "actor-1",
+                    actor_username: "actor_user_1",
+                    action: "INGEST",
+                    target_type: "upload",
+                    target_id: "target-1",
+                    target_username: null,
+                    details: { record_count: "3" },
+                    created_at: "2026-07-27T10:00:00Z",
+                },
+            ],
+        });
+        render(<AuditLog />);
+
+        expect(
+            await screen.findByText("CSV file uploaded with 3 records"),
+        ).toBeInTheDocument();
+    });
+
+    it("renders the filename when ingestion details contain filename", async () => {
+        mockedGetLogs.mockResolvedValueOnce({
+            total: 1,
+            page: 1,
+            page_size: 20,
+            results: [
+                {
+                    id: "log-1",
+                    actor_id: "actor-1",
+                    actor_username: "actor_user_1",
+                    action: "INGEST",
+                    target_type: "upload",
+                    target_id: "target-1",
+                    target_username: null,
+                    details: { filename: "wildlife.csv", record_count: "3" },
+                    created_at: "2026-07-27T10:00:00Z",
+                },
+            ],
+        });
+        render(<AuditLog />);
+
+        expect(
+            await screen.findByText("wildlife.csv uploaded with 3 records"),
+        ).toBeInTheDocument();
+    });
+
+    it("renders JSON for non-ingestion details", async () => {
+        mockedGetLogs.mockResolvedValueOnce({
+            total: 1,
+            page: 1,
+            page_size: 20,
+            results: [
+                {
+                    id: "log-1",
+                    actor_id: "actor-1",
+                    actor_username: "actor_user_1",
+                    action: "UPDATE",
+                    target_type: "user",
+                    target_id: "target-1",
+                    target_username: null,
+                    details: { status: "active" },
+                    created_at: "2026-07-27T10:00:00Z",
+                },
+            ],
+        });
+        render(<AuditLog />);
+
+        expect(
+            await screen.findByText('{"status":"active"}'),
+        ).toBeInTheDocument();
     });
 
     it("calls api when page changes", async () => {

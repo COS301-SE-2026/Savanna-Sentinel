@@ -2,19 +2,39 @@ import * as React from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TipoffForm } from "@/components/tipoffs/TipoffForm";
-import { ReportList } from "@/components/reports/ReportList";
+import { ReportList, PAGE_SIZE } from "@/components/reports/ReportList";
+import {
+    reportSortFields,
+    type ReportSortKey,
+} from "@/components/reports/reportColumns";
+import type { SortDirection } from "@/hooks/useSort";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { useAuthStore } from "@/store/authStore";
 import { formatToUTC, toDatetimeLocalValue } from "@/lib/utils";
 import { PLACEHOLDER_PHOTO_TYPE, resolvePhotoUrls } from "@/lib/media";
 import { tipoffsApi } from "@/services/tipoffsApi";
-import type { TipoffCreate, TipoffListItem } from "@/services/tipoffsApi";
-import type { DraftReport, DraftReportInput } from "@/types/reports";
+import type {
+    TipoffCreate,
+    TipoffListItem,
+    ListTipoffsQueryParams,
+} from "@/services/tipoffsApi";
+import type {
+    DraftReport,
+    DraftReportInput,
+    ReportType,
+    Severity,
+} from "@/types/reports";
+import { useDebounce } from "@/hooks/useDebounce";
+import {
+    getTipoffSpeciesOptions,
+    getTipoffUsernameOptions,
+} from "@/hooks/useReportSearchFilter";
 
 function mapToDraft(item: TipoffListItem): DraftReport {
     return {
         localId: item.tipoff_id,
         submittedBy: item.submitted_by,
+        submittedByUsername: item.submitted_by_username,
         reportType: item.report_type as "incident" | "sighting",
         description: item.description,
         incidentType: item.incident_type || "",
@@ -45,26 +65,62 @@ export default function TipoffPage() {
 
     const [tipoffs, setTipoffs] = React.useState<DraftReport[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
+    const [isInitialLoad, setInitialLoad] = React.useState(true);
     const [activeTab, setActiveTab] = React.useState(canSubmit ? "new" : "all");
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [formKey, setFormKey] = React.useState(0);
+    const [search, setSearch] = React.useState("");
+    const [typeFilter, setTypeFilter] = React.useState<ReportType[]>([]);
+    const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
+    const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
+    const [usernameFilter, setUsernameFilter] = React.useState<string[]>([]);
+    const [page, setPage] = React.useState(1);
+    const [total, setTotal] = React.useState(0);
+    const [sortKey, setSortKey] = React.useState<ReportSortKey>("createdAt");
+    const [sortDirection, setSortDirection] =
+        React.useState<SortDirection>("desc");
+
+    const debouncedSearch = useDebounce(search, 300);
 
     React.useEffect(() => {
         if (!canViewAll) return;
         async function fetchTipoffs() {
             setIsLoading(true);
+            const query: ListTipoffsQueryParams = {
+                search: debouncedSearch || undefined,
+                report_type: typeFilter.length ? typeFilter : undefined,
+                severity: severityFilter.length ? severityFilter : undefined,
+                species: speciesFilter.length ? speciesFilter : undefined,
+                users: usernameFilter.length ? usernameFilter : undefined,
+                sort: reportSortFields[sortKey],
+                direction: sortDirection,
+                page,
+                page_size: PAGE_SIZE,
+            };
             try {
-                const res = await tipoffsApi.listTipoffs();
+                const res = await tipoffsApi.listTipoffs(query);
+                setTotal(res.total);
                 setTipoffs(res.results.map(mapToDraft));
             } catch (err) {
                 notifyCritical("Error", "Failed to fetch tip-offs");
                 console.error(err);
             } finally {
                 setIsLoading(false);
+                setInitialLoad(false);
             }
         }
         fetchTipoffs();
-    }, [canViewAll]);
+    }, [
+        canViewAll,
+        debouncedSearch,
+        typeFilter,
+        severityFilter,
+        speciesFilter,
+        usernameFilter,
+        page,
+        sortKey,
+        sortDirection,
+    ]);
 
     const handleSubmit = async (input: DraftReportInput) => {
         if (input.lat === null || input.lon === null) {
@@ -93,6 +149,8 @@ export default function TipoffPage() {
                 ...input,
                 localId: res.tipoff_id,
                 submittedBy: res.submitted_by,
+                submittedByUsername:
+                    res.submitted_by_username ?? user?.username,
                 createdAt: res.created_at,
                 syncStatus: "synced",
             };
@@ -142,14 +200,67 @@ export default function TipoffPage() {
 
                 {canViewAll && (
                     <TabsContent value="all" className="mt-6">
-                        {isLoading ? (
+                        {isInitialLoad ? (
                             <p>Loading tip-offs...</p>
                         ) : (
-                            <ReportList
-                                reports={tipoffs}
-                                canSubmit={canSubmit}
-                                onGoToNewReport={() => setActiveTab("new")}
-                            />
+                            <div
+                                className={
+                                    isLoading
+                                        ? "opacity-60 transition-opacity"
+                                        : ""
+                                }
+                            >
+                                <ReportList
+                                    reports={tipoffs}
+                                    canSubmit={canSubmit}
+                                    onGoToNewReport={() => setActiveTab("new")}
+                                    search={search}
+                                    setSearch={(value) => {
+                                        setIsLoading(true);
+                                        setSearch(value);
+                                    }}
+                                    typeFilter={typeFilter}
+                                    setTypeFilter={(value) => {
+                                        setIsLoading(true);
+                                        setTypeFilter(value);
+                                    }}
+                                    severityFilter={severityFilter}
+                                    setSeverityFilter={(value) => {
+                                        setIsLoading(true);
+                                        setSeverityFilter(value);
+                                    }}
+                                    speciesFilter={speciesFilter}
+                                    setSpeciesFilter={(value) => {
+                                        setIsLoading(true);
+                                        setSpeciesFilter(value);
+                                    }}
+                                    usernameFilter={usernameFilter}
+                                    setUsernameFilter={(value) => {
+                                        setIsLoading(true);
+                                        setUsernameFilter(value);
+                                    }}
+                                    isLoading={isLoading}
+                                    loadSpeciesOptions={getTipoffSpeciesOptions}
+                                    loadUsernameOptions={
+                                        getTipoffUsernameOptions
+                                    }
+                                    searchPlaceholder="Search tip-offs..."
+                                    page={page}
+                                    onPageChange={(next) => {
+                                        setIsLoading(true);
+                                        setPage(next);
+                                    }}
+                                    totalItems={total}
+                                    sortKey={sortKey}
+                                    sortDirection={sortDirection}
+                                    onSortChange={(key, nextDirection) => {
+                                        setIsLoading(true);
+                                        setSortKey(key);
+                                        setSortDirection(nextDirection);
+                                        setPage(1);
+                                    }}
+                                />
+                            </div>
                         )}
                     </TabsContent>
                 )}

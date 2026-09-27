@@ -9,6 +9,7 @@ import type {
     RiskJobResponse,
     RiskTrainJobStatus,
     RiskScoreJobStatus,
+    RiskSummaryResponse,
 } from "@/services/riskApi";
 
 const BASE = "http://localhost:8000/v1";
@@ -107,7 +108,7 @@ export const TEST_CELL_EXPLAIN: CellExplainResponse = {
     heatmap_id: TEST_HEATMAP_ID,
     top_features: [
         { feature_name: "incident_density_self", contribution: 0.6 },
-        { feature_name: "patrol_recency_days", contribution: 0.4 },
+        { feature_name: "sighting_density_self", contribution: 0.4 },
     ],
     self_incidents: [
         {
@@ -142,6 +143,11 @@ export const TEST_CELL_EXPLAIN: CellExplainResponse = {
             occurred_at: "2026-08-12T09:00:00Z",
         },
     ],
+};
+
+export const TEST_RISK_SUMMARY: RiskSummaryResponse = {
+    incidents_60d: 5,
+    sightings_7d: 18,
 };
 
 export const TEST_ACTIVE_MODEL: ActiveModelResponse = {
@@ -193,6 +199,9 @@ export const riskHandlers = [
     ),
     http.get(`${BASE}/risk/models/active`, () =>
         HttpResponse.json(TEST_ACTIVE_MODEL),
+    ),
+    http.get(`${BASE}/risk/summary`, () =>
+        HttpResponse.json(TEST_RISK_SUMMARY),
     ),
     http.post(`${BASE}/risk/train`, () => HttpResponse.json(TEST_TRAIN_JOB)),
     http.get(`${BASE}/risk/train/:jobId`, () =>

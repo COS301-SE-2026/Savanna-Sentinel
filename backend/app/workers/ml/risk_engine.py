@@ -5,11 +5,13 @@ import numpy as np
 import xgboost as xgb
 from sklearn.metrics import precision_score, recall_score, roc_auc_score
 
+from app.core.risk_windows import (
+    SIGHTING_LOOKBACK_DAYS as _SIGHTING_LOOKBACK_DAYS,
+)
+
 FEATURE_NAMES = [
     "incident_density_self",
     "incident_density_neighbors",
-    "patrol_recency_days",
-    "patrol_frequency",
     "sighting_density_self",
     "sighting_density_neighbors",
 ]
@@ -17,8 +19,6 @@ FEATURE_NAMES = [
 _FEATURE_MONOTONE_SIGNS: dict[str, int] = {
     "incident_density_self": 1,
     "incident_density_neighbors": 1,
-    "patrol_recency_days": 1,
-    "patrol_frequency": -1,
     "sighting_density_self": 1,
     "sighting_density_neighbors": 1,
 }
@@ -26,13 +26,11 @@ _FEATURE_MONOTONE_SIGNS: dict[str, int] = {
 _SEVERITY_WEIGHT = {"low": 1.0, "medium": 2.0, "high": 3.0, None: 1.0}
 _SOURCE_WEIGHT = {"field_report": 1.0, "tipoff": 0.6}
 _RECENCY_HALF_LIFE_DAYS = 90.0
-_NO_PATROL_RECENCY_SENTINEL_DAYS = 999.0
 _NEIGHBOR_WEIGHT_MULTIPLIER = 4.0
 _NEIGHBOR_DISTANCE_DECAY = 0.5
 _SCALE_POS_WEIGHT_CAP = 50.0
 
 _SIGHTING_RECENCY_HALF_LIFE_DAYS = 3.0
-_SIGHTING_LOOKBACK_DAYS = 7
 
 _INCIDENT_FLOOR_BASE = {"low": 0.55, "medium": 0.72, "high": 0.88, None: 0.55}
 _INCIDENT_FLOOR_SOURCE_MULT = {"field_report": 1.0, "tipoff": 0.6}
@@ -44,7 +42,9 @@ _INCIDENT_FLOOR_RING_MULT = 0.6
 def _incident_weight(incident: dict, reference_time: datetime) -> float:
     seconds_ago = (reference_time - incident["occurred_at"]).total_seconds()
     days_ago = seconds_ago / 86400
-    recency_decay = math.exp(-math.log(2) * days_ago / _RECENCY_HALF_LIFE_DAYS)
+    recency_decay = math.exp(
+        -math.log(2) * (days_ago / _RECENCY_HALF_LIFE_DAYS) ** 2,
+    )
     severity_weight = _SEVERITY_WEIGHT[incident["severity"]]
     source_weight = _SOURCE_WEIGHT[incident["source_tier"]]
     return severity_weight * source_weight * recency_decay
@@ -99,7 +99,6 @@ def _cell_self_sighting_density(
 def compute_cell_features(
     cells: list[dict],
     incidents_by_cell: dict[str, list[dict]],
-    patrol_by_cell: dict[str, list[datetime]],
     reference_time: datetime,
     lookback_days: int = 90,
     neighbor_radius: int = 2,
@@ -152,19 +151,9 @@ def compute_cell_features(
                         weight * self_sighting_density[neighbor_id]
                     )
 
-        patrol_times = patrol_by_cell.get(cell_id, [])
-        if patrol_times:
-            most_recent = max(patrol_times)
-            recency_seconds = (reference_time - most_recent).total_seconds()
-            recency_days = recency_seconds / 86400
-        else:
-            recency_days = _NO_PATROL_RECENCY_SENTINEL_DAYS
-
         features[cell_id] = {
             "incident_density_self": self_density[cell_id],
             "incident_density_neighbors": neighbor_total,
-            "patrol_recency_days": recency_days,
-            "patrol_frequency": float(len(patrol_times)),
             "sighting_density_self": self_sighting_density[cell_id],
             "sighting_density_neighbors": sighting_neighbor_total,
         }
@@ -220,7 +209,6 @@ def compute_incident_floors(
 def build_training_examples(
     cells: list[dict],
     incidents_by_cell: dict[str, list[dict]],
-    patrol_by_cell: dict[str, list],
     window_start: datetime,
     window_end: datetime,
     feature_lookback_days: int = 90,
@@ -237,7 +225,6 @@ def build_training_examples(
         features_per_cell = compute_cell_features(
             cells,
             incidents_by_cell,
-            patrol_by_cell,
             reference_time,
             lookback_days=feature_lookback_days,
             sightings_by_cell=sightings_by_cell,

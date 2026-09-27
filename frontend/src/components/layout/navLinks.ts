@@ -7,6 +7,7 @@ import {
     ShieldCheck,
     User,
     Megaphone,
+    Layers,
     type LucideIcon,
 } from "lucide-react";
 
@@ -53,6 +54,12 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Ingestion",
         path: "/ingestion",
         icon: Upload,
+        roles: ["analyst", "admin"],
+    },
+    {
+        label: "Workspace",
+        path: "/workspace",
+        icon: Layers,
         roles: ["analyst", "admin"],
     },
     {

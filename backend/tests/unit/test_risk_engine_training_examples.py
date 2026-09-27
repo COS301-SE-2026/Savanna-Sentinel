@@ -12,7 +12,6 @@ def test_generates_one_example_per_cell_per_step():
     examples = build_training_examples(
         _CELLS,
         {},
-        {},
         _START,
         _END,
         step_days=7,
@@ -28,7 +27,6 @@ def test_every_example_has_a_feature_vector_and_label():
     examples = build_training_examples(
         _CELLS,
         {},
-        {},
         _START,
         _END,
         step_days=30,
@@ -41,8 +39,6 @@ def test_every_example_has_a_feature_vector_and_label():
         assert set(example["features"].keys()) == {
             "incident_density_self",
             "incident_density_neighbors",
-            "patrol_recency_days",
-            "patrol_frequency",
             "sighting_density_self",
             "sighting_density_neighbors",
         }
@@ -64,7 +60,6 @@ def test_label_is_1_when_incident_falls_in_label_window():
     examples = build_training_examples(
         _CELLS,
         incidents_by_cell,
-        {},
         _START,
         _END,
         step_days=30,
@@ -91,7 +86,6 @@ def test_label_is_0_when_incident_falls_outside_label_window():
     examples = build_training_examples(
         _CELLS,
         incidents_by_cell,
-        {},
         _START,
         _END,
         step_days=30,
@@ -117,7 +111,6 @@ def test_incident_before_reference_time_does_not_leak_into_label():
     examples = build_training_examples(
         _CELLS,
         incidents_by_cell,
-        {},
         _START,
         _END,
         step_days=30,

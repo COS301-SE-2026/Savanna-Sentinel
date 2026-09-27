@@ -8,6 +8,10 @@ from pyproj import Transformer
 from sqlalchemy import column, func, insert, select, table, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.risk_windows import (
+    INCIDENT_LOOKBACK_DAYS,
+    SIGHTING_LOOKBACK_DAYS,
+)
 from app.models.risk_job import RiskJob
 from app.models.risk_model import RiskModel
 
@@ -299,31 +303,6 @@ async def fetch_incidents_by_cell(
     return by_cell
 
 
-async def fetch_patrol_tracks_by_cell(
-    session: AsyncSession,
-    park_id: str,
-    since: datetime,
-) -> dict[str, list[datetime]]:
-    result = await session.execute(
-        text("""
-            SELECT gc.id AS cell_id, ge.occurred_at
-            FROM patrol_tracks pt
-            JOIN geospatial_events ge ON ge.id = pt.id
-            JOIN grid_cells gc
-                ON gc.park_id = :park_id
-                AND ST_Intersects(
-                    gc.polygon_bounds::geometry, pt.route_line::geometry
-                )
-            WHERE ge.occurred_at >= :since
-        """),
-        {"park_id": park_id, "since": since},
-    )
-    by_cell: dict[str, list[datetime]] = {}
-    for row in result.fetchall():
-        by_cell.setdefault(str(row.cell_id), []).append(row.occurred_at)
-    return by_cell
-
-
 async def fetch_sightings_by_cell(
     session: AsyncSession,
     park_id: str,
@@ -355,6 +334,36 @@ async def fetch_sightings_by_cell(
             },
         )
     return by_cell
+
+
+_EVENT_COUNT_SQL = """
+    SELECT COUNT(*)
+    FROM {event_table} ev
+    JOIN geospatial_events ge ON ge.id = ev.id
+    WHERE ge.occurred_at >= :since
+"""
+
+
+async def count_incidents_since(
+    session: AsyncSession,
+    since: datetime,
+) -> int:
+    result = await session.execute(
+        text(_EVENT_COUNT_SQL.format(event_table="incidents")),
+        {"since": since},
+    )
+    return result.scalar_one()
+
+
+async def count_sightings_since(
+    session: AsyncSession,
+    since: datetime,
+) -> int:
+    result = await session.execute(
+        text(_EVENT_COUNT_SQL.format(event_table="sightings")),
+        {"since": since},
+    )
+    return result.scalar_one()
 
 
 async def save_heatmap_snapshot(
@@ -559,8 +568,6 @@ async def list_heatmap_snapshots(
     ]
 
 
-_INCIDENT_LOOKBACK_DAYS = 90
-_SIGHTING_LOOKBACK_DAYS = 7
 _NEIGHBOR_RADIUS_CELLS = 2
 _MAX_INCIDENTS_PER_GROUP = 20
 
@@ -721,9 +728,9 @@ async def get_cell_explanation(
             session,
             cell_row,
             incident_since=latest_computed_at
-            - timedelta(days=_INCIDENT_LOOKBACK_DAYS),
+            - timedelta(days=INCIDENT_LOOKBACK_DAYS),
             sighting_since=latest_computed_at
-            - timedelta(days=_SIGHTING_LOOKBACK_DAYS),
+            - timedelta(days=SIGHTING_LOOKBACK_DAYS),
         )
 
     return {

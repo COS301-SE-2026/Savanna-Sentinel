@@ -212,4 +212,40 @@ test.describe("Admin Role Swap Management", () => {
     });
 });
 
+test.describe("Admin role filter options", () => {
+    test.beforeEach(async ({ page }) => {
+        await page.goto("/login");
+
+        await page.getByPlaceholder("Username").fill("admin1");
+        await page.getByPlaceholder("Password").fill("SentinelSeed1!");
+        const loginButton = page.getByRole("button", { name: /log in/i });
+        await loginButton.click();
+
+        await expect(page).toHaveURL("/dashboard");
+        await page.goto("/admin");
+    });
+
+    const tabsWithRoleFilter = [
+        /account approvals/i,
+        /role management/i,
+        /delete accounts/i,
+    ];
+
+    for (const tabName of tabsWithRoleFilter) {
+        test(`does not offer Admin as a role filter option on the ${tabName} tab`, async ({
+            page,
+        }) => {
+            await page.getByRole("tab", { name: tabName }).click();
+
+            await page.getByRole("button", { name: /open filters/i }).click();
+            await page
+                .getByRole("button", { name: /^role none selected/i })
+                .click();
+
+            const listbox = page.getByRole("listbox");
+            await expect(listbox.getByLabel("Admin")).toHaveCount(0);
+        });
+    }
+});
+
 //ADD DELETE USERS E2E TEST HERE ONCE WIRING FOR IT IS FINISHED

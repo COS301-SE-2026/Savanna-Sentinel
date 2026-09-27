@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type maplibregl from "maplibre-gl";
+import { useNavigate } from "react-router-dom";
+import type * as maplibregl from "maplibre-gl";
 
 import { MapView } from "@/components/map/MapView";
 import { MapControls } from "@/components/map/MapControls";
@@ -21,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { routeApi } from "@/services/routeApi";
 import { cacheSavedRoute } from "@/offline/routesCache";
+import { pinRouteToHeatmap } from "@/offline/pinnedRouteCache";
+import { toPlannedRoute } from "@/lib/patrolRoute";
 import { useAuthStore } from "@/store/authStore";
 import type { SavedRoute, PlannedRoute } from "@/services/routeApi";
 import { usePollRouteJob } from "@/hooks/usePollRouteJob";
@@ -30,6 +33,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import type { ArmedField, LatLon } from "@/types/patrol";
 import { getSnapHeightPx } from "@/lib/utils";
 import { useMapStore } from "@/store/mapStore";
+import { UserLocationLayer } from "@/components/map/UserLocationLayer";
+import { useUserLocation } from "@/hooks/useUserLocation";
+import { UserLocationNotice } from "@/components/map/UserLocationNotice";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { MotionSimulator } from "@/components/dev/MotionSimulator";
 
 const DEFAULT_ZOOM = 10;
 
@@ -44,16 +53,14 @@ interface SidebarContentProps {
     onArmField: (field: "start" | "end") => void;
     onStartPointChange: (point: LatLon | null) => void;
     onEndPointChange: (point: LatLon | null) => void;
-    maxTime: string;
-    maxFuel: string;
-    onMaxTimeChange: (v: string) => void;
-    onMaxFuelChange: (v: string) => void;
     onGenerate: () => void;
     isGenerating: boolean;
     heatmapHasNoData: boolean;
     jobStatus: ReturnType<typeof usePollRouteJob>["status"];
     routes: ReturnType<typeof usePollRouteJob>["routes"];
     selectedIndex: number;
+    numAlternativesRequested: number | null;
+    shortfallReason: string | null;
     onSelectRoute: (index: number) => void;
     onClearRoutes: () => void;
     onSaveRoute: (index: number) => void;
@@ -63,6 +70,9 @@ interface SidebarContentProps {
     isLoadDialogOpen: boolean;
     onLoadDialogOpenChange: (open: boolean) => void;
     onLoadRoute: (saved: SavedRoute) => void;
+    onSendRouteToHeatmap: (saved: SavedRoute) => void;
+    locationVisible: boolean;
+    onLocationVisibleChange: (visible: boolean) => void;
 }
 
 function SidebarContent({
@@ -72,16 +82,14 @@ function SidebarContent({
     onArmField,
     onStartPointChange,
     onEndPointChange,
-    maxTime,
-    maxFuel,
-    onMaxTimeChange,
-    onMaxFuelChange,
     onGenerate,
     isGenerating,
     heatmapHasNoData,
     jobStatus,
     routes,
     selectedIndex,
+    numAlternativesRequested,
+    shortfallReason,
     onSelectRoute,
     onClearRoutes,
     onSaveRoute,
@@ -91,6 +99,9 @@ function SidebarContent({
     isLoadDialogOpen,
     onLoadDialogOpenChange,
     onLoadRoute,
+    onSendRouteToHeatmap,
+    locationVisible,
+    onLocationVisibleChange,
 }: SidebarContentProps) {
     return (
         <div className="flex flex-col gap-5 p-4">
@@ -107,6 +118,7 @@ function SidebarContent({
                 open={isLoadDialogOpen}
                 onOpenChange={onLoadDialogOpenChange}
                 onLoad={onLoadRoute}
+                onSendToHeatmap={onSendRouteToHeatmap}
             />
             <PatrolPlannerForm
                 startPoint={startPoint}
@@ -115,10 +127,6 @@ function SidebarContent({
                 onArmField={onArmField}
                 onStartPointChange={onStartPointChange}
                 onEndPointChange={onEndPointChange}
-                maxTime={maxTime}
-                maxFuel={maxFuel}
-                onMaxTimeChange={onMaxTimeChange}
-                onMaxFuelChange={onMaxFuelChange}
                 onGenerate={onGenerate}
                 isGenerating={isGenerating}
                 heatmapHasNoData={heatmapHasNoData}
@@ -138,7 +146,24 @@ function SidebarContent({
                     savingIndex={savingIndex}
                     savedIndices={savedIndices}
                     canSave={canSave}
+                    numAlternativesRequested={numAlternativesRequested}
+                    shortfallReason={shortfallReason}
                 />
+            </div>
+            <div className="flex min-h-11 w-full cursor-pointer items-center gap-2">
+                <Checkbox
+                    id="show-location"
+                    checked={locationVisible}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        onLocationVisibleChange(e.target.checked)
+                    }
+                />
+                <Label
+                    htmlFor="show-location"
+                    className="cursor-pointer text-sm font-medium text-color-text-primary select-none"
+                >
+                    My Location
+                </Label>
             </div>
         </div>
     );
@@ -173,6 +198,7 @@ const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
 
 export default function PatrolPlannerPage() {
     const user = useAuthStore((s) => s.user);
+    const navigate = useNavigate();
     const isMobile = useIsMobile();
     const [map, setMap] = useState<maplibregl.Map | null>(null);
     const [mapCenter, setMapCenter] = useState<[number, number]>([
@@ -182,12 +208,15 @@ export default function PatrolPlannerPage() {
     const [startPoint, setStartPoint] = useState<LatLon | null>(null);
     const [endPoint, setEndPoint] = useState<LatLon | null>(null);
     const [armedField, setArmedField] = useState<ArmedField>(null);
-    const [maxTime, setMaxTime] = useState("");
-    const [maxFuel, setMaxFuel] = useState("");
 
     const [requestId, setRequestId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
-    const { status: jobStatus, routes } = usePollRouteJob(requestId);
+    const {
+        status: jobStatus,
+        routes,
+        numAlternativesRequested,
+        shortfallReason,
+    } = usePollRouteJob(requestId);
 
     const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
         COLLAPSED_SNAP,
@@ -230,6 +259,41 @@ export default function PatrolPlannerPage() {
     const isGridLoading = gridStatus !== "error" && grid === null;
     const [isNoDataBannerDismissed, setIsNoDataBannerDismissed] =
         useState(false);
+    const [isLocationVisible, setLocationVisible] = useState(false);
+    const { location: userLocation, status: userLocationStatus } =
+        useUserLocation(isLocationVisible);
+
+    const bottomAnchorStyle = isMobile
+        ? {
+              bottom: `calc(${Math.min(
+                  getSnapHeightPx(drawerSnap ?? COLLAPSED_SNAP),
+                  getSnapHeightPx(EXPANDED_SNAP),
+              )}px + 0.5rem)`,
+          }
+        : undefined;
+
+    const handleLocationVisibleChange = async (visible: boolean) => {
+        if (visible && typeof DeviceMotionEvent !== "undefined") {
+            const deviceMotionEventPermission =
+                DeviceMotionEvent as unknown as {
+                    requestPermission?: () => Promise<
+                        "granted" | "denied" | "default"
+                    >;
+                };
+
+            if (
+                typeof deviceMotionEventPermission.requestPermission ===
+                "function"
+            ) {
+                try {
+                    await deviceMotionEventPermission.requestPermission();
+                } catch {
+                    console.warn("Motion sensor permission failed or denied");
+                }
+            }
+        }
+        setLocationVisible(visible);
+    };
 
     useEffect(() => {
         loadGrid();
@@ -286,8 +350,6 @@ export default function PatrolPlannerPage() {
                     type: "Point",
                     coordinates: [endPoint.lon, endPoint.lat],
                 },
-                max_time: maxTime.trim() === "" ? undefined : Number(maxTime),
-                max_fuel: maxFuel.trim() === "" ? undefined : Number(maxFuel),
                 num_alternatives: 3,
                 risk_by_cell: Object.fromEntries(riskByCell),
             });
@@ -309,10 +371,10 @@ export default function PatrolPlannerPage() {
         setLoadedRoute({
             suggested_path: [],
             path_geometry: saved.path_geometry,
-            estimated_time_min: saved.estimated_time_min,
-            estimated_fuel_l: saved.estimated_fuel_l,
+            distance_km: saved.distance_km,
             risk_coverage: saved.risk_coverage,
         });
+        setLoadedRoute(toPlannedRoute(saved));
         setSavedRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
         setSelectedIndex(0);
         setStartPoint({
@@ -323,8 +385,21 @@ export default function PatrolPlannerPage() {
             lat: saved.end_point.coordinates[1],
             lon: saved.end_point.coordinates[0],
         });
-        setMaxTime(saved.max_time === null ? "" : String(saved.max_time));
-        setMaxFuel(saved.max_fuel === null ? "" : String(saved.max_fuel));
+    }
+
+    async function handleSendRouteToHeatmap(saved: SavedRoute) {
+        if (!user?.id) {
+            notifyCritical("Could not send the route to the heatmap");
+            return;
+        }
+        try {
+            await pinRouteToHeatmap(user.id, saved);
+        } catch {
+            notifyCritical("Could not send the route to the heatmap");
+            return;
+        }
+        setIsLoadDialogOpen(false);
+        navigate("/map");
     }
 
     const canSave = requestId !== null;
@@ -343,8 +418,6 @@ export default function PatrolPlannerPage() {
                     type: "Point",
                     coordinates: [endPoint.lon, endPoint.lat],
                 },
-                max_time: maxTime.trim() === "" ? null : Number(maxTime),
-                max_fuel: maxFuel.trim() === "" ? null : Number(maxFuel),
                 risk_by_cell: Object.fromEntries(riskByCell),
                 route: routes[index],
             });
@@ -368,10 +441,6 @@ export default function PatrolPlannerPage() {
         onArmField: handleArmField,
         onStartPointChange: setStartPoint,
         onEndPointChange: setEndPoint,
-        maxTime,
-        maxFuel,
-        onMaxTimeChange: setMaxTime,
-        onMaxFuelChange: setMaxFuel,
         onGenerate: handleGenerate,
         isGenerating,
         heatmapHasNoData: hasNoRiskData,
@@ -379,6 +448,8 @@ export default function PatrolPlannerPage() {
         jobStatus: displayStatus,
         routes: displayRoutes,
         selectedIndex,
+        numAlternativesRequested: loadedRoute ? null : numAlternativesRequested,
+        shortfallReason: loadedRoute ? null : shortfallReason,
         onSelectRoute: handleSelectRoute,
         onSaveRoute: handleSaveRoute,
         savingIndex,
@@ -387,6 +458,9 @@ export default function PatrolPlannerPage() {
         isLoadDialogOpen,
         onLoadDialogOpenChange: setIsLoadDialogOpen,
         onLoadRoute: handleLoadRoute,
+        onSendRouteToHeatmap: handleSendRouteToHeatmap,
+        locationVisible: isLocationVisible,
+        onLocationVisibleChange: handleLocationVisibleChange,
     };
 
     return (
@@ -450,6 +524,16 @@ export default function PatrolPlannerPage() {
                     routes={displayRoutes}
                     selectedIndex={selectedIndex}
                 />
+                {isLocationVisible && (
+                    <>
+                        <UserLocationLayer map={map} location={userLocation} />
+                        <UserLocationNotice
+                            status={userLocationStatus}
+                            bottomClassName={isMobile ? "" : "bottom-2"}
+                            style={bottomAnchorStyle}
+                        />
+                    </>
+                )}
                 {isGridLoading && <LoadingPill label="Loading..." />}
                 {isGenerating && <LoadingPill label="Planning route..." />}
                 <NoDataBanner
@@ -484,6 +568,8 @@ export default function PatrolPlannerPage() {
                     </DrawerContent>
                 </Drawer>
             )}
+
+            <MotionSimulator />
         </div>
     );
 }

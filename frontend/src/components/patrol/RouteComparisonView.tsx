@@ -13,8 +13,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
-    ROUTE_COLORS,
     ROUTE_LABELS,
+    SELECTED_ROUTE_COLOR,
+    UNSELECTED_ROUTE_COLOR,
     getRiskCoverageColorClass,
 } from "@/lib/mapTokens";
 import type { PlannedRoute } from "@/services/routeApi";
@@ -29,6 +30,26 @@ export interface RouteComparisonViewProps {
     savingIndex: number | null;
     savedIndices: Set<number>;
     canSave: boolean;
+    numAlternativesRequested?: number | null;
+    shortfallReason?: string | null;
+}
+
+const SHORTFALL_MESSAGES: Record<string, string> = {
+    duplicate_route: "the remaining options retraced a route already shown",
+    no_tour_found: "no further route could be completed",
+    longer_than_best:
+        "the remaining options were more than 15% longer than the shortest route",
+};
+
+function shortfallNote(
+    found: number,
+    requested: number | null | undefined,
+    reason: string | null | undefined,
+): string | null {
+    if (!requested || found >= requested) return null;
+    const detail = reason ? SHORTFALL_MESSAGES[reason] : undefined;
+    const tail = detail ? `: ${detail}` : ".";
+    return `Showing ${found} of ${requested} alternatives${tail}`;
 }
 
 function SkeletonCard() {
@@ -51,6 +72,8 @@ export function RouteComparisonView({
     savingIndex,
     savedIndices,
     canSave,
+    numAlternativesRequested,
+    shortfallReason,
 }: RouteComparisonViewProps) {
     const [pendingSaveIndex, setPendingSaveIndex] = useState<number | null>(
         null,
@@ -90,14 +113,27 @@ export function RouteComparisonView({
     if (routes.length === 0) {
         return (
             <p className="text-sm text-color-text-primary">
-                No feasible routes found for these constraints. Try increasing
-                max time or fuel.
+                No feasible routes found. Try a different start or end point.
             </p>
         );
     }
 
+    const note = shortfallNote(
+        routes.length,
+        numAlternativesRequested,
+        shortfallReason,
+    );
+
     return (
         <>
+            {note && (
+                <p
+                    className="mb-2 text-xs text-color-text-primary"
+                    role="status"
+                >
+                    {note}
+                </p>
+            )}
             <div
                 className="flex flex-col gap-3"
                 aria-label="Route alternatives"
@@ -120,7 +156,11 @@ export function RouteComparisonView({
                             <div className="mb-3 flex items-center gap-2">
                                 <span
                                     className="size-2 shrink-0 rounded-full"
-                                    style={{ background: ROUTE_COLORS[index] }}
+                                    style={{
+                                        background: isSelected
+                                            ? SELECTED_ROUTE_COLOR
+                                            : UNSELECTED_ROUTE_COLOR,
+                                    }}
                                 />
                                 <span className="flex-1 text-sm font-semibold">
                                     {ROUTE_LABELS[index]}
@@ -171,19 +211,10 @@ export function RouteComparisonView({
                             <dl className="flex flex-col gap-1 text-sm">
                                 <div className="flex justify-between">
                                     <dt className="text-color-text-secondary">
-                                        Est. Time
+                                        Distance
                                     </dt>
                                     <dd className="font-medium">
-                                        {Math.round(route.estimated_time_min)}{" "}
-                                        min
-                                    </dd>
-                                </div>
-                                <div className="flex justify-between">
-                                    <dt className="text-color-text-secondary">
-                                        Est. Fuel
-                                    </dt>
-                                    <dd className="font-medium">
-                                        {Math.round(route.estimated_fuel_l)} L
+                                        {route.distance_km.toFixed(1)} km
                                     </dd>
                                 </div>
                                 <div className="flex justify-between">

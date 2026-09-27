@@ -3,7 +3,12 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/store/authStore";
 import { NewReportTab } from "@/components/reports/NewReportTab";
-import { ReportList } from "@/components/reports/ReportList";
+import { ReportList, PAGE_SIZE } from "@/components/reports/ReportList";
+import {
+    reportSortFields,
+    type ReportSortKey,
+} from "@/components/reports/reportColumns";
+import type { SortDirection } from "@/hooks/useSort";
 import {
     notifySafe,
     notifyCaution,
@@ -57,6 +62,46 @@ function mapToDraft(item: ReportListItem): DraftReport {
         status: item.status ?? "none",
     };
 }
+
+function matchesFilters(
+    draft: DraftReport,
+    filters: {
+        search: string;
+        types: ReportType[];
+        severities: Severity[];
+        species: string[];
+        usernames: string[];
+    },
+): boolean {
+    const term = filters.search.trim().toLowerCase();
+    if (
+        term &&
+        !draft.description.toLowerCase().includes(term) &&
+        !(draft.species ?? "").toLowerCase().includes(term)
+    ) {
+        return false;
+    }
+    if (filters.types.length && !filters.types.includes(draft.reportType)) {
+        return false;
+    }
+    if (
+        filters.severities.length &&
+        (!draft.severity || !filters.severities.includes(draft.severity))
+    ) {
+        return false;
+    }
+    if (
+        filters.species.length &&
+        (!draft.species || !filters.species.includes(draft.species))
+    ) {
+        return false;
+    }
+    return !(
+        filters.usernames.length &&
+        (!draft.submittedByUsername ||
+            !filters.usernames.includes(draft.submittedByUsername))
+    );
+}
 // Helper functions end
 
 export default function ReportsPage() {
@@ -71,6 +116,11 @@ export default function ReportsPage() {
     const [severityFilter, setSeverityFilter] = React.useState<Severity[]>([]);
     const [speciesFilter, setSpeciesFilter] = React.useState<string[]>([]);
     const [usernameFilter, setUsernameFilter] = React.useState<string[]>([]);
+    const [page, setPage] = React.useState(1);
+    const [total, setTotal] = React.useState(0);
+    const [sortKey, setSortKey] = React.useState<ReportSortKey>("createdAt");
+    const [sortDirection, setSortDirection] =
+        React.useState<SortDirection>("desc");
 
     const debouncedSearch = useDebounce(search, 300);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -85,20 +135,28 @@ export default function ReportsPage() {
             setIsLoading(true);
             const temp: ListReportsQueryParams = {
                 search: debouncedSearch || undefined,
-                report_type: typeFilter || null,
-                severity: severityFilter || null,
-                species: speciesFilter || null,
-                users: usernameFilter || null,
+                report_type: typeFilter.length ? typeFilter : undefined,
+                severity: severityFilter.length ? severityFilter : undefined,
+                species: speciesFilter.length ? speciesFilter : undefined,
+                users: usernameFilter.length ? usernameFilter : undefined,
+                sort: reportSortFields[sortKey],
+                direction: sortDirection,
+                page,
+                page_size: PAGE_SIZE,
             };
             const localDrafts = user
                 ? await listDrafts(user.id).catch(() => [])
                 : [];
-            const unsynced = localDrafts.filter(
-                (draft) => draft.syncStatus !== "synced",
-            );
+            const unsynced =
+                page === 1
+                    ? localDrafts.filter(
+                          (draft) => draft.syncStatus !== "synced",
+                      )
+                    : [];
 
             try {
                 const res = await reportsApi.listReports(temp);
+                setTotal(res.total);
                 setReports([...res.results.map(mapToDraft), ...unsynced]);
             } catch (err) {
                 setReports(unsynced);
@@ -116,6 +174,9 @@ export default function ReportsPage() {
         severityFilter,
         speciesFilter,
         usernameFilter,
+        page,
+        sortKey,
+        sortDirection,
         user,
         refreshKey,
     ]);
@@ -126,6 +187,29 @@ export default function ReportsPage() {
                 (r) => r.submittedBy === user?.id && r.syncStatus !== "synced",
             ),
         [reports, user?.id],
+    );
+
+    const visibleReports = useMemo(
+        () =>
+            reports.filter(
+                (r) =>
+                    r.syncStatus === "synced" ||
+                    matchesFilters(r, {
+                        search: debouncedSearch,
+                        types: typeFilter,
+                        severities: severityFilter,
+                        species: speciesFilter,
+                        usernames: usernameFilter,
+                    }),
+            ),
+        [
+            reports,
+            debouncedSearch,
+            typeFilter,
+            severityFilter,
+            speciesFilter,
+            usernameFilter,
+        ],
     );
 
     const handleCreate = async (input: DraftReportInput) => {
@@ -324,7 +408,7 @@ export default function ReportsPage() {
                             }
                         >
                             <ReportList
-                                reports={reports}
+                                reports={visibleReports}
                                 canSubmit={canSubmit}
                                 onGoToNewReport={() => setActiveTab("new")}
                                 search={search}
@@ -353,6 +437,20 @@ export default function ReportsPage() {
                                     setUsernameFilter(value);
                                 }}
                                 isLoading={isLoading}
+                                page={page}
+                                onPageChange={(next) => {
+                                    setIsLoading(true);
+                                    setPage(next);
+                                }}
+                                totalItems={total}
+                                sortKey={sortKey}
+                                sortDirection={sortDirection}
+                                onSortChange={(key, nextDirection) => {
+                                    setIsLoading(true);
+                                    setSortKey(key);
+                                    setSortDirection(nextDirection);
+                                    setPage(1);
+                                }}
                             />
                         </div>
                     )}

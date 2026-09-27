@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 
 import type { LatLon } from "@/types/patrol";
 import type { PlannedRoute } from "@/services/routeApi";
@@ -10,6 +10,19 @@ import {
 } from "@/lib/mapTokens";
 
 const MAX_ROUTE_SLOTS = 3;
+
+function clearRouteSlots(map: maplibregl.Map, fromIndex: number): void {
+    try {
+        for (let i = fromIndex; i < MAX_ROUTE_SLOTS; i++) {
+            const sourceId = `patrol-route-${i}`;
+            const layerId = `${sourceId}-line`;
+            if (map.getLayer(layerId)) map.removeLayer(layerId);
+            if (map.getSource(sourceId)) map.removeSource(sourceId);
+        }
+    } catch {
+        return;
+    }
+}
 
 export interface PatrolRouteLayerProps {
     map: maplibregl.Map | null;
@@ -166,23 +179,13 @@ export function PatrolRouteLayer({
             }
         });
 
-        for (let i = routes.length; i < MAX_ROUTE_SLOTS; i++) {
-            const sourceId = `patrol-route-${i}`;
-            const layerId = `${sourceId}-line`;
-            if (map.getLayer(layerId)) map.removeLayer(layerId);
-            if (map.getSource(sourceId)) map.removeSource(sourceId);
-        }
+        clearRouteSlots(map, routes.length);
     }, [map, routes, selectedIndex]);
 
     useEffect(() => {
         return () => {
             if (!map) return;
-            for (let i = 0; i < MAX_ROUTE_SLOTS; i++) {
-                const sourceId = `patrol-route-${i}`;
-                const layerId = `${sourceId}-line`;
-                if (map.getLayer(layerId)) map.removeLayer(layerId);
-                if (map.getSource(sourceId)) map.removeSource(sourceId);
-            }
+            clearRouteSlots(map, 0);
         };
     }, [map]);
 
