@@ -2,6 +2,10 @@ import { vi } from "vitest";
 
 type Handler = (event?: unknown) => void;
 
+function makeInteractionHandler() {
+    return { enable: vi.fn(), disable: vi.fn() };
+}
+
 export class FakeMap {
     options: Record<string, unknown>;
     private listeners: Record<string, Handler[]> = {};
@@ -138,6 +142,10 @@ export class FakeMap {
     });
     zoomIn = vi.fn();
     zoomOut = vi.fn();
+    scrollZoom = makeInteractionHandler();
+    doubleClickZoom = makeInteractionHandler();
+    boxZoom = makeInteractionHandler();
+    touchZoomRotate = makeInteractionHandler();
     resetNorthPitch = vi.fn();
     fitBounds = vi.fn();
     addImage = vi.fn();
@@ -173,9 +181,15 @@ export class FakeMap {
     }
 
     fireClick(lngLat: { lng: number; lat: number }) {
-        this.listeners.click?.forEach((h) =>
-            h({ lngLat, point: { x: 0, y: 0 } }),
-        );
+        const event = {
+            lngLat,
+            point: { x: 0, y: 0 },
+            defaultPrevented: false,
+            preventDefault() {
+                event.defaultPrevented = true;
+            },
+        };
+        this.listeners.click?.forEach((h) => h(event));
     }
 
     fireError(error: unknown) {

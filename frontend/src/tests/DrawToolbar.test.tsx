@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, afterEach } from "vitest";
 
@@ -828,7 +828,94 @@ describe("DrawToolbar", () => {
         expect(instance.undo).not.toHaveBeenCalled();
     });
 
-    it("blocks a click or held press once a freehand shape is mid-trace, so it can't add a point or finish early", async () => {
+    it("keeps map zoom enabled when a freehand mode is merely selected", async () => {
+        const map = makeMap();
+        render(
+            <DrawToolbar
+                map={map as never}
+                activeLayerId="water"
+                editingFeature={null}
+                onEditingFeatureHandled={() => {}}
+                finishEditSignal={0}
+                cancelEditSignal={0}
+            />,
+        );
+
+        await userEvent.click(
+            await screen.findByRole("button", { name: /freehand/i }),
+        );
+        await userEvent.click(
+            await screen.findByRole("button", { name: /freehand polygon/i }),
+        );
+
+        expect(map.scrollZoom.disable).not.toHaveBeenCalled();
+        expect(map.doubleClickZoom.disable).not.toHaveBeenCalled();
+        expect(map.boxZoom.disable).not.toHaveBeenCalled();
+        expect(map.touchZoomRotate.disable).not.toHaveBeenCalled();
+    });
+
+    it("disables map zoom interactions only once a freehand trace has actually started, and re-enables them once it ends", async () => {
+        const map = makeMap();
+        const onDrawingChange = vi.fn();
+        const { container } = render(
+            <DrawToolbar
+                map={map as never}
+                activeLayerId="water"
+                editingFeature={null}
+                onEditingFeatureHandled={() => {}}
+                finishEditSignal={0}
+                cancelEditSignal={0}
+                onDrawingChange={onDrawingChange}
+            />,
+        );
+        const instance = getLastTerraDrawInstance(container);
+
+        await userEvent.click(
+            await screen.findByRole("button", { name: /freehand/i }),
+        );
+        await userEvent.click(
+            await screen.findByRole("button", { name: /freehand polygon/i }),
+        );
+
+        expect(map.scrollZoom.disable).not.toHaveBeenCalled();
+
+        act(() => {
+            instance.setSnapshotFeature({
+                id: "terra-freehand-wip",
+                type: "Feature",
+                geometry: {
+                    type: "Polygon",
+                    coordinates: [
+                        [
+                            [0, 0],
+                            [0, 0],
+                            [0, 0],
+                            [0, 0],
+                        ],
+                    ],
+                },
+                properties: { mode: "freehand", currentlyDrawing: true },
+            });
+        });
+
+        expect(map.scrollZoom.disable).toHaveBeenCalled();
+        expect(map.doubleClickZoom.disable).toHaveBeenCalled();
+        expect(map.boxZoom.disable).toHaveBeenCalled();
+        expect(map.touchZoomRotate.disable).toHaveBeenCalled();
+        expect(onDrawingChange).toHaveBeenLastCalledWith(true);
+
+        act(() => {
+            instance.removeFeatures(["terra-freehand-wip"]);
+        });
+
+        expect(map.scrollZoom.enable).toHaveBeenCalled();
+        expect(map.doubleClickZoom.enable).toHaveBeenCalled();
+        expect(map.boxZoom.enable).toHaveBeenCalled();
+        expect(map.touchZoomRotate.enable).toHaveBeenCalled();
+        expect(onDrawingChange).toHaveBeenLastCalledWith(false);
+    });
+
+    it("disables left-click-to-finish once a freehand shape is mid-trace, without disabling drag handling", async () => {
         const map = makeMap();
         const { container } = render(
             <DrawToolbar
@@ -849,6 +936,19 @@ describe("DrawToolbar", () => {
             await screen.findByRole("button", { name: /freehand polygon/i }),
         );
 
+        // @ts-expect-error `instances` is exposed by the mock only, for assertions in this test
+        const freehand = TerraDrawFreehandMode.instances.at(-1);
+        const pointerEvents = freehand?.options?.pointerEvents as {
+            leftClick: () => boolean;
+            onDragStart: boolean;
+            onDrag: boolean;
+            onDragEnd: boolean;
+        };
+
+        expect(pointerEvents.onDragStart).toBe(true);
+        expect(pointerEvents.onDrag).toBe(true);
+        expect(pointerEvents.onDragEnd).toBe(true);
+
         instance.setSnapshotFeature({
             id: "terra-freehand-wip",
             type: "Feature",
@@ -866,26 +966,10 @@ describe("DrawToolbar", () => {
             properties: { mode: "freehand", currentlyDrawing: true },
         });
 
-        const canvas = map.getCanvas();
-        const downEvent = new PointerEvent("pointerdown", {
-            bubbles: true,
-            cancelable: true,
-        });
-        const upEvent = new PointerEvent("pointerup", {
-            bubbles: true,
-            cancelable: true,
-        });
-        const downSpy = vi.spyOn(downEvent, "stopImmediatePropagation");
-        const upSpy = vi.spyOn(upEvent, "stopImmediatePropagation");
-
-        canvas.dispatchEvent(downEvent);
-        canvas.dispatchEvent(upEvent);
-
-        expect(downSpy).toHaveBeenCalled();
-        expect(upSpy).toHaveBeenCalled();
+        expect(pointerEvents.leftClick()).toBe(false);
     });
 
-    it("does not block the initial click that starts a freehand shape", async () => {
+    it("allows the left click that starts a freehand shape", async () => {
         const map = makeMap();
         render(
             <DrawToolbar
@@ -905,16 +989,13 @@ describe("DrawToolbar", () => {
             await screen.findByRole("button", { name: /freehand polygon/i }),
         );
 
-        const canvas = map.getCanvas();
-        const downEvent = new PointerEvent("pointerdown", {
-            bubbles: true,
-            cancelable: true,
-        });
-        const downSpy = vi.spyOn(downEvent, "stopImmediatePropagation");
+        // @ts-expect-error `instances` is exposed by the mock only, for assertions in this test
+        const freehand = TerraDrawFreehandMode.instances.at(-1);
+        const pointerEvents = freehand?.options?.pointerEvents as {
+            leftClick: () => boolean;
+        };
 
-        canvas.dispatchEvent(downEvent);
-
-        expect(downSpy).not.toHaveBeenCalled();
+        expect(pointerEvents.leftClick()).toBe(true);
     });
 
     it("cleans up the edit session when the edited feature is deleted mid-edit", () => {

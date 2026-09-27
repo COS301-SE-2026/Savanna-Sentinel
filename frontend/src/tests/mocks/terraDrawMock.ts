@@ -4,11 +4,17 @@ type FinishHandler = (
     id: string,
     context: { action: string; mode: string },
 ) => void;
+type ChangeHandler = () => void;
 
 export class FakeTerraDraw {
     private finishHandlers: FinishHandler[] = [];
+    private changeHandlers: ChangeHandler[] = [];
     private snapshot: GeoJSON.Feature[] = [];
     private mode = "select";
+
+    private fireChange() {
+        this.changeHandlers.forEach((h) => h());
+    }
 
     private upsertSnapshotFeature(feature: GeoJSON.Feature) {
         const index = this.snapshot.findIndex(
@@ -34,11 +40,15 @@ export class FakeTerraDraw {
         this.snapshot = this.snapshot.filter(
             (f) => !ids.includes(String(f.id)),
         );
+        this.fireChange();
     });
     getSnapshot = vi.fn(() => this.snapshot);
 
-    on(event: string, handler: FinishHandler) {
-        if (event === "finish") this.finishHandlers.push(handler);
+    on(event: string, handler: FinishHandler | ChangeHandler) {
+        if (event === "finish")
+            this.finishHandlers.push(handler as FinishHandler);
+        if (event === "change")
+            this.changeHandlers.push(handler as ChangeHandler);
     }
 
     fireFinish(id: string, context: { action: string; mode: string }) {
@@ -47,6 +57,7 @@ export class FakeTerraDraw {
 
     setSnapshotFeature(feature: GeoJSON.Feature) {
         this.upsertSnapshotFeature(feature);
+        this.fireChange();
     }
 }
 

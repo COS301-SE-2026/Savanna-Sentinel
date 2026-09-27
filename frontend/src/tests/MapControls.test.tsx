@@ -35,6 +35,28 @@ describe("MapControls", () => {
         expect(map.flyTo).toHaveBeenCalledTimes(1);
     });
 
+    it("disables the zoom in/out and reset view buttons when zoomDisabled is true", async () => {
+        const map = {
+            zoomIn: vi.fn(),
+            zoomOut: vi.fn(),
+            flyTo: vi.fn(),
+            getCenter: vi.fn(),
+            getZoom: vi.fn(),
+        };
+        render(<MapControls map={map as never} zoomDisabled />);
+
+        expect(screen.getByRole("button", { name: /zoom in/i })).toBeDisabled();
+        expect(
+            screen.getByRole("button", { name: /zoom out/i }),
+        ).toBeDisabled();
+        expect(
+            screen.getByRole("button", { name: /reset view/i }),
+        ).toBeDisabled();
+
+        await userEvent.click(screen.getByRole("button", { name: /zoom in/i }));
+        expect(map.zoomIn).not.toHaveBeenCalled();
+    });
+
     it("resets to the given default center/zoom on reset view", async () => {
         const map = {
             zoomIn: vi.fn(),
