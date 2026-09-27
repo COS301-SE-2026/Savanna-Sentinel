@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.dependencies import get_db
 from app.core.security import create_access_token, get_password_hash
 from app.main import app
+from app.repositories.workspace_repository import WorkspaceRepository
 
 _engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 _Session = async_sessionmaker(_engine, expire_on_commit=False)
@@ -854,3 +855,156 @@ async def test_an_in_effect_feature_still_loads_visible_for_a_new_user():
         )
 
     assert other_view.json()["memberships"][0]["visible"] is True
+
+
+@pytest.mark.asyncio
+async def test_save_round_trips_feature_rules_and_layer_default_rules():
+    user_id = await _create_user("test_ws_rules")
+    layer_id = str(uuid.uuid4())
+    feature_id = str(uuid.uuid4())
+    membership_id = str(uuid.uuid4())
+    body = {
+        "base_version": 0,
+        "layers": [
+            _layer(
+                layer_id,
+                default_rules={"avoid": {"strength": 1.0, "priority": 2}},
+            ),
+        ],
+        "features": [
+            _point_feature(
+                feature_id,
+                rules={
+                    "increase_risk": {"strength": 0.3},
+                    "decrease_risk": {"enabled": False},
+                    "prefer": {},
+                },
+            ),
+        ],
+        "memberships": [_membership(membership_id, feature_id, layer_id)],
+    }
+
+    async with _client() as client:
+        saved = await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(user_id),
+        )
+        reloaded = await client.get(
+            "/v1/workspace",
+            headers=_auth_header(user_id),
+        )
+
+    assert saved.status_code == 200
+    assert reloaded.json()["layers"][0]["default_rules"] == {
+        "avoid": {"strength": 1.0, "priority": 2},
+    }
+    assert reloaded.json()["features"][0]["rules"] == {
+        "increase_risk": {"strength": 0.3},
+        "decrease_risk": {"enabled": False},
+        "prefer": {},
+    }
+
+
+@pytest.mark.asyncio
+async def test_missing_rules_load_as_empty_objects():
+    user_id = await _create_user("test_ws_no_rules")
+    body, _, _, _ = _one_of_each()
+
+    async with _client() as client:
+        saved = await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(user_id),
+        )
+
+    assert saved.json()["layers"][0]["default_rules"] == {}
+    assert saved.json()["features"][0]["rules"] == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "rules",
+    [
+        {"avoid": {"strength": 0.05}},
+        {"avoid": {"priority": 2.5}},
+        {"sneak": {"strength": 0.5}},
+        {"avoid": {"colour": "red"}},
+    ],
+)
+async def test_save_rejects_invalid_feature_rules(rules):
+    user_id = await _create_user("test_ws_bad_rules")
+    body, _, feature_id, _ = _one_of_each()
+    body["features"] = [_point_feature(feature_id, rules=rules)]
+
+    async with _client() as client:
+        response = await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(user_id),
+        )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_load_snapshot_has_ids_orders_and_rules_but_no_visibility():
+    user_id = await _create_user("test_ws_snapshot")
+    layer_id = str(uuid.uuid4())
+    feature_id = str(uuid.uuid4())
+    membership_id = str(uuid.uuid4())
+    body = {
+        "base_version": 0,
+        "layers": [
+            _layer(layer_id, default_rules={"prefer": {"strength": 0.9}}),
+        ],
+        "features": [
+            _point_feature(
+                feature_id,
+                in_effect=False,
+                buffer_enabled=True,
+                buffer_distance_m=500,
+                rules={"avoid": {"priority": 4}},
+            ),
+        ],
+        "memberships": [
+            _membership(membership_id, feature_id, layer_id, order=3),
+        ],
+    }
+    async with _client() as client:
+        await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(user_id),
+        )
+
+    async with _Session() as session:
+        snapshot = await WorkspaceRepository(session).load_snapshot()
+
+    assert snapshot["layers"] == [
+        {
+            "id": layer_id,
+            "parent_id": None,
+            "order": 0,
+            "default_rules": {"prefer": {"strength": 0.9}},
+        },
+    ]
+    assert snapshot["features"] == [
+        {
+            "id": feature_id,
+            "type": "point",
+            "geometry": {"type": "Point", "coordinates": [31.12, -24.41]},
+            "in_effect": False,
+            "buffer_enabled": True,
+            "buffer_distance_m": 500.0,
+            "rules": {"avoid": {"priority": 4}},
+        },
+    ]
+    assert snapshot["memberships"] == [
+        {
+            "id": membership_id,
+            "feature_id": feature_id,
+            "layer_id": layer_id,
+            "order": 3,
+        },
+    ]
