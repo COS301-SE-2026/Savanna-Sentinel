@@ -80,7 +80,7 @@ async def _create_user(
                     "password_hash": get_password_hash(password),
                     "role": role,
                     "is_active": is_active,
-                }
+                },
             ],
         )
 
@@ -136,7 +136,7 @@ async def test_register_duplicate_email_returns_409():
     async with _client() as c:
         await c.post("/v1/auth/register", json=_payload())
         r = await c.post(
-            "/v1/auth/register", json=_payload(username="test_other")
+            "/v1/auth/register", json=_payload(username="test_other"),
         )
     assert r.status_code == 409
 
@@ -146,7 +146,7 @@ async def test_register_duplicate_username_returns_409():
     async with _client() as c:
         await c.post("/v1/auth/register", json=_payload())
         r = await c.post(
-            "/v1/auth/register", json=_payload(email="test_other@example.com")
+            "/v1/auth/register", json=_payload(email="test_other@example.com"),
         )
     assert r.status_code == 409
 
@@ -162,7 +162,7 @@ async def test_register_short_password_returns_422():
 async def test_register_invalid_email_returns_422():
     async with _client() as c:
         r = await c.post(
-            "/v1/auth/register", json=_payload(email="not-an-email")
+            "/v1/auth/register", json=_payload(email="not-an-email"),
         )
     assert r.status_code == 422
 
@@ -195,7 +195,7 @@ async def test_register_all_valid_roles_accepted():
 async def test_register_admin_role_rejected_returns_422():
     async with _client() as c:
         r = await c.post(
-            "/v1/auth/register", json=_payload(requested_role="admin")
+            "/v1/auth/register", json=_payload(requested_role="admin"),
         )
     assert r.status_code == 422
 
