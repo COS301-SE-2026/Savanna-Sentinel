@@ -310,7 +310,8 @@ CREATE TABLE workspace_layers (
     name          TEXT,
     parent_id     UUID  REFERENCES workspace_layers(id) ON DELETE CASCADE,
     display_order INT   NOT NULL,
-    default_style JSONB NOT NULL DEFAULT '{}'::jsonb
+    default_style JSONB NOT NULL DEFAULT '{}'::jsonb,
+    default_rules JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE INDEX workspace_layers_parent_idx ON workspace_layers (parent_id);
@@ -324,6 +325,7 @@ CREATE TABLE workspace_features (
     buffer_enabled    BOOLEAN                NOT NULL DEFAULT FALSE,
     buffer_distance_m DOUBLE PRECISION       NOT NULL DEFAULT 100
         CHECK (buffer_distance_m BETWEEN 1 AND 20000),
+    rules             JSONB                  NOT NULL DEFAULT '{}'::jsonb,
     created_at        TIMESTAMPTZ            NOT NULL DEFAULT NOW(),
     updated_at        TIMESTAMPTZ            NOT NULL DEFAULT NOW()
 );

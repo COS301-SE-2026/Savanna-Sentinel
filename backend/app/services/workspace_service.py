@@ -193,6 +193,7 @@ class WorkspaceService:
                     "parent_id": layer.parent_id,
                     "order": layer.order,
                     "default_style": layer.default_style.to_stored(),
+                    "default_rules": layer.default_rules.to_stored(),
                 }
                 for layer in payload.layers
             ],
@@ -207,6 +208,7 @@ class WorkspaceService:
                     "in_effect": feature.in_effect,
                     "buffer_enabled": feature.buffer_enabled,
                     "buffer_distance_m": feature.buffer_distance_m,
+                    "rules": feature.rules.to_stored(),
                 }
                 for feature in payload.features
             ],

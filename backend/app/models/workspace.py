@@ -52,6 +52,11 @@ class WorkspaceLayer(_Base):
         nullable=False,
         default=dict,
     )
+    default_rules: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+    )
 
 
 class WorkspaceFeature(_Base):
@@ -84,6 +89,11 @@ class WorkspaceFeature(_Base):
         Float,
         nullable=False,
         default=100.0,
+    )
+    rules: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

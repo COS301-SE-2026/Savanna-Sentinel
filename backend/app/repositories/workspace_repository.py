@@ -104,6 +104,7 @@ class WorkspaceRepository:
                     ),
                     "order": row["display_order"],
                     "default_style": row["default_style"] or {},
+                    "default_rules": row["default_rules"] or {},
                 }
                 for row in layer_rows
             ],
@@ -116,6 +117,7 @@ class WorkspaceRepository:
                     "in_effect": row["in_effect"],
                     "buffer_enabled": row["buffer_enabled"],
                     "buffer_distance_m": row["buffer_distance_m"],
+                    "rules": row["rules"] or {},
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
                 }
@@ -216,6 +218,7 @@ class WorkspaceRepository:
                     "parent_id": stmt.excluded.parent_id,
                     "display_order": stmt.excluded.display_order,
                     "default_style": stmt.excluded.default_style,
+                    "default_rules": stmt.excluded.default_rules,
                 },
             ),
             [
@@ -225,6 +228,7 @@ class WorkspaceRepository:
                     "parent_id": None,
                     "display_order": layer["order"],
                     "default_style": layer["default_style"],
+                    "default_rules": layer["default_rules"],
                 }
                 for layer in layers
             ],
@@ -258,6 +262,7 @@ class WorkspaceRepository:
                     "in_effect": stmt.excluded.in_effect,
                     "buffer_enabled": stmt.excluded.buffer_enabled,
                     "buffer_distance_m": stmt.excluded.buffer_distance_m,
+                    "rules": stmt.excluded.rules,
                     "updated_at": stmt.excluded.updated_at,
                 },
             ),
@@ -270,6 +275,7 @@ class WorkspaceRepository:
                     "in_effect": feature["in_effect"],
                     "buffer_enabled": feature["buffer_enabled"],
                     "buffer_distance_m": feature["buffer_distance_m"],
+                    "rules": feature["rules"],
                     "created_at": feature["created_at"],
                     "updated_at": feature["updated_at"],
                 }
