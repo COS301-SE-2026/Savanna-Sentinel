@@ -38,6 +38,7 @@ export interface WorkspaceFeature {
     inEffect: boolean;
     bufferEnabled: boolean;
     bufferDistanceM: number;
+    rules: FeatureRules;
 }
 
 export interface WorkspaceLayer {
@@ -46,6 +47,7 @@ export interface WorkspaceLayer {
     parentId: string | null;
     order: number;
     defaultStyle: Partial<FeatureStyle>;
+    defaultRules: FeatureRules;
 }
 
 export interface WorkspaceMembership {
@@ -56,3 +58,32 @@ export interface WorkspaceMembership {
     styleOverride: Partial<FeatureStyle>;
     visible: boolean;
 }
+
+export const RULE_INTENTS = [
+    "increase_risk",
+    "decrease_risk",
+    "prefer",
+    "avoid",
+] as const;
+export type RuleIntent = (typeof RULE_INTENTS)[number];
+
+export interface RuleSettings {
+    enabled?: boolean;
+    strength?: number;
+    bufferDecay?: number;
+    priority?: number;
+}
+
+export type FeatureRules = Partial<Record<RuleIntent, RuleSettings>>;
+
+export const MIN_RULE_STRENGTH = 0.1;
+export const MAX_RULE_STRENGTH = 1;
+export const MIN_RULE_PRIORITY = 1;
+export const MAX_RULE_PRIORITY = 99;
+
+export const DEFAULT_RULE: Required<RuleSettings> = {
+    enabled: true,
+    strength: 0.5,
+    bufferDecay: 0,
+    priority: 1,
+};

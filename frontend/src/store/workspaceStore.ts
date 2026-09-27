@@ -3,12 +3,19 @@ import { create } from "zustand";
 import type {
     FeatureGeometryType,
     FeatureStyle,
+    RuleIntent,
+    RuleSettings,
     WorkspaceFeature,
     WorkspaceLayer,
     WorkspaceMembership,
 } from "@/lib/workspace/types";
 import { wouldCreateCycle, getDescendantLayerIds } from "@/lib/workspace/tree";
 import { resolveMembershipStyle } from "@/lib/workspace/styleResolution";
+import {
+    isValidRulePatch,
+    preserveRulesAcrossMove,
+    type RuleProperty,
+} from "@/lib/workspace/rules";
 import {
     DEFAULT_BUFFER_DISTANCE_M,
     MAX_BUFFER_DISTANCE_M,
@@ -112,6 +119,26 @@ export interface WorkspaceState extends WorkspaceDataState {
         featureId: string,
         patch: { enabled?: boolean; distanceM?: number },
     ) => void;
+    setFeatureRule: (
+        featureId: string,
+        intent: RuleIntent,
+        patch: RuleSettings,
+    ) => void;
+    clearFeatureRuleProperty: (
+        featureId: string,
+        intent: RuleIntent,
+        property: RuleProperty,
+    ) => void;
+    setLayerDefaultRule: (
+        layerId: string,
+        intent: RuleIntent,
+        patch: RuleSettings,
+    ) => void;
+    clearLayerDefaultRuleProperty: (
+        layerId: string,
+        intent: RuleIntent,
+        property: RuleProperty,
+    ) => void;
     setLayerChildrenInEffect: (layerId: string, inEffect: boolean) => void;
     setMembershipStyleOverride: (
         membershipId: string,
@@ -147,6 +174,21 @@ export let initialWorkspaceState: WorkspaceState;
 export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
     const markDirty = (partial: Partial<WorkspaceDataState>) =>
         set({ ...partial, hasUnsavedChanges: true });
+
+    const withPreservedRules = (
+        featureId: string,
+        memberships: WorkspaceMembership[],
+    ) =>
+        get().features.map((f) => {
+            if (f.id !== featureId) return f;
+            const rules = preserveRulesAcrossMove(
+                get().layers,
+                get().memberships,
+                memberships,
+                f,
+            );
+            return rules === f.rules ? f : { ...f, rules };
+        });
 
     const pushVisibility = (entries: VisibilityEntry[]) => {
         if (get().status !== "ready" || get().hasUnsavedChanges) return;
@@ -213,6 +255,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
                 parentId,
                 order,
                 defaultStyle: {},
+                defaultRules: {},
             };
             markDirty({ layers: [...get().layers, layer] });
             return id;
@@ -327,6 +370,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
                 inEffect: true,
                 bufferEnabled: false,
                 bufferDistanceM: DEFAULT_BUFFER_DISTANCE_M,
+                rules: {},
             };
             const membership: WorkspaceMembership = {
                 id: membershipId,
@@ -394,6 +438,73 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
                           }
                         : f,
                 ),
+            });
+        },
+
+        setFeatureRule: (featureId, intent, patch) => {
+            if (!isValidRulePatch(patch)) return;
+            markDirty({
+                features: get().features.map((f) =>
+                    f.id === featureId
+                        ? {
+                              ...f,
+                              rules: {
+                                  ...f.rules,
+                                  [intent]: {
+                                      ...(f.rules[intent] ?? {}),
+                                      ...patch,
+                                  },
+                              },
+                          }
+                        : f,
+                ),
+            });
+        },
+
+        clearFeatureRuleProperty: (featureId, intent, property) => {
+            markDirty({
+                features: get().features.map((f) => {
+                    const rule = f.rules[intent];
+                    if (f.id !== featureId || !rule) return f;
+                    const next = { ...rule };
+                    delete next[property];
+                    return { ...f, rules: { ...f.rules, [intent]: next } };
+                }),
+            });
+        },
+
+        setLayerDefaultRule: (layerId, intent, patch) => {
+            if (!isValidRulePatch(patch)) return;
+            markDirty({
+                layers: get().layers.map((l) =>
+                    l.id === layerId
+                        ? {
+                              ...l,
+                              defaultRules: {
+                                  ...l.defaultRules,
+                                  [intent]: {
+                                      ...(l.defaultRules[intent] ?? {}),
+                                      ...patch,
+                                  },
+                              },
+                          }
+                        : l,
+                ),
+            });
+        },
+
+        clearLayerDefaultRuleProperty: (layerId, intent, property) => {
+            markDirty({
+                layers: get().layers.map((l) => {
+                    const rule = l.defaultRules[intent];
+                    if (l.id !== layerId || !rule) return l;
+                    const next = { ...rule };
+                    delete next[property];
+                    return {
+                        ...l,
+                        defaultRules: { ...l.defaultRules, [intent]: next },
+                    };
+                }),
             });
         },
 
@@ -471,11 +582,13 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
                 styleOverride: resolvedStyle,
                 visible: membership.visible,
             };
+            const memberships = [
+                ...get().memberships.filter((m) => m.id !== membershipId),
+                newMembership,
+            ];
             markDirty({
-                memberships: [
-                    ...get().memberships.filter((m) => m.id !== membershipId),
-                    newMembership,
-                ],
+                memberships,
+                features: withPreservedRules(membership.featureId, memberships),
             });
             return newMembershipId;
         },
@@ -509,7 +622,11 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
                 styleOverride: resolvedStyle,
                 visible: true,
             };
-            markDirty({ memberships: [...get().memberships, newMembership] });
+            const memberships = [...get().memberships, newMembership];
+            markDirty({
+                memberships,
+                features: withPreservedRules(membership.featureId, memberships),
+            });
             return newMembershipId;
         },
 
