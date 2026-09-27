@@ -25,6 +25,7 @@ import {
 
 import type { WorkspaceFeature } from "@/lib/workspace/types";
 import {
+    FREEHAND_DRAW_MODES,
     geoJsonTypeToFeatureType,
     simplifyFreehandGeometry,
     workspaceTypeToTerraDrawMode,
@@ -48,7 +49,6 @@ const TOOLBAR_MODES = [
 ] as const;
 
 const CLICK_TO_ADD_MODES = new Set(["polygon", "linestring"]);
-const FREEHAND_DRAW_MODES = new Set(["freehand", "freehand-linestring"]);
 
 export interface DrawToolbarProps {
     map: maplibregl.Map | null;
@@ -58,6 +58,7 @@ export interface DrawToolbarProps {
     finishEditSignal: number;
     cancelEditSignal: number;
     onModeChange?: (mode: string) => void;
+    onDrawingChange?: (isDrawing: boolean) => void;
     onFeatureDrawn?: (membershipId: string) => void;
     trailing?: ReactNode;
 }
@@ -70,16 +71,22 @@ export function DrawToolbar({
     finishEditSignal,
     cancelEditSignal,
     onModeChange,
+    onDrawingChange,
     onFeatureDrawn,
     trailing,
 }: DrawToolbarProps) {
     const drawRef = useRef<TerraDraw | null>(null);
     const [instanceKey] = useState(() => crypto.randomUUID());
     const [activeMode, setActiveMode] = useState<string>("select");
+    const [isDrawingStroke, setIsDrawingStroke] = useState(false);
     const onModeChangeRef = useRef(onModeChange);
     useEffect(() => {
         onModeChangeRef.current = onModeChange;
     }, [onModeChange]);
+    const onDrawingChangeRef = useRef(onDrawingChange);
+    useEffect(() => {
+        onDrawingChangeRef.current = onDrawingChange;
+    }, [onDrawingChange]);
     const onFeatureDrawnRef = useRef(onFeatureDrawn);
     useEffect(() => {
         onFeatureDrawnRef.current = onFeatureDrawn;
@@ -88,6 +95,12 @@ export function DrawToolbar({
     function updateActiveMode(mode: string) {
         setActiveMode(mode);
         onModeChangeRef.current?.(mode);
+        updateDrawingStroke(false);
+    }
+
+    function updateDrawingStroke(isDrawing: boolean) {
+        setIsDrawingStroke(isDrawing);
+        onDrawingChangeRef.current?.(isDrawing);
     }
     const [isFreehandMenuOpen, setIsFreehandMenuOpen] = useState(false);
     const freehandRef = useRef<HTMLDivElement>(null);
@@ -126,8 +139,25 @@ export function DrawToolbar({
         endEditingSession();
     }
 
+    function isFreehandCurrentlyDrawing() {
+        const draw = drawRef.current;
+        if (!draw || !FREEHAND_DRAW_MODES.has(draw.getMode())) return false;
+        return draw
+            .getSnapshot()
+            .some((feature) => feature.properties?.currentlyDrawing === true);
+    }
+
     useEffect(() => {
         if (!map) return undefined;
+
+        const freehandPointerEvents = {
+            rightClick: true,
+            contextMenu: false,
+            leftClick: () => !isFreehandCurrentlyDrawing(),
+            onDragStart: true,
+            onDrag: true,
+            onDragEnd: true,
+        };
 
         const draw = new TerraDraw({
             adapter: new TerraDrawMapLibreGLAdapter({
@@ -149,8 +179,12 @@ export function DrawToolbar({
                 new TerraDrawFreehandMode({
                     minDistance: 2,
                     pointerDistance: 0,
+                    pointerEvents: freehandPointerEvents,
                 }),
-                new TerraDrawFreehandLineStringMode({ minDistance: 2 }),
+                new TerraDrawFreehandLineStringMode({
+                    minDistance: 2,
+                    pointerEvents: freehandPointerEvents,
+                }),
                 new TerraDrawRectangleMode(),
                 new TerraDrawCircleMode(),
                 new TerraDrawSelectMode({
@@ -176,6 +210,10 @@ export function DrawToolbar({
 
         draw.start();
         draw.setMode("select");
+
+        draw.on("change", () => {
+            updateDrawingStroke(isFreehandCurrentlyDrawing());
+        });
 
         draw.on("finish", (id, context) => {
             const snapshot = draw.getSnapshot();
@@ -227,6 +265,24 @@ export function DrawToolbar({
 
     useEffect(() => {
         if (!map) return undefined;
+        const zoomHandlers = [
+            map.scrollZoom,
+            map.doubleClickZoom,
+            map.boxZoom,
+            map.touchZoomRotate,
+        ];
+        if (isDrawingStroke) {
+            zoomHandlers.forEach((handler) => handler.disable());
+        } else {
+            zoomHandlers.forEach((handler) => handler.enable());
+        }
+        return () => {
+            zoomHandlers.forEach((handler) => handler.enable());
+        };
+    }, [map, isDrawingStroke]);
+
+    useEffect(() => {
+        if (!map) return undefined;
         const canvas = map.getCanvas();
 
         function handleContextMenu(event: MouseEvent) {
@@ -239,37 +295,6 @@ export function DrawToolbar({
         canvas.addEventListener("contextmenu", handleContextMenu);
         return () =>
             canvas.removeEventListener("contextmenu", handleContextMenu);
-    }, [map]);
-
-    useEffect(() => {
-        if (!map) return undefined;
-        const canvas = map.getCanvas();
-
-        function blockWhileDrawing(event: PointerEvent) {
-            const draw = drawRef.current;
-            if (!draw || !FREEHAND_DRAW_MODES.has(draw.getMode())) return;
-            const isDrawing = draw
-                .getSnapshot()
-                .some(
-                    (feature) => feature.properties?.currentlyDrawing === true,
-                );
-            if (isDrawing) event.stopImmediatePropagation();
-        }
-
-        canvas.addEventListener("pointerdown", blockWhileDrawing, {
-            capture: true,
-        });
-        canvas.addEventListener("pointerup", blockWhileDrawing, {
-            capture: true,
-        });
-        return () => {
-            canvas.removeEventListener("pointerdown", blockWhileDrawing, {
-                capture: true,
-            });
-            canvas.removeEventListener("pointerup", blockWhileDrawing, {
-                capture: true,
-            });
-        };
     }, [map]);
 
     useEffect(() => {

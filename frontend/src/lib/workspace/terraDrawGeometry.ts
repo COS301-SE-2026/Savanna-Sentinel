@@ -3,6 +3,8 @@ import simplify from "@turf/simplify";
 
 import type { FeatureGeometryType } from "./types";
 
+export const FREEHAND_DRAW_MODES = new Set(["freehand", "freehand-linestring"]);
+
 export function geoJsonTypeToFeatureType(
     geoJsonType: string,
 ): FeatureGeometryType | null {

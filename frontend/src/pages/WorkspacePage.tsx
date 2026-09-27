@@ -56,6 +56,7 @@ export default function WorkspacePage() {
     const [finishEditSignal, setFinishEditSignal] = useState(0);
     const [cancelEditSignal, setCancelEditSignal] = useState(0);
     const [activeDrawMode, setActiveDrawMode] = useState("select");
+    const [isDrawingStroke, setIsDrawingStroke] = useState(false);
     const [isSaving, setSaving] = useState(false);
     const [isConflictOpen, setConflictOpen] = useState(false);
     const lastDrawnAtRef = useRef(-Infinity);
@@ -215,6 +216,7 @@ export default function WorkspacePage() {
                     map={map}
                     defaultCenter={PARK_CENTER_FALLBACK}
                     defaultZoom={DEFAULT_ZOOM}
+                    zoomDisabled={isDrawingStroke}
                 />
                 <HeatmapLayer
                     map={map}
@@ -236,6 +238,7 @@ export default function WorkspacePage() {
                         finishEditSignal={finishEditSignal}
                         cancelEditSignal={cancelEditSignal}
                         onModeChange={setActiveDrawMode}
+                        onDrawingChange={setIsDrawingStroke}
                         onFeatureDrawn={handleFeatureDrawn}
                         trailing={
                             <Button
