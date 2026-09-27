@@ -35,6 +35,10 @@ _UUID = (
 MIN_BUFFER_DISTANCE_M = 1
 MAX_BUFFER_DISTANCE_M = 20000
 DEFAULT_BUFFER_DISTANCE_M = 100
+MIN_RULE_STRENGTH = 0.1
+MAX_RULE_STRENGTH = 1.0
+MIN_RULE_PRIORITY = 1
+MAX_RULE_PRIORITY = 99
 
 
 class WorkspaceStyle(BaseModel):
@@ -62,12 +66,42 @@ class WorkspaceStyle(BaseModel):
         return self.model_dump(exclude_none=True)
 
 
+class WorkspaceRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: Optional[bool] = None
+    strength: Optional[float] = Field(
+        default=None,
+        ge=MIN_RULE_STRENGTH,
+        le=MAX_RULE_STRENGTH,
+    )
+    buffer_decay: Optional[float] = Field(default=None, ge=0, le=1)
+    priority: Optional[int] = Field(
+        default=None,
+        ge=MIN_RULE_PRIORITY,
+        le=MAX_RULE_PRIORITY,
+    )
+
+
+class WorkspaceRules(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    increase_risk: Optional[WorkspaceRule] = None
+    decrease_risk: Optional[WorkspaceRule] = None
+    prefer: Optional[WorkspaceRule] = None
+    avoid: Optional[WorkspaceRule] = None
+
+    def to_stored(self) -> dict[str, Any]:
+        return self.model_dump(exclude_none=True)
+
+
 class WorkspaceLayerPayload(BaseModel):
     id: str = Field(pattern=_UUID)
     name: Optional[str] = Field(default=None, max_length=200)
     parent_id: Optional[str] = Field(default=None, pattern=_UUID)
     order: int = Field(ge=0)
     default_style: WorkspaceStyle = Field(default_factory=WorkspaceStyle)
+    default_rules: WorkspaceRules = Field(default_factory=WorkspaceRules)
 
 
 class WorkspaceFeaturePayload(BaseModel):
@@ -84,6 +118,7 @@ class WorkspaceFeaturePayload(BaseModel):
         ge=MIN_BUFFER_DISTANCE_M,
         le=MAX_BUFFER_DISTANCE_M,
     )
+    rules: WorkspaceRules = Field(default_factory=WorkspaceRules)
 
 
 class WorkspaceMembershipPayload(BaseModel):
@@ -108,6 +143,7 @@ class WorkspaceLayerOut(BaseModel):
     parent_id: Optional[str] = None
     order: int
     default_style: dict[str, Any] = {}
+    default_rules: dict[str, Any] = {}
 
 
 class WorkspaceFeatureOut(BaseModel):
@@ -120,6 +156,7 @@ class WorkspaceFeatureOut(BaseModel):
     in_effect: bool
     buffer_enabled: bool
     buffer_distance_m: float
+    rules: dict[str, Any] = {}
 
 
 class WorkspaceMembershipOut(BaseModel):

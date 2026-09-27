@@ -127,6 +127,7 @@ describe("workspace requests", () => {
             parentId: "l0",
             order: 2,
             defaultStyle: { colour: "#b30000" },
+            defaultRules: {},
         });
         expect(snapshot.features[0].createdAt).toBe("2026-01-01T00:00:00Z");
         expect(snapshot.memberships[0]).toEqual({
@@ -148,6 +149,7 @@ describe("workspace requests", () => {
                     parentId: null,
                     order: 0,
                     defaultStyle: { colour: "#0070bf" },
+                    defaultRules: {},
                 },
             ],
             features: [
@@ -160,6 +162,7 @@ describe("workspace requests", () => {
                     inEffect: true,
                     bufferEnabled: false,
                     bufferDistanceM: 100,
+                    rules: {},
                 },
             ],
             memberships: [
@@ -183,6 +186,7 @@ describe("workspace requests", () => {
                 parent_id: null,
                 order: 0,
                 default_style: { colour: "#0070bf" },
+                default_rules: {},
             },
         ]);
         expect(sent.features[0]).toMatchObject({
@@ -234,6 +238,7 @@ describe("feature buffer and in-effect mapping", () => {
                     parentId: null,
                     order: 0,
                     defaultStyle: {},
+                    defaultRules: {},
                 },
             ],
             features: [
@@ -246,6 +251,7 @@ describe("feature buffer and in-effect mapping", () => {
                     inEffect: false,
                     bufferEnabled: true,
                     bufferDistanceM: 250,
+                    rules: {},
                 },
             ],
             memberships: [
@@ -277,5 +283,93 @@ describe("feature buffer and in-effect mapping", () => {
             bufferEnabled: true,
             bufferDistanceM: 250,
         });
+    });
+});
+
+describe("rule mapping", () => {
+    it("sends and restores feature rules and layer default rules", async () => {
+        const featureId = "11111111-1111-4111-8111-111111111111";
+        const layerId = "22222222-2222-4222-8222-222222222222";
+        const membershipId = "33333333-3333-4333-8333-333333333333";
+
+        const saved = await saveWorkspace(0, {
+            layers: [
+                {
+                    id: layerId,
+                    parentId: null,
+                    order: 0,
+                    defaultStyle: {},
+                    defaultRules: { avoid: { strength: 1, priority: 2 } },
+                },
+            ],
+            features: [
+                {
+                    id: featureId,
+                    type: "point",
+                    geometry: { type: "Point", coordinates: [1, 2] },
+                    createdAt: "2026-01-01T00:00:00Z",
+                    updatedAt: "2026-01-01T00:00:00Z",
+                    inEffect: true,
+                    bufferEnabled: false,
+                    bufferDistanceM: 100,
+                    rules: {
+                        increase_risk: { strength: 0.3, bufferDecay: 0.5 },
+                        decrease_risk: { enabled: false },
+                        prefer: {},
+                    },
+                },
+            ],
+            memberships: [
+                {
+                    id: membershipId,
+                    featureId,
+                    layerId,
+                    order: 0,
+                    styleOverride: {},
+                    visible: true,
+                },
+            ],
+        });
+
+        expect(workspaceState.saveCalls[0].layers[0]).toMatchObject({
+            default_rules: { avoid: { strength: 1, priority: 2 } },
+        });
+        expect(workspaceState.saveCalls[0].features[0]).toMatchObject({
+            rules: {
+                increase_risk: { strength: 0.3, buffer_decay: 0.5 },
+                decrease_risk: { enabled: false },
+                prefer: {},
+            },
+        });
+        expect(saved.layers[0].defaultRules).toEqual({
+            avoid: { strength: 1, priority: 2 },
+        });
+        expect(saved.features[0].rules).toEqual({
+            increase_risk: { strength: 0.3, bufferDecay: 0.5 },
+            decrease_risk: { enabled: false },
+            prefer: {},
+        });
+
+        const fetched = await fetchWorkspace();
+        expect(fetched.features[0].rules).toEqual(saved.features[0].rules);
+    });
+
+    it("treats missing rules from the server as empty", async () => {
+        workspaceState.current = {
+            version: 1,
+            layers: [
+                {
+                    id: "l",
+                    name: null,
+                    parent_id: null,
+                    order: 0,
+                    default_style: {},
+                },
+            ],
+            features: [],
+            memberships: [],
+        };
+        const fetched = await fetchWorkspace();
+        expect(fetched.layers[0].defaultRules).toEqual({});
     });
 });

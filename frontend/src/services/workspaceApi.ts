@@ -1,11 +1,13 @@
 import { api } from "./api";
 import type {
     FeatureGeometryType,
+    FeatureRules,
     FeatureStyle,
     WorkspaceFeature,
     WorkspaceLayer,
     WorkspaceMembership,
 } from "@/lib/workspace/types";
+import { RULE_INTENTS } from "@/lib/workspace/types";
 
 interface ApiStyle {
     colour?: string;
@@ -20,12 +22,22 @@ interface ApiStyle {
     buffer_opacity?: number;
 }
 
+interface ApiRule {
+    enabled?: boolean;
+    strength?: number;
+    buffer_decay?: number;
+    priority?: number;
+}
+
+type ApiRules = Partial<Record<(typeof RULE_INTENTS)[number], ApiRule>>;
+
 interface ApiLayer {
     id: string;
     name: string | null;
     parent_id: string | null;
     order: number;
     default_style: ApiStyle;
+    default_rules: ApiRules;
 }
 
 interface ApiFeature {
@@ -38,6 +50,7 @@ interface ApiFeature {
     in_effect: boolean;
     buffer_enabled: boolean;
     buffer_distance_m: number;
+    rules: ApiRules;
 }
 
 interface ApiMembership {
@@ -110,6 +123,40 @@ export class WorkspaceConflictError extends Error {
     }
 }
 
+export function rulesToApi(rules: FeatureRules): ApiRules {
+    const out: ApiRules = {};
+    for (const intent of RULE_INTENTS) {
+        const rule = rules[intent];
+        if (!rule) continue;
+        const wire: ApiRule = {};
+        if (rule.enabled !== undefined) wire.enabled = rule.enabled;
+        if (rule.strength !== undefined) wire.strength = rule.strength;
+        if (rule.bufferDecay !== undefined)
+            wire.buffer_decay = rule.bufferDecay;
+        if (rule.priority !== undefined) wire.priority = rule.priority;
+        out[intent] = wire;
+    }
+    return out;
+}
+
+export function rulesFromApi(rules: ApiRules | null | undefined): FeatureRules {
+    const out: FeatureRules = {};
+    if (!rules) return out;
+    for (const intent of RULE_INTENTS) {
+        const wire = rules[intent];
+        if (!wire) continue;
+        out[intent] = {
+            ...(wire.enabled !== undefined && { enabled: wire.enabled }),
+            ...(wire.strength !== undefined && { strength: wire.strength }),
+            ...(wire.buffer_decay !== undefined && {
+                bufferDecay: wire.buffer_decay,
+            }),
+            ...(wire.priority !== undefined && { priority: wire.priority }),
+        };
+    }
+    return out;
+}
+
 function fromApi(data: ApiWorkspace): WorkspaceSnapshot {
     return {
         version: data.version,
@@ -119,6 +166,7 @@ function fromApi(data: ApiWorkspace): WorkspaceSnapshot {
             parentId: layer.parent_id,
             order: layer.order,
             defaultStyle: styleFromApi(layer.default_style),
+            defaultRules: rulesFromApi(layer.default_rules),
         })),
         features: data.features.map((feature) => ({
             id: feature.id,
@@ -130,6 +178,7 @@ function fromApi(data: ApiWorkspace): WorkspaceSnapshot {
             inEffect: feature.in_effect,
             bufferEnabled: feature.buffer_enabled,
             bufferDistanceM: feature.buffer_distance_m,
+            rules: rulesFromApi(feature.rules),
         })),
         memberships: data.memberships.map((membership) => ({
             id: membership.id,
@@ -163,6 +212,7 @@ export async function saveWorkspace(
             parent_id: layer.parentId,
             order: layer.order,
             default_style: styleToApi(layer.defaultStyle),
+            default_rules: rulesToApi(layer.defaultRules),
         })),
         features: workspace.features.map((feature) => ({
             id: feature.id,
@@ -174,6 +224,7 @@ export async function saveWorkspace(
             in_effect: feature.inEffect,
             buffer_enabled: feature.bufferEnabled,
             buffer_distance_m: feature.bufferDistanceM,
+            rules: rulesToApi(feature.rules),
         })),
         memberships: workspace.memberships.map((membership) => ({
             id: membership.id,

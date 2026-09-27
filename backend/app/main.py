@@ -14,14 +14,10 @@ from app.api.v1.notifications import router as notifications_router
 from app.api.v1.reports import router as reports_router
 from app.api.v1.risk import router as risk_router
 from app.api.v1.routes import router as routes_router
+from app.api.v1.terrain import router as terrain_router
 from app.api.v1.tipoffs import router as tipoff_router
-
-# As other routers are built, import and include them here:
 from app.api.v1.users import router as users_router
 from app.api.v1.workspace import router as workspace_router
-
-# As other routers are built, import and include them here:
-# from app.api.v1.reports import router as reports_router
 from app.core.config import settings
 
 
@@ -40,8 +36,6 @@ app = FastAPI(
     docs_url="/v1/docs",
 )
 
-# CORS
-# Dev servers are always allowed, FRONTEND_ORIGIN adds the deployed origin.
 allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
 if settings.FRONTEND_ORIGIN:
     allowed_origins.append(settings.FRONTEND_ORIGIN)
@@ -54,7 +48,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routers
 app.include_router(auth_router, prefix="/v1")
 app.include_router(users_router, prefix="/v1")
 app.include_router(routes_router, prefix="/v1")
@@ -68,6 +61,7 @@ app.include_router(tipoff_router, prefix="/v1")
 app.include_router(dashboard_router, prefix="/v1")
 app.include_router(notifications_router, prefix="/v1")
 app.include_router(workspace_router, prefix="/v1")
+app.include_router(terrain_router, prefix="/v1")
 
 
 @app.get("/v1/health", tags=["health"])

@@ -129,6 +129,7 @@ describe("DrawToolbar", () => {
                     inEffect: true,
                     bufferEnabled: false,
                     bufferDistanceM: 100,
+                    rules: {},
                 }}
                 onEditingFeatureHandled={onEditingFeatureHandled}
                 finishEditSignal={0}
@@ -195,6 +196,7 @@ describe("DrawToolbar", () => {
                     inEffect: true,
                     bufferEnabled: false,
                     bufferDistanceM: 100,
+                    rules: {},
                 }}
                 onEditingFeatureHandled={onEditingFeatureHandled}
                 finishEditSignal={0}
@@ -237,6 +239,7 @@ describe("DrawToolbar", () => {
                     inEffect: true,
                     bufferEnabled: false,
                     bufferDistanceM: 100,
+                    rules: {},
                 }}
                 onEditingFeatureHandled={onEditingFeatureHandled}
                 finishEditSignal={0}
@@ -290,6 +293,7 @@ describe("DrawToolbar", () => {
             inEffect: true,
             bufferEnabled: false,
             bufferDistanceM: 100,
+            rules: {},
         };
         const { container, rerender } = render(
             <DrawToolbar
@@ -357,6 +361,7 @@ describe("DrawToolbar", () => {
             inEffect: true,
             bufferEnabled: false,
             bufferDistanceM: 100,
+            rules: {},
         };
         const { container, rerender } = render(
             <DrawToolbar
@@ -930,6 +935,7 @@ describe("DrawToolbar", () => {
             inEffect: true,
             bufferEnabled: false,
             bufferDistanceM: 100,
+            rules: {},
         };
         const { container, rerender } = render(
             <DrawToolbar
@@ -982,6 +988,7 @@ describe("DrawToolbar", () => {
                     inEffect: true,
                     bufferEnabled: false,
                     bufferDistanceM: 100,
+                    rules: {},
                 }}
                 onEditingFeatureHandled={vi.fn()}
                 finishEditSignal={0}

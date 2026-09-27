@@ -17,6 +17,7 @@ import {
 import type { FeatureStyle } from "@/lib/workspace/types";
 import { IconPicker } from "./IconPicker";
 import { ColourPickerPopover } from "./ColourPickerPopover";
+import { BehaviourSection } from "./BehaviourSection";
 import { BufferSection } from "./BufferSection";
 import { BufferStyleFields } from "./BufferStyleFields";
 import { InEffectSection } from "./InEffectSection";
@@ -116,6 +117,9 @@ export function StyleEditorPanel({
                         }
                     />
                 </div>
+                <BehaviourSection
+                    target={{ kind: "layer", layerId: layer.id }}
+                />
             </div>
         );
     }
@@ -166,27 +170,37 @@ export function StyleEditorPanel({
 
             <BufferSection feature={feature} membership={membership} />
 
-            <div className="flex gap-2 border-t border-color-border p-3">
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onToggleEditGeometry(feature.id)}
-                >
-                    {editingFeatureId === feature.id
-                        ? "Finish editing (Enter)"
-                        : "Edit geometry"}
-                </Button>
-                {editingFeatureId === feature.id && (
+            <BehaviourSection
+                target={{ kind: "feature", featureId: feature.id }}
+            />
+
+            <div className="flex flex-col gap-3 border-t border-color-border p-3">
+                <p className="text-sm font-semibold text-color-text-primary">
+                    Modifications
+                </p>
+                <InEffectSection featureId={feature.id} />
+                <div className="flex gap-2">
                     <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={onCancelEditGeometry}
+                        onClick={() => onToggleEditGeometry(feature.id)}
                     >
-                        Cancel (Esc)
+                        {editingFeatureId === feature.id
+                            ? "Finish editing (Enter)"
+                            : "Edit geometry"}
                     </Button>
-                )}
+                    {editingFeatureId === feature.id && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={onCancelEditGeometry}
+                        >
+                            Cancel (Esc)
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {featureMemberships.length > 1 && (
@@ -207,8 +221,6 @@ export function StyleEditorPanel({
                     </ul>
                 </div>
             )}
-
-            <InEffectSection featureId={feature.id} />
         </div>
     );
 }

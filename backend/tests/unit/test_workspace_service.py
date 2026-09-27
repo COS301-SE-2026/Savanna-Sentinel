@@ -6,6 +6,8 @@ from pydantic import ValidationError
 
 from app.schemas.workspace import (
     WorkspaceFeaturePayload,
+    WorkspaceLayerPayload,
+    WorkspaceRules,
     WorkspaceSaveRequest,
     WorkspaceStyle,
 )
@@ -379,3 +381,156 @@ async def test_save_forwards_the_buffer_and_in_effect_fields():
     assert stored["in_effect"] is False
     assert stored["buffer_enabled"] is True
     assert stored["buffer_distance_m"] == 250.0
+
+
+def test_rules_default_to_empty_on_features_and_layers():
+    feature = _feature_payload()
+    layer = WorkspaceLayerPayload(id=str(uuid.uuid4()), order=0)
+
+    assert feature.rules.to_stored() == {}
+    assert layer.default_rules.to_stored() == {}
+
+
+def test_a_rule_stores_only_the_properties_that_were_set():
+    rules = WorkspaceRules(avoid={"strength": 1.0, "priority": 3})
+
+    assert rules.to_stored() == {"avoid": {"strength": 1.0, "priority": 3}}
+
+
+def test_an_empty_rule_still_counts_as_defined():
+    assert WorkspaceRules(prefer={}).to_stored() == {"prefer": {}}
+
+
+def test_a_feature_can_hold_all_four_intents_at_once():
+    rules = WorkspaceRules(
+        increase_risk={"strength": 0.3},
+        decrease_risk={"strength": 0.8, "priority": 2},
+        prefer={},
+        avoid={"enabled": False},
+    )
+
+    assert set(rules.to_stored()) == {
+        "increase_risk",
+        "decrease_risk",
+        "prefer",
+        "avoid",
+    }
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        {"strength": 0.05},
+        {"strength": 1.5},
+        {"buffer_decay": -0.1},
+        {"buffer_decay": 1.1},
+        {"priority": 0},
+        {"priority": 100},
+        {"priority": 2.5},
+        {"unknown": 1},
+    ],
+)
+def test_invalid_rule_values_are_rejected(rule):
+    with pytest.raises(ValidationError):
+        WorkspaceRules(avoid=rule)
+
+
+def test_an_unknown_intent_is_rejected():
+    with pytest.raises(ValidationError):
+        WorkspaceRules(sneak={"strength": 0.5})
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        {"strength": 0.1},
+        {"strength": 1.0},
+        {"buffer_decay": 0},
+        {"buffer_decay": 1},
+        {"priority": 1},
+        {"priority": 99},
+        {"enabled": False},
+    ],
+)
+def test_boundary_rule_values_are_accepted(rule):
+    assert WorkspaceRules(avoid=rule).to_stored() == {"avoid": rule}
+
+
+@pytest.mark.asyncio
+async def test_save_forwards_feature_rules_and_layer_default_rules():
+    repo = FakeWorkspaceRepo()
+    base = _request()
+    layer = {
+        **base.layers[0].model_dump(),
+        "default_rules": {"avoid": {"strength": 1.0}},
+    }
+    feature = {
+        **base.features[0].model_dump(),
+        "rules": {"increase_risk": {"priority": 2}},
+    }
+    request = _request(
+        layers=[layer],
+        features=[feature],
+        memberships=[m.model_dump() for m in base.memberships],
+    )
+
+    await WorkspaceService(repo).save_workspace("user-1", request)
+
+    assert repo.replaced["layers"][0]["default_rules"] == {
+        "avoid": {"strength": 1.0},
+    }
+    assert repo.replaced["features"][0]["rules"] == {
+        "increase_risk": {"priority": 2},
+    }
+
+
+class FakeTerrain:
+    def __init__(self):
+        self.snapshots = []
+
+    async def on_workspace_saved(self, snapshot):
+        self.snapshots.append(snapshot)
+        return True
+
+
+@pytest.mark.asyncio
+async def test_a_successful_save_tells_the_terrain_service():
+    repo = FakeWorkspaceRepo()
+    terrain = FakeTerrain()
+
+    await WorkspaceService(repo, terrain).save_workspace("user-1", _request())
+
+    assert len(terrain.snapshots) == 1
+    assert {"layers", "features", "memberships"} <= set(terrain.snapshots[0])
+
+
+@pytest.mark.asyncio
+async def test_a_conflicting_save_does_not_tell_the_terrain_service():
+    repo = FakeWorkspaceRepo(version=3, conflict=True)
+    terrain = FakeTerrain()
+
+    with pytest.raises(HTTPException):
+        await WorkspaceService(repo, terrain).save_workspace(
+            "user-1",
+            _request(),
+        )
+
+    assert terrain.snapshots == []
+
+
+class BrokenTerrain:
+    async def on_workspace_saved(self, snapshot):
+        raise RuntimeError("terrain is down")
+
+
+@pytest.mark.asyncio
+async def test_a_terrain_failure_does_not_fail_a_committed_save():
+    repo = FakeWorkspaceRepo()
+
+    result = await WorkspaceService(repo, BrokenTerrain()).save_workspace(
+        "user-1",
+        _request(),
+    )
+
+    assert result is not None
+    assert repo.replaced is not None

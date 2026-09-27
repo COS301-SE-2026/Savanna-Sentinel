@@ -607,3 +607,184 @@ describe("feature buffer", () => {
         },
     );
 });
+
+describe("rules", () => {
+    function drawOne() {
+        const { addLayer, setActiveLayer, drawFeature } =
+            useWorkspaceStore.getState();
+        const layerId = addLayer("Water", null);
+        setActiveLayer(layerId);
+        const created = drawFeature("point", {
+            type: "Point",
+            coordinates: [0, 0],
+        })!;
+        return { layerId, ...created };
+    }
+
+    it("starts new layers and drawn features with no rules", () => {
+        const { layerId, featureId } = drawOne();
+        const state = useWorkspaceStore.getState();
+        expect(
+            state.layers.find((l) => l.id === layerId)?.defaultRules,
+        ).toEqual({});
+        expect(state.features.find((f) => f.id === featureId)?.rules).toEqual(
+            {},
+        );
+    });
+
+    it("sets a feature rule for an intent, creating it, and merges later patches", () => {
+        const { featureId } = drawOne();
+        const { setFeatureRule } = useWorkspaceStore.getState();
+        setFeatureRule(featureId, "avoid", { enabled: true });
+        setFeatureRule(featureId, "avoid", { strength: 0.8 });
+
+        const feature = useWorkspaceStore
+            .getState()
+            .features.find((f) => f.id === featureId);
+        expect(feature?.rules).toEqual({
+            avoid: { enabled: true, strength: 0.8 },
+        });
+        expect(useWorkspaceStore.getState().hasUnsavedChanges).toBe(true);
+    });
+
+    it("holds several intents on one feature at once", () => {
+        const { featureId } = drawOne();
+        const { setFeatureRule } = useWorkspaceStore.getState();
+        setFeatureRule(featureId, "increase_risk", { strength: 0.3 });
+        setFeatureRule(featureId, "decrease_risk", { strength: 0.8 });
+
+        const rules = useWorkspaceStore
+            .getState()
+            .features.find((f) => f.id === featureId)?.rules;
+        expect(Object.keys(rules ?? {})).toEqual([
+            "increase_risk",
+            "decrease_risk",
+        ]);
+    });
+
+    it.each([
+        { strength: 0.05 },
+        { strength: 2 },
+        { bufferDecay: -1 },
+        { priority: 0 },
+        { priority: 2.5 },
+    ])("ignores the invalid patch %j", (patch) => {
+        const { featureId } = drawOne();
+        useWorkspaceStore.getState().setFeatureRule(featureId, "avoid", patch);
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === featureId)?.rules,
+        ).toEqual({});
+    });
+
+    it("clears one property of a feature rule and keeps the rest", () => {
+        const { featureId } = drawOne();
+        const { setFeatureRule, clearFeatureRuleProperty } =
+            useWorkspaceStore.getState();
+        setFeatureRule(featureId, "avoid", { strength: 0.8, priority: 3 });
+        clearFeatureRuleProperty(featureId, "avoid", "strength");
+
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === featureId)?.rules,
+        ).toEqual({ avoid: { priority: 3 } });
+    });
+
+    it("sets and clears layer default rules", () => {
+        const { layerId } = drawOne();
+        const { setLayerDefaultRule, clearLayerDefaultRuleProperty } =
+            useWorkspaceStore.getState();
+        setLayerDefaultRule(layerId, "prefer", { strength: 0.9, priority: 2 });
+        clearLayerDefaultRuleProperty(layerId, "prefer", "priority");
+
+        expect(
+            useWorkspaceStore.getState().layers.find((l) => l.id === layerId)
+                ?.defaultRules,
+        ).toEqual({ prefer: { strength: 0.9 } });
+    });
+
+    it("a moved feature keeps the rule it inherited from its old layer", () => {
+        const { layerId, featureId, membershipId } = drawOne();
+        const { addLayer, setLayerDefaultRule, moveFeatureToLayer } =
+            useWorkspaceStore.getState();
+        setLayerDefaultRule(layerId, "avoid", { strength: 0.9, priority: 4 });
+        const otherId = addLayer("Other", null);
+        moveFeatureToLayer(membershipId, otherId);
+
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === featureId)?.rules,
+        ).toEqual({
+            avoid: {
+                enabled: true,
+                strength: 0.9,
+                bufferDecay: 0,
+                priority: 4,
+            },
+        });
+    });
+
+    it("a moved feature is not given a rule its new layer defines", () => {
+        const { featureId, membershipId } = drawOne();
+        const { addLayer, setLayerDefaultRule, moveFeatureToLayer } =
+            useWorkspaceStore.getState();
+        const otherId = addLayer("Other", null);
+        setLayerDefaultRule(otherId, "increase_risk", { strength: 1 });
+        moveFeatureToLayer(membershipId, otherId);
+
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === featureId)?.rules,
+        ).toEqual({ increase_risk: { enabled: false } });
+    });
+
+    it("a duplicated feature keeps its rules when the copy sits in a layer that ranks first", () => {
+        const { layerId, featureId, membershipId } = drawOne();
+        const { addLayer, setLayerDefaultRule, duplicateFeatureToLayer } =
+            useWorkspaceStore.getState();
+        setLayerDefaultRule(layerId, "prefer", { strength: 0.6 });
+        const firstId = addLayer("First", null);
+        useWorkspaceStore.getState().reorderLayer(null, [firstId, layerId]);
+        setLayerDefaultRule(firstId, "prefer", { strength: 1 });
+        duplicateFeatureToLayer(membershipId, firstId);
+
+        const feature = useWorkspaceStore
+            .getState()
+            .features.find((f) => f.id === featureId);
+        expect(feature?.rules.prefer?.strength).toBe(0.6);
+    });
+
+    it("moving a feature whose rules would not change leaves them untouched", () => {
+        const { featureId, membershipId } = drawOne();
+        const { addLayer, moveFeatureToLayer } = useWorkspaceStore.getState();
+        const before = useWorkspaceStore
+            .getState()
+            .features.find((f) => f.id === featureId)?.rules;
+        moveFeatureToLayer(membershipId, addLayer("Other", null));
+
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === featureId)?.rules,
+        ).toBe(before);
+    });
+
+    it("a feature moved between layers keeps its own rules", () => {
+        const { featureId, membershipId } = drawOne();
+        const { addLayer, setFeatureRule, moveFeatureToLayer } =
+            useWorkspaceStore.getState();
+        setFeatureRule(featureId, "avoid", { strength: 0.7 });
+        const otherId = addLayer("Other", null);
+        moveFeatureToLayer(membershipId, otherId);
+
+        expect(
+            useWorkspaceStore
+                .getState()
+                .features.find((f) => f.id === featureId)?.rules,
+        ).toEqual({ avoid: { strength: 0.7 } });
+    });
+});

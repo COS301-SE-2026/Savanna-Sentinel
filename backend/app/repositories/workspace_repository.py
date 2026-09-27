@@ -104,6 +104,7 @@ class WorkspaceRepository:
                     ),
                     "order": row["display_order"],
                     "default_style": row["default_style"] or {},
+                    "default_rules": row["default_rules"] or {},
                 }
                 for row in layer_rows
             ],
@@ -116,6 +117,7 @@ class WorkspaceRepository:
                     "in_effect": row["in_effect"],
                     "buffer_enabled": row["buffer_enabled"],
                     "buffer_distance_m": row["buffer_distance_m"],
+                    "rules": row["rules"] or {},
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
                 }
@@ -133,6 +135,50 @@ class WorkspaceRepository:
                         if row["visible"] is None
                         else row["visible"]
                     ),
+                }
+                for row in membership_rows
+            ],
+        }
+
+    async def load_snapshot(self) -> dict[str, Any]:
+        layer_rows = (await self.db.execute(select(_layers))).mappings().all()
+        feature_rows = (
+            (await self.db.execute(select(_features))).mappings().all()
+        )
+        membership_rows = (
+            (await self.db.execute(select(_memberships))).mappings().all()
+        )
+
+        return {
+            "layers": [
+                {
+                    "id": str(row["id"]),
+                    "parent_id": (
+                        str(row["parent_id"]) if row["parent_id"] else None
+                    ),
+                    "order": row["display_order"],
+                    "default_rules": row["default_rules"] or {},
+                }
+                for row in layer_rows
+            ],
+            "features": [
+                {
+                    "id": str(row["id"]),
+                    "type": row["feature_type"],
+                    "geometry": row["geometry"],
+                    "in_effect": row["in_effect"],
+                    "buffer_enabled": row["buffer_enabled"],
+                    "buffer_distance_m": row["buffer_distance_m"],
+                    "rules": row["rules"] or {},
+                }
+                for row in feature_rows
+            ],
+            "memberships": [
+                {
+                    "id": str(row["id"]),
+                    "feature_id": str(row["feature_id"]),
+                    "layer_id": str(row["layer_id"]),
+                    "order": row["display_order"],
                 }
                 for row in membership_rows
             ],
@@ -216,6 +262,7 @@ class WorkspaceRepository:
                     "parent_id": stmt.excluded.parent_id,
                     "display_order": stmt.excluded.display_order,
                     "default_style": stmt.excluded.default_style,
+                    "default_rules": stmt.excluded.default_rules,
                 },
             ),
             [
@@ -225,6 +272,7 @@ class WorkspaceRepository:
                     "parent_id": None,
                     "display_order": layer["order"],
                     "default_style": layer["default_style"],
+                    "default_rules": layer["default_rules"],
                 }
                 for layer in layers
             ],
@@ -258,6 +306,7 @@ class WorkspaceRepository:
                     "in_effect": stmt.excluded.in_effect,
                     "buffer_enabled": stmt.excluded.buffer_enabled,
                     "buffer_distance_m": stmt.excluded.buffer_distance_m,
+                    "rules": stmt.excluded.rules,
                     "updated_at": stmt.excluded.updated_at,
                 },
             ),
@@ -270,6 +319,7 @@ class WorkspaceRepository:
                     "in_effect": feature["in_effect"],
                     "buffer_enabled": feature["buffer_enabled"],
                     "buffer_distance_m": feature["buffer_distance_m"],
+                    "rules": feature["rules"],
                     "created_at": feature["created_at"],
                     "updated_at": feature["updated_at"],
                 }

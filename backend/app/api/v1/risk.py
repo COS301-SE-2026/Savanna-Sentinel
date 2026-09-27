@@ -34,6 +34,7 @@ from app.services.risk_service import (
     trigger_training_job,
     validate_boundaries,
 )
+from app.services.terrain_service import enqueue_recompute_quietly
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 
@@ -67,6 +68,7 @@ async def upload_geojson(
     content = await file.read()
 
     validate_boundaries(content)
+    enqueue_recompute_quietly()
 
 
 @router.get(

@@ -1,11 +1,13 @@
 import {
     render,
     screen,
+    act,
     cleanup,
     waitFor,
     fireEvent,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { setupServer } from "msw/node";
 import {
     describe,
@@ -72,6 +74,17 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
+function renderWorkspace() {
+    const router = createMemoryRouter(
+        [
+            { path: "/workspace", element: <WorkspacePage /> },
+            { path: "/other", element: <p>Other page</p> },
+        ],
+        { initialEntries: ["/workspace"] },
+    );
+    return { router, ...render(<RouterProvider router={router} />) };
+}
+
 describe("navLinks", () => {
     it("includes a Workspace entry restricted to analyst and admin", () => {
         const entry = NAV_ITEMS.find((item) => item.path === "/workspace");
@@ -83,7 +96,7 @@ describe("navLinks", () => {
 describe("WorkspacePage", () => {
     it("renders the layer tree and draw toolbar on desktop", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         expect(await screen.findByText("Layers")).toBeInTheDocument();
         expect(
@@ -96,7 +109,7 @@ describe("WorkspacePage", () => {
 
     it("hides editing affordances and the draw toolbar on mobile", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(true);
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         expect(await screen.findByText("Layers")).toBeInTheDocument();
         expect(
@@ -115,12 +128,55 @@ describe("WorkspacePage", () => {
             .getState()
             .drawFeature("point", { type: "Point", coordinates: [0, 0] });
 
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         const featureRow = await screen.findByText("Point");
         await userEvent.click(featureRow);
 
         expect(await screen.findByText("Point feature")).toBeInTheDocument();
+    });
+
+    it("makes the layer of a feature selected in the tree the active layer", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const { addLayer, setActiveLayer, drawFeature } =
+            useWorkspaceStore.getState();
+        const waterId = addLayer("Water", null);
+        const roadsId = addLayer("Roads", null);
+        setActiveLayer(waterId);
+        drawFeature("point", { type: "Point", coordinates: [0, 0] });
+        setActiveLayer(roadsId);
+
+        renderWorkspace();
+        await userEvent.click(await screen.findByText("Point"));
+
+        expect(useWorkspaceStore.getState().activeLayerId).toBe(waterId);
+    });
+
+    it("makes the layer of a feature clicked on the map the active layer", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const { addLayer, setActiveLayer, drawFeature } =
+            useWorkspaceStore.getState();
+        const waterId = addLayer("Water", null);
+        const roadsId = addLayer("Roads", null);
+        setActiveLayer(waterId);
+        const created = drawFeature("point", {
+            type: "Point",
+            coordinates: [0, 0],
+        });
+        setActiveLayer(roadsId);
+        const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
+
+        renderWorkspace();
+        await waitFor(() => expect(addLayerSpy).toHaveBeenCalled());
+        const map = addLayerSpy.mock.instances[0] as unknown as FakeMap;
+        map.queryRenderedFeaturesResult = [
+            { properties: { id: created!.featureId } },
+        ];
+        map.fireClick({ lng: 0, lat: 0 });
+
+        await waitFor(() =>
+            expect(useWorkspaceStore.getState().activeLayerId).toBe(waterId),
+        );
     });
 
     it("blocks selecting a different feature from the tree while an edit session is active", async () => {
@@ -137,7 +193,7 @@ describe("WorkspacePage", () => {
             .getState()
             .renameFeature(second!.featureId, "Second point");
 
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         await userEvent.click(await screen.findByText("Point"));
         await userEvent.click(
@@ -166,7 +222,7 @@ describe("WorkspacePage", () => {
             .getState()
             .renameFeature(created!.featureId, "My point");
 
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         await userEvent.click(
             await screen.findByRole("button", { name: "Point" }),
@@ -188,7 +244,7 @@ describe("WorkspacePage", () => {
             .renameFeature(created!.featureId, "My point");
         const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
 
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         await waitFor(() => expect(addLayerSpy).toHaveBeenCalled());
         const map = addLayerSpy.mock.instances[0] as unknown as FakeMap;
@@ -222,7 +278,7 @@ describe("WorkspacePage", () => {
             .renameFeature(created!.featureId, "My point");
         const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
 
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         await waitFor(() => expect(addLayerSpy).toHaveBeenCalled());
         const map = addLayerSpy.mock.instances[0] as unknown as FakeMap;
@@ -248,7 +304,7 @@ describe("WorkspacePage", () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
         const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
 
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         await waitFor(() => {
             const ids = addLayerSpy.mock.calls.map(
@@ -267,7 +323,7 @@ describe("WorkspacePage", () => {
 
     it("shows a loading pill while the grid is loading, then hides it", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         expect(screen.getByText(/loading/i)).toBeInTheDocument();
         await waitFor(() =>
@@ -277,7 +333,7 @@ describe("WorkspacePage", () => {
 
     it("does not show the risk legend", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         await screen.findByText("Layers");
         expect(
@@ -289,7 +345,7 @@ describe("WorkspacePage", () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
         const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
 
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         await waitFor(() => {
             const ids = addLayerSpy.mock.calls.map(
@@ -315,7 +371,7 @@ describe("WorkspacePage", () => {
 
     it("disables the Save button until there are unsaved changes", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         expect(
             await screen.findByRole("button", { name: /save/i }),
@@ -328,9 +384,75 @@ describe("WorkspacePage", () => {
         ).toBeEnabled();
     });
 
+    it("asks the browser to confirm leaving only while there are unsaved changes", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        renderWorkspace();
+        await screen.findByRole("button", { name: /save/i });
+
+        const leave = () => {
+            const event = new Event("beforeunload", { cancelable: true });
+            window.dispatchEvent(event);
+            return event.defaultPrevented;
+        };
+        expect(leave()).toBe(false);
+
+        act(() => {
+            useWorkspaceStore.getState().addLayer("Water", null);
+        });
+        expect(leave()).toBe(true);
+    });
+
+    it("lets you navigate away freely when there are no unsaved changes", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const { router } = renderWorkspace();
+        await screen.findByRole("button", { name: /save/i });
+
+        await act(() => router.navigate("/other"));
+
+        expect(screen.getByText("Other page")).toBeVisible();
+    });
+
+    it("asks before navigating away with unsaved changes, and Stay keeps you on the page", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const { router } = renderWorkspace();
+        await screen.findByRole("button", { name: /save/i });
+        act(() => {
+            useWorkspaceStore.getState().addLayer("Water", null);
+        });
+
+        await act(() => router.navigate("/other"));
+        const dialog = await screen.findByRole("dialog", {
+            name: "Unsaved changes",
+        });
+        await userEvent.click(screen.getByRole("button", { name: "Stay" }));
+
+        await waitFor(() => expect(dialog).not.toBeInTheDocument());
+        expect(router.state.location.pathname).toBe("/workspace");
+    });
+
+    it("Discard and leave continues to the page you were heading to and drops the unsaved edits", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const { router } = renderWorkspace();
+        await screen.findByRole("button", { name: /save/i });
+        act(() => {
+            useWorkspaceStore.getState().addLayer("Water", null);
+        });
+
+        await act(() => router.navigate("/other"));
+        await userEvent.click(
+            await screen.findByRole("button", { name: "Discard and leave" }),
+        );
+
+        expect(await screen.findByText("Other page")).toBeVisible();
+        const state = useWorkspaceStore.getState();
+        expect(state.hasUnsavedChanges).toBe(false);
+        expect(state.layers).toEqual([]);
+        expect(state.status).toBe("idle");
+    });
+
     it("sends the workspace to the server and confirms when Save is clicked", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
-        render(<WorkspacePage />);
+        renderWorkspace();
         useWorkspaceStore.getState().addLayer("Water", null);
 
         await userEvent.click(
@@ -361,7 +483,7 @@ describe("WorkspacePage", () => {
             memberships: [],
         };
 
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         expect(await screen.findByText("Waterholes")).toBeInTheDocument();
         expect(useWorkspaceStore.getState().version).toBe(2);
@@ -370,7 +492,7 @@ describe("WorkspacePage", () => {
     it("offers to load the latest version when somebody else saved first", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
         vi.mocked(notifySafe).mockClear();
-        render(<WorkspacePage />);
+        renderWorkspace();
         useWorkspaceStore.getState().addLayer("Mine", null);
         workspaceState.current = {
             version: 5,
@@ -408,7 +530,7 @@ describe("WorkspacePage", () => {
 
     it("hides the Save button on mobile", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(true);
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         expect(await screen.findByText("Layers")).toBeInTheDocument();
         expect(
@@ -435,7 +557,7 @@ describe("WorkspacePage", () => {
             .toggleMembershipVisibility(created!.membershipId, false);
         const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
 
-        render(<WorkspacePage />);
+        renderWorkspace();
 
         await waitFor(() => expect(addLayerSpy).toHaveBeenCalled());
         const map = addLayerSpy.mock.instances[0] as unknown as FakeMap;
@@ -460,7 +582,7 @@ describe("WorkspacePage", () => {
     it("shows an error toast and keeps the Save button enabled when the server rejects the save", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
         vi.mocked(notifySafe).mockClear();
-        render(<WorkspacePage />);
+        renderWorkspace();
         useWorkspaceStore.getState().addLayer("Water", null);
         workspaceState.failSave = true;
 

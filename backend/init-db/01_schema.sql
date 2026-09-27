@@ -310,7 +310,8 @@ CREATE TABLE workspace_layers (
     name          TEXT,
     parent_id     UUID  REFERENCES workspace_layers(id) ON DELETE CASCADE,
     display_order INT   NOT NULL,
-    default_style JSONB NOT NULL DEFAULT '{}'::jsonb
+    default_style JSONB NOT NULL DEFAULT '{}'::jsonb,
+    default_rules JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE INDEX workspace_layers_parent_idx ON workspace_layers (parent_id);
@@ -324,6 +325,7 @@ CREATE TABLE workspace_features (
     buffer_enabled    BOOLEAN                NOT NULL DEFAULT FALSE,
     buffer_distance_m DOUBLE PRECISION       NOT NULL DEFAULT 100
         CHECK (buffer_distance_m BETWEEN 1 AND 20000),
+    rules             JSONB                  NOT NULL DEFAULT '{}'::jsonb,
     created_at        TIMESTAMPTZ            NOT NULL DEFAULT NOW(),
     updated_at        TIMESTAMPTZ            NOT NULL DEFAULT NOW()
 );
@@ -344,4 +346,18 @@ CREATE TABLE workspace_membership_visibility (
     user_id       UUID    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     visible       BOOLEAN NOT NULL,
     PRIMARY KEY (membership_id, user_id)
+);
+
+CREATE TABLE terrain_cell_effects (
+    cell_ref         TEXT             PRIMARY KEY,
+    risk_delta       DOUBLE PRECISION NOT NULL,
+    route_multiplier DOUBLE PRECISION NOT NULL
+);
+
+CREATE TABLE terrain_effects_meta (
+    id               BOOLEAN     PRIMARY KEY DEFAULT TRUE CHECK (id),
+    requested_hash   TEXT        NOT NULL,
+    computed_hash    TEXT        NOT NULL,
+    computed_version INT,
+    computed_at      TIMESTAMPTZ
 );
