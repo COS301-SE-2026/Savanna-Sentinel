@@ -42,6 +42,7 @@ def _register_payload(**overrides) -> dict:
 def _payload(**overrides) -> dict:
     return _register_payload(**overrides)
 
+
 def _login_payload(**overrides) -> dict:
     """Default valid login payload. Override any field with kwargs."""
     base = {
@@ -50,7 +51,8 @@ def _login_payload(**overrides) -> dict:
     }
     return {**base, **overrides}
 
-#Seed halper
+
+# Seed halper
 async def _create_user(
     email: str,
     username: str,
@@ -69,16 +71,19 @@ async def _create_user(
                      :password_hash, :role, :is_active)
                 ON CONFLICT (email) DO NOTHING
             """),
-            [{
-                "email": email,
-                "username": username,
-                "first_name": "Test",
-                "last_name": "User",
-                "password_hash": get_password_hash(password),
-                "role": role,
-                "is_active": is_active,
-            }],
+            [
+                {
+                    "email": email,
+                    "username": username,
+                    "first_name": "Test",
+                    "last_name": "User",
+                    "password_hash": get_password_hash(password),
+                    "role": role,
+                    "is_active": is_active,
+                }
+            ],
         )
+
 
 @pytest.fixture(autouse=True)
 def cleanup_test_users():
@@ -86,7 +91,7 @@ def cleanup_test_users():
 
     async def _delete():
         async with _engine.begin() as conn:
-            #Delete refresh tokens first foreign key constraint
+            # Delete refresh tokens first foreign key constraint
             await conn.execute(
                 text("""
                     DELETE FROM refresh_tokens
@@ -103,6 +108,7 @@ def cleanup_test_users():
 
 
 # register
+
 
 @pytest.mark.asyncio
 async def test_register_returns_201():
@@ -124,13 +130,14 @@ async def test_register_new_account_is_inactive():
         r = await c.post("/v1/auth/register", json=_payload())
     assert r.json()["is_active"] is False
 
+
 @pytest.mark.asyncio
 async def test_register_duplicate_email_returns_409():
     async with _client() as c:
         await c.post("/v1/auth/register", json=_payload())
         r = await c.post(
-            "/v1/auth/register",
-            json=_payload(username="test_other"))
+            "/v1/auth/register", json=_payload(username="test_other")
+        )
     assert r.status_code == 409
 
 
@@ -139,9 +146,10 @@ async def test_register_duplicate_username_returns_409():
     async with _client() as c:
         await c.post("/v1/auth/register", json=_payload())
         r = await c.post(
-            "/v1/auth/register",
-            json=_payload(email="test_other@example.com"))
+            "/v1/auth/register", json=_payload(email="test_other@example.com")
+        )
     assert r.status_code == 409
+
 
 @pytest.mark.asyncio
 async def test_register_short_password_returns_422():
@@ -154,8 +162,8 @@ async def test_register_short_password_returns_422():
 async def test_register_invalid_email_returns_422():
     async with _client() as c:
         r = await c.post(
-            "/v1/auth/register",
-            json=_payload(email="not-an-email"))
+            "/v1/auth/register", json=_payload(email="not-an-email")
+        )
     assert r.status_code == 422
 
 
@@ -167,28 +175,35 @@ async def test_register_missing_field_returns_422():
         r = await c.post("/v1/auth/register", json=payload)
     assert r.status_code == 422
 
+
 @pytest.mark.asyncio
 async def test_register_all_valid_roles_accepted():
     async with _client() as c:
         for role in ("ranger", "analyst", "community_liaison"):
-            r = await c.post("/v1/auth/register", json=_payload(
-                username=f"test_{role}",
-                email=f"test_{role}@example.com",
-                requested_role=role,
-            ))
+            r = await c.post(
+                "/v1/auth/register",
+                json=_payload(
+                    username=f"test_{role}",
+                    email=f"test_{role}@example.com",
+                    requested_role=role,
+                ),
+            )
             assert r.status_code == 201, f"role={role} got {r.status_code}"
+
 
 @pytest.mark.asyncio
 async def test_register_admin_role_rejected_returns_422():
     async with _client() as c:
         r = await c.post(
-            "/v1/auth/register",
-            json=_payload(requested_role="admin"))
+            "/v1/auth/register", json=_payload(requested_role="admin")
+        )
     assert r.status_code == 422
+
 
 # POST /v1/auth/login
 
-#Happy path
+# Happy path
+
 
 @pytest.mark.asyncio
 async def test_login_returns_200():
@@ -283,7 +298,9 @@ async def test_login_access_token_is_valid_jwt_structure():
         f"Expected JWT with 3 parts (header.payload.signature), got: {token!r}"
     )
 
-#Wrong password
+
+# Wrong password
+
 
 @pytest.mark.asyncio
 async def test_login_wrong_password_returns_401():
@@ -324,7 +341,9 @@ async def test_login_wrong_password_detail_is_vague():
         f"Error detail reveals the email address: {detail!r}"
     )
 
- # Unknown email (enumeration prevention)
+
+# Unknown email (enumeration prevention)
+
 
 @pytest.mark.asyncio
 async def test_login_unknown_email_returns_401():
@@ -335,6 +354,7 @@ async def test_login_unknown_email_returns_401():
         )
 
     assert r.status_code == 401
+
 
 @pytest.mark.asyncio
 async def test_login_unknown_email_and_wrong_password_return_identical_detail():
@@ -351,7 +371,7 @@ async def test_login_unknown_email_and_wrong_password_return_identical_detail():
         )
         unknown_email = await c.post(
             "/v1/auth/login",
-                json=_login_payload(username="test_ghost"),
+            json=_login_payload(username="test_ghost"),
         )
 
     assert wrong_pw.json().get("detail") == unknown_email.json().get("detail")
@@ -360,7 +380,9 @@ async def test_login_unknown_email_and_wrong_password_return_identical_detail():
         "email enumeration - both must return identical detail text."
     )
 
-#Inactive account
+
+# Inactive account
+
 
 @pytest.mark.asyncio
 async def test_login_inactive_account_returns_401():
@@ -377,6 +399,7 @@ async def test_login_inactive_account_returns_401():
         )
 
     assert r.status_code == 401
+
 
 @pytest.mark.asyncio
 async def test_login_inactive_and_wrong_password_return_identical_detail():
@@ -399,7 +422,7 @@ async def test_login_inactive_and_wrong_password_return_identical_detail():
         )
         inactive = await c.post(
             "/v1/auth/login",
-                json=_login_payload(username="test_inactive"),
+            json=_login_payload(username="test_inactive"),
         )
 
     assert wrong_pw.json().get("detail") == inactive.json().get("detail"), (
@@ -407,7 +430,9 @@ async def test_login_inactive_and_wrong_password_return_identical_detail():
         "account status - both must return identical detail text."
     )
 
-#Newly registered account cannot log in
+
+# Newly registered account cannot log in
+
 
 @pytest.mark.asyncio
 async def test_login_newly_registered_account_is_blocked():
@@ -423,7 +448,9 @@ async def test_login_newly_registered_account_is_blocked():
 
     assert r.status_code == 401
 
-#Malformed requests (Pydantic validation)
+
+# Malformed requests (Pydantic validation)
+
 
 @pytest.mark.asyncio
 async def test_login_missing_email_returns_422():
@@ -474,7 +501,9 @@ async def test_login_empty_password_returns_422():
 
     assert r.status_code == 422
 
-#Security
+
+# Security
+
 
 @pytest.mark.asyncio
 async def test_login_401_includes_www_authenticate_header():
@@ -488,6 +517,7 @@ async def test_login_401_includes_www_authenticate_header():
     assert "www-authenticate" in r.headers
     assert "bearer" in r.headers["www-authenticate"].lower()
 
+
 @pytest.mark.asyncio
 async def test_login_never_returns_500():
     async with _client() as c:
@@ -498,7 +528,9 @@ async def test_login_never_returns_500():
 
     assert r.status_code != 500
 
-#POST /v1/auth/refresh
+
+# POST /v1/auth/refresh
+
 
 @pytest.mark.asyncio
 async def test_refresh_valid_token_returns_200():
@@ -619,7 +651,9 @@ async def test_refresh_missing_field_returns_422():
 
     assert r.status_code == 422
 
+
 # POST /v1/auth/logout
+
 
 @pytest.mark.asyncio
 async def test_logout_returns_204():
@@ -703,6 +737,7 @@ async def test_logout_malformed_token_returns_204():
         )
 
     assert r.status_code == 204
+
 
 @pytest.mark.asyncio
 async def test_logout_missing_field_returns_422():
