@@ -708,15 +708,15 @@ describe("Location Handling", () => {
         ).toBeInTheDocument();
     });
 
-    it("fills an armed stop from a map click", async () => {
+    it("fills a newly added stop from the next map click", async () => {
         renderPage();
         const map = await currentMap();
         await userEvent.click(
             screen.getByRole("button", { name: /add stop/i }),
         );
-        await userEvent.click(
+        expect(
             screen.getByRole("button", { name: "Pick stop 1 on map" }),
-        );
+        ).toHaveAttribute("aria-pressed", "true");
         await act(async () => {
             map.fireClick({ lng: 31.06, lat: -24.31 });
         });

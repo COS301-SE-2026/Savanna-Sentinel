@@ -194,6 +194,14 @@ export function StopList({
         onStopsChange(moveStop(stops, String(active.id), String(over.id)));
     }
 
+    // arm the new stop so the next map click places it
+    function handleAddStop() {
+        const next = addStop(stops);
+        if (next === stops) return;
+        onStopsChange(next);
+        onArmStop(next[next.length - 2].id);
+    }
+
     return (
         <div className="flex flex-col gap-2">
             {/* data-vaul-no-drag stops the mobile drawer eating reorder drags */}
@@ -258,7 +266,7 @@ export function StopList({
                     variant="ghost"
                     className="px-2"
                     disabled={!canAddStop(stops)}
-                    onClick={() => onStopsChange(addStop(stops))}
+                    onClick={handleAddStop}
                 >
                     <Plus />
                     Add stop

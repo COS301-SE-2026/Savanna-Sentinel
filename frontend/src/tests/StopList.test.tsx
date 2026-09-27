@@ -51,6 +51,15 @@ describe("StopList", () => {
         expect(next[2].id).toBe(stops[1].id);
     });
 
+    it("arms the new stop for map picking when added", async () => {
+        const { onStopsChange, onArmStop } = renderList(stopsWith(A, C));
+        await userEvent.click(
+            screen.getByRole("button", { name: /add stop/i }),
+        );
+        const next: PlannerStop[] = onStopsChange.mock.calls[0][0];
+        expect(onArmStop).toHaveBeenCalledWith(next[1].id);
+    });
+
     it("disables Add stop at five stops", () => {
         renderList(stopsWith(A, null, null, null, null, null, C));
         expect(
