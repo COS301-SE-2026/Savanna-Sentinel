@@ -17,6 +17,9 @@ INSERT INTO public.workspace_features (id,feature_type,name,geometry,in_effect,b
 	 ('032d5913-fc8f-45f5-a307-c05eba82bda9'::uuid,'point'::public.workspace_feature_type,'Animal Sighted','{"type": "Point", "coordinates": [31.0743518, -24.252763321]}',true,false,2090.0,'2026-09-26 20:58:36.413+02','2026-09-26 20:58:36.413+02'),
 	 ('0a7f2818-3bf8-4ed9-b591-6892a2126958'::uuid,'point'::public.workspace_feature_type,'Outpost','{"type": "Point", "coordinates": [31.16981298, -24.130876078]}',true,true,2500.0,'2026-09-26 21:00:15.492+02','2026-09-26 21:00:15.492+02');
 
+INSERT INTO public.workspace_layers (id,name,parent_id,display_order,default_style) VALUES
+	 ('88b9e378-9bff-4003-9073-ecc7c03d5674'::uuid,'seeded_layer',NULL,0,'{}');
+
 INSERT INTO public.workspace_memberships (id,feature_id,layer_id,display_order,style_override) VALUES
 	 ('06464b6c-5346-4883-8087-6db6a1d38e07'::uuid,'07487369-8c49-4c75-a884-62119bf50810'::uuid,'88b9e378-9bff-4003-9073-ecc7c03d5674'::uuid,0,'{"icon": "siren", "label": "Animal sighted injured", "colour": "#b30000", "icon_colour": "#b30000", "stroke_width": 2.0, "buffer_opacity": 0.57}'),
 	 ('6ef9c032-d8e1-4c14-a73d-e80a597318c3'::uuid,'4858bd86-dd0b-4a06-a365-273bd1a444a9'::uuid,'88b9e378-9bff-4003-9073-ecc7c03d5674'::uuid,2,'{"icon": "triangle-alert", "label": "Potential danger", "colour": "#ff9300", "icon_colour": "#ff9300"}'),
@@ -36,27 +39,3 @@ INSERT INTO public.workspace_memberships (id,feature_id,layer_id,display_order,s
 	 ('ca9bc828-ced9-4adf-8e62-6bb207ffffbb'::uuid,'032d5913-fc8f-45f5-a307-c05eba82bda9'::uuid,'88b9e378-9bff-4003-9073-ecc7c03d5674'::uuid,10,'{"icon": "binoculars", "label": "Elephant herd", "colour": "#009193", "icon_colour": "#009193", "buffer_colour": "#06b050", "buffer_opacity": 0.24}'),
 	 ('7b405420-c3ad-4be7-ae74-350fde67e35d'::uuid,'0a7f2818-3bf8-4ed9-b591-6892a2126958'::uuid,'88b9e378-9bff-4003-9073-ecc7c03d5674'::uuid,15,'{"icon": "tent", "label": "Ranger outpost", "colour": "#06b050", "icon_colour": "#06b050"}');
 
-INSERT INTO public.workspace_layers (id,name,parent_id,display_order,default_style) VALUES
-	 ('88b9e378-9bff-4003-9073-ecc7c03d5674'::uuid,'seeded_layer',NULL,0,'{}');
-
-INSERT INTO public.workspace_membership_visibility (membership_id,user_id,visible) VALUES
-	 ('06464b6c-5346-4883-8087-6db6a1d38e07'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('e02609a1-bee4-4a66-8f96-906bbff21e5f'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('6ef9c032-d8e1-4c14-a73d-e80a597318c3'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('ea94b6fb-b7cb-42a3-bba1-6d68400f182f'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('202e9d6b-908b-4044-a3b9-b1feacf96782'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('effbc193-741f-4088-95c4-bac99bbc9d90'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('aacf5823-ec42-4c73-b984-e1442353b035'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('50db77b1-3e68-44d8-8bcf-40257dba33ab'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('cae11f36-613b-4d2b-b4d8-1db68bc3262f'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('f1b21c42-64d1-4be8-8a6f-2aa487064ee2'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true);
-INSERT INTO public.workspace_membership_visibility (membership_id,user_id,visible) VALUES
-	 ('ca9bc828-ced9-4adf-8e62-6bb207ffffbb'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('47b52df4-ea93-4d09-92f9-709d33ceba0c'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('2ede94d7-04f7-47dd-9604-5693a21f959e'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('2f182aca-256e-4dca-a989-c64417f0c732'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('f32f72a2-1cb1-4381-9d58-1b4b84aff3c3'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true),
-	 ('7b405420-c3ad-4be7-ae74-350fde67e35d'::uuid,'55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid,true);
-
-INSERT INTO public.workspace_meta (id,"version",updated_at,updated_by) VALUES
-	 (true,1,'2026-09-26 21:00:56.313319+02','55be49ef-d1b4-4e28-ab15-2bbfe33e6e46'::uuid);

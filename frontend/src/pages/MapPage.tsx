@@ -32,7 +32,10 @@ import {
     scoresByCell,
 } from "@/lib/riskGrid";
 import { LayerTreePanel } from "@/components/workspace/LayerTreePanel";
-import { WorkspaceMapLayers } from "@/components/workspace/WorkspaceMapLayers";
+import {
+    STACK_BOTTOM,
+    WorkspaceMapLayers,
+} from "@/components/workspace/WorkspaceMapLayers";
 import type { WorkspaceSelection } from "@/components/workspace/StyleEditorPanel";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
@@ -251,6 +254,7 @@ export default function MapPage() {
                         pickingActive={false}
                         isMobile={isMobile}
                         opacityOverride={opacity / 100}
+                        beforeId={STACK_BOTTOM}
                     />
                 )}
                 {pinnedRoute && isRouteVisible && (
