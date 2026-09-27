@@ -23,16 +23,18 @@ async def user(db_session, engine):
     db_session.add(u)
     await db_session.commit()
     await db_session.refresh(u)
+    # tests may roll back, expiring u
+    user_id = u.id
 
     yield u
 
     async with engine.begin() as conn:
         await conn.execute(
             text("DELETE FROM patrol_routes WHERE requested_by = :id"),
-            {"id": u.id},
+            {"id": user_id},
         )
         await conn.execute(
-            text("DELETE FROM users WHERE id = :id"), {"id": u.id},
+            text("DELETE FROM users WHERE id = :id"), {"id": user_id},
         )
 
 
