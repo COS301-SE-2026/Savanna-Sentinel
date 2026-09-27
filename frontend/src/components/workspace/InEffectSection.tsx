@@ -8,7 +8,7 @@ export function InEffectSection({ featureId }: { featureId: string }) {
     const setFeatureInEffect = useWorkspaceStore((s) => s.setFeatureInEffect);
 
     return (
-        <div className="border-t border-color-border p-3">
+        <div>
             <label className="flex items-center gap-2 text-sm text-color-text-primary">
                 <Checkbox
                     checked={isInEffect}
