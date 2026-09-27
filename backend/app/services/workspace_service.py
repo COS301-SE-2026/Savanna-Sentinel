@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -13,6 +14,9 @@ if TYPE_CHECKING:
         WorkspaceMembershipPayload,
         WorkspaceSaveRequest,
     )
+    from app.services.terrain_service import TerrainService
+
+logger = logging.getLogger(__name__)
 
 MAX_LAYERS = 1000
 MAX_FEATURES = 5000
@@ -169,8 +173,13 @@ def _check_memberships(
 
 
 class WorkspaceService:
-    def __init__(self, repo: "WorkspaceRepository"):
+    def __init__(
+        self,
+        repo: "WorkspaceRepository",
+        terrain: "TerrainService | None" = None,
+    ):
         self.repo = repo
+        self.terrain = terrain
 
     async def get_workspace(self, user_id: str) -> dict[str, Any]:
         return await self.repo.load(user_id)
@@ -238,7 +247,13 @@ class WorkspaceService:
                 },
             )
 
-        return await self.repo.load(user_id)
+        saved = await self.repo.load(user_id)
+        if self.terrain is not None:
+            try:
+                await self.terrain.on_workspace_saved(saved)
+            except Exception:
+                logger.exception("Could not update terrain after a save")
+        return saved
 
     async def set_visibility(
         self,

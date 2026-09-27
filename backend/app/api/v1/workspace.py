@@ -5,12 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_roles
 from app.models.user import User
+from app.repositories.terrain_repository import TerrainRepository
 from app.repositories.workspace_repository import WorkspaceRepository
 from app.schemas.workspace import (
     WorkspaceResponse,
     WorkspaceSaveRequest,
     WorkspaceVisibilityRequest,
 )
+from app.services.terrain_service import TerrainService
 from app.services.workspace_service import WorkspaceService
 
 router = APIRouter(tags=["workspace"])
@@ -43,7 +45,10 @@ async def save_workspace(
     current_user: Annotated[User, Depends(_workspace_user)],
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
-    service = WorkspaceService(WorkspaceRepository(db))
+    service = WorkspaceService(
+        WorkspaceRepository(db),
+        TerrainService(TerrainRepository(db)),
+    )
     return await service.save_workspace(current_user.id, body)
 
 
