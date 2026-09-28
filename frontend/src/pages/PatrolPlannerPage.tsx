@@ -46,7 +46,6 @@ import { useUserLocation } from "@/hooks/useUserLocation";
 import { requestMotionPermission } from "@/lib/motionPermission";
 import { UserLocationNotice } from "@/components/map/UserLocationNotice";
 import { Slider } from "@/components/ui/slider";
-import { MotionSimulator } from "@/components/dev/MotionSimulator";
 import {
     STACK_BOTTOM,
     WorkspaceMapLayers,
@@ -735,8 +734,6 @@ export default function PatrolPlannerPage() {
                     </DrawerContent>
                 </Drawer>
             )}
-
-            <MotionSimulator />
         </div>
     );
 }
