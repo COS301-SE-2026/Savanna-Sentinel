@@ -5,9 +5,11 @@ export interface FeatureStyle {
     opacity: number;
     icon?: string;
     iconColour?: string;
+    iconOpacity?: number;
     strokeWidth?: number;
     lineDash?: "solid" | "dashed" | "dotted";
     label?: string;
+    labelOpacity?: number;
     outlineOpacity?: number;
     bufferColour?: string;
     bufferOpacity?: number;
@@ -22,8 +24,10 @@ export const APPLICATION_DEFAULT_STYLE: FeatureStyle = {
     colour: "#6b7280",
     opacity: 1,
     iconColour: "#1f2937",
+    iconOpacity: 1,
     strokeWidth: 2,
     lineDash: "solid",
+    labelOpacity: 1,
     outlineOpacity: 1,
     bufferOpacity: DEFAULT_BUFFER_OPACITY,
 };
