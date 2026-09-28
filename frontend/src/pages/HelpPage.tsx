@@ -9,16 +9,19 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Admin from "@/components/help/Admin";
-import Dashboard from "@/components/help/Dashboard";
 import Heatmap from "@/components/help/Heatmap";
-import Ingestion from "@/components/help/Ingestion";
-import TipOffs from "@/components/help/TipOffs";
 import Workspace from "@/components/help/Workspace";
 import Reports from "@/components/help/Reports"
 import Profile from "@/components/help/Profile";
 import Patrol from "@/components/help/PatrolPlanner";
 
-// Quick access to VALUABLE RESOURCES such as help center links, tutorials and FAQs
+/*
+
+Submitting a tipoff (Everyone)
+The dashboard (Admin, Ranger, Analyst)
+Ingestion page (Admin, Analyst)
+
+*/
 
 function Faq() {
     return (
@@ -107,16 +110,10 @@ export default function HelpPage() {
                         <TabsTrigger className="text-sm" value="profile">
                             User Profile
                         </TabsTrigger>
-                        <TabsTrigger className="text-sm" value="tipOffs">
-                            Tip Offs
-                        </TabsTrigger>
                         
                         {
                             canViewStaffOnly && (
                             <>
-                                <TabsTrigger className="text-sm" value="dashboard">
-                                    Dashboard
-                                </TabsTrigger>
                                 <TabsTrigger className="text-sm" value="reports">
                                     Reports
                                 </TabsTrigger>
@@ -138,9 +135,6 @@ export default function HelpPage() {
                         {
                             canViewAnalyst && (
                             <>
-                                <TabsTrigger className="text-sm" value="ingestion">
-                                    Ingestion
-                                </TabsTrigger>
                                 <TabsTrigger className="text-sm" value="workspace">
                                     Workspace
                                 </TabsTrigger>
@@ -170,14 +164,6 @@ export default function HelpPage() {
                     <Profile />
                 </TabsContent>
 
-                <TabsContent value="tipOffs">
-                    <TipOffs />
-                </TabsContent>
-
-                <TabsContent value="dashboard">
-                    <Dashboard />
-                </TabsContent>
-
                 <TabsContent value="reports">
                     <Reports />
                 </TabsContent>
@@ -188,10 +174,6 @@ export default function HelpPage() {
 
                 <TabsContent value="patrol">
                     <Patrol />
-                </TabsContent>
-
-                <TabsContent value="ingestion">
-                    <Ingestion />
                 </TabsContent>
 
                 <TabsContent value="workspace">
