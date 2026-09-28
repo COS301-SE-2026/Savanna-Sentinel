@@ -625,6 +625,79 @@ def test_find_nearest_node_rejects_an_empty_grid():
         find_nearest_node(graph, (31.0, -24.0))
 
 
+# find_nearest_node terrain
+
+_TO_LONLAT = Transformer.from_crs(
+    f"EPSG:{_EPSG}",
+    "EPSG:4326",
+    always_xy=True,
+)
+
+
+def _grid_point(x_km, row):
+    """Lon/lat of a point x_km east of the grid edge, level with a row."""
+    return _TO_LONLAT.transform(
+        _BASE_LEFT + x_km * _CELL_M,
+        _BASE_TOP - (row + 0.5) * _CELL_M,
+    )
+
+
+def _river_at(x_km, priority=1):
+    x = _BASE_LEFT + x_km * _CELL_M
+    return ImpassableArea(
+        "river",
+        priority,
+        LineString([(x, _BASE_TOP), (x, _BASE_TOP - 5 * _CELL_M)]),
+    )
+
+
+def test_find_nearest_node_snaps_to_the_same_bank(grid_5x5):
+    graph = build_park_graph(grid_5x5)
+    point = _grid_point(1.8, row=2)
+    constraints = TerrainConstraints(areas=[_river_at(1.7)], epsg=_EPSG)
+
+    assert find_nearest_node(graph, point) == _id(2, 1)
+    assert find_nearest_node(graph, point, constraints) == _id(2, 2)
+
+
+def test_find_nearest_node_crosses_where_a_bridge_overrides(grid_5x5):
+    graph = build_park_graph(grid_5x5)
+    constraints = TerrainConstraints(
+        areas=[_river_at(1.7)],
+        top_priority={_id(2, 1): 2},
+        epsg=_EPSG,
+    )
+
+    snapped = find_nearest_node(graph, _grid_point(1.8, row=2), constraints)
+
+    assert snapped == _id(2, 1)
+
+
+def test_find_nearest_node_ignores_empty_constraints(grid_5x5):
+    graph = build_park_graph(grid_5x5)
+    constraints = TerrainConstraints(epsg=_EPSG)
+
+    snapped = find_nearest_node(graph, _grid_point(1.8, row=2), constraints)
+
+    assert snapped == _id(2, 1)
+
+
+def test_find_nearest_node_rejects_a_point_walled_in(grid_5x5):
+    graph = build_park_graph(grid_5x5)
+    x = _BASE_LEFT + 1.8 * _CELL_M
+    y = _BASE_TOP - 2.5 * _CELL_M
+    ring = ImpassableArea(
+        "ring",
+        1,
+        box(x - 100, y - 100, x + 100, y + 100).exterior,
+    )
+    constraints = TerrainConstraints(areas=[ring], epsg=_EPSG)
+    point = _grid_point(1.8, row=2)
+
+    with pytest.raises(ValueError, match="impassable"):
+        find_nearest_node(graph, point, constraints)
+
+
 # Sanity checks against the real production grid file
 
 

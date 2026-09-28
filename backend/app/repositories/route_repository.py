@@ -227,17 +227,34 @@ def _squared_km(a: tuple[float, float], b: tuple[float, float]) -> float:
     return d_lon**2 + d_lat**2
 
 
-def find_nearest_node(graph: ParkGraph, point: tuple[float, float]) -> str:
+def find_nearest_node(
+    graph: ParkGraph,
+    point: tuple[float, float],
+    constraints: "TerrainConstraints | None" = None,
+) -> str:
+    """Closest cell to point, skipping any only reachable across a barrier."""
     if not graph.nodes:
         raise ValueError("Park grid has no cells")
-    nearest = min(
-        graph.nodes,
-        key=lambda n: _squared_km(n.location.coordinates, point),
-    )
+
+    def distance(node: GraphNode) -> float:
+        return _squared_km(node.location.coordinates, point)
+
+    nearest = min(graph.nodes, key=distance)
     cell_km = min((e.distance_km for e in graph.edges), default=1.0)
     limit = MAX_SNAP_CELLS * cell_km
-    if _squared_km(nearest.location.coordinates, point) > limit**2:
+    if distance(nearest) > limit**2:
         raise ValueError(
             f"Point {point} is more than {limit:.1f} km outside the park grid",
         )
-    return nearest.node_id
+    if constraints is None or not constraints.areas:
+        return nearest.node_id
+
+    xy = constraints.to_grid(point)
+    for node in sorted(graph.nodes, key=distance):
+        if distance(node) > limit**2:
+            break
+        if not constraints.blocks_segment(xy, node.grid_xy, node.node_id):
+            return node.node_id
+    raise ValueError(
+        f"Point {point} can only reach the grid across an impassable area",
+    )
