@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { UserLocation } from "@/types/location";
+import {
+    STEP_LENGTH_M,
+    blendHeading,
+    compassFromEvent,
+    createStepDetector,
+    headingDifference,
+    vectorMagnitude,
+} from "@/lib/deadReckoning";
 
 export type UserLocationStatus =
     | "idle"
@@ -27,8 +35,15 @@ const WATCH_OPTIONS: PositionOptions = {
 };
 
 //Drift rates for accuracy
-const TIME_DRIFT_RATE = 0.5;
+const TIME_DRIFT_RATE = 0.05;
 const DIST_DRIFT_RATE = 0.15;
+
+const HEADING_SMOOTHING = 0.15;
+const HEADING_REDRAW_DEG = 5;
+
+function screenAngle() {
+    return typeof screen !== "undefined" ? (screen.orientation?.angle ?? 0) : 0;
+}
 
 function offsetToLatLon(lat: number, lon: number, dx: number, dy: number) {
     const deltaLat = dy / 111139;
@@ -50,9 +65,9 @@ export function useUserLocation(
     const [hasNoReferencePoint, setHasNoReferencePoint] = useState(false);
 
     const lastGpsLoc = useRef<UserLocation | null>(null);
-    const currentVelocity = useRef<number>(0);
-    const lastMotionTime = useRef<number | null>(null);
     const deadReckoningStartTime = useRef<number | null>(null);
+    const distanceTravelled = useRef(0);
+    const anchorAccuracy = useRef(0);
     const isForced = useRef(forceDeadReckoning);
 
     useEffect(() => {
@@ -61,9 +76,9 @@ export function useUserLocation(
 
     const setReferencePoint = (manualLocation: UserLocation) => {
         lastGpsLoc.current = manualLocation;
-        currentVelocity.current = 0;
-        lastMotionTime.current = null;
         deadReckoningStartTime.current = null;
+        distanceTravelled.current = 0;
+        anchorAccuracy.current = manualLocation.accuracy;
 
         setLocation(manualLocation);
         setHasNoReferencePoint(false);
@@ -85,16 +100,17 @@ export function useUserLocation(
                 const newLoc: UserLocation = {
                     lat: latitude,
                     lon: longitude,
-                    heading: heading && !Number.isNaN(heading) ? heading : null,
+                    heading:
+                        heading !== null && !Number.isNaN(heading)
+                            ? heading
+                            : null,
                     accuracy: accuracy ?? 10,
                 };
 
-                //To use as a reference point
                 lastGpsLoc.current = newLoc;
-                //Reset the simulated velocity since connectivity is restored
-                currentVelocity.current = 0;
-                lastMotionTime.current = null;
                 deadReckoningStartTime.current = null;
+                distanceTravelled.current = 0;
+                anchorAccuracy.current = newLoc.accuracy;
 
                 setLocation(newLoc);
                 setStatus("tracking");
@@ -127,79 +143,91 @@ export function useUserLocation(
             return;
         }
 
-        currentVelocity.current = 0;
-        lastMotionTime.current = null;
+        const detector = createStepDetector();
+        let compassHeading: number | null = null;
+
+        const handleOrientation = (event: DeviceOrientationEvent) => {
+            const reading = compassFromEvent(event, screenAngle());
+            if (reading === null) return;
+
+            compassHeading =
+                compassHeading === null
+                    ? reading
+                    : blendHeading(compassHeading, reading, HEADING_SMOOTHING);
+
+            const current = lastGpsLoc.current;
+            if (!current) return;
+            if (
+                current.heading !== null &&
+                headingDifference(current.heading, compassHeading) <
+                    HEADING_REDRAW_DEG
+            ) {
+                return;
+            }
+            const turned = { ...current, heading: compassHeading };
+            lastGpsLoc.current = turned;
+            setLocation(turned);
+        };
 
         const handleMotion = (event: DeviceMotionEvent) => {
-            //End offline handling when there is no known reference point
-            if (!lastGpsLoc.current) {
-                return;
-            }
+            const current = lastGpsLoc.current;
+            if (!current) return;
 
-            //Get the current time for displacement calculations
+            const magnitude =
+                vectorMagnitude(event.accelerationIncludingGravity) ??
+                vectorMagnitude(event.acceleration);
+            if (magnitude === null) return;
+
             const now = performance.now() / 1000;
-            if (!lastMotionTime.current) {
-                lastMotionTime.current = now;
-                deadReckoningStartTime.current = now;
-                return;
-            }
+            deadReckoningStartTime.current ??= now;
 
-            //Find the change in time since last measurement
-            const dt = now - lastMotionTime.current;
-            lastMotionTime.current = now;
+            if (!detector.push(magnitude, now)) return;
 
-            const totalOfflineTime =
-                now - (deadReckoningStartTime.current ?? now);
+            const heading = compassHeading ?? current.heading;
+            if (heading === null) return;
 
-            //calculate acceleration
-            let accelY = event.acceleration?.y || 0;
-
-            //Filter out noise to prevent engine drift
-            if (Math.abs(accelY) < 0.2) {
-                accelY = 0;
-            }
-
-            //Calculate the displacement from acceleration and change in time
-            currentVelocity.current += accelY * dt;
-            //0 out reverse movement
-            if (currentVelocity.current < 0) {
-                currentVelocity.current = 0;
-            }
-            const distanceMoved = currentVelocity.current * dt;
-
-            const headingDeg = lastGpsLoc.current.heading ?? 0;
-            const headingRad = (headingDeg * Math.PI) / 180;
-            const dx = distanceMoved * Math.sin(headingRad);
-            const dy = distanceMoved * Math.cos(headingRad);
-
+            distanceTravelled.current += STEP_LENGTH_M;
+            const headingRad = (heading * Math.PI) / 180;
             const updatedCoords = offsetToLatLon(
-                lastGpsLoc.current.lat,
-                lastGpsLoc.current.lon,
-                dx,
-                dy,
+                current.lat,
+                current.lon,
+                STEP_LENGTH_M * Math.sin(headingRad),
+                STEP_LENGTH_M * Math.cos(headingRad),
             );
 
-            const baseAccuracy = lastGpsLoc.current.accuracy;
-            //Accuracy decreases the longer the application has been tracking for
-            //and the further away from last known location you are.
-            const expandedAccuracy =
-                baseAccuracy +
-                totalOfflineTime * TIME_DRIFT_RATE +
-                distanceMoved * DIST_DRIFT_RATE;
+            const accuracy =
+                anchorAccuracy.current +
+                (now - deadReckoningStartTime.current) * TIME_DRIFT_RATE +
+                distanceTravelled.current * DIST_DRIFT_RATE;
 
             const updatedLocation: UserLocation = {
                 lat: updatedCoords.lat,
                 lon: updatedCoords.lon,
-                heading: headingDeg,
-                accuracy: expandedAccuracy,
+                heading,
+                accuracy,
             };
 
             lastGpsLoc.current = updatedLocation;
             setLocation(updatedLocation);
         };
 
+        const orientationEvent =
+            "ondeviceorientationabsolute" in window
+                ? "deviceorientationabsolute"
+                : "deviceorientation";
+
         window.addEventListener("devicemotion", handleMotion);
-        return () => window.removeEventListener("devicemotion", handleMotion);
+        window.addEventListener(
+            orientationEvent,
+            handleOrientation as EventListener,
+        );
+        return () => {
+            window.removeEventListener("devicemotion", handleMotion);
+            window.removeEventListener(
+                orientationEvent,
+                handleOrientation as EventListener,
+            );
+        };
     }, [effectiveStatus]);
 
     if (!enabled)
