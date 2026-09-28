@@ -42,6 +42,10 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Layers, SlidersHorizontal } from "lucide-react";
+import SelectReferenceModal, {
+    type Poi,
+} from "@/components/map/SelectReferenceModal";
+import { useWorkspacePois } from "@/hooks/useWorkspacePois";
 
 const DEFAULT_ZOOM = 10;
 
@@ -162,12 +166,23 @@ export default function MapPage() {
 
     const [isLocationVisible, setLocationVisible] = useState(false);
     const [isGpsLossForced, setGpsLossForced] = useState(false);
-    const { location: userLocation, status: userLocationStatus } =
-        useUserLocation(isLocationVisible, isGpsLossForced);
+    const {
+        location: userLocation,
+        status: userLocationStatus,
+        hasNoReferencePoint,
+        setReferencePoint,
+    } = useUserLocation(isLocationVisible, isGpsLossForced);
 
     const userId = useAuthStore((s) => s.user?.id ?? null);
     const [pinnedRoute, setPinnedRoute] = useState<SavedRoute | null>(null);
     const [isRouteVisible, setRouteVisible] = useState(true);
+    const [isPoiModalOpen, setIsPoiModalOpen] = useState(false);
+
+    const isGpsFixed = userLocationStatus === "tracking";
+    const showReferenceButton = isLocationVisible && !isGpsFixed;
+    const hasReferencePoint = !hasNoReferencePoint;
+
+    const pois = useWorkspacePois();
 
     useEffect(() => {
         let isCurrent = true;
@@ -204,6 +219,31 @@ export default function MapPage() {
           }
         : undefined;
 
+    const handleSelectPoi = (poi: Poi) => {
+        setReferencePoint({
+            lat: poi.lat,
+            lon: poi.lon,
+            heading: 0,
+            accuracy: 10,
+        });
+    };
+
+    const handlePreviewPoi = (poi: Poi) => {
+        if (poi.id) {
+            handleFeatureClick(poi.id);
+        }
+
+        if (map) {
+            map.flyTo({
+                center: [poi.lon, poi.lat],
+                zoom: 12,
+                duration: 800,
+            });
+        }
+
+        setIsPoiModalOpen(false);
+    };
+
     const panelProps = {
         heatmapVisible: isHeatmapVisible,
         onHeatmapVisibleChange: setHeatmapVisible,
@@ -238,6 +278,9 @@ export default function MapPage() {
                     map={map}
                     defaultCenter={mapCenter}
                     defaultZoom={DEFAULT_ZOOM}
+                    showReferenceButton={showReferenceButton}
+                    hasReferencePoint={hasReferencePoint}
+                    onOpenPoiModal={() => setIsPoiModalOpen(true)}
                 >
                     {isLocationVisible && (
                         <GpsLossToggle
@@ -295,6 +338,13 @@ export default function MapPage() {
                         heatmapStatus === "no-data" && !isNoDataBannerDismissed
                     }
                     onDismiss={() => setIsNoDataBannerDismissed(true)}
+                />
+                <SelectReferenceModal
+                    open={isPoiModalOpen}
+                    onOpenChange={setIsPoiModalOpen}
+                    pois={pois}
+                    onSelectPoi={handleSelectPoi}
+                    onPreviewPoi={handlePreviewPoi}
                 />
                 {gridStatus === "loading" && <LoadingPill label="Loading..." />}
             </div>
