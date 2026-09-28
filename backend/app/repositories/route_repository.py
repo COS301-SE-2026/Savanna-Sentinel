@@ -12,6 +12,7 @@ from app.repositories.risk_repository import GRID_FILE_PATH
 from app.schemas.geo import GeoPoint
 from app.schemas.route import GraphEdge, GraphNode, ParkGraph
 from app.workers.ml.route_planner import clear_path_cache
+from app.workers.terrain.effects import _to_grid
 
 if TYPE_CHECKING:
     from shapely.prepared import PreparedGeometry
@@ -27,6 +28,9 @@ if TYPE_CHECKING:
 AVG_SPEED_KMH = 20.0
 # a path point further than this from every cell centre is off the grid
 PATH_CELL_REACH = 0.75
+# a stop links to cell centres and path points within these many cells
+STOP_CELL_REACH = 1.0
+STOP_PATH_REACH = 0.5
 
 
 @lru_cache(maxsize=None)
@@ -106,7 +110,12 @@ def _load_grid() -> ParkGraph:
 
     # _load_grid has no park_id (only one grid file),
     # build_park_graph stamps the real one onto its returned copy.
-    return ParkGraph(park_id="", nodes=nodes, edges=edges)
+    return ParkGraph(
+        park_id="",
+        nodes=nodes,
+        edges=edges,
+        epsg=int(epsg_code),
+    )
 
 
 def invalidate_grid_cache() -> None:
@@ -324,6 +333,7 @@ def build_park_graph(
         terrain_key=terrain_key,
         constraints=constraints,
         cell_of=cell_of,
+        epsg=base.epsg,
     )
 
 
@@ -373,3 +383,80 @@ def find_nearest_node(
     raise ValueError(
         f"Point {point} can only reach the grid across an impassable area",
     )
+
+
+def add_stop_nodes(
+    graph: ParkGraph,
+    points: list[tuple[float, float]],
+    constraints: "TerrainConstraints | None" = None,
+) -> list[str]:
+    """Give each stop its own node at its exact location.
+
+    A stop links to the cell centres around it and to the nearest path
+    point, so a route passes through the point itself rather than the
+    centre of the cell it falls in. Moves across a barrier are left out.
+    """
+    to_grid = _to_grid(graph.epsg)
+    grid_edges = (
+        graph.edges if graph.neighbor_edges is None else graph.neighbor_edges
+    )
+    cell_m = min((e.distance_km for e in grid_edges), default=1.0) * 1000
+    areas = (
+        [(area, prep(area.area)) for area in constraints.areas]
+        if constraints is not None
+        else []
+    )
+
+    def blocked(a_xy: tuple[float, float], b_xy: tuple[float, float]) -> bool:
+        return bool(areas) and _crosses(
+            constraints,
+            areas,
+            LineString([a_xy, b_xy]),
+        )
+
+    by_id = {n.node_id: n for n in graph.nodes}
+    stop_ids = []
+    for point in points:
+        cell = find_nearest_node(graph, point, constraints)
+        stop_id = f"stop-{point[0]:.6f},{point[1]:.6f}"
+        stop_ids.append(stop_id)
+        if stop_id in by_id:
+            continue
+        xy = to_grid.transform(*point)
+        stop = GraphNode(
+            node_id=stop_id,
+            location=GeoPoint(coordinates=point),
+            risk_score=0.0,
+            grid_xy=xy,
+        )
+        graph.nodes.append(stop)
+        by_id[stop_id] = stop
+        graph.cell_of[stop_id] = cell
+
+        links = [by_id[cell]] + [
+            n
+            for n in graph.nodes
+            if n.node_id not in graph.cell_of
+            and n.node_id != cell
+            and math.dist(xy, n.grid_xy) <= cell_m * STOP_CELL_REACH
+        ]
+        path_points = [
+            n
+            for n in graph.nodes
+            if n.node_id.startswith("path-")
+            and math.dist(xy, n.grid_xy) <= cell_m * STOP_PATH_REACH
+        ]
+        if path_points:
+            links.append(
+                min(path_points, key=lambda n: math.dist(xy, n.grid_xy)),
+            )
+        for node in links:
+            if node.node_id == cell or not blocked(xy, node.grid_xy):
+                graph.edges += _two_way(
+                    stop_id,
+                    node.node_id,
+                    xy,
+                    node.grid_xy,
+                    1.0,
+                )
+    return stop_ids

@@ -2892,3 +2892,98 @@ def test_assign_hotspots_to_legs_picks_the_smallest_detour():
     assert route_planner.assign_hotspots_to_legs(
         matrix, ["a", "b", "c"], ["h"],
     ) == [["h"], []]
+
+
+# straighten_path
+
+
+def _straighten_graph(hot=None):
+    """a-b-c with an a-c shortcut, and d hanging off b.
+
+    d is only covered by passing b, so the detour through b is worth it
+    exactly when d is a hotspot.
+    """
+    ids = ["a", "b", "c", "d"]
+    nodes = [
+        GraphNode(
+            node_id=node_id,
+            location=GeoPoint(coordinates=(0.01 * i, 0.0)),
+            risk_score=0.9 if node_id == hot else 0.0,
+        )
+        for i, node_id in enumerate(ids)
+    ]
+    pairs = [("a", "b", 1.0), ("b", "c", 1.0), ("a", "c", 1.5), ("b", "d", 1.0)]
+    edges = [GraphEdge(x, y, 1.0, t) for x, y, t in pairs] + [
+        GraphEdge(y, x, 1.0, t) for x, y, t in pairs
+    ]
+    grid = [e for e in edges if {e.from_node_id, e.to_node_id} != {"a", "c"}]
+    return ParkGraph(
+        park_id="straighten",
+        nodes=nodes,
+        edges=edges,
+        neighbor_edges=grid,
+        terrain_key=f"straighten-{hot}",
+    )
+
+
+def test_straighten_takes_a_faster_way_that_covers_the_same():
+    graph = _straighten_graph()
+
+    assert route_planner.straighten_path(graph, ["a", "b", "c"]) == ["a", "c"]
+
+
+def test_straighten_keeps_a_detour_that_covers_a_hotspot():
+    graph = _straighten_graph(hot="d")
+
+    assert route_planner.straighten_path(graph, ["a", "b", "c"]) == [
+        "a",
+        "b",
+        "c",
+    ]
+
+
+def test_straighten_keeps_a_route_distinct_from_another():
+    graph = _straighten_graph()
+
+    straightened = route_planner.straighten_path(
+        graph,
+        ["a", "b", "c"],
+        avoid=[["a", "c"]],
+        min_distance=0.05,
+    )
+
+    assert straightened == ["a", "b", "c"]
+
+
+def test_straighten_never_collapses_a_loop():
+    graph = _straighten_graph()
+
+    assert route_planner.straighten_path(graph, ["a", "b", "a"]) == [
+        "a",
+        "b",
+        "a",
+    ]
+
+
+def test_straighten_leaves_short_paths_alone():
+    graph = _straighten_graph()
+
+    assert route_planner.straighten_path(graph, ["a", "c"]) == ["a", "c"]
+
+
+def test_plan_routes_straightens_the_routes_it_returns(
+    monkeypatch,
+    empty_path_cache,
+):
+    graph = _straighten_graph()
+    _phase_stub(monkeypatch, [(["a", "b", "c"], 0.0)] * 6)
+
+    plan = route_planner.plan_routes(
+        graph,
+        "a",
+        "c",
+        1,
+        _three_phase_config(),
+    )
+
+    assert plan.routes[0].suggested_path == ["a", "c"]

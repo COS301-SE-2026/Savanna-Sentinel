@@ -7,6 +7,7 @@ from shapely.geometry import LineString, Point, box
 from app.repositories import route_repository
 from app.repositories.route_repository import (
     AVG_SPEED_KMH,
+    add_stop_nodes,
     build_park_graph,
     find_nearest_node,
 )
@@ -1020,6 +1021,79 @@ def test_path_steps_do_not_shrink_the_cell_size(grid_5x5):
     assert route_planner._cell_size_degrees(graph) == pytest.approx(
         route_planner._cell_size_degrees(plain),
     )
+
+
+# stops at their exact location
+
+
+def _linked(graph, node_id):
+    return {e.to_node_id for e in graph.edges if e.from_node_id == node_id}
+
+
+def test_a_stop_gets_its_own_node_at_the_exact_point(grid_5x5):
+    graph = build_park_graph(grid_5x5)
+    point = _grid_point(1.8, row=2)
+
+    (stop_id,) = add_stop_nodes(graph, [point])
+
+    stop = next(n for n in graph.nodes if n.node_id == stop_id)
+    assert stop.location.coordinates == point
+    assert graph.cell_of[stop_id] == _id(2, 1)
+    assert _linked(graph, stop_id) == {_id(2, 1), _id(2, 2)}
+    assert stop_id in _linked(graph, _id(2, 2))
+
+
+def test_the_same_stop_twice_shares_one_node(grid_5x5):
+    graph = build_park_graph(grid_5x5)
+    point = _grid_point(1.8, row=2)
+
+    first, second = add_stop_nodes(graph, [point, point])
+
+    assert first == second
+    assert sum(n.node_id == first for n in graph.nodes) == 1
+
+
+def test_a_stop_is_not_linked_across_a_barrier(grid_5x5):
+    constraints = TerrainConstraints(areas=[_river_at(2.0)], epsg=_EPSG)
+    graph = build_park_graph(grid_5x5, constraints=constraints)
+
+    (stop_id,) = add_stop_nodes(graph, [_grid_point(1.8, row=2)], constraints)
+
+    assert _linked(graph, stop_id) == {_id(2, 1)}
+
+
+def test_a_stop_joins_a_nearby_path(grid_5x5):
+    graph = build_park_graph(grid_5x5, paths=[_row_road()])
+
+    (near,) = add_stop_nodes(graph, [_grid_point(1.8, row=2)])
+    (far,) = add_stop_nodes(graph, [_grid_point(1.8, row=4)])
+
+    assert any(n.startswith("path-") for n in _linked(graph, near))
+    assert not any(n.startswith("path-") for n in _linked(graph, far))
+
+
+def test_a_route_passes_exactly_through_every_stop(grid_5x5):
+    route_planner.clear_path_cache()
+    graph = build_park_graph(grid_5x5, terrain_key="exact-stops")
+    points = [
+        _grid_point(0.3, row=0),
+        _grid_point(2.8, row=2),
+        _grid_point(4.6, row=4),
+    ]
+    stop_ids = add_stop_nodes(graph, points)
+
+    plan = route_planner.plan_routes_via(
+        graph,
+        stop_ids,
+        1,
+        route_planner.ACOConfig(seed=7),
+    )
+    route_planner.clear_path_cache()
+
+    drawn = plan.routes[0].path_geometry.coordinates
+    assert drawn[0] == points[0]
+    assert drawn[-1] == points[-1]
+    assert points[1] in drawn
 
 
 # Sanity checks against the real production grid file

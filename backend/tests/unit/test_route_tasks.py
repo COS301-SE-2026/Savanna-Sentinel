@@ -75,16 +75,16 @@ def test_serialize_route_returns_plain_dict_with_geometry_dumped():
 
 
 @patch("app.workers.tasks.route_tasks.plan_routes_via")
-@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.add_stop_nodes")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_wires_graph_lookup_and_planning(
     mock_build_graph,
-    mock_find_nearest,
+    mock_add_stops,
     mock_plan_routes,
 ):
     graph = ParkGraph(park_id="klaserie", nodes=[], edges=[])
     mock_build_graph.return_value = graph
-    mock_find_nearest.side_effect = ["cell-start", "cell-end"]
+    mock_add_stops.return_value = ["cell-start", "cell-end"]
     routes = [_make_route(["cell-start", "cell-end"], 0.5)]
     mock_plan_routes.return_value = RoutePlan(routes=routes, shortfall=None)
 
@@ -98,13 +98,9 @@ def test_run_route_planning_job_wires_graph_lookup_and_planning(
 
     mock_build_graph.assert_called_once()
     assert mock_build_graph.call_args.args == ("klaserie", {"cell-1": 0.6})
-    assert mock_find_nearest.call_args_list[0].args[:2] == (
+    assert mock_add_stops.call_args.args[:2] == (
         graph,
-        (31.05, -24.3),
-    )
-    assert mock_find_nearest.call_args_list[1].args[:2] == (
-        graph,
-        (31.1, -24.2),
+        [(31.05, -24.3), (31.1, -24.2)],
     )
     mock_plan_routes.assert_called_once()
     plan_args = mock_plan_routes.call_args.args
@@ -123,16 +119,16 @@ def test_run_route_planning_job_wires_graph_lookup_and_planning(
 
 
 @patch("app.workers.tasks.route_tasks.plan_routes_via")
-@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.add_stop_nodes")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_defaults_risk_by_cell_to_none(
     mock_build_graph,
-    mock_find_nearest,
+    mock_add_stops,
     mock_plan_routes,
 ):
     graph = ParkGraph(park_id="klaserie", nodes=[], edges=[])
     mock_build_graph.return_value = graph
-    mock_find_nearest.side_effect = ["cell-start", "cell-end"]
+    mock_add_stops.return_value = ["cell-start", "cell-end"]
     mock_plan_routes.return_value = RoutePlan(routes=[], shortfall=None)
 
     run_route_planning_job(
@@ -146,11 +142,11 @@ def test_run_route_planning_job_defaults_risk_by_cell_to_none(
 
 
 @patch("app.workers.tasks.route_tasks.plan_routes_via")
-@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.add_stop_nodes")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_found_count_may_be_less_than_requested(
     mock_build_graph,
-    mock_find_nearest,
+    mock_add_stops,
     mock_plan_routes,
 ):
     """num_alternatives_found must be honest, not padded to match request.
@@ -159,7 +155,7 @@ def test_run_route_planning_job_found_count_may_be_less_than_requested(
     """
     graph = ParkGraph(park_id="klaserie", nodes=[], edges=[])
     mock_build_graph.return_value = graph
-    mock_find_nearest.side_effect = ["cell-start", "cell-end"]
+    mock_add_stops.return_value = ["cell-start", "cell-end"]
     mock_plan_routes.return_value = RoutePlan(
         routes=[_make_route(["cell-start"], 0.2)],
         shortfall="longer_than_best",
@@ -178,16 +174,16 @@ def test_run_route_planning_job_found_count_may_be_less_than_requested(
 
 
 @patch("app.workers.tasks.route_tasks.plan_routes_via")
-@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.add_stop_nodes")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_no_accepted_routes_returns_empty_results(
     mock_build_graph,
-    mock_find_nearest,
+    mock_add_stops,
     mock_plan_routes,
 ):
     graph = ParkGraph(park_id="klaserie", nodes=[], edges=[])
     mock_build_graph.return_value = graph
-    mock_find_nearest.side_effect = ["cell-start", "cell-end"]
+    mock_add_stops.return_value = ["cell-start", "cell-end"]
     mock_plan_routes.return_value = RoutePlan(
         routes=[], shortfall="no_tour_found",
     )
@@ -205,12 +201,14 @@ def test_run_route_planning_job_no_accepted_routes_returns_empty_results(
 
 
 @patch("app.workers.tasks.route_tasks.plan_routes_via")
-@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.add_stop_nodes")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_snaps_waypoints_between_start_and_end(
-    mock_build, mock_nearest, mock_plan,
+    mock_build, mock_add_stops, mock_plan,
 ):
-    mock_nearest.side_effect = lambda graph, point, _: f"node-{point[0]}"
+    mock_add_stops.side_effect = lambda graph, points, _: [
+        f"node-{point[0]}" for point in points
+    ]
     mock_plan.return_value = RoutePlan(routes=[])
 
     run_route_planning_job(
@@ -227,12 +225,14 @@ def test_run_route_planning_job_snaps_waypoints_between_start_and_end(
 
 
 @patch("app.workers.tasks.route_tasks.plan_routes_via")
-@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.add_stop_nodes")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_without_waypoints_plans_start_to_end(
-    mock_build, mock_nearest, mock_plan,
+    mock_build, mock_add_stops, mock_plan,
 ):
-    mock_nearest.side_effect = lambda graph, point, _: f"node-{point[0]}"
+    mock_add_stops.side_effect = lambda graph, points, _: [
+        f"node-{point[0]}" for point in points
+    ]
     mock_plan.return_value = RoutePlan(routes=[])
 
     run_route_planning_job(
@@ -249,11 +249,11 @@ def test_run_route_planning_job_without_waypoints_plans_start_to_end(
 
 
 @patch("app.workers.tasks.route_tasks.plan_routes_via")
-@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.add_stop_nodes")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_plans_on_the_terrain(
     mock_build_graph,
-    mock_find_nearest,
+    mock_add_stops,
     mock_plan_routes,
     no_terrain,
 ):
@@ -265,7 +265,7 @@ def test_run_route_planning_job_plans_on_the_terrain(
         terrain_key="3:abc",
         stale=True,
     )
-    mock_find_nearest.side_effect = ["cell-start", "cell-end"]
+    mock_add_stops.return_value = ["cell-start", "cell-end"]
     mock_plan_routes.return_value = RoutePlan(routes=[])
 
     result = run_route_planning_job(
@@ -280,16 +280,16 @@ def test_run_route_planning_job_plans_on_the_terrain(
     assert kwargs["constraints"] is constraints
     assert kwargs["terrain_key"] == "3:abc"
     assert kwargs["paths"] == ["road"]
-    assert mock_find_nearest.call_args.args[2] is constraints
+    assert mock_add_stops.call_args.args[2] is constraints
     assert result["terrain_stale"] is True
 
 
 @patch("app.workers.tasks.route_tasks.plan_routes_via")
-@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.add_stop_nodes")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_rejects_a_stop_in_a_no_go_area(
     mock_build_graph,
-    mock_find_nearest,
+    mock_add_stops,
     mock_plan_routes,
     no_terrain,
 ):
@@ -310,7 +310,7 @@ def test_run_route_planning_job_rejects_a_stop_in_a_no_go_area(
     assert result["shortfall_reason"] == STOP_IN_NO_GO
     assert result["num_alternatives_found"] == 0
     assert result["results"] == []
-    mock_find_nearest.assert_not_called()
+    mock_add_stops.assert_not_called()
     mock_plan_routes.assert_not_called()
 
 
@@ -502,7 +502,9 @@ def test_route_on_the_real_grid_never_crosses_an_impassable_river(
     centres = {n.node_id: n.grid_xy for n in graph.nodes}
     assert result["results"]
     for route in result["results"]:
-        path = LineString([centres[c] for c in route["suggested_path"]])
+        path = LineString(
+            [centres[c] for c in route["suggested_path"] if c in centres],
+        )
         drawn = LineString(
             [
                 terrain.constraints.to_grid(c)

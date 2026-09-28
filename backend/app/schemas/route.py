@@ -41,6 +41,7 @@ class ParkGraph:
     terrain_key: str = ""
     constraints: "TerrainConstraints | None" = None
     cell_of: dict[str, str] = field(default_factory=dict)
+    epsg: int = 0
 
 
 @dataclass

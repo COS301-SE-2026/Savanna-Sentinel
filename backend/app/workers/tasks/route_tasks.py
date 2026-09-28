@@ -7,8 +7,8 @@ from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 from app.repositories.route_repository import (
+    add_stop_nodes,
     build_park_graph,
-    find_nearest_node,
 )
 from app.repositories.terrain_repository import TerrainRepository
 from app.repositories.workspace_repository import WorkspaceRepository
@@ -144,9 +144,7 @@ def run_route_planning_job(
         plan = RoutePlan(routes=[], shortfall=STOP_IN_NO_GO)
         return _result(park_id, num_alternatives, plan, terrain)
 
-    stop_node_ids = [
-        find_nearest_node(graph, point, terrain.constraints) for point in stops
-    ]
+    stop_node_ids = add_stop_nodes(graph, stops, terrain.constraints)
 
     plan = plan_routes_via(
         graph,

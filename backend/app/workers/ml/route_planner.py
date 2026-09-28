@@ -1297,6 +1297,67 @@ def meet_coverage_target(
     return tour.hubs, path
 
 
+STRAIGHTEN_WINDOW = 60
+
+
+def straighten_path(
+    graph: ParkGraph,
+    path: list[str],
+    avoid: list[list[str]] | None = None,
+    min_distance: float = 0.0,
+) -> list[str]:
+    """Swap stretches of a route for faster ones that keep its coverage.
+
+    From each node, the furthest later node within STRAIGHTEN_WINDOW that
+    a faster path reaches is joined by that path, as long as no hotspot
+    the route covered is lost and it stays min_distance from every route
+    in avoid. On a graph with preferred lines this pulls the route back
+    onto roads everywhere a detour isn't covering risk.
+    """
+    avoid = avoid or []
+    if len(path) < 3:
+        return path
+    weights = _hotspot_weights(graph)
+    neighbors = _coverage_neighbors(graph)
+    times = _edge_times(graph)
+
+    def contributions(node_id: str) -> list[str]:
+        return [c for c in neighbors.get(node_id, {node_id}) if c in weights]
+
+    i = 0
+    while i < len(path) - 2:
+        last = min(len(path) - 1, i + STRAIGHTEN_WINDOW)
+        reach = dijkstra(graph, path[i], targets=set(path[i + 2 : last + 1]))
+        counts: Counter = Counter()
+        for node_id in path:
+            counts.update(contributions(node_id))
+        covered = _covered_weight(weights, counts)
+        for j in range(last, i + 1, -1):
+            hop = reach.get(path[j])
+            if hop is None or path[j] == path[i]:
+                continue
+            current = _path_time(times, path[i : j + 1])
+            if hop.time_min >= current - COVERAGE_EPS:
+                continue
+            trial = counts.copy()
+            for node_id in path[i + 1 : j]:
+                trial.subtract(contributions(node_id))
+            for node_id in hop.path[1:-1]:
+                trial.update(contributions(node_id))
+            if _covered_weight(weights, +trial) < covered - COVERAGE_EPS:
+                continue
+            candidate = path[:i] + hop.path + path[j + 1 :]
+            if any(
+                route_distance(candidate, prior) < min_distance
+                for prior in avoid
+            ):
+                continue
+            path = candidate
+            break
+        i += 1
+    return path
+
+
 def edge_set(path: list[str]) -> set[tuple[str, str]]:
     return set(zip(path, path[1:]))
 
@@ -1406,11 +1467,13 @@ def plan_routes(
     config = config or ACOConfig()
 
     rng = random.Random(config.seed)
+    start_cell = graph.cell_of.get(start_node_id, start_node_id)
+    end_cell = graph.cell_of.get(end_node_id, end_node_id)
     waypoint_ids = [
         stop
         for stop, cells in hotspot_zones(graph)[: config.max_waypoints]
-        if start_node_id not in cells
-        and end_node_id not in cells
+        if start_cell not in cells
+        and end_cell not in cells
         and (hotspot_ids is None or stop in hotspot_ids)
     ]
     hub_ids = list(dict.fromkeys([start_node_id, end_node_id, *waypoint_ids]))
@@ -1488,11 +1551,25 @@ def plan_routes(
         accepted_waypoint_paths.append(waypoint_path)
         accepted_expanded_paths.append(expanded_path)
         pheromones = apply_partial_penalty(pheromones, waypoint_path, config)
+    straightened: list[list[str]] = []
+    for k, path in enumerate(accepted_expanded_paths):
+        path = straighten_path(
+            graph,
+            path,
+            straightened + accepted_expanded_paths[k + 1 :],
+            config.min_diversity,
+        )
+        if len(path) > 1 and all(
+            route_distance(path, prior) >= config.min_diversity
+            for prior in straightened
+        ):
+            straightened.append(path)
+    if len(straightened) < len(accepted_expanded_paths):
+        shortfalls.append(DUPLICATE_ROUTE)
     routes = sorted(
         (
             _to_planned_route(graph, p, compute_risk_coverage(graph, p))
-            for p in accepted_expanded_paths
-            if len(p) > 1
+            for p in straightened
         ),
         key=lambda r: r.distance_km,
     )
@@ -1567,7 +1644,7 @@ def plan_routes_via(
     if len(stops) < 2:
         return plan_routes(graph, stops[0], stops[0], num_alternatives, config)
 
-    stop_set = set(stops)
+    stop_set = {graph.cell_of.get(stop, stop) for stop in stops}
     hotspot_ids = [
         hub
         for hub, cells in hotspot_zones(graph)[: config.max_waypoints]
