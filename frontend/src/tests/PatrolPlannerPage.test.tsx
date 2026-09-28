@@ -1,4 +1,11 @@
-import { render, screen, waitFor, act, within } from "@testing-library/react";
+import {
+    render,
+    screen,
+    waitFor,
+    act,
+    within,
+    fireEvent,
+} from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -50,9 +57,14 @@ import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers, TEST_GRID } from "./mocks/riskHandlers";
 import { routeHandlers, ROUTE_REQUEST_ID } from "./mocks/routeHandlers";
 import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
+import { workspaceHandlers } from "./mocks/workspaceHandlers";
 import type { FakeMap } from "./mocks/maplibreMock";
 import { useMapStore, initialMapState } from "@/store/mapStore";
 import { useAuthStore } from "@/store/authStore";
+import {
+    initialWorkspaceState,
+    useWorkspaceStore,
+} from "@/store/workspaceStore";
 import { loadPinnedRoute } from "@/offline/pinnedRouteCache";
 import { db } from "@/offline/db";
 import { RISK_LEVEL_COLORS } from "@/lib/mapTokens";
@@ -61,6 +73,7 @@ const server = setupServer(
     ...riskHandlers,
     ...routeHandlers,
     ...savedRouteHandlers,
+    ...workspaceHandlers,
 );
 beforeAll(() => server.listen());
 afterEach(async () => {
@@ -74,6 +87,7 @@ afterEach(async () => {
         accessToken: null,
         refreshToken: null,
     });
+    useWorkspaceStore.setState(initialWorkspaceState, true);
 });
 afterAll(() => server.close());
 
@@ -149,6 +163,44 @@ describe("PatrolPlannerPage", () => {
         expect(
             screen.getByRole("button", { name: "Selected" }),
         ).toBeInTheDocument();
+    });
+
+    it("selects the patrol route row and flows its opacity slider through to the rendered route lines", async () => {
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+        const map = await currentMap();
+
+        expect(
+            screen.queryByLabelText(/patrol route opacity/i),
+        ).not.toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Patrol Route" }),
+        );
+        expect(
+            await screen.findByLabelText(/patrol route opacity/i),
+        ).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/patrol route opacity/i), {
+            target: { value: "40" },
+        });
+
+        await waitFor(() =>
+            expect(map.setPaintProperty).toHaveBeenCalledWith(
+                "patrol-route-0-line",
+                "line-opacity",
+                0.4,
+            ),
+        );
+        expect(map.setPaintProperty).toHaveBeenCalledWith(
+            "patrol-route-1-line",
+            "line-opacity",
+            0.4,
+        );
     });
 
     it("sends the currently displayed risk heatmap with the route request", async () => {
@@ -571,6 +623,30 @@ describe("Location Handling", () => {
 
     afterEach(() => {
         vi.unstubAllGlobals();
+    });
+
+    it("highlights the heatmap row in the layer tree when it is clicked", async () => {
+        renderPage();
+
+        const heatmapButton = await screen.findByRole("button", {
+            name: "Heatmap",
+        });
+
+        expect(heatmapButton).not.toHaveAttribute("aria-current");
+        await userEvent.click(heatmapButton);
+
+        expect(heatmapButton).toHaveAttribute("aria-current", "true");
+    });
+
+    it("renders only one opacity slider when the heatmap row is selected", async () => {
+        renderPage();
+
+        const heatmapButton = await screen.findByRole("button", {
+            name: "Heatmap",
+        });
+        await userEvent.click(heatmapButton);
+
+        expect(screen.getAllByLabelText(/heatmap opacity/i)).toHaveLength(1);
     });
 
     it("renders my location unchecked by default without rendering the location layer", async () => {

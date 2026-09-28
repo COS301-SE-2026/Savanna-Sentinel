@@ -36,15 +36,25 @@ import { useMapStore } from "@/store/mapStore";
 import { UserLocationLayer } from "@/components/map/UserLocationLayer";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { UserLocationNotice } from "@/components/map/UserLocationNotice";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { MotionSimulator } from "@/components/dev/MotionSimulator";
+import {
+    STACK_BOTTOM,
+    WorkspaceMapLayers,
+} from "@/components/workspace/WorkspaceMapLayers";
+import { LayerTreePanel } from "@/components/workspace/LayerTreePanel";
+import type { WorkspaceSelection } from "@/components/workspace/StyleEditorPanel";
+import { useWorkspaceStore } from "@/store/workspaceStore";
+import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
+import { useLayerOpacityPreview } from "@/hooks/useLayerOpacityPreview";
 
 const DEFAULT_ZOOM = 10;
 
 const COLLAPSED_SNAP = "24px";
 const EXPANDED_SNAP = 0.6;
 const FULL_SNAP = 1;
+
+const DEFAULT_OPACITY_PERCENT = 30;
 
 interface SidebarContentProps {
     startPoint: LatLon | null;
@@ -71,8 +81,24 @@ interface SidebarContentProps {
     onLoadDialogOpenChange: (open: boolean) => void;
     onLoadRoute: (saved: SavedRoute) => void;
     onSendRouteToHeatmap: (saved: SavedRoute) => void;
+    heatmapVisible: boolean;
+    onHeatmapVisibleChange: (visible: boolean) => void;
     locationVisible: boolean;
     onLocationVisibleChange: (visible: boolean) => void;
+    hasRoute: boolean;
+    routeVisible: boolean;
+    onRouteVisibleChange: (visible: boolean) => void;
+    patrolRouteSelected: boolean;
+    onSelectPatrolRoute: () => void;
+    opacityLabel: string;
+    opacityValue: number;
+    onOpacityValueChange: (opacity: number) => void;
+    opacityDisabled: boolean;
+    selection: WorkspaceSelection;
+    onSelectLayer: (layerId: string) => void;
+    onSelectMembership: (membershipId: string) => void;
+    heatmapSelected: boolean;
+    onSelectHeatmap: () => void;
 }
 
 function SidebarContent({
@@ -100,8 +126,24 @@ function SidebarContent({
     onLoadDialogOpenChange,
     onLoadRoute,
     onSendRouteToHeatmap,
+    heatmapVisible,
+    onHeatmapVisibleChange,
     locationVisible,
     onLocationVisibleChange,
+    hasRoute,
+    routeVisible,
+    onRouteVisibleChange,
+    patrolRouteSelected,
+    onSelectPatrolRoute,
+    opacityLabel,
+    opacityValue,
+    onOpacityValueChange,
+    opacityDisabled,
+    selection,
+    onSelectLayer,
+    onSelectMembership,
+    heatmapSelected,
+    onSelectHeatmap,
 }: SidebarContentProps) {
     return (
         <div className="flex flex-col gap-5 p-4">
@@ -150,20 +192,43 @@ function SidebarContent({
                     shortfallReason={shortfallReason}
                 />
             </div>
-            <div className="flex min-h-11 w-full cursor-pointer items-center gap-2">
-                <Checkbox
-                    id="show-location"
-                    checked={locationVisible}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        onLocationVisibleChange(e.target.checked)
+            <div className="overflow-hidden rounded-md border border-color-border">
+                <LayerTreePanel
+                    activeLayerId={null}
+                    selection={selection}
+                    readOnly
+                    heatmapVisible={heatmapVisible}
+                    onToggleHeatmap={onHeatmapVisibleChange}
+                    heatmapSelected={heatmapSelected}
+                    onSelectHeatmap={onSelectHeatmap}
+                    showHeatmapOpacitySlider={false}
+                    locationVisible={locationVisible}
+                    onToggleLocation={onLocationVisibleChange}
+                    hasRoute={hasRoute}
+                    routeVisible={routeVisible}
+                    onToggleRoute={onRouteVisibleChange}
+                    patrolRouteSelected={patrolRouteSelected}
+                    onSelectPatrolRoute={onSelectPatrolRoute}
+                    onSelectLayer={onSelectLayer}
+                    onSelectMembership={onSelectMembership}
+                />
+            </div>
+            <div>
+                <div className="mb-2 flex items-center justify-between text-sm text-color-text-primary">
+                    <span>{opacityLabel}</span>
+                    <span>{opacityValue}%</span>
+                </div>
+                <Slider
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={opacityValue}
+                    disabled={opacityDisabled}
+                    aria-label={opacityLabel}
+                    onChange={(e) =>
+                        onOpacityValueChange(Number(e.target.value))
                     }
                 />
-                <Label
-                    htmlFor="show-location"
-                    className="cursor-pointer text-sm font-medium text-color-text-primary select-none"
-                >
-                    My Location
-                </Label>
             </div>
         </div>
     );
@@ -262,6 +327,86 @@ export default function PatrolPlannerPage() {
     const [isLocationVisible, setLocationVisible] = useState(false);
     const { location: userLocation, status: userLocationStatus } =
         useUserLocation(isLocationVisible);
+
+    const [isHeatmapVisible, setHeatmapVisible] = useState(true);
+    const [isRouteVisible, setRouteVisible] = useState(true);
+    const [opacity, setOpacity] = useState(DEFAULT_OPACITY_PERCENT);
+    const [routeOpacity, setRouteOpacity] = useState(100);
+
+    const [selection, setSelection] = useState<WorkspaceSelection>(null);
+    const [isHeatmapSelected, setHeatmapSelected] = useState(false);
+    const [isPatrolRouteSelected, setPatrolRouteSelected] = useState(false);
+    const memberships = useWorkspaceStore((s) => s.memberships);
+    const loadWorkspace = useWorkspaceStore((s) => s.loadWorkspace);
+
+    const selectedFeatureId =
+        selection?.kind === "membership"
+            ? (memberships.find((m) => m.id === selection.membershipId)
+                  ?.featureId ?? null)
+            : null;
+
+    useEffect(() => {
+        const status = useWorkspaceStore.getState().status;
+        if (status === "idle" || status === "error") {
+            loadWorkspace();
+        }
+    }, [loadWorkspace]);
+
+    function handleFeatureClick(featureId: string | null) {
+        if (!featureId) {
+            setSelection(null);
+            return;
+        }
+        const current = useWorkspaceStore.getState();
+        const rendered = resolveVisibleFeatures(
+            current.layers,
+            current.features,
+            current.memberships,
+        ).find((r) => r.feature.id === featureId);
+        if (rendered) {
+            setHeatmapSelected(false);
+            setPatrolRouteSelected(false);
+            setSelection({
+                kind: "membership",
+                membershipId: rendered.membershipId,
+            });
+        }
+    }
+
+    function handleSelectLayer(layerId: string | undefined) {
+        if (!layerId) {
+            setSelection(null);
+            return;
+        }
+        setHeatmapSelected(false);
+        setPatrolRouteSelected(false);
+        setSelection({ kind: "layer", layerId });
+    }
+
+    function handleSelectMembership(membershipId: string | undefined) {
+        if (!membershipId) {
+            setSelection(null);
+            return;
+        }
+        setHeatmapSelected(false);
+        setPatrolRouteSelected(false);
+        setSelection({ kind: "membership", membershipId });
+    }
+
+    function handleSelectHeatmap() {
+        setHeatmapSelected((selected) => !selected);
+        setPatrolRouteSelected(false);
+        setSelection(null);
+    }
+
+    function handleSelectPatrolRoute() {
+        setPatrolRouteSelected((selected) => !selected);
+        setHeatmapSelected(false);
+        setSelection(null);
+    }
+
+    const { previewOpacity, setPreviewOpacity, label, opacityOverrides } =
+        useLayerOpacityPreview(selection);
 
     const bottomAnchorStyle = isMobile
         ? {
@@ -459,8 +604,40 @@ export default function PatrolPlannerPage() {
         onLoadDialogOpenChange: setIsLoadDialogOpen,
         onLoadRoute: handleLoadRoute,
         onSendRouteToHeatmap: handleSendRouteToHeatmap,
+        heatmapVisible: isHeatmapVisible,
+        onHeatmapVisibleChange: setHeatmapVisible,
         locationVisible: isLocationVisible,
         onLocationVisibleChange: handleLocationVisibleChange,
+        hasRoute: displayRoutes.length > 0,
+        routeVisible: isRouteVisible,
+        onRouteVisibleChange: setRouteVisible,
+        patrolRouteSelected: isPatrolRouteSelected,
+        onSelectPatrolRoute: handleSelectPatrolRoute,
+        opacityLabel: selection
+            ? (label ?? "Heatmap Opacity")
+            : isPatrolRouteSelected
+              ? "Patrol Route Opacity"
+              : "Heatmap Opacity",
+        opacityValue: selection
+            ? previewOpacity
+            : isPatrolRouteSelected
+              ? routeOpacity
+              : opacity,
+        onOpacityValueChange: selection
+            ? setPreviewOpacity
+            : isPatrolRouteSelected
+              ? setRouteOpacity
+              : setOpacity,
+        opacityDisabled: selection
+            ? false
+            : isPatrolRouteSelected
+              ? !isRouteVisible
+              : !isHeatmapVisible,
+        selection,
+        onSelectLayer: handleSelectLayer,
+        onSelectMembership: handleSelectMembership,
+        heatmapSelected: isHeatmapSelected,
+        onSelectHeatmap: handleSelectHeatmap,
     };
 
     return (
@@ -506,24 +683,38 @@ export default function PatrolPlannerPage() {
                             : undefined
                     }
                 />
-                <HeatmapLayer
+                <WorkspaceMapLayers
                     map={map}
-                    grid={grid}
-                    riskByCell={
-                        loadedRoute
-                            ? (savedRiskByCell ?? new Map())
-                            : riskByCell
-                    }
-                    pickingActive={isPickingActive}
-                    isMobile={isMobile}
+                    excludedFeatureId={null}
+                    selectedFeatureId={selectedFeatureId}
+                    onFeatureClick={handleFeatureClick}
+                    opacityOverrides={opacityOverrides}
                 />
-                <PatrolRouteLayer
-                    map={map}
-                    startPoint={startPoint}
-                    endPoint={endPoint}
-                    routes={displayRoutes}
-                    selectedIndex={selectedIndex}
-                />
+                {isHeatmapVisible && (
+                    <HeatmapLayer
+                        map={map}
+                        grid={grid}
+                        riskByCell={
+                            loadedRoute
+                                ? (savedRiskByCell ?? new Map())
+                                : riskByCell
+                        }
+                        pickingActive={isPickingActive}
+                        isMobile={isMobile}
+                        opacityOverride={opacity / 100}
+                        beforeId={STACK_BOTTOM}
+                    />
+                )}
+                {isRouteVisible && (
+                    <PatrolRouteLayer
+                        map={map}
+                        startPoint={startPoint}
+                        endPoint={endPoint}
+                        routes={displayRoutes}
+                        selectedIndex={selectedIndex}
+                        opacityOverride={routeOpacity / 100}
+                    />
+                )}
                 {isLocationVisible && (
                     <>
                         <UserLocationLayer map={map} location={userLocation} />
