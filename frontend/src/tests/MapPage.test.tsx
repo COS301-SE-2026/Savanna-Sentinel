@@ -603,7 +603,7 @@ describe("MapPage", () => {
         });
     });
 
-    it("ignores map feature clicks if a feature cannot be found", async () => {
+    it("ignores map feature clicks if a feature cannot be found null version", async () => {
         let capturedOnFeatureClick: ((id: string | null) => void) | undefined;
 
         vi.spyOn(

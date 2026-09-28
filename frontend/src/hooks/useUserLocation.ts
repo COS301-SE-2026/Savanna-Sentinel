@@ -7,12 +7,15 @@ export type UserLocationStatus =
     | "locating"
     | "tracking"
     | "dead-reckoning"
+    | "needs-reference"
     | "denied"
     | "unavailable";
 
 export interface UseUserLocationResult {
     location: UserLocation | null;
     status: UserLocationStatus;
+    hasNoReferencePoint: boolean;
+    setReferencePoint: (loc: UserLocation) => void;
 }
 
 const PERMISSION_DENIED = 1;
@@ -41,11 +44,24 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
     const [status, setStatus] = useState<UserLocationStatus>(() =>
         navigator.geolocation ? "locating" : "unavailable",
     );
+    const [hasNoReferencePoint, setHasNoReferencePoint] = useState(false)
 
     const lastGpsLoc = useRef<UserLocation | null>(null);
     const currentVelocity = useRef<number>(0);
     const lastMotionTime = useRef<number | null>(null);
     const deadReckoningStartTime = useRef<number | null>(null);
+
+    const setReferencePoint = (manualLocation: UserLocation) => {
+        lastGpsLoc.current = manualLocation;
+        currentVelocity.current = 0;
+        lastMotionTime.current = null;
+        deadReckoningStartTime.current = null;
+
+        setLocation(manualLocation);
+        setHasNoReferencePoint(false);
+        setStatus("dead-reckoning");
+
+    }
 
     useEffect(() => {
         if (!enabled) return undefined;
@@ -101,6 +117,8 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
         const handleMotion = (event: DeviceMotionEvent) => {
             //End offline handling when there is no known reference point
             if (!lastGpsLoc.current) {
+                setHasNoReferencePoint(true);
+                setStatus("needs-reference");
                 return;
             }
 
@@ -170,7 +188,7 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
         return () => window.removeEventListener("devicemotion", handleMotion);
     }, [status]);
 
-    if (!enabled) return { location: null, status: "idle" };
+    if (!enabled) return { location: null, status: "idle", hasNoReferencePoint: false, setReferencePoint: () => {}};
 
-    return { location, status };
+    return { location, status, hasNoReferencePoint, setReferencePoint };
 }
