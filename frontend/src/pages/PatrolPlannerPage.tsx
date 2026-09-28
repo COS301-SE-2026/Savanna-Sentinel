@@ -43,9 +43,9 @@ import { getSnapHeightPx } from "@/lib/utils";
 import { useMapStore } from "@/store/mapStore";
 import { UserLocationLayer } from "@/components/map/UserLocationLayer";
 import { useUserLocation } from "@/hooks/useUserLocation";
+import { requestMotionPermission } from "@/lib/motionPermission";
 import { UserLocationNotice } from "@/components/map/UserLocationNotice";
 import { Slider } from "@/components/ui/slider";
-import { MotionSimulator } from "@/components/dev/MotionSimulator";
 import {
     STACK_BOTTOM,
     WorkspaceMapLayers,
@@ -424,23 +424,11 @@ export default function PatrolPlannerPage() {
         : undefined;
 
     const handleLocationVisibleChange = async (visible: boolean) => {
-        if (visible && typeof DeviceMotionEvent !== "undefined") {
-            const deviceMotionEventPermission =
-                DeviceMotionEvent as unknown as {
-                    requestPermission?: () => Promise<
-                        "granted" | "denied" | "default"
-                    >;
-                };
-
-            if (
-                typeof deviceMotionEventPermission.requestPermission ===
-                "function"
-            ) {
-                try {
-                    await deviceMotionEventPermission.requestPermission();
-                } catch {
-                    console.warn("Motion sensor permission failed or denied");
-                }
+        if (visible) {
+            try {
+                await requestMotionPermission();
+            } catch {
+                console.warn("Motion sensor permission failed or denied");
             }
         }
         setLocationVisible(visible);
@@ -746,8 +734,6 @@ export default function PatrolPlannerPage() {
                     </DrawerContent>
                 </Drawer>
             )}
-
-            <MotionSimulator />
         </div>
     );
 }
