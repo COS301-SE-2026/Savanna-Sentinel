@@ -4,7 +4,7 @@ from app.repositories.route_repository import (
 )
 from app.schemas.route import PlannedRoute
 from app.workers.celery_app import celery_app
-from app.workers.ml.route_planner import ACOConfig, plan_routes
+from app.workers.ml.route_planner import ACOConfig, plan_routes_via
 
 
 def _serialize_route(route: PlannedRoute) -> dict:
@@ -24,15 +24,17 @@ def run_route_planning_job(
     num_alternatives: int,
     risk_by_cell: dict[str, float] | None = None,
     seed: int | None = None,
+    waypoints: list[tuple[float, float]] | None = None,
 ) -> dict:
     graph = build_park_graph(park_id, risk_by_cell)
-    start_node_id = find_nearest_node(graph, start)
-    end_node_id = find_nearest_node(graph, end)
+    stop_node_ids = [
+        find_nearest_node(graph, point)
+        for point in [start, *(waypoints or []), end]
+    ]
 
-    plan = plan_routes(
+    plan = plan_routes_via(
         graph,
-        start_node_id,
-        end_node_id,
+        stop_node_ids,
         num_alternatives,
         ACOConfig(seed=seed),
     )

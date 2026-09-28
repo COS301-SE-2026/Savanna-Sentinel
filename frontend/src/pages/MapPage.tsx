@@ -10,6 +10,7 @@ import { ExplainabilityPanel } from "@/components/map/ExplainabilityPanel";
 import { NoDataBanner } from "@/components/map/NoDataBanner";
 import { UserLocationLayer } from "@/components/map/UserLocationLayer";
 import { UserLocationNotice } from "@/components/map/UserLocationNotice";
+import { GpsLossToggle } from "@/components/dev/GpsLossToggle";
 import { PatrolRouteLayer } from "@/components/map/PatrolRouteLayer";
 import {
     Drawer,
@@ -170,6 +171,9 @@ export default function MapPage() {
         hasNoReferencePoint,
         setReferencePoint,
     } = useUserLocation(isLocationVisible);
+    const [isGpsLossForced, setGpsLossForced] = useState(false);
+    const { location: userLocation, status: userLocationStatus } =
+        useUserLocation(isLocationVisible, isGpsLossForced);
 
     const userId = useAuthStore((s) => s.user?.id ?? null);
     const [pinnedRoute, setPinnedRoute] = useState<SavedRoute | null>(null);
@@ -194,6 +198,10 @@ export default function MapPage() {
         };
     }, [userId]);
 
+    const pinnedWaypoints = useMemo(
+        () => (pinnedRoute?.waypoints ?? []).map(toLatLon),
+        [pinnedRoute],
+    );
     const routeForLayer = useMemo(
         () => (pinnedRoute ? [toPlannedRoute(pinnedRoute)] : []),
         [pinnedRoute],
@@ -275,7 +283,14 @@ export default function MapPage() {
                     showReferenceButton={showReferenceButton}
                     hasReferencePoint={hasReferencePoint}
                     onOpenPoiModal={() => setIsPoiModalOpen(true)}
-                />
+                >
+                    {isLocationVisible && (
+                        <GpsLossToggle
+                            active={isGpsLossForced}
+                            onToggle={setGpsLossForced}
+                        />
+                    )}
+                </MapControls>
                 <MapLegend
                     bottomClassName={isMobile ? "" : "bottom-2"}
                     style={bottomAnchorStyle}
@@ -305,6 +320,7 @@ export default function MapPage() {
                         map={map}
                         startPoint={toLatLon(pinnedRoute.start_point)}
                         endPoint={toLatLon(pinnedRoute.end_point)}
+                        waypoints={pinnedWaypoints}
                         routes={routeForLayer}
                         selectedIndex={0}
                     />

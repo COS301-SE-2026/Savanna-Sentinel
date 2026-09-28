@@ -39,7 +39,10 @@ function offsetToLatLon(lat: number, lon: number, dx: number, dy: number) {
     };
 }
 
-export function useUserLocation(enabled = true): UseUserLocationResult {
+export function useUserLocation(
+    enabled = true,
+    forceDeadReckoning = false,
+): UseUserLocationResult {
     const [location, setLocation] = useState<UserLocation | null>(null);
     const [status, setStatus] = useState<UserLocationStatus>(() =>
         navigator.geolocation ? "locating" : "unavailable",
@@ -50,6 +53,11 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
     const currentVelocity = useRef<number>(0);
     const lastMotionTime = useRef<number | null>(null);
     const deadReckoningStartTime = useRef<number | null>(null);
+    const isForced = useRef(forceDeadReckoning);
+
+    useEffect(() => {
+        isForced.current = forceDeadReckoning;
+    }, [forceDeadReckoning]);
 
     const setReferencePoint = (manualLocation: UserLocation) => {
         lastGpsLoc.current = manualLocation;
@@ -70,6 +78,8 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
 
         const watchId = geolocation.watchPosition(
             (position) => {
+                if (isForced.current && lastGpsLoc.current) return;
+
                 const { latitude, longitude, heading, accuracy } =
                     position.coords;
                 const newLoc: UserLocation = {
@@ -108,11 +118,17 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
         return () => geolocation.clearWatch(watchId);
     }, [enabled]);
 
+    const effectiveStatus: UserLocationStatus =
+        forceDeadReckoning && status === "tracking" ? "dead-reckoning" : status;
+
     //Offline location tracking
     useEffect(() => {
-        if (status !== "dead-reckoning" || !window.DeviceMotionEvent) {
+        if (effectiveStatus !== "dead-reckoning" || !window.DeviceMotionEvent) {
             return;
         }
+
+        currentVelocity.current = 0;
+        lastMotionTime.current = null;
 
         const handleMotion = (event: DeviceMotionEvent) => {
             //End offline handling when there is no known reference point
@@ -184,7 +200,7 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
 
         window.addEventListener("devicemotion", handleMotion);
         return () => window.removeEventListener("devicemotion", handleMotion);
-    }, [status]);
+    }, [effectiveStatus]);
 
     if (!enabled)
         return {
@@ -194,5 +210,5 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
             setReferencePoint: () => {},
         };
 
-    return { location, status, hasNoReferencePoint, setReferencePoint };
+    return { location, status: effectiveStatus, hasNoReferencePoint, setReferencePoint };
 }

@@ -6,6 +6,7 @@ import pytest
 
 from app.schemas.geo import GeoLineString, GeoPoint
 from app.schemas.route import PlannedRoute, SaveRouteRequest
+from app.services import route_service
 from app.services.route_service import (
     delete_saved_route,
     list_saved_routes,
@@ -82,3 +83,21 @@ async def test_delete_saved_route_delegates_to_repository(mock_repo_cls):
 
     assert result is True
     mock_repo.delete.assert_awaited_once_with("route-1", "user-1")
+
+
+def test_to_wkt_multipoint_keeps_order_and_skips_empty():
+    points = [
+        GeoPoint(coordinates=(31.06, -24.25)),
+        GeoPoint(coordinates=(31.07, -24.26)),
+    ]
+    assert route_service._to_wkt_multipoint(points) == (
+        "MULTIPOINT((31.06 -24.25), (31.07 -24.26))"
+    )
+    assert route_service._to_wkt_multipoint([]) is None
+
+
+def test_waypoints_from_geojson_handles_null_column():
+    assert route_service._waypoints_from_geojson(None) == []
+    assert route_service._waypoints_from_geojson(
+        {"type": "MultiPoint", "coordinates": [[31.06, -24.25]]},
+    ) == [GeoPoint(coordinates=(31.06, -24.25))]

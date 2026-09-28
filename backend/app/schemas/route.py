@@ -9,6 +9,8 @@ from app.schemas.geo import GeoLineString, GeoPoint
 # than this would otherwise be silently capped instead of rejected.
 MAX_NUM_ALTERNATIVES = 3
 
+MAX_WAYPOINTS = 5
+
 
 @dataclass
 class GraphNode:
@@ -43,6 +45,9 @@ class PlannedRoute:
 class RouteRequest(BaseModel):
     start_point: GeoPoint
     end_point: GeoPoint
+    waypoints: list[GeoPoint] = Field(
+        default_factory=list, max_length=MAX_WAYPOINTS,
+    )
     num_alternatives: int = Field(default=3, ge=1, le=MAX_NUM_ALTERNATIVES)
     risk_by_cell: dict[str, float] = Field(default_factory=dict)
 
@@ -87,6 +92,9 @@ class SaveRouteRequest(BaseModel):
     request_id: str
     start_point: GeoPoint
     end_point: GeoPoint
+    waypoints: list[GeoPoint] = Field(
+        default_factory=list, max_length=MAX_WAYPOINTS,
+    )
     risk_by_cell: dict[str, float] = Field(default_factory=dict)
     route: PlannedRoute
 
@@ -104,6 +112,7 @@ class SavedRouteResponse(BaseModel):
     request_id: str
     start_point: GeoPoint
     end_point: GeoPoint
+    waypoints: list[GeoPoint] = Field(default_factory=list)
     risk_by_cell: dict[str, float]
     path_geometry: GeoLineString
     distance_km: float

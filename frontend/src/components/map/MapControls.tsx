@@ -1,5 +1,6 @@
 import { Plus, Minus, Compass, MapPin } from "lucide-react";
 import type * as maplibregl from "maplibre-gl";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +12,7 @@ export interface MapControlsProps {
     showReferenceButton?: boolean;
     hasReferencePoint?: boolean;
     onOpenPoiModal?: () => void;
+    children?: ReactNode;
 }
 
 export function MapControls({
@@ -21,6 +23,7 @@ export function MapControls({
     showReferenceButton,
     hasReferencePoint,
     onOpenPoiModal,
+    children,
 }: MapControlsProps) {
     return (
         <div className="absolute top-2 right-2 z-[var(--z-sticky)] flex flex-col gap-1">
@@ -89,6 +92,7 @@ export function MapControls({
                     />
                 </Button>
             )}
+            {children}
         </div>
     );
 }
