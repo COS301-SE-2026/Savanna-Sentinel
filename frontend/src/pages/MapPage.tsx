@@ -41,7 +41,9 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Layers, SlidersHorizontal } from "lucide-react";
-import SelectReferenceModal, { type Poi } from "@/components/map/SelectReferenceModal";
+import SelectReferenceModal, {
+    type Poi,
+} from "@/components/map/SelectReferenceModal";
 import { useWorkspacePois } from "@/hooks/useWorkspacePois";
 
 const DEFAULT_ZOOM = 10;
@@ -162,8 +164,12 @@ export default function MapPage() {
     }, [heatmapStatus]);
 
     const [isLocationVisible, setLocationVisible] = useState(false);
-    const { location: userLocation, status: userLocationStatus, hasNoReferencePoint, setReferencePoint } =
-        useUserLocation(isLocationVisible);
+    const {
+        location: userLocation,
+        status: userLocationStatus,
+        hasNoReferencePoint,
+        setReferencePoint,
+    } = useUserLocation(isLocationVisible);
 
     const userId = useAuthStore((s) => s.user?.id ?? null);
     const [pinnedRoute, setPinnedRoute] = useState<SavedRoute | null>(null);
@@ -206,31 +212,31 @@ export default function MapPage() {
               )}px + 0.5rem)`,
           }
         : undefined;
-    
+
     const handleSelectPoi = (poi: Poi) => {
         setReferencePoint({
             lat: poi.lat,
             lon: poi.lon,
             heading: 0,
-            accuracy: 10
-        })
-    }
+            accuracy: 10,
+        });
+    };
 
     const handlePreviewPoi = (poi: Poi) => {
-        if(poi.id) {
-            handleFeatureClick(poi.id)
+        if (poi.id) {
+            handleFeatureClick(poi.id);
         }
 
-        if(map) {
+        if (map) {
             map.flyTo({
                 center: [poi.lon, poi.lat],
                 zoom: 12,
                 duration: 800,
-            })
+            });
         }
 
-        setIsPoiModalOpen(false)
-    }
+        setIsPoiModalOpen(false);
+    };
 
     const panelProps = {
         heatmapVisible: isHeatmapVisible,
@@ -319,7 +325,7 @@ export default function MapPage() {
                     }
                     onDismiss={() => setIsNoDataBannerDismissed(true)}
                 />
-                <SelectReferenceModal 
+                <SelectReferenceModal
                     open={isPoiModalOpen}
                     onOpenChange={setIsPoiModalOpen}
                     pois={pois}

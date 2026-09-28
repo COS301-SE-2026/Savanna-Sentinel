@@ -1,6 +1,13 @@
 import { Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "../ui/table";
 import { cellClass, rowClass, theadClass } from "../ui/table-styles";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
@@ -18,8 +25,7 @@ interface SelectReferenceModalProps {
     pois?: Poi[];
     onSelectPoi?: (poi: Poi) => void;
     onPreviewPoi?: (poi: Poi) => void;
-};
-
+}
 
 const SelectReferenceModal = ({
     open,
@@ -30,17 +36,14 @@ const SelectReferenceModal = ({
 }: SelectReferenceModalProps) => {
     const handleSelectPoi = (poi: Poi) => {
         onSelectPoi?.(poi);
-        onOpenChange(false)
-    }
+        onOpenChange(false);
+    };
     const handlePreviewPoi = (poi: Poi) => {
         onPreviewPoi?.(poi);
-    }
-    
-    return(
-        <Dialog
-            open={open}
-            onOpenChange={onOpenChange}
-        >
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent preventBackdropClose className="sm:max-w-md p-6">
                 <DialogHeader className="pb-1">
                     <DialogTitle>
@@ -53,17 +56,17 @@ const SelectReferenceModal = ({
                             <TableHead
                                 className={cn(theadClass, "text-center")}
                             >
-                                 Preview
+                                Preview
                             </TableHead>
                             <TableHead
                                 className={cn(theadClass, "text-center")}
                             >
-                                 Location Name
+                                Location Name
                             </TableHead>
                             <TableHead
                                 className={cn(theadClass, "text-center")}
                             >
-                                 Select
+                                Select
                             </TableHead>
                         </TableHeader>
                         <TableBody>
@@ -74,14 +77,17 @@ const SelectReferenceModal = ({
                                 >
                                     No points of interest available
                                 </TableCell>
-                            ): (
+                            ) : (
                                 pois.map((poi, i) => (
                                     <TableRow
                                         key={`${poi.lat}-${poi.lon}-${i}`}
                                         className={rowClass}
                                     >
                                         <TableCell
-                                            className={cn(cellClass, "text-center")}
+                                            className={cn(
+                                                cellClass,
+                                                "text-center",
+                                            )}
                                         >
                                             <div className="flex items-center justify-center">
                                                 <Button
@@ -91,25 +97,35 @@ const SelectReferenceModal = ({
                                                     className="size-7 hover:bg-color-surface-hover text-color-text-secondary hover:text-brand-primary"
                                                     aria-label={`Preview ${poi.name} on map`}
                                                     title="Fly map to location"
-                                                    onClick={() => handlePreviewPoi(poi)}
+                                                    onClick={() =>
+                                                        handlePreviewPoi(poi)
+                                                    }
                                                 >
                                                     <Eye className="size-4 text-color-text-secondary" />
                                                 </Button>
                                             </div>
                                         </TableCell>
                                         <TableCell
-                                            className={cn(cellClass, "text-left")}
+                                            className={cn(
+                                                cellClass,
+                                                "text-left",
+                                            )}
                                         >
                                             <div className="font-medium text-color-text-primary">
                                                 {poi.name}
                                             </div>
                                         </TableCell>
                                         <TableCell
-                                            className={cn(cellClass, "text-center")}
+                                            className={cn(
+                                                cellClass,
+                                                "text-center",
+                                            )}
                                         >
                                             <Button
                                                 size="sm"
-                                                onClick={() => handleSelectPoi(poi)}
+                                                onClick={() =>
+                                                    handleSelectPoi(poi)
+                                                }
                                             >
                                                 Select
                                             </Button>
@@ -122,7 +138,7 @@ const SelectReferenceModal = ({
                 </div>
             </DialogContent>
         </Dialog>
-    )
-}
+    );
+};
 
 export default SelectReferenceModal;

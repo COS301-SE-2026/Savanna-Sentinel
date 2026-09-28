@@ -260,9 +260,8 @@ export default function PatrolPlannerPage() {
     const [isNoDataBannerDismissed, setIsNoDataBannerDismissed] =
         useState(false);
     const [isLocationVisible, setLocationVisible] = useState(false);
-    const { location: userLocation, status: userLocationStatus} =
+    const { location: userLocation, status: userLocationStatus } =
         useUserLocation(isLocationVisible);
-
 
     const bottomAnchorStyle = isMobile
         ? {

@@ -73,10 +73,20 @@ export function MapControls({
                     size="icon"
                     className="mt-1 bg-color-surface-raised shadow-sm"
                     aria-label="Set reference point"
-                    title={hasReferencePoint ? "Change reference point" : "Set reference point"}
+                    title={
+                        hasReferencePoint
+                            ? "Change reference point"
+                            : "Set reference point"
+                    }
                     onClick={onOpenPoiModal}
                 >
-                    <MapPin className={hasReferencePoint ? "text-brand-primary" : "text-destructive animate-pulse"} />
+                    <MapPin
+                        className={
+                            hasReferencePoint
+                                ? "text-brand-primary"
+                                : "text-destructive animate-pulse"
+                        }
+                    />
                 </Button>
             )}
         </div>

@@ -2,6 +2,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
 import { useUserLocation } from "@/hooks/useUserLocation";
+import type { UserLocation } from "@/types/location";
 
 type SuccessCallback = (position: GeolocationPosition) => void;
 type ErrorCallback = (error: GeolocationPositionError) => void;
@@ -149,13 +150,16 @@ describe("useUserLocation", () => {
         expect(result.current.location?.lat).toBeCloseTo(-24.3);
     });
 
-    it("reports unavailable when the watch fails before any fix", async () => {
+    it("reports needs-reference when the watch fails before any fix", async () => {
         const geo = installGeolocation();
         const { result } = renderHook(() => useUserLocation());
 
         act(() => geo.failure?.(positionError(2)));
 
-        await waitFor(() => expect(result.current.status).toBe("unavailable"));
+        await waitFor(() =>
+            expect(result.current.status).toBe("needs-reference"),
+        );
+        expect(result.current.hasNoReferencePoint).toBe(true);
     });
 
     it("clears the watch on unmount", () => {
@@ -454,5 +458,76 @@ describe("dead reckoning for useUserLocation", () => {
             heading: 180,
             accuracy: 5,
         });
+    });
+
+    it("sets reference point manually and switches status to dead-reckoning", async () => {
+        const geo = installGeolocation();
+        const { result } = renderHook(() => useUserLocation());
+
+        act(() => geo.failure?.(positionError(2)));
+        await waitFor(() =>
+            expect(result.current.status).toBe("needs-reference"),
+        );
+        expect(result.current.hasNoReferencePoint).toBe(true);
+
+        const manualPoi: UserLocation = {
+            lat: -24.3,
+            lon: 31.05,
+            heading: 0,
+            accuracy: 10,
+        };
+
+        act(() => {
+            result.current.setReferencePoint(manualPoi);
+        });
+
+        expect(result.current.status).toBe("dead-reckoning");
+        expect(result.current.hasNoReferencePoint).toBe(false);
+        expect(result.current.location).toEqual(manualPoi);
+    });
+
+    it("calculates dead reckoning motion starting from a set reference point", async () => {
+        const geo = installGeolocation();
+        const { result } = renderHook(() => useUserLocation());
+
+        act(() => geo.failure?.(positionError(2)));
+        await waitFor(() =>
+            expect(result.current.status).toBe("needs-reference"),
+        );
+        expect(result.current.hasNoReferencePoint).toBe(true);
+
+        const manualPoi: UserLocation = {
+            lat: -24.3,
+            lon: 31.05,
+            heading: 0,
+            accuracy: 10,
+        };
+
+        act(() => {
+            result.current.setReferencePoint(manualPoi);
+        });
+
+        expect(result.current.status).toBe("dead-reckoning");
+
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: { y: 1.0 },
+                }),
+            );
+        });
+
+        currentTime += 1000;
+
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: { y: 1.0 },
+                }),
+            );
+        });
+
+        expect(result.current.location?.lat).toBeGreaterThan(-24.3);
+        expect(result.current.location?.accuracy).toBeGreaterThan(10);
     });
 });

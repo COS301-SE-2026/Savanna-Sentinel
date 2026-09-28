@@ -44,7 +44,7 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
     const [status, setStatus] = useState<UserLocationStatus>(() =>
         navigator.geolocation ? "locating" : "unavailable",
     );
-    const [hasNoReferencePoint, setHasNoReferencePoint] = useState(false)
+    const [hasNoReferencePoint, setHasNoReferencePoint] = useState(false);
 
     const lastGpsLoc = useRef<UserLocation | null>(null);
     const currentVelocity = useRef<number>(0);
@@ -60,8 +60,7 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
         setLocation(manualLocation);
         setHasNoReferencePoint(false);
         setStatus("dead-reckoning");
-
-    }
+    };
 
     useEffect(() => {
         if (!enabled) return undefined;
@@ -99,7 +98,7 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
                 if (lastGpsLoc.current) {
                     setStatus("dead-reckoning");
                 } else {
-                    setHasNoReferencePoint(true)
+                    setHasNoReferencePoint(true);
                     setStatus("needs-reference");
                 }
             },
@@ -187,7 +186,13 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
         return () => window.removeEventListener("devicemotion", handleMotion);
     }, [status]);
 
-    if (!enabled) return { location: null, status: "idle", hasNoReferencePoint: false, setReferencePoint: () => {}};
+    if (!enabled)
+        return {
+            location: null,
+            status: "idle",
+            hasNoReferencePoint: false,
+            setReferencePoint: () => {},
+        };
 
     return { location, status, hasNoReferencePoint, setReferencePoint };
 }

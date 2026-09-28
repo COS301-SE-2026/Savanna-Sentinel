@@ -92,6 +92,7 @@ export function DrawToolbar({
         onFeatureDrawnRef.current = onFeatureDrawn;
     }, [onFeatureDrawn]);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     function updateActiveMode(mode: string) {
         setActiveMode(mode);
         onModeChangeRef.current?.(mode);
@@ -374,7 +375,7 @@ export function DrawToolbar({
         draw.setMode("select");
         updateActiveMode("select");
         draw.selectFeature(editingFeature.id);
-    }, [editingFeature]);
+    }, [editingFeature, updateActiveMode]);
 
     return (
         <>
