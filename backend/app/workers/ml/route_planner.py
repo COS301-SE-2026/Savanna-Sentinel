@@ -1324,6 +1324,7 @@ NO_TOUR_FOUND = "no_tour_found"
 DUPLICATE_ROUTE = "duplicate_route"
 LONGER_THAN_BEST = "longer_than_best"
 STOP_IN_NO_GO = "stop_in_no_go"
+BLOCKED_BY_NO_GO = "blocked_by_no_go"
 
 
 @dataclass
@@ -1406,6 +1407,11 @@ def plan_routes(
     ]
     hub_ids = list(dict.fromkeys([start_node_id, end_node_id, *waypoint_ids]))
     distance_matrix = build_waypoint_distance_matrix(graph, hub_ids)
+    if (
+        start_node_id != end_node_id
+        and (start_node_id, end_node_id) not in distance_matrix
+    ):
+        return RoutePlan(routes=[], shortfall=BLOCKED_BY_NO_GO)
     seed_tour = None
     if config.seed_with_greedy:
         seed_tour = greedy_tour(
@@ -1562,6 +1568,8 @@ def plan_routes_via(
     matrix = build_waypoint_distance_matrix(
         graph, list(dict.fromkeys([*stops, *hotspot_ids])),
     )
+    if any((a, b) not in matrix for a, b in zip(stops, stops[1:])):
+        return RoutePlan(routes=[], shortfall=BLOCKED_BY_NO_GO)
     leg_hotspots = assign_hotspots_to_legs(matrix, stops, hotspot_ids)
     leg_config = replace(
         config,

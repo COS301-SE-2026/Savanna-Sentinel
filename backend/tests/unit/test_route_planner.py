@@ -2749,6 +2749,125 @@ def test_plan_routes_via_fails_when_any_leg_has_no_route(monkeypatch):
     assert plan.shortfall == route_planner.NO_TOUR_FOUND
 
 
+@pytest.fixture
+def split_line_graph():
+    """Line graph p1..p5 with the p2-p3 move blocked by a barrier."""
+    route_planner.clear_path_cache()
+    base = make_line_graph()
+    yield ParkGraph(
+        park_id=base.park_id,
+        nodes=base.nodes,
+        edges=[
+            e
+            for e in base.edges
+            if {e.from_node_id, e.to_node_id} != {"p2", "p3"}
+        ],
+        neighbor_edges=base.edges,
+        terrain_key="split",
+    )
+    route_planner.clear_path_cache()
+
+
+def _no_phases(*args, **kwargs):
+    raise AssertionError("planning should stop before any phase runs")
+
+
+def test_plan_routes_reports_a_barrier_between_start_and_end(
+    split_line_graph,
+    monkeypatch,
+):
+    monkeypatch.setattr(route_planner, "run_phase", _no_phases)
+
+    plan = route_planner.plan_routes(
+        split_line_graph,
+        "p1",
+        "p5",
+        3,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.routes == []
+    assert plan.shortfall == route_planner.BLOCKED_BY_NO_GO
+
+
+def test_plan_routes_on_one_side_of_a_barrier_still_plans(split_line_graph):
+    plan = route_planner.plan_routes(
+        split_line_graph,
+        "p3",
+        "p5",
+        1,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.routes
+    assert plan.shortfall != route_planner.BLOCKED_BY_NO_GO
+    assert plan.routes[0].suggested_path[0] == "p3"
+    assert plan.routes[0].suggested_path[-1] == "p5"
+
+
+def test_plan_routes_loop_is_never_reported_as_blocked(split_line_graph):
+    plan = route_planner.plan_routes(
+        split_line_graph,
+        "p1",
+        "p1",
+        1,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.shortfall != route_planner.BLOCKED_BY_NO_GO
+
+
+def test_plan_routes_via_reports_a_barrier_on_any_leg(
+    split_line_graph,
+    monkeypatch,
+):
+    def fail(*args, **kwargs):
+        raise AssertionError("no leg should be planned")
+
+    monkeypatch.setattr(route_planner, "plan_routes", fail)
+
+    plan = route_planner.plan_routes_via(
+        split_line_graph,
+        ["p1", "p2", "p5"],
+        3,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.routes == []
+    assert plan.shortfall == route_planner.BLOCKED_BY_NO_GO
+
+
+def test_plan_routes_via_with_two_blocked_stops_reports_the_barrier(
+    split_line_graph,
+):
+    plan = route_planner.plan_routes_via(
+        split_line_graph,
+        ["p2", "p4"],
+        3,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.routes == []
+    assert plan.shortfall == route_planner.BLOCKED_BY_NO_GO
+
+
+def test_plan_routes_via_on_one_side_of_a_barrier_still_plans(
+    split_line_graph,
+):
+    plan = route_planner.plan_routes_via(
+        split_line_graph,
+        ["p3", "p4", "p5"],
+        1,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.routes
+    path = plan.routes[0].suggested_path
+    assert path[0] == "p3"
+    assert path[-1] == "p5"
+    assert "p4" in path
+
+
 def test_stitch_legs_falls_back_to_a_short_legs_best_route():
     legs = [
         route_planner.RoutePlan(routes=[_leg(["start", "mid"])]),
