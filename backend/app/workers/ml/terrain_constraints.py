@@ -137,7 +137,7 @@ def impassable_areas(
         if avoid is None or avoid["strength"] < IMPASSABLE_STRENGTH:
             continue
         area = _project(feature["geometry"], epsg)
-        
+
         if feature["buffer_enabled"] and avoid["buffer_decay"] == 0:
             area = area.buffer(feature["buffer_distance_m"])
         areas.append(ImpassableArea(feature["id"], avoid["priority"], area))
