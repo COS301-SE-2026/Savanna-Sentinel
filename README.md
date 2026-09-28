@@ -79,6 +79,7 @@ The [Demo 3 NFR Traceability Matrix](./docs/demo3/PDF/Non%20Functional%20Require
 | Deployment and maintainability | [Backend CI](./.github/workflows/backend-ci.yml) and [Frontend CI](./.github/workflows/frontend-ci.yml) run automated checks and tests; [Codecov](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel) reports uploaded test coverage |
 
 The k6 workflow runs five scenarios concurrently (30 health-check, 6 login, 15 report, 5 ingestion, and 10 media-upload virtual users: 66 total) and checks p95 response time below 2 seconds and failed requests below 1%. The badge reflects the latest workflow run that successfully writes it.
+It takes ~10 minutes to run the test suite (Mainly because of e2e), and roughly 30 ~ 40 minutes for our CI to deploy from dev -> main
 
 Maintainability is evidenced here through repeatable lint, test, build, and coverage checks in CI.
 
