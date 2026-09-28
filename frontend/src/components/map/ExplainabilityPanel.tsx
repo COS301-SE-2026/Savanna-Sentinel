@@ -6,6 +6,7 @@ import { LayerTreePanel } from "@/components/workspace/LayerTreePanel";
 import type { WorkspaceSelection } from "@/components/workspace/StyleEditorPanel";
 import { getRiskLevel } from "@/lib/mapTokens";
 import { formatRelativeTime } from "@/lib/utils";
+import { requestMotionPermission } from "@/lib/motionPermission";
 import { useMapStore } from "@/store/mapStore";
 
 export function SectionHeader({ children }: { children: string }) {
@@ -82,28 +83,14 @@ export function ExplainabilityPanel({
     }, [cellsByRef]);
 
     const handleLocationChange = async (checked: boolean) => {
-        if (checked && typeof DeviceMotionEvent !== "undefined") {
-            const deviceMotionEventPermission =
-                DeviceMotionEvent as unknown as {
-                    requestPermission?: () => Promise<
-                        "granted" | "denied" | "default"
-                    >;
-                };
-
-            if (
-                typeof deviceMotionEventPermission.requestPermission ===
-                "function"
-            ) {
-                try {
-                    const permission =
-                        await deviceMotionEventPermission.requestPermission();
-                    if (permission !== "granted") {
-                        return;
-                    }
-                } catch (error) {
-                    console.warn("Motion sensor permission failed:", error);
+        if (checked) {
+            try {
+                if (!(await requestMotionPermission())) {
                     return;
                 }
+            } catch (error) {
+                console.warn("Motion sensor permission failed:", error);
+                return;
             }
         }
 
