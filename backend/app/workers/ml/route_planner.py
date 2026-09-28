@@ -54,19 +54,16 @@ def _node_risk(graph: ParkGraph) -> dict[str, float]:
 
 
 def _coverage_neighbors(graph: ParkGraph) -> dict[str, frozenset[str]]:
-    """node_id -> itself plus every node directly graph-adjacent to it.
 
-    Since this graph's edges are built from grid adjacency (see
-    route_repository._load_grid), a node's direct neighbours are its
-    geometric surroundings. Used as a patrol-presence/deterrence coverage
-    radius: a cell counts as covered if the route passes adjacent to it.
-
-    This is a documented simplification, and not specifically final.
-    """
     cached = getattr(graph, "_coverage_neighbors_cache", None)
     if cached is None:
+        adjacency = (
+            graph.edges
+            if graph.neighbor_edges is None
+            else graph.neighbor_edges
+        )
         undirected: dict[str, set[str]] = {}
-        for e in graph.edges:
+        for e in adjacency:
             undirected.setdefault(e.from_node_id, set()).add(e.to_node_id)
             undirected.setdefault(e.to_node_id, set()).add(e.from_node_id)
         cached = {

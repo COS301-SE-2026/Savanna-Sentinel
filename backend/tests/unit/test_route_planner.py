@@ -166,6 +166,72 @@ def test_covered_nodes_unions_neighbors_across_the_whole_path():
     assert covered == {"p1", "p2", "p4", "p5"}
 
 
+def _without_move(graph, a, b):
+    """Graph with the a-b move blocked but a and b still grid neighbours."""
+    return ParkGraph(
+        park_id=graph.park_id,
+        nodes=graph.nodes,
+        edges=[
+            e
+            for e in graph.edges
+            if {e.from_node_id, e.to_node_id} != {a, b}
+        ],
+        neighbor_edges=graph.edges,
+    )
+
+
+def test_covered_nodes_sees_across_a_line_barrier():
+    graph = _without_move(make_line_graph(), "p2", "p3")
+    assert route_planner.covered_nodes(graph, ["p2"]) == {"p1", "p2", "p3"}
+
+
+def test_covered_nodes_ignores_blocked_moves_when_no_neighbor_edges():
+    full = make_line_graph()
+    graph = ParkGraph(
+        park_id=full.park_id,
+        nodes=full.nodes,
+        edges=[
+            e
+            for e in full.edges
+            if {e.from_node_id, e.to_node_id} != {"p2", "p3"}
+        ],
+    )
+    assert route_planner.covered_nodes(graph, ["p2"]) == {"p1", "p2"}
+
+
+def test_covered_nodes_never_includes_removed_cells():
+    full = make_line_graph()
+    kept = [n for n in full.nodes if n.node_id != "p3"]
+    remaining = [
+        e for e in full.edges if "p3" not in (e.from_node_id, e.to_node_id)
+    ]
+    graph = ParkGraph(
+        park_id=full.park_id,
+        nodes=kept,
+        edges=remaining,
+        neighbor_edges=remaining,
+    )
+    assert route_planner.covered_nodes(graph, ["p2"]) == {"p1", "p2"}
+
+
+def test_risk_coverage_counts_hotspots_across_a_line_barrier():
+    full = make_line_graph()
+    nodes = [
+        GraphNode(
+            node_id=n.node_id,
+            location=n.location,
+            risk_score=0.9 if n.node_id == "p3" else 0.0,
+        )
+        for n in full.nodes
+    ]
+    graph = _without_move(
+        ParkGraph(park_id=full.park_id, nodes=nodes, edges=full.edges),
+        "p2",
+        "p3",
+    )
+    assert route_planner.compute_risk_coverage(graph, ["p1", "p2"]) == 1.0
+
+
 def _stops(graph, threshold=None):
     return [
         stop for stop, _ in route_planner.hotspot_zones(graph, threshold)
