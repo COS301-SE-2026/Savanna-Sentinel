@@ -10,6 +10,10 @@ import {
 import { registerWorkspaceIcons } from "@/lib/workspace/icons";
 import { bufferFeatureOutline } from "@/lib/workspace/haloBuffer";
 import { pixelToleranceToDegrees } from "@/lib/workspace/terraDrawGeometry";
+import {
+    applyOpacityOverrides,
+    type LayerOpacityOverride,
+} from "@/lib/workspace/opacityOverrides";
 
 const SOURCE_POINTS = "workspace-points";
 const SOURCE_LINES = "workspace-lines";
@@ -121,6 +125,8 @@ function symbolLayout(): maplibregl.SymbolLayerSpecification["layout"] {
 
 const SYMBOL_PAINT: maplibregl.SymbolLayerSpecification["paint"] = {
     "icon-color": ["get", "iconColour"],
+    "icon-opacity": ["get", "iconOpacity"],
+    "text-opacity": ["get", "labelOpacity"],
     "text-halo-color": "#ffffff",
     "text-halo-width": 1.5,
 };
@@ -208,11 +214,14 @@ function groupLayerSpecs(layerId: string): maplibregl.LayerSpecification[] {
     ];
 }
 
+export type { LayerOpacityOverride as WorkspaceOpacityOverride };
+
 export interface WorkspaceMapLayersProps {
     map: maplibregl.Map | null;
     excludedFeatureId: string | null;
     selectedFeatureId: string | null;
     onFeatureClick: (featureId: string | null) => void;
+    opacityOverrides?: LayerOpacityOverride[];
 }
 
 export function WorkspaceMapLayers({
@@ -220,6 +229,7 @@ export function WorkspaceMapLayers({
     excludedFeatureId,
     selectedFeatureId,
     onFeatureClick,
+    opacityOverrides = [],
 }: WorkspaceMapLayersProps) {
     const layers = useWorkspaceStore((s) => s.layers);
     const features = useWorkspaceStore((s) => s.features);
@@ -232,9 +242,13 @@ export function WorkspaceMapLayers({
             ),
         [layers, features, memberships, excludedFeatureId],
     );
+    const renderResolved = useMemo(
+        () => applyOpacityOverrides(resolved, opacityOverrides),
+        [resolved, opacityOverrides],
+    );
     const collections = useMemo(
-        () => toWorkspaceFeatureCollections(resolved, selectedFeatureId),
-        [resolved, selectedFeatureId],
+        () => toWorkspaceFeatureCollections(renderResolved, selectedFeatureId),
+        [renderResolved, selectedFeatureId],
     );
     const stackedKey = useMemo(
         () => JSON.stringify(getStackedLayerIds(resolved)),
