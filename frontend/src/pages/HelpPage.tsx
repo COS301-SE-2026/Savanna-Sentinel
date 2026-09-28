@@ -15,15 +15,12 @@ import Reports from "@/components/help/Reports"
 import Profile from "@/components/help/Profile";
 import Patrol from "@/components/help/PatrolPlanner";
 
-/*
+interface FaqProps {
+    canViewDashboard: boolean;
+    canViewIngestion: boolean;
+}
 
-Submitting a tipoff (Everyone)
-The dashboard (Admin, Ranger, Analyst)
-Ingestion page (Admin, Analyst)
-
-*/
-
-function Faq() {
+function Faq({ canViewDashboard, canViewIngestion }: FaqProps) {
     return (
         <Card>
             <CardHeader>
@@ -87,6 +84,66 @@ function Faq() {
                         or password.
                     </p>
                 </div>
+
+                <div>
+                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
+                        How do I submit a tip-off?
+                    </CardTitle>
+                    <p>
+                        Open Tip-offs, choose a report type, add its details, date, and location,
+                        then submit it. You can add photos as well. A location
+                        is required; select a point on the map or use your
+                        current location.
+                    </p>
+                </div>
+
+                {canViewDashboard && (
+                    <div>
+                        <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
+                            What can I find on the dashboard?
+                        </CardTitle>
+                        <p>
+                            Open the Dashboard to review reserve statistics, recent field reports,
+                            risk zones, report trends, and model performance.
+                            The dashboard refreshes its data periodically.
+                        </p>
+                    </div>
+                )}
+
+                {canViewIngestion && (
+                    <div>
+                        <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
+                            How do I upload data for ingestion?
+                        </CardTitle>
+                        <p>
+                            Open Ingestion and choose a CSV file that matches the required
+                            format. Review the parsed rows, correct any
+                            validation errors, then submit and confirm the
+                            upload.
+                        </p>
+                    </div>
+                )}
+
+                <div className="rounded-lg border border-brand-steel bg-color-surface-bg p-5 md:flex md:items-center md:justify-between md:gap-6">
+                    <div className="space-y-1">
+                        <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
+                            Still stuck?
+                        </CardTitle>
+                        <p className="text-color-text-primary">
+                            Try reading the User Manual for more guidance.
+                        </p>
+                    </div>
+                    <Button asChild className="mt-4 shrink-0 md:mt-0">
+                        <a
+                            href="https://github.com/COS301-SE-2026/Savanna-Sentinel/blob/main/docs/demo2/PDF/User%20Manual.pdf?raw=true"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download
+                        >
+                            Download the User Manual
+                        </a>
+                    </Button>
+                </div>
             </CardContent>
         </Card>
     );
@@ -98,6 +155,8 @@ export default function HelpPage() {
     const canViewRanger = user?.role === "ranger" || canViewAll;
     const canViewAnalyst = user?.role === "analyst" || canViewAll;
     const canViewStaffOnly = canViewAnalyst || canViewRanger || canViewAll;
+    const canViewDashboard = canViewStaffOnly;
+    const canViewIngestion = canViewAnalyst;
     
     return (
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
@@ -149,15 +208,14 @@ export default function HelpPage() {
                                 </TabsTrigger>
                             )
                         }
-
-                        <TabsTrigger className="text-sm" value="download">
-                            User Manual
-                        </TabsTrigger>
                     </TabsList>
                 </div>
 
                 <TabsContent value="faq">
-                    <Faq />
+                    <Faq
+                        canViewDashboard={canViewDashboard}
+                        canViewIngestion={canViewIngestion}
+                    />
                 </TabsContent>
 
                 <TabsContent value="profile">
@@ -182,23 +240,6 @@ export default function HelpPage() {
 
                 <TabsContent value="admin">
                     <Admin />
-                </TabsContent>
-
-                <TabsContent value="download">
-                    <Card>
-                        <CardContent>
-                            <Button asChild>
-                                <a
-                                    href="https://github.com/COS301-SE-2026/Savanna-Sentinel/blob/main/docs/demo2/PDF/User%20Manual.pdf?raw=true"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    download
-                                >
-                                    Click to Download the User Manual
-                                </a>
-                            </Button>
-                        </CardContent>
-                    </Card>
                 </TabsContent>
             </Tabs>
         </div>
