@@ -219,7 +219,9 @@ describe("MapPage", () => {
         });
 
         await userEvent.click(
-            screen.getByRole("checkbox", { name: /risk heatmap/i }),
+            screen.getByRole("checkbox", {
+                name: /^toggle visibility for heatmap$/i,
+            }),
         );
 
         await waitFor(() => {
@@ -328,7 +330,9 @@ describe("MapPage", () => {
 
     it("has no Patrol Route layer control until a route has been sent over", async () => {
         renderPage();
-        await screen.findByRole("checkbox", { name: /risk heatmap/i });
+        await screen.findByRole("checkbox", {
+            name: /^toggle visibility for heatmap$/i,
+        });
 
         expect(
             screen.queryByRole("checkbox", { name: /patrol route/i }),
@@ -403,6 +407,55 @@ describe("MapPage", () => {
         expect(await loadPinnedRoute(USER_ID)).toBeNull();
     });
 
+    it("selects the patrol route row and reveals its opacity slider", async () => {
+        await signInWithPinnedRoute();
+        renderPage();
+
+        expect(
+            screen.queryByLabelText(/patrol route opacity/i),
+        ).not.toBeInTheDocument();
+
+        await userEvent.click(
+            await screen.findByRole("button", { name: "Patrol Route" }),
+        );
+
+        expect(
+            await screen.findByLabelText(/patrol route opacity/i),
+        ).toBeInTheDocument();
+    });
+
+    it("flows the patrol route opacity slider through to the rendered route line", async () => {
+        await signInWithPinnedRoute();
+        const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
+        renderPage();
+
+        await waitFor(() => {
+            const ids = addLayerSpy.mock.calls.map(
+                ([layer]) => (layer as { id: string }).id,
+            );
+            expect(ids).toContain("patrol-route-0-line");
+        });
+        const map = addLayerSpy.mock.instances[0] as unknown as FakeMap;
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Patrol Route" }),
+        );
+        fireEvent.change(
+            await screen.findByLabelText(/patrol route opacity/i),
+            {
+                target: { value: "40" },
+            },
+        );
+
+        await waitFor(() =>
+            expect(map.setPaintProperty).toHaveBeenCalledWith(
+                "patrol-route-0-line",
+                "line-opacity",
+                0.4,
+            ),
+        );
+    });
+
     it("tears down cleanly on unmount", async () => {
         const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
         const { unmount } = renderPage();
@@ -447,6 +500,19 @@ describe("MapPage", () => {
         await userEvent.click(layerButton);
 
         expect(layerButton).toHaveAttribute("aria-current", "true");
+    });
+
+    it("highlights the heatmap row in the layer tree when it is clicked", async () => {
+        renderPage();
+
+        const heatmapButton = await screen.findByRole("button", {
+            name: "Heatmap",
+        });
+
+        expect(heatmapButton).not.toHaveAttribute("aria-current");
+        await userEvent.click(heatmapButton);
+
+        expect(heatmapButton).toHaveAttribute("aria-current", "true");
     });
 
     it("selects a membership item and figures out the id", async () => {
