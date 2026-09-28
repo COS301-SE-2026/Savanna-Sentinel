@@ -19,6 +19,12 @@ class GeographyPoint(UserDefinedType):
     def get_col_spec(self, **kw):
         return "GEOGRAPHY(Point, 4326)"
 
+class GeographyMultiPoint(UserDefinedType):
+    cache_ok = True
+
+    def get_col_spec(self, **kw):
+        return "GEOGRAPHY(MultiPoint, 4326)"
+
 class GeographyLineString(UserDefinedType):
     cache_ok = True
 
@@ -27,6 +33,9 @@ class GeographyLineString(UserDefinedType):
 
 
 _GEOGRAPHY_POINT_COLUMN = GeographyPoint().with_variant(Text(), "sqlite")
+_GEOGRAPHY_MULTIPOINT_COLUMN = GeographyMultiPoint().with_variant(
+    Text(), "sqlite",
+)
 _GEOGRAPHY_LINESTRING_COLUMN = GeographyLineString().with_variant(
     Text(), "sqlite",
 )
@@ -47,6 +56,9 @@ class PatrolRoute(Base):
     )
     end_point: Mapped[str] = mapped_column(
         _GEOGRAPHY_POINT_COLUMN, nullable=False,
+    )
+    waypoints: Mapped[str | None] = mapped_column(
+        _GEOGRAPHY_MULTIPOINT_COLUMN, nullable=True,
     )
     suggested_path: Mapped[str] = mapped_column(
         _GEOGRAPHY_LINESTRING_COLUMN, nullable=False,

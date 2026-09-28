@@ -40,7 +40,7 @@ def test_serialize_route_returns_plain_dict_with_geometry_dumped():
 # run_route_planning_job
 
 
-@patch("app.workers.tasks.route_tasks.plan_routes")
+@patch("app.workers.tasks.route_tasks.plan_routes_via")
 @patch("app.workers.tasks.route_tasks.find_nearest_node")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_wires_graph_lookup_and_planning(
@@ -71,9 +71,8 @@ def test_run_route_planning_job_wires_graph_lookup_and_planning(
     mock_plan_routes.assert_called_once()
     plan_args = mock_plan_routes.call_args.args
     assert plan_args[0] is graph
-    assert plan_args[1] == "cell-start"
-    assert plan_args[2] == "cell-end"
-    assert plan_args[3] == 3
+    assert plan_args[1] == ["cell-start", "cell-end"]
+    assert plan_args[2] == 3
 
     assert result == {
         "park_id": "klaserie",
@@ -84,7 +83,7 @@ def test_run_route_planning_job_wires_graph_lookup_and_planning(
     }
 
 
-@patch("app.workers.tasks.route_tasks.plan_routes")
+@patch("app.workers.tasks.route_tasks.plan_routes_via")
 @patch("app.workers.tasks.route_tasks.find_nearest_node")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_defaults_risk_by_cell_to_none(
@@ -107,7 +106,7 @@ def test_run_route_planning_job_defaults_risk_by_cell_to_none(
     mock_build_graph.assert_called_once_with("klaserie", None)
 
 
-@patch("app.workers.tasks.route_tasks.plan_routes")
+@patch("app.workers.tasks.route_tasks.plan_routes_via")
 @patch("app.workers.tasks.route_tasks.find_nearest_node")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_found_count_may_be_less_than_requested(
@@ -139,7 +138,7 @@ def test_run_route_planning_job_found_count_may_be_less_than_requested(
     assert result["shortfall_reason"] == "longer_than_best"
 
 
-@patch("app.workers.tasks.route_tasks.plan_routes")
+@patch("app.workers.tasks.route_tasks.plan_routes_via")
 @patch("app.workers.tasks.route_tasks.find_nearest_node")
 @patch("app.workers.tasks.route_tasks.build_park_graph")
 def test_run_route_planning_job_no_accepted_routes_returns_empty_results(
@@ -164,3 +163,44 @@ def test_run_route_planning_job_no_accepted_routes_returns_empty_results(
     assert result["num_alternatives_found"] == 0
     assert result["shortfall_reason"] == "no_tour_found"
     assert result["results"] == []
+
+
+@patch("app.workers.tasks.route_tasks.plan_routes_via")
+@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.build_park_graph")
+def test_run_route_planning_job_snaps_waypoints_between_start_and_end(
+    mock_build, mock_nearest, mock_plan,
+):
+    mock_nearest.side_effect = lambda graph, point: f"node-{point[0]}"
+    mock_plan.return_value = RoutePlan(routes=[])
+
+    run_route_planning_job(
+        park_id="park-001",
+        start=(1.0, 0.0),
+        end=(4.0, 0.0),
+        num_alternatives=3,
+        waypoints=[(2.0, 0.0), (3.0, 0.0)],
+    )
+
+    assert mock_plan.call_args.args[1] == [
+        "node-1.0", "node-2.0", "node-3.0", "node-4.0",
+    ]
+
+
+@patch("app.workers.tasks.route_tasks.plan_routes_via")
+@patch("app.workers.tasks.route_tasks.find_nearest_node")
+@patch("app.workers.tasks.route_tasks.build_park_graph")
+def test_run_route_planning_job_without_waypoints_plans_start_to_end(
+    mock_build, mock_nearest, mock_plan,
+):
+    mock_nearest.side_effect = lambda graph, point: f"node-{point[0]}"
+    mock_plan.return_value = RoutePlan(routes=[])
+
+    run_route_planning_job(
+        park_id="park-001",
+        start=(1.0, 0.0),
+        end=(4.0, 0.0),
+        num_alternatives=3,
+    )
+
+    assert mock_plan.call_args.args[1] == ["node-1.0", "node-4.0"]

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from app.schemas.geo import GeoPoint
+from app.schemas.geo import GeoLineString, GeoPoint
 from app.schemas.route import GraphEdge, GraphNode, ParkGraph, PlannedRoute
 from app.workers.ml import route_planner
 from app.workers.ml.shortest_path import PathResult
@@ -2491,3 +2491,99 @@ def test_an_unreachable_pair_is_cached_as_missing(monkeypatch):
     before = len(calls)
     assert route_planner.build_waypoint_distance_matrix(graph, ["x", "y"]) == {}
     assert len(calls) == before
+
+
+def _leg(path: list[str]) -> PlannedRoute:
+    return PlannedRoute(
+        suggested_path=path,
+        path_geometry=GeoLineString(coordinates=[(0.0, 0.0), (0.0, 0.0)]),
+        distance_km=1.0,
+        risk_coverage=0.0,
+    )
+
+
+def test_plan_routes_via_with_two_stops_matches_plan_routes():
+    fixture = make_graph()
+    direct = route_planner.plan_routes(
+        fixture.graph, "start", "end", 1, route_planner.ACOConfig(seed=7),
+    )
+    via = route_planner.plan_routes_via(
+        fixture.graph, ["start", "end"], 1, route_planner.ACOConfig(seed=7),
+    )
+    assert [r.suggested_path for r in via.routes] == [
+        r.suggested_path for r in direct.routes
+    ]
+
+
+def test_plan_routes_via_visits_every_stop_in_order():
+    fixture = make_graph()
+    plan = route_planner.plan_routes_via(
+        fixture.graph,
+        ["start", "mid", "end"],
+        1,
+        route_planner.ACOConfig(seed=7),
+    )
+    path = plan.routes[0].suggested_path
+    assert path[0] == "start"
+    assert path[-1] == "end"
+    assert path.index("mid") < len(path) - 1
+
+
+def test_plan_routes_via_collapses_repeated_consecutive_stops(monkeypatch):
+    calls = []
+
+    def fake_plan_routes(
+        graph, a, b, num_alternatives, config, hotspot_ids=None,
+    ):
+        calls.append((a, b))
+        return route_planner.RoutePlan(routes=[_leg([a, b])])
+
+    monkeypatch.setattr(route_planner, "plan_routes", fake_plan_routes)
+    route_planner.plan_routes_via(
+        make_graph().graph, ["start", "mid", "mid", "end"], 1,
+    )
+    assert calls == [("start", "mid"), ("mid", "end")]
+
+
+def test_plan_routes_via_fails_when_any_leg_has_no_route(monkeypatch):
+    def fake_plan_routes(
+        graph, a, b, num_alternatives, config, hotspot_ids=None,
+    ):
+        if a == "mid":
+            return route_planner.RoutePlan(
+                routes=[], shortfall=route_planner.NO_TOUR_FOUND,
+            )
+        return route_planner.RoutePlan(routes=[_leg([a, b])])
+
+    monkeypatch.setattr(route_planner, "plan_routes", fake_plan_routes)
+    plan = route_planner.plan_routes_via(
+        make_graph().graph, ["start", "mid", "end"], 3,
+    )
+    assert plan.routes == []
+    assert plan.shortfall == route_planner.NO_TOUR_FOUND
+
+
+def test_stitch_legs_falls_back_to_a_short_legs_best_route():
+    legs = [
+        route_planner.RoutePlan(routes=[_leg(["start", "mid"])]),
+        route_planner.RoutePlan(
+            routes=[_leg(["mid", "end"]), _leg(["mid", "start", "end"])],
+        ),
+    ]
+    assert route_planner._stitch_legs(legs, 1) == [
+        "start", "mid", "start", "end",
+    ]
+
+
+def test_assign_hotspots_to_legs_picks_the_smallest_detour():
+    matrix = {
+        ("a", "b"): PathResult(10, ["a", "b"]),
+        ("b", "c"): PathResult(10, ["b", "c"]),
+        ("a", "h"): PathResult(4, ["a", "h"]),
+        ("h", "b"): PathResult(7, ["h", "b"]),
+        ("b", "h"): PathResult(20, ["b", "h"]),
+        ("h", "c"): PathResult(20, ["h", "c"]),
+    }
+    assert route_planner.assign_hotspots_to_legs(
+        matrix, ["a", "b", "c"], ["h"],
+    ) == [["h"], []]

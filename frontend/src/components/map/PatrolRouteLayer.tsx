@@ -10,6 +10,7 @@ import {
 } from "@/lib/mapTokens";
 
 const MAX_ROUTE_SLOTS = 3;
+const NO_WAYPOINTS: (LatLon | null)[] = [];
 
 function clearRouteSlots(map: maplibregl.Map, fromIndex: number): void {
     try {
@@ -28,6 +29,7 @@ export interface PatrolRouteLayerProps {
     map: maplibregl.Map | null;
     startPoint: LatLon | null;
     endPoint: LatLon | null;
+    waypoints?: (LatLon | null)[];
     routes: PlannedRoute[];
     selectedIndex: number;
 }
@@ -70,10 +72,31 @@ function createEndMarkerElement(): HTMLDivElement {
     return el;
 }
 
+function createWaypointMarkerElement(stopNumber: number): HTMLDivElement {
+    const el = document.createElement("div");
+    el.style.cssText = [
+        "width:22px",
+        "height:22px",
+        "border-radius:50%",
+        `background:${BRAND_PRIMARY_COLOR}`,
+        "border:2px solid white",
+        "box-shadow:0 0 0 1.5px rgba(0,0,0,0.25)",
+        "display:flex",
+        "align-items:center",
+        "justify-content:center",
+        "color:white",
+        "font:600 12px/1 'Barlow', sans-serif",
+    ].join(";");
+    el.textContent = String(stopNumber);
+    el.setAttribute("aria-label", `Stop ${stopNumber}`);
+    return el;
+}
+
 export function PatrolRouteLayer({
     map,
     startPoint,
     endPoint,
+    waypoints = NO_WAYPOINTS,
     routes,
     selectedIndex,
 }: PatrolRouteLayerProps) {
@@ -115,6 +138,22 @@ export function PatrolRouteLayer({
             endMarkerRef.current.setLngLat([endPoint.lon, endPoint.lat]);
         }
     }, [map, endPoint]);
+
+    useEffect(() => {
+        if (!map) return;
+        const markers = waypoints.flatMap((point, index) =>
+            point
+                ? [
+                      new maplibregl.Marker({
+                          element: createWaypointMarkerElement(index + 1),
+                      })
+                          .setLngLat([point.lon, point.lat])
+                          .addTo(map),
+                  ]
+                : [],
+        );
+        return () => markers.forEach((marker) => marker.remove());
+    }, [map, waypoints]);
 
     useEffect(() => {
         return () => {
