@@ -32,6 +32,7 @@ export interface RouteComparisonViewProps {
     canSave: boolean;
     numAlternativesRequested?: number | null;
     shortfallReason?: string | null;
+    isTerrainStale?: boolean;
 }
 
 const SHORTFALL_MESSAGES: Record<string, string> = {
@@ -40,6 +41,22 @@ const SHORTFALL_MESSAGES: Record<string, string> = {
     longer_than_best:
         "the remaining options were more than 15% longer than the shortest route",
 };
+
+const NO_ROUTE_MESSAGES: Record<string, string> = {
+    stop_in_no_go:
+        "A stop is inside an impassable area. Move it outside the area and generate again.",
+    blocked_by_no_go:
+        "A stop can't be reached without crossing an impassable feature. Move the stop, or give a crossing point such as a bridge a higher priority than the feature.",
+};
+
+function TerrainStaleNote() {
+    return (
+        <p className="mb-2 text-xs text-status-caution-text" role="status">
+            Recent workspace changes are still being applied, so route
+            preferences may not reflect them yet.
+        </p>
+    );
+}
 
 function shortfallNote(
     found: number,
@@ -74,6 +91,7 @@ export function RouteComparisonView({
     canSave,
     numAlternativesRequested,
     shortfallReason,
+    isTerrainStale = false,
 }: RouteComparisonViewProps) {
     const [pendingSaveIndex, setPendingSaveIndex] = useState<number | null>(
         null,
@@ -111,10 +129,20 @@ export function RouteComparisonView({
     }
 
     if (routes.length === 0) {
+        const blocked = shortfallReason
+            ? NO_ROUTE_MESSAGES[shortfallReason]
+            : undefined;
         return (
-            <p className="text-sm text-color-text-primary">
-                No feasible routes found. Try a different start or end point.
-            </p>
+            <>
+                {isTerrainStale && <TerrainStaleNote />}
+                <p
+                    className="text-sm text-color-text-primary"
+                    role={blocked ? "alert" : undefined}
+                >
+                    {blocked ??
+                        "No feasible routes found. Try a different start or end point."}
+                </p>
+            </>
         );
     }
 
@@ -126,6 +154,7 @@ export function RouteComparisonView({
 
     return (
         <>
+            {isTerrainStale && <TerrainStaleNote />}
             {note && (
                 <p
                     className="mb-2 text-xs text-color-text-primary"

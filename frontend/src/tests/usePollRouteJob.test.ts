@@ -209,3 +209,63 @@ describe("usePollRouteJob", () => {
         });
     });
 });
+
+describe("usePollRouteJob isTerrainStale", () => {
+    it("is true when the completed job planned on stale terrain", async () => {
+        vi.mocked(routeApi.getRouteJob).mockResolvedValue(
+            completedResponse({ terrain_stale: true }),
+        );
+
+        const { result } = renderHook(() => usePollRouteJob("job-1"));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+
+        expect(result.current.isTerrainStale).toBe(true);
+    });
+
+    it("is false when the job does not report it", async () => {
+        vi.mocked(routeApi.getRouteJob).mockResolvedValue(completedResponse());
+
+        const { result } = renderHook(() => usePollRouteJob("job-1"));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+
+        expect(result.current.isTerrainStale).toBe(false);
+    });
+
+    it("is false until the job completes", async () => {
+        vi.mocked(routeApi.getRouteJob).mockResolvedValue({
+            ...processingResponse,
+            terrain_stale: true,
+        });
+
+        const { result } = renderHook(() => usePollRouteJob("job-4"));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+
+        expect(result.current.status).toBe("processing");
+        expect(result.current.isTerrainStale).toBe(false);
+    });
+
+    it("passes the no-go shortfall reason through", async () => {
+        vi.mocked(routeApi.getRouteJob).mockResolvedValue(
+            completedResponse({
+                num_alternatives_found: 0,
+                total: 0,
+                results: [],
+                shortfall_reason: "blocked_by_no_go",
+            }),
+        );
+
+        const { result } = renderHook(() => usePollRouteJob("job-1"));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+
+        expect(result.current.routes).toEqual([]);
+        expect(result.current.shortfallReason).toBe("blocked_by_no_go");
+    });
+});

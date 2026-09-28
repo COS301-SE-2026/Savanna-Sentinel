@@ -331,3 +331,95 @@ describe("RouteComparisonView", () => {
         ).toBeDisabled();
     });
 });
+
+describe("RouteComparisonView impassable areas", () => {
+    function renderEmpty(props: Record<string, unknown>) {
+        return render(
+            <RouteComparisonView
+                status="completed"
+                routes={[]}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                {...SAVE_PROPS}
+                {...props}
+            />,
+        );
+    }
+
+    it("explains a stop inside an impassable area", () => {
+        renderEmpty({ shortfallReason: "stop_in_no_go" });
+        expect(screen.getByRole("alert")).toHaveTextContent(
+            /stop is inside an impassable area/i,
+        );
+        expect(
+            screen.queryByText(/no feasible routes found/i),
+        ).not.toBeInTheDocument();
+    });
+
+    it("explains a stop cut off by an impassable feature", () => {
+        renderEmpty({ shortfallReason: "blocked_by_no_go" });
+        expect(screen.getByRole("alert")).toHaveTextContent(
+            /can't be reached without crossing an impassable feature/i,
+        );
+    });
+
+    it("keeps the generic message for other empty results", () => {
+        renderEmpty({ shortfallReason: "no_tour_found" });
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(
+            screen.getByText(/no feasible routes found/i),
+        ).toBeInTheDocument();
+    });
+});
+
+describe("RouteComparisonView stale terrain", () => {
+    it("warns above the routes when terrain is still being applied", () => {
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={ROUTES}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                {...SAVE_PROPS}
+                isTerrainStale
+            />,
+        );
+        expect(screen.getByRole("status")).toHaveTextContent(
+            /workspace changes are still being applied/i,
+        );
+        expect(screen.getAllByText(/^Route [AB]$/)).toHaveLength(2);
+    });
+
+    it("warns alongside an empty result", () => {
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={[]}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                {...SAVE_PROPS}
+                shortfallReason="blocked_by_no_go"
+                isTerrainStale
+            />,
+        );
+        expect(screen.getByRole("status")).toHaveTextContent(
+            /workspace changes are still being applied/i,
+        );
+        expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    it("says nothing when the terrain is current", () => {
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={ROUTES}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                {...SAVE_PROPS}
+            />,
+        );
+        expect(
+            screen.queryByText(/workspace changes are still being applied/i),
+        ).not.toBeInTheDocument();
+    });
+});
