@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { TimeRangeSlider } from "@/components/map/TimeRangeSlider";
 import { RiskModelControls } from "@/components/map/RiskModelControls";
+import { LayerTreePanel } from "@/components/workspace/LayerTreePanel";
+import type { WorkspaceSelection } from "@/components/workspace/StyleEditorPanel";
 import { getRiskLevel } from "@/lib/mapTokens";
 import { formatRelativeTime } from "@/lib/utils";
 import { useMapStore } from "@/store/mapStore";
@@ -20,13 +21,22 @@ export interface ExplainabilityPanelProps {
     onHeatmapVisibleChange: (visible: boolean) => void;
     locationVisible: boolean;
     onLocationVisibleChange: (visible: boolean) => void;
-    opacity: number;
-    onOpacityChange: (opacity: number) => void;
+    opacityLabel: string;
+    opacityValue: number;
+    onOpacityValueChange: (opacity: number) => void;
+    opacityDisabled?: boolean;
     gridStale?: boolean;
     hasRoute?: boolean;
     routeVisible?: boolean;
     onRouteVisibleChange?: (visible: boolean) => void;
     onRemoveRoute?: () => void;
+    patrolRouteSelected?: boolean;
+    onSelectPatrolRoute?: () => void;
+    selection: WorkspaceSelection;
+    onSelectLayer: (layerId: string) => void;
+    onSelectMembership: (membershipId: string) => void;
+    heatmapSelected?: boolean;
+    onSelectHeatmap?: () => void;
 }
 
 export function ExplainabilityPanel({
@@ -34,13 +44,22 @@ export function ExplainabilityPanel({
     onHeatmapVisibleChange,
     locationVisible,
     onLocationVisibleChange,
-    opacity,
-    onOpacityChange,
+    opacityLabel,
+    opacityValue,
+    onOpacityValueChange,
+    opacityDisabled = false,
     gridStale = false,
     hasRoute = false,
     routeVisible = false,
     onRouteVisibleChange,
     onRemoveRoute,
+    patrolRouteSelected = false,
+    onSelectPatrolRoute,
+    selection,
+    onSelectLayer,
+    onSelectMembership,
+    heatmapSelected = false,
+    onSelectHeatmap,
 }: ExplainabilityPanelProps) {
     const cellsByRef = useMapStore((s) => s.cellsByRef);
     const summary = useMapStore((s) => s.summary);
@@ -98,69 +117,44 @@ export function ExplainabilityPanel({
                 <TimeRangeSlider />
             </div>
 
-            <div>
-                <SectionHeader>Layers</SectionHeader>
-                <div className="flex flex-col gap-2">
-                    <label className="flex min-h-11 w-full cursor-pointer items-center gap-2">
-                        <Checkbox
-                            checked={heatmapVisible}
-                            onChange={(e) =>
-                                onHeatmapVisibleChange(e.target.checked)
-                            }
-                        />
-                        <span className="text-sm text-color-text-primary">
-                            Risk Heatmap
-                        </span>
-                    </label>
-                    <label className="flex min-h-11 w-full cursor-pointer items-center gap-2">
-                        <Checkbox
-                            checked={locationVisible}
-                            onChange={(e) =>
-                                handleLocationChange(e.target.checked)
-                            }
-                        />
-                        <span className="text-sm text-color-text-primary">
-                            My Location
-                        </span>
-                    </label>
-                    {hasRoute && (
-                        <div className="flex min-h-11 w-full items-center gap-2">
-                            <label className="flex flex-1 cursor-pointer items-center gap-2">
-                                <Checkbox
-                                    checked={routeVisible}
-                                    onChange={(e) =>
-                                        onRouteVisibleChange?.(e.target.checked)
-                                    }
-                                />
-                                <span className="text-sm text-color-text-primary">
-                                    Patrol Route
-                                </span>
-                            </label>
-                            <button
-                                type="button"
-                                onClick={onRemoveRoute}
-                                className="rounded-sm px-1 text-xs text-color-text-secondary underline hover:text-color-text-primary focus-visible:ring-2 focus-visible:ring-brand-primary"
-                            >
-                                Remove
-                            </button>
-                        </div>
-                    )}
-                </div>
+            <div className="overflow-hidden rounded-md border border-color-border">
+                <LayerTreePanel
+                    activeLayerId={null}
+                    selection={selection}
+                    readOnly
+                    heatmapVisible={heatmapVisible}
+                    onToggleHeatmap={onHeatmapVisibleChange}
+                    heatmapSelected={heatmapSelected}
+                    onSelectHeatmap={onSelectHeatmap}
+                    showHeatmapOpacitySlider={false}
+                    locationVisible={locationVisible}
+                    onToggleLocation={handleLocationChange}
+                    hasRoute={hasRoute}
+                    routeVisible={routeVisible}
+                    onToggleRoute={onRouteVisibleChange}
+                    onRemoveRoute={onRemoveRoute}
+                    patrolRouteSelected={patrolRouteSelected}
+                    onSelectPatrolRoute={onSelectPatrolRoute}
+                    onSelectLayer={onSelectLayer}
+                    onSelectMembership={onSelectMembership}
+                />
             </div>
 
             <div>
                 <div className="mb-2 flex items-center justify-between text-sm text-color-text-primary">
-                    <span>Heatmap Opacity</span>
-                    <span>{opacity}%</span>
+                    <span>{opacityLabel}</span>
+                    <span>{opacityValue}%</span>
                 </div>
                 <Slider
                     min={0}
                     max={100}
                     step={1}
-                    value={opacity}
-                    disabled={!heatmapVisible}
-                    aria-label="Heatmap opacity"
-                    onChange={(e) => onOpacityChange(Number(e.target.value))}
+                    value={opacityValue}
+                    disabled={opacityDisabled}
+                    aria-label={opacityLabel}
+                    onChange={(e) =>
+                        onOpacityValueChange(Number(e.target.value))
+                    }
                 />
             </div>
 
