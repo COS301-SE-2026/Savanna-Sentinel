@@ -108,6 +108,14 @@ function groupLayerId(layerId: string, part: string): string {
     return `workspace-${layerId}-${part}`;
 }
 
+function teardownMap(fn: () => void) {
+    try {
+        fn();
+    } catch {
+        // map was already removed; nothing left to tear down
+    }
+}
+
 function symbolLayout(): maplibregl.SymbolLayerSpecification["layout"] {
     return {
         "icon-image": ["get", "icon"],
@@ -393,30 +401,32 @@ export function WorkspaceMapLayers({
         map.on("click", handleClick);
 
         return () => {
-            map.off("click", handleClick);
-            for (const id of [
-                ...groupLayerIdsRef.current,
-                BUFFERS_FILL,
-                HALO_OUTLINE,
-                HALO_POINTS,
-                STACK_BOTTOM,
-                STACK_TOP,
-            ]) {
-                if (map.getLayer(id)) map.removeLayer(id);
-            }
+            teardownMap(() => {
+                map.off("click", handleClick);
+                for (const id of [
+                    ...groupLayerIdsRef.current,
+                    BUFFERS_FILL,
+                    HALO_OUTLINE,
+                    HALO_POINTS,
+                    STACK_BOTTOM,
+                    STACK_TOP,
+                ]) {
+                    if (map.getLayer(id)) map.removeLayer(id);
+                }
+                for (const id of [
+                    SOURCE_BUFFERS,
+                    SOURCE_POLYGONS,
+                    SOURCE_LINES,
+                    SOURCE_POINTS,
+                    SOURCE_HALO_OUTLINE,
+                    SOURCE_POLYGON_ICONS,
+                    SOURCE_LINE_ICONS,
+                ]) {
+                    if (map.getSource(id)) map.removeSource(id);
+                }
+            });
             groupLayerIdsRef.current = [];
             clickableLayerIdsRef.current = [];
-            for (const id of [
-                SOURCE_BUFFERS,
-                SOURCE_POLYGONS,
-                SOURCE_LINES,
-                SOURCE_POINTS,
-                SOURCE_HALO_OUTLINE,
-                SOURCE_POLYGON_ICONS,
-                SOURCE_LINE_ICONS,
-            ]) {
-                if (map.getSource(id)) map.removeSource(id);
-            }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [map]);
@@ -438,9 +448,11 @@ export function WorkspaceMapLayers({
         );
 
         return () => {
-            for (const id of added) {
-                if (map.getLayer(id)) map.removeLayer(id);
-            }
+            teardownMap(() => {
+                for (const id of added) {
+                    if (map.getLayer(id)) map.removeLayer(id);
+                }
+            });
             groupLayerIdsRef.current = [];
             clickableLayerIdsRef.current = [];
         };
@@ -525,7 +537,7 @@ export function WorkspaceMapLayers({
 
         map.on("zoomend", updateHaloOutline);
         return () => {
-            map.off("zoomend", updateHaloOutline);
+            teardownMap(() => map.off("zoomend", updateHaloOutline));
         };
     }, [map, selectedFeatureGeometry]);
 
