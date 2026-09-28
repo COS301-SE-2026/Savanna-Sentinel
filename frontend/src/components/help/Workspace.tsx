@@ -67,7 +67,7 @@ export default function Workspace() {
                 </CardContent>
             </Card>
 
-            <Button asChild>
+            <Button>
                 <Link to="/workspace">Open the Workspace</Link>
             </Button>
         </div>

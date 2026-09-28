@@ -61,8 +61,8 @@ export default function Patrol() {
             </Card>
 
             <Button>
-                <Link to="/heatmap">
-                    Click me to go Plan your patrol route
+                <Link to="/patrol">
+                    Click me to go plan your patrol route
                 </Link>
             </Button>
         </div>

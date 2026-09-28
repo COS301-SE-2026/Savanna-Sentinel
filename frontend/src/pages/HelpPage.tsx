@@ -16,11 +16,12 @@ import Profile from "@/components/help/Profile";
 import Patrol from "@/components/help/PatrolPlanner";
 
 interface FaqProps {
-    canViewDashboard: boolean;
-    canViewIngestion: boolean;
+    canViewStaff: boolean;
+    canViewAnalyst: boolean;
+    canViewRanger: boolean;
 }
 
-function Faq({ canViewDashboard, canViewIngestion }: FaqProps) {
+function Faq({ canViewStaff, canViewAnalyst, canViewRanger }: FaqProps) {
     return (
         <Card>
             <CardHeader>
@@ -55,25 +56,17 @@ function Faq({ canViewDashboard, canViewIngestion }: FaqProps) {
                     </p>
                 </div>
 
-                <div>
-                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                        How do I file a report?
-                    </CardTitle>
-                    <p>
-                        Open Reports and select New Report. Then enter the
-                        report details and submit it for review.
-                    </p>
-                </div>
-
-                <div>
-                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                        How do I plan a patrol?
-                    </CardTitle>
-                    <p>
-                        Open Patrol Planner, set the start location, duration,
-                        and priority, then select Generate Route.
-                    </p>
-                </div>
+                {canViewRanger &&
+                     <div>
+                        <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
+                            How do I plan a patrol?
+                        </CardTitle>
+                        <p>
+                            Open Patrol Planner, set the start location, duration,
+                            and priority, then select Generate Route.
+                        </p>
+                    </div>
+                }
 
                 <div>
                     <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
@@ -97,20 +90,32 @@ function Faq({ canViewDashboard, canViewIngestion }: FaqProps) {
                     </p>
                 </div>
 
-                {canViewDashboard && (
-                    <div>
-                        <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                            What can I find on the dashboard?
-                        </CardTitle>
-                        <p>
-                            Open the Dashboard to review reserve statistics, recent field reports,
-                            risk zones, report trends, and model performance.
-                            The dashboard refreshes its data periodically.
-                        </p>
-                    </div>
+                {canViewStaff && (
+                    <>
+                        <div>
+                            <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
+                                What can I find on the dashboard?
+                            </CardTitle>
+                            <p>
+                                Open the Dashboard to review reserve statistics, recent field reports,
+                                risk zones, report trends, and model performance.
+                                The dashboard refreshes its data periodically.
+                            </p>
+                        </div>
+
+                        <div>
+                            <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
+                                How do I file a report?
+                            </CardTitle>
+                            <p>
+                                Open Reports and select New Report. Then enter the
+                                report details and submit it for review.
+                            </p>
+                        </div>
+                    </>
                 )}
 
-                {canViewIngestion && (
+                {canViewAnalyst && (
                     <div>
                         <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
                             How do I upload data for ingestion?
@@ -155,8 +160,6 @@ export default function HelpPage() {
     const canViewRanger = user?.role === "ranger" || canViewAll;
     const canViewAnalyst = user?.role === "analyst" || canViewAll;
     const canViewStaffOnly = canViewAnalyst || canViewRanger || canViewAll;
-    const canViewDashboard = canViewStaffOnly;
-    const canViewIngestion = canViewAnalyst;
     
     return (
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
@@ -213,8 +216,9 @@ export default function HelpPage() {
 
                 <TabsContent value="faq">
                     <Faq
-                        canViewDashboard={canViewDashboard}
-                        canViewIngestion={canViewIngestion}
+                        canViewStaff={canViewStaffOnly}
+                        canViewAnalyst={canViewAnalyst}
+                        canViewRanger={canViewRanger}
                     />
                 </TabsContent>
 

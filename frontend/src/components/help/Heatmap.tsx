@@ -49,7 +49,7 @@ export default function Heatmap() {
             </Card>
 
             <Button>
-                <Link to="/heatmap">
+                <Link to="/map">
                     Click me to go to the Heatmap view
                 </Link>
             </Button>

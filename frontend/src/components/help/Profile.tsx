@@ -20,7 +20,7 @@ export default function Profile() {
             return;
         }
 
-        if (password.length == 0) {
+        if (password.length === 0) {
             setMsg("Please enter a password before trying again");
             return;
         }
