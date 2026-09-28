@@ -2,6 +2,7 @@ import json
 
 import pytest
 from pyproj import Transformer
+from shapely.geometry import LineString, box
 
 from app.repositories import route_repository
 from app.repositories.route_repository import (
@@ -11,6 +12,12 @@ from app.repositories.route_repository import (
 )
 from app.schemas.geo import GeoPoint
 from app.schemas.route import GraphEdge, GraphNode, ParkGraph
+from app.workers.ml.terrain_constraints import (
+    ImpassableArea,
+    TerrainConstraints,
+    build_constraints,
+)
+from app.workers.terrain.constants import DEFAULT_RULE
 
 _EPSG = 32736
 _CELL_M = 1000.0
@@ -96,6 +103,14 @@ def test_load_grid_converts_projected_coords_to_lon_lat(grid_2x2):
 
     assert node.location.coordinates[0] == pytest.approx(expected_lon)
     assert node.location.coordinates[1] == pytest.approx(expected_lat)
+
+
+def test_load_grid_keeps_projected_cell_centres(grid_2x2):
+    graph = route_repository._load_grid()
+    node = next(n for n in graph.nodes if n.node_id == "cell-1")
+    assert node.grid_xy == pytest.approx(
+        (_BASE_LEFT + _CELL_M / 2, _BASE_TOP - _CELL_M / 2),
+    )
 
 
 def test_load_grid_nodes_have_neutral_risk_score(grid_2x2):
@@ -236,6 +251,247 @@ def test_build_park_graph_calls_are_isolated_from_each_other(grid_2x2):
     )
     assert first_score == 0.9
     assert second_score == 0.1
+
+
+# build_park_graph terrain
+
+
+@pytest.fixture
+def grid_5x5(tmp_path, monkeypatch):
+    """Return a 5x5 grid, cell id row * 5 + col."""
+    cells = [
+        _cell(row * 5 + col, row=row, col=col)
+        for row in range(5)
+        for col in range(5)
+    ]
+    path = _write_grid(tmp_path, cells)
+    monkeypatch.setattr(route_repository, "GRID_FILE_PATH", path)
+    route_repository._load_grid.cache_clear()
+    yield "unit-test-5x5"
+    route_repository._load_grid.cache_clear()
+
+
+def _id(row, col):
+    return f"cell-{row * 5 + col}"
+
+
+def _col_border(col):
+    """North-south line along the western edge of a column."""
+    x = _BASE_LEFT + col * _CELL_M
+    return LineString([(x, _BASE_TOP), (x, _BASE_TOP - 5 * _CELL_M)])
+
+
+def _cell_box(row, col):
+    left = _BASE_LEFT + col * _CELL_M
+    top = _BASE_TOP - row * _CELL_M
+    return box(left, top - _CELL_M, left + _CELL_M, top)
+
+
+def _pairs(edges):
+    return {(e.from_node_id, e.to_node_id) for e in edges}
+
+
+def _col(node_id):
+    return int(node_id.removeprefix("cell-")) % 5
+
+
+def _crosses_border(edges, col):
+    return {
+        (a, b) for a, b in _pairs(edges) if {_col(a), _col(b)} == {col - 1, col}
+    }
+
+
+def test_build_park_graph_without_terrain_keeps_the_full_grid(grid_5x5):
+    graph = build_park_graph(grid_5x5)
+    base = route_repository._load_grid()
+
+    assert len(graph.nodes) == 25
+    assert graph.edges == base.edges
+    assert graph.neighbor_edges == base.edges
+    assert graph.terrain_key == ""
+
+
+def test_build_park_graph_passes_terrain_key_through(grid_5x5):
+    graph = build_park_graph(grid_5x5, terrain_key="7:abc")
+    assert graph.terrain_key == "7:abc"
+
+
+def test_build_park_graph_keeps_projected_centres(grid_5x5):
+    graph = build_park_graph(grid_5x5)
+    assert all(n.grid_xy is not None for n in graph.nodes)
+
+
+def test_line_barrier_blocks_crossing_moves_but_keeps_both_banks(grid_5x5):
+    river = ImpassableArea("river", 1, _col_border(2))
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=TerrainConstraints(areas=[river]),
+    )
+
+    assert len(graph.nodes) == 25
+    assert _crosses_border(graph.edges, 2) == set()
+    assert (_id(2, 0), _id(2, 1)) in _pairs(graph.edges)
+    assert (_id(2, 2), _id(2, 3)) in _pairs(graph.edges)
+
+
+def test_line_barrier_moves_stay_in_neighbor_edges(grid_5x5):
+    river = ImpassableArea("river", 1, _col_border(2))
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=TerrainConstraints(areas=[river]),
+    )
+
+    # 5 orthogonal and 8 diagonal crossings, both directions
+    assert len(_crosses_border(graph.neighbor_edges, 2)) == 26
+
+
+def test_area_barrier_removes_cells_whose_centre_is_inside(grid_5x5):
+    lake = ImpassableArea("lake", 1, _cell_box(2, 2))
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=TerrainConstraints(areas=[lake]),
+    )
+
+    assert _id(2, 2) not in {n.node_id for n in graph.nodes}
+    for edges in (graph.edges, graph.neighbor_edges):
+        assert all(_id(2, 2) not in pair for pair in _pairs(edges))
+
+
+def test_area_barrier_blocks_moves_cutting_across_it(grid_5x5):
+    # covers the shared corner of four cells without holding any centre
+    corner_x = _BASE_LEFT + 2 * _CELL_M
+    corner_y = _BASE_TOP - 2 * _CELL_M
+    rock = ImpassableArea(
+        "rock",
+        1,
+        box(corner_x - 100, corner_y - 100, corner_x + 100, corner_y + 100),
+    )
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=TerrainConstraints(areas=[rock]),
+    )
+    pairs = _pairs(graph.edges)
+
+    assert len(graph.nodes) == 25
+    assert (_id(1, 1), _id(2, 2)) not in pairs
+    assert (_id(1, 2), _id(2, 1)) not in pairs
+    assert (_id(1, 1), _id(1, 2)) in pairs
+
+
+def test_higher_priority_cell_lets_moves_cross_the_barrier(grid_5x5):
+    river = ImpassableArea("river", 1, _col_border(2))
+    bridge_cell = _id(2, 1)
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=TerrainConstraints(
+            areas=[river],
+            top_priority={bridge_cell: 2},
+        ),
+    )
+
+    crossings = _crosses_border(graph.edges, 2)
+    assert crossings
+    assert all(bridge_cell in pair for pair in crossings)
+    assert (bridge_cell, _id(2, 2)) in crossings
+    assert (_id(0, 1), _id(0, 2)) not in crossings
+
+
+def test_equal_priority_cell_does_not_open_the_barrier(grid_5x5):
+    river = ImpassableArea("river", 2, _col_border(2))
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=TerrainConstraints(
+            areas=[river],
+            top_priority={_id(2, 1): 2},
+        ),
+    )
+
+    assert _crosses_border(graph.edges, 2) == set()
+
+
+def test_higher_priority_cell_inside_an_area_is_kept(grid_5x5):
+    lake = ImpassableArea("lake", 1, _cell_box(2, 2))
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=TerrainConstraints(
+            areas=[lake],
+            top_priority={_id(2, 2): 3},
+        ),
+    )
+
+    assert _id(2, 2) in {n.node_id for n in graph.nodes}
+
+
+def test_route_costs_scale_time_but_not_distance(grid_5x5):
+    base = route_repository._load_grid()
+    graph = build_park_graph(
+        grid_5x5,
+        route_cost_by_cell={_id(0, 0): 3.0},
+    )
+    before = {(e.from_node_id, e.to_node_id): e for e in base.edges}
+    after = {(e.from_node_id, e.to_node_id): e for e in graph.edges}
+
+    pair = (_id(0, 0), _id(0, 1))
+    assert after[pair].est_time_min == pytest.approx(
+        before[pair].est_time_min * 2.0,
+    )
+    assert after[pair].distance_km == before[pair].distance_km
+    untouched = (_id(3, 3), _id(3, 4))
+    assert after[untouched] is before[untouched]
+
+
+def test_terrain_does_not_mutate_cached_load_grid_result(grid_5x5):
+    lake = ImpassableArea("lake", 1, _cell_box(2, 2))
+    build_park_graph(
+        grid_5x5,
+        route_cost_by_cell={_id(0, 0): 3.0},
+        constraints=TerrainConstraints(areas=[lake]),
+    )
+
+    cached = route_repository._load_grid()
+    assert len(cached.nodes) == 25
+    assert len(cached.edges) == 144
+    assert all(
+        e.est_time_min
+        == pytest.approx(
+            e.distance_km / AVG_SPEED_KMH * 60,
+        )
+        for e in cached.edges
+    )
+
+
+def test_constraints_from_workspace_features_split_the_grid(grid_5x5):
+    to_lonlat = Transformer.from_crs(
+        f"EPSG:{_EPSG}",
+        "EPSG:4326",
+        always_xy=True,
+    )
+    river = {
+        "id": "river",
+        "geometry": {
+            "type": "LineString",
+            "coordinates": [
+                list(to_lonlat.transform(x, y))
+                for x, y in _col_border(2).coords
+            ],
+        },
+        "buffer_enabled": False,
+        "buffer_distance_m": 100.0,
+    }
+    resolved = {"river": {"avoid": {**DEFAULT_RULE, "strength": 1.0}}}
+    cells = [
+        (_id(row, col), _cell_box(row, col))
+        for row in range(5)
+        for col in range(5)
+    ]
+
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=build_constraints(cells, _EPSG, [river], resolved),
+    )
+
+    assert len(graph.nodes) == 25
+    assert _crosses_border(graph.edges, 2) == set()
 
 
 # find_nearest_node

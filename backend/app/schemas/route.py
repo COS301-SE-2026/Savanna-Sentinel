@@ -17,6 +17,7 @@ class GraphNode:
     node_id: str
     location: GeoPoint
     risk_score: float
+    grid_xy: tuple[float, float] | None = None
 
 
 @dataclass
@@ -32,6 +33,8 @@ class ParkGraph:
     park_id: str
     nodes: list[GraphNode] = field(default_factory=list)
     edges: list[GraphEdge] = field(default_factory=list)
+    neighbor_edges: list[GraphEdge] | None = None
+    terrain_key: str = ""
 
 
 @dataclass
