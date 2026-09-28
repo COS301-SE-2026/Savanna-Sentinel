@@ -1,5 +1,6 @@
 import { Plus, Minus, Compass } from "lucide-react";
 import type * as maplibregl from "maplibre-gl";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -8,6 +9,7 @@ export interface MapControlsProps {
     defaultCenter?: [number, number];
     defaultZoom?: number;
     zoomDisabled?: boolean;
+    children?: ReactNode;
 }
 
 export function MapControls({
@@ -15,6 +17,7 @@ export function MapControls({
     defaultCenter,
     defaultZoom,
     zoomDisabled,
+    children,
 }: MapControlsProps) {
     return (
         <div className="absolute top-2 right-2 z-[var(--z-sticky)] flex flex-col gap-1">
@@ -59,6 +62,7 @@ export function MapControls({
             >
                 <Compass />
             </Button>
+            {children}
         </div>
     );
 }

@@ -455,4 +455,63 @@ describe("dead reckoning for useUserLocation", () => {
             accuracy: 5,
         });
     });
+
+    it("switches to dead-reckoning when forced after a GPS fix", async () => {
+        const geo = installGeolocation();
+        const { result, rerender } = renderHook(
+            ({ forced }) => useUserLocation(true, forced),
+            { initialProps: { forced: false } },
+        );
+
+        act(() => geo.success?.(position({ heading: 0 })));
+        await waitFor(() => expect(result.current.status).toBe("tracking"));
+
+        rerender({ forced: true });
+        expect(result.current.status).toBe("dead-reckoning");
+
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: { y: 1.0 },
+                }),
+            );
+        });
+        currentTime += 1000;
+        act(() => {
+            window.dispatchEvent(
+                new DeviceMotionEvent("devicemotion", {
+                    acceleration: { y: 1.0 },
+                }),
+            );
+        });
+
+        expect(result.current.location?.lat).toBeGreaterThan(-24.3);
+    });
+
+    it("ignores GPS fixes while forced and resumes them when released", async () => {
+        const geo = installGeolocation();
+        const { result, rerender } = renderHook(
+            ({ forced }) => useUserLocation(true, forced),
+            { initialProps: { forced: true } },
+        );
+
+        act(() => geo.success?.(position({ latitude: -24.3 })));
+        await waitFor(() =>
+            expect(result.current.status).toBe("dead-reckoning"),
+        );
+
+        act(() => geo.success?.(position({ latitude: -25 })));
+        expect(result.current.location?.lat).toBeCloseTo(-24.3);
+
+        rerender({ forced: false });
+        act(() => geo.success?.(position({ latitude: -25 })));
+        expect(result.current.status).toBe("tracking");
+        expect(result.current.location?.lat).toBeCloseTo(-25);
+    });
+
+    it("stays locating when forced before any GPS fix", () => {
+        installGeolocation();
+        const { result } = renderHook(() => useUserLocation(true, true));
+        expect(result.current.status).toBe("locating");
+    });
 });
