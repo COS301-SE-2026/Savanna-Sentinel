@@ -165,15 +165,13 @@ export default function MapPage() {
     }, [heatmapStatus]);
 
     const [isLocationVisible, setLocationVisible] = useState(false);
+    const [isGpsLossForced, setGpsLossForced] = useState(false);
     const {
         location: userLocation,
         status: userLocationStatus,
         hasNoReferencePoint,
         setReferencePoint,
-    } = useUserLocation(isLocationVisible);
-    const [isGpsLossForced, setGpsLossForced] = useState(false);
-    const { location: userLocation, status: userLocationStatus } =
-        useUserLocation(isLocationVisible, isGpsLossForced);
+    } = useUserLocation(isLocationVisible, isGpsLossForced);
 
     const userId = useAuthStore((s) => s.user?.id ?? null);
     const [pinnedRoute, setPinnedRoute] = useState<SavedRoute | null>(null);

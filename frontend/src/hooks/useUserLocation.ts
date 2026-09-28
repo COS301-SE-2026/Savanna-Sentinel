@@ -210,5 +210,10 @@ export function useUserLocation(
             setReferencePoint: () => {},
         };
 
-    return { location, status: effectiveStatus, hasNoReferencePoint, setReferencePoint };
+    return {
+        location,
+        status: effectiveStatus,
+        hasNoReferencePoint,
+        setReferencePoint,
+    };
 }
