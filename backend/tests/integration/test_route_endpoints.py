@@ -255,3 +255,50 @@ async def test_get_route_by_id_returns_200_for_the_owner(
         headers={"Authorization": f"Bearer {ranger_token}"},
     )
     assert r.status_code == 200
+
+
+_WAYPOINTS = [
+    {"type": "Point", "coordinates": [31.185, -24.205]},
+    {"type": "Point", "coordinates": [31.182, -24.207]},
+]
+
+
+@pytest.mark.asyncio
+async def test_generate_route_rejects_more_than_five_waypoints(
+    client, ranger_token,
+):
+    payload = {
+        **_valid_route_request(),
+        "waypoints": [_WAYPOINTS[0]] * 6,
+    }
+    r = await client.post(
+        "/v1/routes",
+        json=payload,
+        headers={"Authorization": f"Bearer {ranger_token}"},
+    )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_saved_route_keeps_waypoints_in_order(client, ranger_token):
+    headers = {"Authorization": f"Bearer {ranger_token}"}
+    save_resp = await client.post(
+        "/v1/routes/save",
+        json=_valid_save_payload(waypoints=_WAYPOINTS),
+        headers=headers,
+    )
+    assert save_resp.status_code == 201
+    assert save_resp.json()["waypoints"] == _WAYPOINTS
+
+    list_resp = await client.get("/v1/routes/saved", headers=headers)
+    assert list_resp.json()["results"][0]["waypoints"] == _WAYPOINTS
+
+
+@pytest.mark.asyncio
+async def test_saved_route_without_waypoints_lists_empty(client, ranger_token):
+    headers = {"Authorization": f"Bearer {ranger_token}"}
+    await client.post(
+        "/v1/routes/save", json=_valid_save_payload(), headers=headers,
+    )
+    list_resp = await client.get("/v1/routes/saved", headers=headers)
+    assert list_resp.json()["results"][0]["waypoints"] == []

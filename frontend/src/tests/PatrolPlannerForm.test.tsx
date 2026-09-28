@@ -3,15 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 
 import { PatrolPlannerForm } from "@/components/patrol/PatrolPlannerForm";
+import { createStop } from "@/lib/patrolStops";
+
+const A = { lat: -24.3, lon: 31.05 };
+const C = { lat: -24.32, lon: 31.08 };
 
 function baseProps() {
     return {
-        startPoint: null,
-        endPoint: null,
-        armedField: null as "start" | "end" | null,
-        onArmField: vi.fn(),
-        onStartPointChange: vi.fn(),
-        onEndPointChange: vi.fn(),
+        stops: [createStop(), createStop()],
+        armedStopId: null,
+        onArmStop: vi.fn(),
+        onStopsChange: vi.fn(),
         onGenerate: vi.fn(),
         isGenerating: false,
         heatmapHasNoData: false,
@@ -28,12 +30,11 @@ describe("PatrolPlannerForm", () => {
         ).toBeDisabled();
     });
 
-    it("enables Generate Routes once both points and positive time/fuel are set", () => {
+    it("enables Generate Routes once every stop is set", () => {
         render(
             <PatrolPlannerForm
                 {...baseProps()}
-                startPoint={{ lat: -24.3, lon: 31.05 }}
-                endPoint={{ lat: -24.32, lon: 31.08 }}
+                stops={[createStop(A), createStop(C)]}
             />,
         );
         expect(
@@ -41,26 +42,37 @@ describe("PatrolPlannerForm", () => {
         ).toBeEnabled();
     });
 
-    it("calls onArmField('start') when the start pin button is clicked", async () => {
-        const props = baseProps();
-        render(<PatrolPlannerForm {...props} />);
-        await userEvent.click(
-            screen.getByLabelText(/pick start point on map/i),
+    it("disables Generate Routes and names the empty stop", () => {
+        render(
+            <PatrolPlannerForm
+                {...baseProps()}
+                stops={[createStop(A), createStop(), createStop(C)]}
+            />,
         );
-        expect(props.onArmField).toHaveBeenCalledWith("start");
+        expect(
+            screen.getByRole("button", { name: /generate routes/i }),
+        ).toBeDisabled();
+        expect(
+            screen.getByText(/set stop 1 or remove it to generate routes/i),
+        ).toBeInTheDocument();
     });
 
-    it("parses typed coordinates and calls onStartPointChange", async () => {
-        const props = baseProps();
-        render(<PatrolPlannerForm {...props} />);
-        await userEvent.type(
-            screen.getByLabelText(/start point/i, { selector: "input" }),
-            "-24.3, 31.05",
+    it("does not show the empty stop hint for just a start and end", () => {
+        render(<PatrolPlannerForm {...baseProps()} />);
+        expect(screen.queryByText(/or remove it/i)).not.toBeInTheDocument();
+    });
+
+    it("disables Generate Routes while there is no heatmap data", () => {
+        render(
+            <PatrolPlannerForm
+                {...baseProps()}
+                stops={[createStop(A), createStop(C)]}
+                heatmapHasNoData
+            />,
         );
-        expect(props.onStartPointChange).toHaveBeenLastCalledWith({
-            lat: -24.3,
-            lon: 31.05,
-        });
+        expect(
+            screen.getByRole("button", { name: /generate routes/i }),
+        ).toBeDisabled();
     });
 
     it("calls onGenerate when Generate Routes is clicked while enabled", async () => {
@@ -68,64 +80,13 @@ describe("PatrolPlannerForm", () => {
         render(
             <PatrolPlannerForm
                 {...props}
-                startPoint={{ lat: -24.3, lon: 31.05 }}
-                endPoint={{ lat: -24.32, lon: 31.08 }}
+                stops={[createStop(A), createStop(C)]}
             />,
         );
         await userEvent.click(
             screen.getByRole("button", { name: /generate routes/i }),
         );
         expect(props.onGenerate).toHaveBeenCalledTimes(1);
-    });
-
-    it("does not reformat the start input when startPoint is a new object with equal lat/lon", async () => {
-        const props = baseProps();
-        const { rerender } = render(
-            <PatrolPlannerForm
-                {...props}
-                startPoint={{ lat: -24.3, lon: 31.05 }}
-            />,
-        );
-        const input = screen.getByLabelText(/start point/i, {
-            selector: "input",
-        }) as HTMLInputElement;
-        expect(input.value).toBe("-24.30000, 31.05000");
-
-        await userEvent.clear(input);
-        await userEvent.type(input, "-24.3, 31.05");
-        expect(input.value).toBe("-24.3, 31.05");
-
-        rerender(
-            <PatrolPlannerForm
-                {...props}
-                startPoint={{ lat: -24.3, lon: 31.05 }}
-            />,
-        );
-
-        expect(input.value).toBe("-24.3, 31.05");
-    });
-
-    it("resyncs the start input when startPoint's lat/lon actually change externally", () => {
-        const props = baseProps();
-        const { rerender } = render(
-            <PatrolPlannerForm
-                {...props}
-                startPoint={{ lat: -24.3, lon: 31.05 }}
-            />,
-        );
-        const input = screen.getByLabelText(/start point/i, {
-            selector: "input",
-        }) as HTMLInputElement;
-        expect(input.value).toBe("-24.30000, 31.05000");
-
-        rerender(
-            <PatrolPlannerForm
-                {...props}
-                startPoint={{ lat: -25.1, lon: 32.2 }}
-            />,
-        );
-
-        expect(input.value).toBe("-25.10000, 32.20000");
     });
 
     it("hides Clear Routes when there are no generated routes", () => {

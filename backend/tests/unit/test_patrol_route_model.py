@@ -1,5 +1,6 @@
 from app.models.patrol_route import (
     GeographyLineString,
+    GeographyMultiPoint,
     GeographyPoint,
     PatrolRoute,
 )
@@ -14,6 +15,7 @@ def test_patrol_route_table_and_column_types():
         "requested_by",
         "start_point",
         "end_point",
+        "waypoints",
         "suggested_path",
         "distance_km",
         "risk_coverage",
@@ -22,5 +24,12 @@ def test_patrol_route_table_and_column_types():
     }
     assert GeographyPoint().get_col_spec() == "GEOGRAPHY(Point, 4326)"
     assert (
+        GeographyMultiPoint().get_col_spec() == "GEOGRAPHY(MultiPoint, 4326)"
+    )
+    assert (
         GeographyLineString().get_col_spec() == "GEOGRAPHY(LineString, 4326)"
     )
+
+
+def test_patrol_route_waypoints_are_optional():
+    assert PatrolRoute.__table__.columns["waypoints"].nullable is True

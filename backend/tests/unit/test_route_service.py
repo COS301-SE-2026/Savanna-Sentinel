@@ -58,8 +58,33 @@ async def test_generate_route_job_enqueues_with_request_fields(
         "end": (31.1, -24.2),
         "num_alternatives": 2,
         "risk_by_cell": {},
+        "waypoints": [],
     }
     assert call.kwargs["task_id"] == result.job_id
+
+
+@pytest.mark.asyncio
+@patch("app.services.route_service.run_route_planning_job")
+async def test_generate_route_job_passes_waypoint_coordinates(
+    mock_task,
+    db_session,
+):
+    request = RouteRequest(
+        start_point=GeoPoint(coordinates=(31.05, -24.3)),
+        end_point=GeoPoint(coordinates=(31.1, -24.2)),
+        waypoints=[
+            GeoPoint(coordinates=(31.06, -24.25)),
+            GeoPoint(coordinates=(31.07, -24.26)),
+        ],
+    )
+
+    await generate_route_job(db_session, _FakeUser(), request)
+
+    call = mock_task.apply_async.call_args
+    assert call.kwargs["kwargs"]["waypoints"] == [
+        (31.06, -24.25),
+        (31.07, -24.26),
+    ]
 
 
 @pytest.mark.asyncio
