@@ -261,6 +261,7 @@ def test_run_route_planning_job_plans_on_the_terrain(
     no_terrain.return_value = RouteTerrain(
         route_costs={"cell-1": 50.0},
         constraints=constraints,
+        paths=["road"],
         terrain_key="3:abc",
         stale=True,
     )
@@ -278,6 +279,7 @@ def test_run_route_planning_job_plans_on_the_terrain(
     assert kwargs["route_cost_by_cell"] == {"cell-1": 50.0}
     assert kwargs["constraints"] is constraints
     assert kwargs["terrain_key"] == "3:abc"
+    assert kwargs["paths"] == ["road"]
     assert mock_find_nearest.call_args.args[2] is constraints
     assert result["terrain_stale"] is True
 
@@ -368,10 +370,12 @@ def _snapshot():
     }
 
 
-def _patch_reads(effects, meta):
+def _patch_reads(effects, meta, snapshot=None):
     workspace_repo = MagicMock()
     workspace_repo.get_version = AsyncMock(return_value=7)
-    workspace_repo.load_snapshot = AsyncMock(return_value=_snapshot())
+    workspace_repo.load_snapshot = AsyncMock(
+        return_value=snapshot or _snapshot(),
+    )
     terrain_repo = MagicMock()
     terrain_repo.get_effects = AsyncMock(return_value=effects)
     terrain_repo.get_meta = AsyncMock(return_value=meta)
@@ -411,6 +415,21 @@ def test_load_terrain_builds_costs_constraints_and_key():
     assert terrain.cells == [("cell-0", _CELL)]
     assert terrain.terrain_key == "7:h1"
     assert terrain.stale is False
+    assert terrain.paths == []
+
+
+def test_load_terrain_picks_up_preferred_lines():
+    snapshot = _snapshot()
+    track = {**snapshot["features"][0], "id": "track"}
+    track["rules"] = {"prefer": {"strength": 1.0, "priority": 1}}
+    snapshot["features"].append(track)
+    meta = {"requested_hash": "h1", "computed_hash": "h1"}
+
+    patches = _patch_reads([], meta, snapshot)
+    with patches[0], patches[1], patches[2], patches[3]:
+        terrain = _load_terrain()
+
+    assert [line.feature_id for line in terrain.paths] == ["track"]
 
 
 def test_load_terrain_flags_a_pending_recompute():
@@ -556,3 +575,57 @@ def test_route_on_the_real_grid_crosses_the_river_on_the_bridge(no_terrain):
         assert not hits.is_empty
         points = [hits] if hits.geom_type == "Point" else list(hits.geoms)
         assert all(point.distance(bridge) < 1.0 for point in points)
+
+
+def test_route_on_the_real_grid_drives_along_a_preferred_road(no_terrain):
+    road = json.loads(
+        re.search(
+            r"'Road 1','(\{.*?\})'",
+            (
+                Path(__file__).resolve().parents[2]
+                / "init-db/04_seed_workspace_layers.sql"
+            ).read_text(),
+        ).group(1),
+    )
+    snapshot = {
+        "layers": [],
+        "memberships": [],
+        "features": [
+            {
+                "id": "road",
+                "type": "line",
+                "geometry": road,
+                "in_effect": True,
+                "buffer_enabled": False,
+                "buffer_distance_m": 100.0,
+                "rules": {"prefer": {"strength": 1.0, "priority": 1}},
+            },
+        ],
+    }
+    meta = {"requested_hash": "h", "computed_hash": "h"}
+    with patch.object(
+        route_tasks,
+        "_read_terrain",
+        AsyncMock(return_value=(3, snapshot, [], meta)),
+    ):
+        no_terrain.return_value = _load_terrain()
+    (line,) = no_terrain.return_value.paths
+    start, end = line.parts[0][3][1], line.parts[0][-4][1]
+
+    result = run_route_planning_job(
+        park_id="klaserie",
+        start=start,
+        end=end,
+        num_alternatives=1,
+        seed=7,
+    )
+
+    constraints = no_terrain.return_value.constraints
+    on_road = LineString([xy for xy, _ in line.parts[0]]).buffer(2.0)
+    drawn = LineString(
+        [
+            constraints.to_grid(c)
+            for c in result["results"][0]["path_geometry"]["coordinates"]
+        ],
+    )
+    assert drawn.intersection(on_road).length / drawn.length > 0.9

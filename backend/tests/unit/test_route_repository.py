@@ -18,6 +18,7 @@ from app.workers.ml.terrain_constraints import (
     TerrainConstraints,
     build_constraints,
 )
+from app.workers.ml.terrain_paths import FollowLine
 from app.workers.terrain.constants import DEFAULT_RULE
 
 _EPSG = 32736
@@ -844,6 +845,181 @@ def test_planned_route_crosses_a_river_exactly_at_the_bridge(grid_5x5):
     crossings = _river_crossings(graph, drawn)
     assert crossings
     assert all(point.distance(bridge) < 1.0 for point in crossings)
+
+
+# preferred lines as drivable paths
+
+
+def _road(*points_km, multiplier=0.4, feature_id="road"):
+    """FollowLine through (x km, y km below the top) grid points."""
+    vertices = []
+    for x_km, y_km in points_km:
+        xy = (_BASE_LEFT + x_km * _CELL_M, _BASE_TOP - y_km * _CELL_M)
+        vertices.append((xy, _TO_LONLAT.transform(*xy)))
+    return FollowLine(feature_id, multiplier, (tuple(vertices),))
+
+
+def _row_road(y_km=2.3):
+    return _road(*[(x + 0.5, y_km) for x in range(5)])
+
+
+def _path_ids(graph):
+    return sorted(graph.cell_of, key=lambda n: int(n.rsplit("-", 1)[1]))
+
+
+def test_path_points_join_the_graph_linked_to_their_cell(grid_5x5):
+    graph = build_park_graph(grid_5x5, paths=[_row_road()])
+    ids = _path_ids(graph)
+
+    assert len(ids) == 5
+    assert [graph.cell_of[p] for p in ids] == [_id(2, c) for c in range(5)]
+    pairs = _pairs(graph.edges)
+    for path_id in ids:
+        cell = graph.cell_of[path_id]
+        assert (path_id, cell) in pairs
+        assert (cell, path_id) in pairs
+    assert (ids[0], ids[1]) in pairs
+    assert (ids[1], ids[0]) in pairs
+
+
+def test_moving_along_a_path_costs_its_multiplier(grid_5x5):
+    graph = build_park_graph(grid_5x5, paths=[_row_road()])
+    first, second = _path_ids(graph)[:2]
+    edge = next(
+        e
+        for e in graph.edges
+        if (e.from_node_id, e.to_node_id) == (first, second)
+    )
+
+    assert edge.distance_km == pytest.approx(1.0)
+    assert edge.est_time_min == pytest.approx(60 / AVG_SPEED_KMH * 0.4)
+
+
+def test_paths_leave_grid_adjacency_alone(grid_5x5):
+    plain = build_park_graph(grid_5x5)
+    graph = build_park_graph(grid_5x5, paths=[_row_road()])
+
+    assert graph.neighbor_edges == plain.neighbor_edges
+
+
+def test_path_points_off_the_grid_are_skipped(grid_5x5):
+    graph = build_park_graph(
+        grid_5x5,
+        paths=[_road((-3.0, 2.3), (-2.0, 2.3), (0.5, 2.3), (1.5, 2.3))],
+    )
+
+    assert len(graph.cell_of) == 2
+
+
+def test_a_path_cannot_cross_an_impassable_river(grid_5x5):
+    river = ImpassableArea("river", 1, _col_border(2))
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=TerrainConstraints(areas=[river], epsg=_EPSG),
+        paths=[_row_road(2.5)],
+    )
+    ids = _path_ids(graph)
+
+    assert (ids[1], ids[2]) not in _pairs(graph.edges)
+    assert (ids[0], ids[1]) in _pairs(graph.edges)
+
+
+def test_a_path_crosses_the_river_on_a_bridge(grid_5x5):
+    river = ImpassableArea("river", 1, _col_border(2))
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=_gated(river, _bridge_at(2.0, 2.5)),
+        paths=[_row_road(2.5)],
+    )
+    ids = _path_ids(graph)
+
+    assert (ids[1], ids[2]) in _pairs(graph.edges)
+
+
+def test_stops_snap_to_cells_not_path_points(grid_5x5):
+    graph = build_park_graph(grid_5x5, paths=[_row_road()])
+    on_the_road = _TO_LONLAT.transform(
+        _BASE_LEFT + 1.5 * _CELL_M,
+        _BASE_TOP - 2.3 * _CELL_M,
+    )
+
+    assert find_nearest_node(graph, on_the_road) == _id(2, 1)
+
+
+def test_route_geometry_traces_the_path_exactly(grid_5x5):
+    graph = build_park_graph(grid_5x5, paths=[_row_road()])
+    ids = _path_ids(graph)
+    path = [_id(2, 0), ids[0], ids[1], ids[2], _id(2, 2)]
+    lookup = {n.node_id: n.location.coordinates for n in graph.nodes}
+
+    route = route_planner._to_planned_route(graph, path, 0.0)
+
+    drawn = route.path_geometry.coordinates
+    for path_id in ids[:3]:
+        assert lookup[path_id] in drawn
+    assert route.distance_km == pytest.approx(0.2 + 2.0 + 0.2)
+
+
+def test_planner_drives_along_a_preferred_path(grid_5x5):
+    route_planner.clear_path_cache()
+    graph = build_park_graph(
+        grid_5x5,
+        paths=[_row_road()],
+        terrain_key="road",
+    )
+
+    plan = route_planner.plan_routes(
+        graph,
+        _id(2, 0),
+        _id(2, 4),
+        1,
+        route_planner.ACOConfig(seed=7),
+    )
+    route_planner.clear_path_cache()
+
+    on_road = [n for n in plan.routes[0].suggested_path if n in graph.cell_of]
+    assert len(on_road) == 5
+
+
+def test_a_path_point_covers_like_its_cell(grid_5x5):
+    graph = build_park_graph(grid_5x5, paths=[_row_road()])
+    path_id = _path_ids(graph)[1]
+
+    covered = route_planner.covered_nodes(graph, [path_id])
+
+    assert covered == route_planner.covered_nodes(graph, [_id(2, 1)]) | {
+        path_id,
+    }
+
+
+def test_path_points_do_not_skew_the_hotspot_threshold(grid_5x5):
+    risk = {
+        _id(r, c): 0.1 + 0.01 * (r * 5 + c)
+        for r in range(5)
+        for c in range(5)
+    }
+    plain = build_park_graph(grid_5x5, risk_by_cell=risk)
+    graph = build_park_graph(
+        grid_5x5,
+        risk_by_cell=risk,
+        paths=[_row_road(y) for y in (0.3, 1.3, 2.3, 3.3)],
+    )
+
+    assert route_planner.high_risk_threshold(graph) == pytest.approx(
+        route_planner.high_risk_threshold(plain),
+    )
+
+
+def test_path_steps_do_not_shrink_the_cell_size(grid_5x5):
+    plain = build_park_graph(grid_5x5)
+    graph = build_park_graph(
+        grid_5x5,
+        paths=[_road((0.5, 2.3), (0.6, 2.3), (0.7, 2.3))],
+    )
+
+    assert route_planner._cell_size_degrees(graph) == pytest.approx(
+        route_planner._cell_size_degrees(plain),
+    )
 
 
 # Sanity checks against the real production grid file

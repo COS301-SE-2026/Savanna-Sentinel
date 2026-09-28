@@ -72,6 +72,8 @@ def _coverage_neighbors(graph: ParkGraph) -> dict[str, frozenset[str]]:
             n.node_id: frozenset({n.node_id} | undirected.get(n.node_id, set()))
             for n in graph.nodes
         }
+        for node_id, cell in graph.cell_of.items():
+            cached[node_id] = cached[cell] | {node_id}
         graph._coverage_neighbors_cache = cached
     return cached
 
@@ -107,7 +109,11 @@ def high_risk_threshold(
     """
     cached = getattr(graph, "_high_risk_threshold_cache", None)
     if cached is None:
-        scores = sorted(_node_risk(graph).values())
+        scores = sorted(
+            score
+            for node_id, score in _node_risk(graph).items()
+            if node_id not in graph.cell_of
+        )
         cached = absolute
         if scores and scores[-1] < absolute:
             index = min(int(quantile * len(scores)), len(scores) - 1)
@@ -1618,8 +1624,13 @@ def plan_routes_via(
 def _cell_size_degrees(graph: ParkGraph) -> float:
     cached = getattr(graph, "_cell_size_degrees_cache", None)
     if cached is None:
+        grid_edges = (
+            graph.edges
+            if graph.neighbor_edges is None
+            else graph.neighbor_edges
+        )
         cached = min(
-            (e.distance_km for e in graph.edges if e.distance_km > 0),
+            (e.distance_km for e in grid_edges if e.distance_km > 0),
             default=0.0,
         ) / KM_PER_DEGREE
         graph._cell_size_degrees_cache = cached
@@ -1660,14 +1671,16 @@ def _route_line(
     coords: list[tuple[float, float]],
     edges_used: list[GraphEdge],
 ) -> tuple[list[tuple[float, float]], float]:
-    """Display line and distance, with barrier crossings sent over the gate.
+    """Display line and distance, drawn exactly where the terrain says.
 
-    A move across an impassable area is drawn centre -> gate -> centre and
-    left unsmoothed, so the line crosses exactly where the bridge is. The
-    runs between crossings are smoothed as usual.
+    A move across an impassable area is drawn centre -> gate -> centre, so
+    the line crosses exactly at the bridge. Moves on or onto a preferred
+    line are drawn as is, so the route traces the path. Both are left
+    unsmoothed; the runs between them are smoothed as usual.
     """
     constraints = graph.constraints
-    if constraints is None or not constraints.areas:
+    has_barriers = constraints is not None and bool(constraints.areas)
+    if not has_barriers and not graph.cell_of:
         smoothed = smooth_route(coords, _cell_size_degrees(graph))
         return smoothed, math.fsum(e.distance_km for e in edges_used)
 
@@ -1676,24 +1689,32 @@ def _route_line(
     run = [coords[0]]
     distance_km = 0.0
     for i, (a, b) in enumerate(zip(path, path[1:])):
-        vias = constraints.crossing_vias(centres[a], centres[b])
-        if not vias:
+        vias = (
+            constraints.crossing_vias(centres[a], centres[b])
+            if has_barriers
+            else []
+        )
+        on_path = a in graph.cell_of or b in graph.cell_of
+        if not vias and not on_path:
             run.append(coords[i + 1])
             distance_km += edges_used[i].distance_km
             continue
         _extend(line, _smoothed_run(graph, run))
-        legs = [centres[a], *vias, centres[b]]
-        distance_km += (
-            math.fsum(math.dist(p, q) for p, q in zip(legs, legs[1:])) / 1000
-        )
-        _extend(
-            line,
-            [
+        if vias:
+            legs = [centres[a], *vias, centres[b]]
+            distance_km += (
+                math.fsum(math.dist(p, q) for p, q in zip(legs, legs[1:]))
+                / 1000
+            )
+            exact = [
                 coords[i],
                 *(constraints.from_grid(v) for v in vias),
                 coords[i + 1],
-            ],
-        )
+            ]
+        else:
+            distance_km += edges_used[i].distance_km
+            exact = [coords[i], coords[i + 1]]
+        _extend(line, exact)
         run = [coords[i + 1]]
     _extend(line, _smoothed_run(graph, run))
     return line, distance_km

@@ -40,6 +40,7 @@ class ParkGraph:
     neighbor_edges: list[GraphEdge] | None = None
     terrain_key: str = ""
     constraints: "TerrainConstraints | None" = None
+    cell_of: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

@@ -51,3 +51,16 @@ WHERE id IN (
 	'd9eaf372-7256-4990-acb0-764a3791492b'::uuid,
 	'ad3e187a-3cb5-4d79-936c-b24f8c531d9e'::uuid
 );
+
+UPDATE public.workspace_features
+SET rules = '{"prefer": {"strength": 1.0, "priority": 1}}'
+WHERE id = 'a119239b-a1ba-4c7a-a716-c60545c58626'::uuid;
+
+UPDATE public.workspace_features
+SET rules = '{"prefer": {"strength": 0.8, "priority": 1}}'
+WHERE id IN (
+	'814e2d66-277d-400d-a7f3-bac85d199b23'::uuid,
+	'a885c6f6-05cd-48f2-a089-d04f5e3509c4'::uuid,
+	'cfebf0fb-e349-4dd8-824e-347684075fd5'::uuid,
+	'40c07c1c-62b8-43c6-922f-51f9fdac8b49'::uuid
+);

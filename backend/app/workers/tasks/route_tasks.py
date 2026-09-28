@@ -24,6 +24,7 @@ from app.workers.ml.terrain_constraints import (
     TerrainConstraints,
     build_constraints,
 )
+from app.workers.ml.terrain_paths import FollowLine, followable_lines
 from app.workers.terrain.grid import load_projected_cells
 from app.workers.terrain.rules import resolve_feature_rules
 
@@ -36,6 +37,7 @@ class RouteTerrain:
     route_costs: dict[str, float] = field(default_factory=dict)
     constraints: TerrainConstraints = field(default_factory=TerrainConstraints)
     cells: list = field(default_factory=list)
+    paths: list[FollowLine] = field(default_factory=list)
     terrain_key: str = ""
     stale: bool = False
 
@@ -58,7 +60,8 @@ async def _read_terrain() -> tuple:
 def _load_terrain() -> RouteTerrain:
     """Read-only view of the workspace rules and computed terrain effects.
 
-    Impassable areas come from the live workspace, so they are never stale.
+    Impassable areas and preferred lines come from the live workspace, so
+    they are never stale.
     Cost multipliers come from the last terrain recompute, which may lag.
     """
     version, snapshot, effects, meta = asyncio.run(_read_terrain())
@@ -73,6 +76,7 @@ def _load_terrain() -> RouteTerrain:
             resolved,
         ),
         cells=cells,
+        paths=followable_lines(snapshot["features"], resolved, epsg),
         terrain_key=f"{version}:{meta['computed_hash']}",
         stale=meta["requested_hash"] != meta["computed_hash"],
     )
@@ -133,6 +137,7 @@ def run_route_planning_job(
         route_cost_by_cell=terrain.route_costs,
         constraints=terrain.constraints,
         terrain_key=terrain.terrain_key,
+        paths=terrain.paths,
     )
     stops = [start, *(waypoints or []), end]
     if any(_stop_in_no_go(terrain, point) for point in stops):
