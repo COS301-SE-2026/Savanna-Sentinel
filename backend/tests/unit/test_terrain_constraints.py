@@ -2,7 +2,7 @@ import math
 
 import pytest
 from pyproj import Transformer
-from shapely.geometry import box
+from shapely.geometry import LineString, box
 
 from app.workers.ml.terrain_constraints import (
     IMPASSABLE_STRENGTH,
@@ -269,9 +269,74 @@ class TestBuildConstraints:
 
         constraints = build_constraints(_cells(), EPSG, features, resolved)
 
-        assert constraints == TerrainConstraints()
+        assert constraints == TerrainConstraints(epsg=EPSG)
 
     def test_overridden_defaults_to_not_reached(self):
         area = ImpassableArea("river", 1, box(0, 0, 1, 1))
 
         assert not TerrainConstraints(areas=[area]).overridden(area, "cell-0")
+
+    def test_keeps_the_grid_epsg(self):
+        features = [_feature("river", _river())]
+        resolved = {"river": {"avoid": _impassable()}}
+
+        constraints = build_constraints(_cells(), EPSG, features, resolved)
+
+        assert constraints.epsg == EPSG
+
+
+def _lake(priority=1):
+    return ImpassableArea("lake", priority, box(0, 0, 10, 10))
+
+
+def _wall(priority=1):
+    return ImpassableArea("wall", priority, LineString([(5, -10), (5, 10)]))
+
+
+class TestTerrainConstraintsGeometry:
+    def test_to_grid_projects_lon_lat_into_the_grid_crs(self):
+        x, y = _centre(2, 2)
+        constraints = TerrainConstraints(epsg=EPSG)
+
+        projected = constraints.to_grid(tuple(_lonlat(x, y)))
+
+        assert projected == pytest.approx((x, y))
+
+    def test_point_inside_an_area_is_blocked(self):
+        constraints = TerrainConstraints(areas=[_lake()])
+
+        assert constraints.blocks_point((5, 5), "cell-0")
+        assert not constraints.blocks_point((50, 50), "cell-0")
+
+    def test_point_in_a_higher_priority_cell_is_not_blocked(self):
+        constraints = TerrainConstraints(
+            areas=[_lake()],
+            top_priority={"cell-0": 2},
+        )
+
+        assert not constraints.blocks_point((5, 5), "cell-0")
+        assert constraints.blocks_point((5, 5), "cell-1")
+
+    def test_point_without_a_cell_is_judged_on_the_area_alone(self):
+        constraints = TerrainConstraints(areas=[_lake()])
+
+        assert constraints.blocks_point((5, 5), None)
+
+    def test_segment_crossing_a_barrier_is_blocked(self):
+        constraints = TerrainConstraints(areas=[_wall()])
+
+        assert constraints.blocks_segment((0, 0), (10, 0), "cell-0")
+        assert not constraints.blocks_segment((0, 0), (4, 0), "cell-0")
+
+    def test_segment_to_a_higher_priority_cell_is_not_blocked(self):
+        constraints = TerrainConstraints(
+            areas=[_wall()],
+            top_priority={"bridge": 2},
+        )
+
+        assert not constraints.blocks_segment((0, 0), (10, 0), "bridge")
+
+    def test_segment_starting_on_the_barrier_is_not_blocked(self):
+        constraints = TerrainConstraints(areas=[_wall()])
+
+        assert not constraints.blocks_segment((5, 0), (10, 0), "cell-0")

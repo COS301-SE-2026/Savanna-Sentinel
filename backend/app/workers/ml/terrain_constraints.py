@@ -3,11 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from shapely.geometry import LineString, Point
 from shapely.strtree import STRtree
 
 from app.schemas.workspace import MAX_RULE_STRENGTH
 from app.workers.terrain.constants import ROUTE_INTENTS
-from app.workers.terrain.effects import _project, rule_weight
+from app.workers.terrain.effects import _project, _to_grid, rule_weight
 
 if TYPE_CHECKING:
     from shapely.geometry.base import BaseGeometry
@@ -26,9 +27,40 @@ class ImpassableArea:
 class TerrainConstraints:
     areas: list[ImpassableArea] = field(default_factory=list)
     top_priority: dict[str, int] = field(default_factory=dict)
+    epsg: int = 0
 
     def overridden(self, area: ImpassableArea, cell_ref: str) -> bool:
         return self.top_priority.get(cell_ref, 0) > area.priority
+
+    def to_grid(self, point: tuple[float, float]) -> tuple[float, float]:
+        return _to_grid(self.epsg).transform(*point)
+
+    def blocks_point(
+        self,
+        xy: tuple[float, float],
+        cell_ref: str | None,
+    ) -> bool:
+        spot = Point(xy)
+        return any(
+            area.area.intersects(spot)
+            and not (cell_ref and self.overridden(area, cell_ref))
+            for area in self.areas
+        )
+
+    def blocks_segment(
+        self,
+        start_xy: tuple[float, float],
+        end_xy: tuple[float, float],
+        cell_ref: str,
+    ) -> bool:
+        segment = LineString([start_xy, end_xy])
+        start = Point(start_xy)
+        return any(
+            area.area.intersects(segment)
+            and not area.area.intersects(start)
+            and not self.overridden(area, cell_ref)
+            for area in self.areas
+        )
 
 
 def impassable_areas(
@@ -101,8 +133,9 @@ def build_constraints(
 ) -> TerrainConstraints:
     areas = impassable_areas(features, resolved, epsg)
     if not areas:
-        return TerrainConstraints()
+        return TerrainConstraints(epsg=epsg)
     return TerrainConstraints(
         areas=areas,
         top_priority=top_priority_by_cell(cells, epsg, features, resolved),
+        epsg=epsg,
     )
