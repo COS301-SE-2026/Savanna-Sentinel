@@ -1345,7 +1345,7 @@ def meet_coverage_target(
     return tour.hubs, path
 
 
-STRAIGHTEN_WINDOW = 60
+STRAIGHTEN_WINDOW = 20
 
 
 def straighten_path(
@@ -1369,30 +1369,50 @@ def straighten_path(
     neighbors = _coverage_sets(graph)
     times = _edge_times(graph)
 
-    def contributions(node_id: str) -> list[str]:
-        return [c for c in neighbors.get(node_id, {node_id}) if c in weights]
+    cache: dict[str, tuple[str, ...]] = {}
+
+    def contributions(node_id: str) -> tuple[str, ...]:
+        cells = cache.get(node_id)
+        if cells is None:
+            cells = tuple(
+                c for c in neighbors.get(node_id, {node_id}) if c in weights
+            )
+            cache[node_id] = cells
+        return cells
+
+    counts: Counter = Counter()
+    for node_id in path:
+        counts.update(contributions(node_id))
 
     i = 0
     while i < len(path) - 2:
         last = min(len(path) - 1, i + STRAIGHTEN_WINDOW)
         reach = dijkstra(graph, path[i], targets=set(path[i + 2 : last + 1]))
-        counts: Counter = Counter()
-        for node_id in path:
-            counts.update(contributions(node_id))
-        covered = _covered_weight(weights, counts)
+        elapsed = [0.0]
+        for pair in zip(path[i:last], path[i + 1 : last + 1]):
+            elapsed.append(elapsed[-1] + times[pair])
+        # cells covered by the nodes a swap to j would skip, path[i+1:j]
+        skipped: dict[str, int] = {}
+        for node_id in path[i + 1 : last]:
+            for c in contributions(node_id):
+                skipped[c] = skipped.get(c, 0) + 1
         for j in range(last, i + 1, -1):
+            if j < last:
+                for c in contributions(path[j]):
+                    skipped[c] -= 1
             hop = reach.get(path[j])
             if hop is None or path[j] == path[i]:
                 continue
-            current = _path_time(times, path[i : j + 1])
-            if hop.time_min >= current - COVERAGE_EPS:
+            if hop.time_min >= elapsed[j - i] - COVERAGE_EPS:
                 continue
-            trial = counts.copy()
-            for node_id in path[i + 1 : j]:
-                trial.subtract(contributions(node_id))
+            delta = Counter({c: -n for c, n in skipped.items() if n})
             for node_id in hop.path[1:-1]:
-                trial.update(contributions(node_id))
-            if _covered_weight(weights, +trial) < covered - COVERAGE_EPS:
+                delta.update(contributions(node_id))
+            change = math.fsum(
+                weights[c] * ((counts[c] + d > 0) - (counts[c] > 0))
+                for c, d in delta.items()
+            )
+            if change < -COVERAGE_EPS:
                 continue
             candidate = path[:i] + hop.path + path[j + 1 :]
             if any(
@@ -1401,6 +1421,8 @@ def straighten_path(
             ):
                 continue
             path = candidate
+            counts.update(delta)
+            counts = +counts
             break
         i += 1
     return path

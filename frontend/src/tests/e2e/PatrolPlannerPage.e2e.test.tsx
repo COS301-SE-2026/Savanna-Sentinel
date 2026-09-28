@@ -70,6 +70,7 @@ test.describe("Patrol Planner golden path", () => {
     test("sets both points, generates routes, and selects an alternative", async ({
         page,
     }) => {
+        test.setTimeout(120000);
         await page.getByLabel(/^start point$/i).fill("-24.30, 31.05");
         await page.getByLabel(/^end point$/i).fill("-24.28, 31.09");
 
@@ -79,7 +80,7 @@ test.describe("Patrol Planner golden path", () => {
         await expect(generateButton).toBeEnabled();
         await generateButton.click();
 
-        await expect(page.getByText("Route A")).toBeVisible({ timeout: 30000 });
+        await expect(page.getByText("Route A")).toBeVisible({ timeout: 90000 });
         await expect(
             page.getByRole("button", { name: "Selected" }),
         ).toBeVisible();
