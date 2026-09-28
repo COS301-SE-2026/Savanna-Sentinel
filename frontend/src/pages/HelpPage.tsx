@@ -140,7 +140,7 @@ function Faq({ canViewStaff, canViewAnalyst, canViewRanger }: FaqProps) {
                     </div>
                     <Button asChild className="mt-4 shrink-0 md:mt-0">
                         <a
-                            href="https://github.com/COS301-SE-2026/Savanna-Sentinel/blob/main/docs/demo2/PDF/User%20Manual.pdf?raw=true"
+                            href="https://github.com/COS301-SE-2026/Savanna-Sentinel/blob/main/docs/demo4/PDF/User%20Manual.pdf?raw=true"
                             target="_blank"
                             rel="noopener noreferrer"
                             download
