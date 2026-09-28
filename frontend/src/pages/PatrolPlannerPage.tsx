@@ -39,7 +39,8 @@ import { UserLocationNotice } from "@/components/map/UserLocationNotice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MotionSimulator } from "@/components/dev/MotionSimulator";
-import SelectReferenceModal from "@/components/map/SelectReferenceModal";
+import SelectReferenceModal, { type Poi } from "@/components/map/SelectReferenceModal";
+import { useWorkspacePois } from "@/hooks/useWorkspacePois";
 
 const DEFAULT_ZOOM = 10;
 
@@ -261,8 +262,10 @@ export default function PatrolPlannerPage() {
     const [isNoDataBannerDismissed, setIsNoDataBannerDismissed] =
         useState(false);
     const [isLocationVisible, setLocationVisible] = useState(false);
-    const { location: userLocation, status: userLocationStatus, hasNoReferencePoint } =
+    const { location: userLocation, status: userLocationStatus, hasNoReferencePoint, setReferencePoint } =
         useUserLocation(isLocationVisible);
+
+    const pois = useWorkspacePois();
 
     const bottomAnchorStyle = isMobile
         ? {
@@ -438,6 +441,15 @@ export default function PatrolPlannerPage() {
         }
     };
 
+    const handleSelectPoi = (poi: Poi) => {
+        setReferencePoint({
+            lat: poi.lat,
+            lon: poi.lon,
+            heading: 0,
+            accuracy: 10
+        })
+    }
+
     const isGenerating = jobStatus === "queued" || jobStatus === "processing";
     const isPickingActive = armedField !== null;
 
@@ -544,6 +556,8 @@ export default function PatrolPlannerPage() {
                 <SelectReferenceModal 
                     open={hasNoReferencePoint}
                     onOpenChange={handleSelectReferenceModalClose}
+                    pois={pois}
+                    onSelectPoi={handleSelectPoi}
                 />
                 {isGridLoading && <LoadingPill label="Loading..." />}
                 {isGenerating && <LoadingPill label="Planning route..." />}

@@ -1,7 +1,9 @@
+import { Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { cellClass, rowClass, theadClass } from "../ui/table-styles";
 import { cn } from "@/lib/utils";
+import { Button } from "../ui/button";
 
 export interface Poi {
     name: string;
@@ -20,8 +22,13 @@ interface SelectReferenceModalProps {
 const SelectReferenceModal = ({
     open,
     onOpenChange,
+    pois = [],
+    onSelectPoi
 }: SelectReferenceModalProps) => {
-
+    const handleSelectPoi = (poi: Poi) => {
+        onSelectPoi?.(poi);
+        onOpenChange(false)
+    }
     
     return(
         <Dialog
@@ -40,35 +47,60 @@ const SelectReferenceModal = ({
                             <TableHead
                                 className={cn(theadClass, "text-center")}
                             >
+                                 Preview
+                            </TableHead>
+                            <TableHead
+                                className={cn(theadClass, "text-center")}
+                            >
                                  Location Name
                             </TableHead>
                             <TableHead
                                 className={cn(theadClass, "text-center")}
                             >
-                                Latitude
-                            </TableHead>
-                            <TableHead
-                                className={cn(theadClass, "text-center")}
-                            >
-                                Longitude
-                            </TableHead>
-                            <TableHead
-                                className={cn(theadClass, "text-center")}
-                            >
-                                Actions
+                                 Select
                             </TableHead>
                         </TableHeader>
                         <TableBody>
-                            <TableRow
-                                className={rowClass}
-                            >
+                            {pois.length === 0 ? (
                                 <TableCell
-                                    colSpan={5}
-                                    className={cellClass}
+                                    colSpan={3}
+                                    className={cn(cellClass, "text-center")}
                                 >
-                                    Test Content
+                                    No points of interest available
                                 </TableCell>
-                            </TableRow>
+                            ): (
+                                pois.map((poi, i) => (
+                                    <TableRow
+                                        key={`${poi.lat}-${poi.lon}-${i}`}
+                                        className={rowClass}
+                                    >
+                                        <TableCell
+                                            className={cn(cellClass, "text-center")}
+                                        >
+                                            <div className="flex items-center justify-center">
+                                                <Eye className="size-4 text-color-text-secondary" />
+                                            </div>
+                                        </TableCell>
+                                        <TableCell
+                                            className={cn(cellClass, "text-left")}
+                                        >
+                                            <div className="font-medium text-color-text-primary">
+                                                {poi.name}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell
+                                            className={cn(cellClass, "text-center")}
+                                        >
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleSelectPoi(poi)}
+                                            >
+                                                Select
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
                         </TableBody>
                     </Table>
                 </div>
