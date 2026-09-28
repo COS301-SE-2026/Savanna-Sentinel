@@ -1,4 +1,5 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useAuthStore } from "@/store/authStore";
 import {
     Card,
     CardContent,
@@ -7,6 +8,15 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Admin from "@/components/help/Admin";
+import Dashboard from "@/components/help/Dashboard";
+import Heatmap from "@/components/help/Heatmap";
+import Ingestion from "@/components/help/Ingestion";
+import TipOffs from "@/components/help/TipOffs";
+import Workspace from "@/components/help/Workspace";
+import Reports from "@/components/help/Reports"
+import Profile from "@/components/help/Profile";
+import Patrol from "@/components/help/PatrolPlanner";
 
 // Quick access to VALUABLE RESOURCES such as help center links, tutorials and FAQs
 
@@ -79,229 +89,13 @@ function Faq() {
     );
 }
 
-function Reports() {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-xl text-brand-primary">
-                    Field Reports
-                </CardTitle>
-                <CardDescription className="text-base text-color-surface-deep">
-                    Use this page to view submitted reports, create a new report
-                    or draft and edit reports.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5 text-base">
-                <div>
-                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                        New Report Tab
-                    </CardTitle>
-                    <ul className="list-disc pl-5 space-y-1">
-                        <li>
-                            Select the report type as either an incident or a
-                            sighting.
-                        </li>
-                        <li>Add a description to your report.</li>
-                        <li>
-                            Incident Report: Select the incident type and
-                            indicate the severity of it.
-                        </li>
-                        <li>
-                            Sighting Report: Select the species and how many
-                            were involved in the report.
-                        </li>
-                        <li>Enter the date when the event happened.</li>
-                        <li>
-                            You can either manually enter the coordinates where
-                            the event happened or click the 'Use current
-                            location' button to automatically use you current
-                            location.
-                        </li>
-                        <li>
-                            You may optionally upload photos with the report.
-                        </li>
-                        <p className="text-base">
-                            Afterwards you may Submit the report. Then you may
-                            use the pagination at the top to see your submitted
-                            reports to either edit, draft or delete that
-                            previous report.
-                        </p>
-                    </ul>
-                </div>
-
-                <div>
-                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                        All Reports Tab
-                    </CardTitle>
-                    <p className="text-base">
-                        Shows a table showing all the submitted reports. You may
-                        search and filter these reports.
-                    </p>
-                    <p className="text-base">
-                        Each report has a sync status, indicating the status of
-                        its sync with the server.
-                    </p>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function Patrol() {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-xl text-brand-primary">
-                    Patrol Planner
-                </CardTitle>
-                <CardDescription className="text-base text-color-surface-deep">
-                    Use the Plan route panel to define the patrol constraints
-                    and review the suggested route.
-                </CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-5">
-                <div>
-                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                        Route Parameters
-                    </CardTitle>
-                    <ul className="text-base list-disc pl-5 space-y-1">
-                        <li>
-                            Start and End location: Enter the coordinates, or
-                            click the location icon and click on the map to
-                            select a starting point.
-                        </li>
-                    </ul>
-                    <p className="text-base space-y-2">
-                        Afterwards, click the generate routes button to generate
-                        routes. If you need to, you may also click Clear routes
-                        to clear the currently generated routes.
-                    </p>
-                </div>
-
-                <div>
-                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                        Suggested, and Alternate Routes
-                    </CardTitle>
-                    <p className="text-base space-y-2">
-                        The selected route is emphasized on the map, while the
-                        alternate routes are overlayed. This is done so you may
-                        compare your currently selected route to the
-                        alternatives. You may change the current selected route
-                        by clicking the 'Select' button in the top right of the
-                        route's card.
-                    </p>
-                    <p className="text-base space-y-2">
-                        The metrics for each route are as follows:
-                    </p>
-                    <ul className="text-base list-disc pl-5 space-y-1">
-                        <li>
-                            Distance: The length of the route in kilometres.
-                        </li>
-                        <li>
-                            Risk Coverage: The share of the risk in Medium, High
-                            and Critical cells that the route passes through or
-                            next to. Higher-risk cells count for more.
-                        </li>
-                    </ul>
-                    <p className="text-base space-y-2">
-                        The shortest route is listed first. Alternatives cover a
-                        similar amount of risk along a different path, and are
-                        only shown when they are at most 15% longer.
-                    </p>
-                </div>
-
-                <div>
-                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                        The Map
-                    </CardTitle>
-                    <ul className="text-base list-disc pl-5 space-y-1">
-                        <li>
-                            The Map controls are in the top right. You may also
-                            use your mouse wheel to scroll in and out to zoom in
-                            and out.
-                        </li>
-                        <li>
-                            In the bottom right is a legend describing how the
-                            colours in the heatmap corelate to risk values.
-                        </li>
-                        <li>
-                            Click on a cell to view information about that cell.
-                        </li>
-                        <li>
-                            Clicking on 'View Analysis' will open a panel with
-                            more information about that cell.
-                        </li>
-                    </ul>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function Profile() {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-xl text-brand-primary">
-                    Profile Page
-                </CardTitle>
-                <CardDescription className="text-base text-color-surface-deep">
-                    Update your name details or change your password from this
-                    page.
-                </CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-5">
-                <div>
-                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                        Profile Details
-                    </CardTitle>
-                    <ul className="text-base list-disc pl-5 space-y-1">
-                        <li>First name: update your first name.</li>
-                        <li>Last name: update your last name.</li>
-                        <li>Save applies the changes to your profile.</li>
-                        <li>Reset restores the saved profile values.</li>
-                    </ul>
-                </div>
-
-                <div>
-                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                        Change Password
-                    </CardTitle>
-                    <ul className="text-base list-disc pl-5 space-y-1">
-                        <li>Current password: enter your existing password.</li>
-                        <li>
-                            New password: enter a password with at least 8
-                            characters.
-                        </li>
-                        <li>
-                            Confirm password: re-enter the new password exactly.
-                        </li>
-                        <li>
-                            The new password must not match the current
-                            password.
-                        </li>
-                    </ul>
-                </div>
-
-                <div>
-                    <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
-                        Password Rules
-                    </CardTitle>
-                    <p className="text-base">
-                        Password changes require all fields to be filled, the
-                        new password to meet the length requirement, and the
-                        confirmation field to match.
-                    </p>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-// Eventually add the link to the user manual and remove the comment ig
 export default function HelpPage() {
+    const user = useAuthStore((s) => s.user);
+    const canViewAll = user?.role === "admin"
+    const canViewRanger = user?.role === "ranger" || canViewAll;
+    const canViewAnalyst = user?.role === "analyst" || canViewAll;
+    const canViewStaffOnly = canViewAnalyst || canViewRanger || canViewAll;
+    
     return (
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
             <Tabs defaultValue="faq">
@@ -310,15 +104,58 @@ export default function HelpPage() {
                         <TabsTrigger className="text-sm" value="faq">
                             FAQ
                         </TabsTrigger>
-                        <TabsTrigger className="text-sm" value="reports">
-                            Reports
-                        </TabsTrigger>
-                        <TabsTrigger className="text-sm" value="patrol">
-                            Patrol Planner
-                        </TabsTrigger>
                         <TabsTrigger className="text-sm" value="profile">
                             User Profile
                         </TabsTrigger>
+                        <TabsTrigger className="text-sm" value="tipOffs">
+                            Tip Offs
+                        </TabsTrigger>
+                        
+                        {
+                            canViewStaffOnly && (
+                            <>
+                                <TabsTrigger className="text-sm" value="dashboard">
+                                    Dashboard
+                                </TabsTrigger>
+                                <TabsTrigger className="text-sm" value="reports">
+                                    Reports
+                                </TabsTrigger>
+                                <TabsTrigger className="text-sm" value="heatmap">
+                                    Heatmap
+                                </TabsTrigger>
+                            </>
+                            )
+                        }
+
+                        {
+                            canViewRanger && (
+                                <TabsTrigger className="text-sm" value="patrol">
+                                    Patrol Planner
+                                </TabsTrigger>
+                            )
+                        }
+
+                        {
+                            canViewAnalyst && (
+                            <>
+                                <TabsTrigger className="text-sm" value="ingestion">
+                                    Ingestion
+                                </TabsTrigger>
+                                <TabsTrigger className="text-sm" value="workspace">
+                                    Workspace
+                                </TabsTrigger>
+                            </>
+                            )
+                        }
+
+                        {
+                            canViewAll && (
+                                <TabsTrigger className="text-sm" value="admin">
+                                    Admin Page
+                                </TabsTrigger>
+                            )
+                        }
+
                         <TabsTrigger className="text-sm" value="download">
                             User Manual
                         </TabsTrigger>
@@ -329,16 +166,40 @@ export default function HelpPage() {
                     <Faq />
                 </TabsContent>
 
+                <TabsContent value="profile">
+                    <Profile />
+                </TabsContent>
+
+                <TabsContent value="tipOffs">
+                    <TipOffs />
+                </TabsContent>
+
+                <TabsContent value="dashboard">
+                    <Dashboard />
+                </TabsContent>
+
                 <TabsContent value="reports">
                     <Reports />
+                </TabsContent>
+
+                <TabsContent value="heatmap">
+                    <Heatmap />
                 </TabsContent>
 
                 <TabsContent value="patrol">
                     <Patrol />
                 </TabsContent>
 
-                <TabsContent value="profile">
-                    <Profile />
+                <TabsContent value="ingestion">
+                    <Ingestion />
+                </TabsContent>
+
+                <TabsContent value="workspace">
+                    <Workspace />
+                </TabsContent>
+
+                <TabsContent value="admin">
+                    <Admin />
                 </TabsContent>
 
                 <TabsContent value="download">
