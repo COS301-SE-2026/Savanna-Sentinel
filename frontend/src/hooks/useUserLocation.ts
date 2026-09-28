@@ -99,7 +99,8 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
                 if (lastGpsLoc.current) {
                     setStatus("dead-reckoning");
                 } else {
-                    setStatus("unavailable");
+                    setHasNoReferencePoint(true)
+                    setStatus("needs-reference");
                 }
             },
             WATCH_OPTIONS,
@@ -117,8 +118,6 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
         const handleMotion = (event: DeviceMotionEvent) => {
             //End offline handling when there is no known reference point
             if (!lastGpsLoc.current) {
-                setHasNoReferencePoint(true);
-                setStatus("needs-reference");
                 return;
             }
 

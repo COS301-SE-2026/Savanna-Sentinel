@@ -39,6 +39,7 @@ import { UserLocationNotice } from "@/components/map/UserLocationNotice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MotionSimulator } from "@/components/dev/MotionSimulator";
+import SelectReferenceModal from "@/components/map/SelectReferenceModal";
 
 const DEFAULT_ZOOM = 10;
 
@@ -260,7 +261,7 @@ export default function PatrolPlannerPage() {
     const [isNoDataBannerDismissed, setIsNoDataBannerDismissed] =
         useState(false);
     const [isLocationVisible, setLocationVisible] = useState(false);
-    const { location: userLocation, status: userLocationStatus } =
+    const { location: userLocation, status: userLocationStatus, hasNoReferencePoint } =
         useUserLocation(isLocationVisible);
 
     const bottomAnchorStyle = isMobile
@@ -404,6 +405,12 @@ export default function PatrolPlannerPage() {
 
     const canSave = requestId !== null;
 
+    const handleSelectReferenceModalClose = (isOpen: boolean) => {
+        if (isOpen){
+            return;
+        }
+    }
+
     const handleSaveRoute = async (index: number) => {
         if (!requestId || !startPoint || !endPoint) return;
         setSavingIndex(index);
@@ -534,6 +541,10 @@ export default function PatrolPlannerPage() {
                         />
                     </>
                 )}
+                <SelectReferenceModal 
+                    open={hasNoReferencePoint}
+                    onOpenChange={handleSelectReferenceModalClose}
+                />
                 {isGridLoading && <LoadingPill label="Loading..." />}
                 {isGenerating && <LoadingPill label="Planning route..." />}
                 <NoDataBanner
