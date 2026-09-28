@@ -10,6 +10,10 @@ import {
 import { registerWorkspaceIcons } from "@/lib/workspace/icons";
 import { bufferFeatureOutline } from "@/lib/workspace/haloBuffer";
 import { pixelToleranceToDegrees } from "@/lib/workspace/terraDrawGeometry";
+import {
+    applyOpacityOverrides,
+    type LayerOpacityOverride,
+} from "@/lib/workspace/opacityOverrides";
 
 const SOURCE_POINTS = "workspace-points";
 const SOURCE_LINES = "workspace-lines";
@@ -104,6 +108,14 @@ function groupLayerId(layerId: string, part: string): string {
     return `workspace-${layerId}-${part}`;
 }
 
+function teardownMap(fn: () => void) {
+    try {
+        fn();
+    } catch {
+        // map was already removed; nothing left to tear down
+    }
+}
+
 function symbolLayout(): maplibregl.SymbolLayerSpecification["layout"] {
     return {
         "icon-image": ["get", "icon"],
@@ -121,6 +133,8 @@ function symbolLayout(): maplibregl.SymbolLayerSpecification["layout"] {
 
 const SYMBOL_PAINT: maplibregl.SymbolLayerSpecification["paint"] = {
     "icon-color": ["get", "iconColour"],
+    "icon-opacity": ["get", "iconOpacity"],
+    "text-opacity": ["get", "labelOpacity"],
     "text-halo-color": "#ffffff",
     "text-halo-width": 1.5,
 };
@@ -208,11 +222,14 @@ function groupLayerSpecs(layerId: string): maplibregl.LayerSpecification[] {
     ];
 }
 
+export type { LayerOpacityOverride as WorkspaceOpacityOverride };
+
 export interface WorkspaceMapLayersProps {
     map: maplibregl.Map | null;
     excludedFeatureId: string | null;
     selectedFeatureId: string | null;
     onFeatureClick: (featureId: string | null) => void;
+    opacityOverrides?: LayerOpacityOverride[];
 }
 
 export function WorkspaceMapLayers({
@@ -220,6 +237,7 @@ export function WorkspaceMapLayers({
     excludedFeatureId,
     selectedFeatureId,
     onFeatureClick,
+    opacityOverrides = [],
 }: WorkspaceMapLayersProps) {
     const layers = useWorkspaceStore((s) => s.layers);
     const features = useWorkspaceStore((s) => s.features);
@@ -232,9 +250,13 @@ export function WorkspaceMapLayers({
             ),
         [layers, features, memberships, excludedFeatureId],
     );
+    const renderResolved = useMemo(
+        () => applyOpacityOverrides(resolved, opacityOverrides),
+        [resolved, opacityOverrides],
+    );
     const collections = useMemo(
-        () => toWorkspaceFeatureCollections(resolved, selectedFeatureId),
-        [resolved, selectedFeatureId],
+        () => toWorkspaceFeatureCollections(renderResolved, selectedFeatureId),
+        [renderResolved, selectedFeatureId],
     );
     const stackedKey = useMemo(
         () => JSON.stringify(getStackedLayerIds(resolved)),
@@ -379,30 +401,32 @@ export function WorkspaceMapLayers({
         map.on("click", handleClick);
 
         return () => {
-            map.off("click", handleClick);
-            for (const id of [
-                ...groupLayerIdsRef.current,
-                BUFFERS_FILL,
-                HALO_OUTLINE,
-                HALO_POINTS,
-                STACK_BOTTOM,
-                STACK_TOP,
-            ]) {
-                if (map.getLayer(id)) map.removeLayer(id);
-            }
+            teardownMap(() => {
+                map.off("click", handleClick);
+                for (const id of [
+                    ...groupLayerIdsRef.current,
+                    BUFFERS_FILL,
+                    HALO_OUTLINE,
+                    HALO_POINTS,
+                    STACK_BOTTOM,
+                    STACK_TOP,
+                ]) {
+                    if (map.getLayer(id)) map.removeLayer(id);
+                }
+                for (const id of [
+                    SOURCE_BUFFERS,
+                    SOURCE_POLYGONS,
+                    SOURCE_LINES,
+                    SOURCE_POINTS,
+                    SOURCE_HALO_OUTLINE,
+                    SOURCE_POLYGON_ICONS,
+                    SOURCE_LINE_ICONS,
+                ]) {
+                    if (map.getSource(id)) map.removeSource(id);
+                }
+            });
             groupLayerIdsRef.current = [];
             clickableLayerIdsRef.current = [];
-            for (const id of [
-                SOURCE_BUFFERS,
-                SOURCE_POLYGONS,
-                SOURCE_LINES,
-                SOURCE_POINTS,
-                SOURCE_HALO_OUTLINE,
-                SOURCE_POLYGON_ICONS,
-                SOURCE_LINE_ICONS,
-            ]) {
-                if (map.getSource(id)) map.removeSource(id);
-            }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [map]);
@@ -424,9 +448,11 @@ export function WorkspaceMapLayers({
         );
 
         return () => {
-            for (const id of added) {
-                if (map.getLayer(id)) map.removeLayer(id);
-            }
+            teardownMap(() => {
+                for (const id of added) {
+                    if (map.getLayer(id)) map.removeLayer(id);
+                }
+            });
             groupLayerIdsRef.current = [];
             clickableLayerIdsRef.current = [];
         };
@@ -511,7 +537,7 @@ export function WorkspaceMapLayers({
 
         map.on("zoomend", updateHaloOutline);
         return () => {
-            map.off("zoomend", updateHaloOutline);
+            teardownMap(() => map.off("zoomend", updateHaloOutline));
         };
     }, [map, selectedFeatureGeometry]);
 

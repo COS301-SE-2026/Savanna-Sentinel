@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, afterEach } from "vitest";
 
@@ -184,6 +184,168 @@ describe("LayerTreePanel", () => {
         expect(roadsRow.className).toMatch(/bg-brand-primary/);
         const waterRow = (await screen.findByText("Water")).closest("div")!;
         expect(waterRow.className).not.toMatch(/bg-brand-primary/);
+    });
+
+    it("selects the heatmap row, highlights it, and reveals its opacity slider", async () => {
+        render(
+            <LayerTreePanel
+                activeLayerId={null}
+                onSelectLayer={() => {}}
+                onSelectMembership={() => {}}
+                heatmapSelected={false}
+                onSelectHeatmap={() => {}}
+            />,
+        );
+
+        expect(
+            screen.queryByLabelText("Heatmap opacity"),
+        ).not.toBeInTheDocument();
+
+        const heatmapButton = screen.getByRole("button", { name: "Heatmap" });
+        expect(heatmapButton).not.toHaveAttribute("aria-current");
+    });
+
+    it("shows the heatmap row highlighted and its opacity slider once selected", async () => {
+        render(
+            <LayerTreePanel
+                activeLayerId={null}
+                onSelectLayer={() => {}}
+                onSelectMembership={() => {}}
+                heatmapSelected
+                onSelectHeatmap={() => {}}
+                heatmapOpacity={42}
+                onHeatmapOpacityChange={() => {}}
+            />,
+        );
+
+        const heatmapButton = screen.getByRole("button", { name: "Heatmap" });
+        expect(heatmapButton).toHaveAttribute("aria-current", "true");
+        expect(heatmapButton.closest("div")?.className).toMatch(
+            /bg-brand-primary/,
+        );
+
+        const slider = screen.getByLabelText(
+            "Heatmap opacity",
+        ) as HTMLInputElement;
+        expect(slider.value).toBe("42");
+    });
+
+    it("calls onSelectHeatmap when the heatmap row is clicked", async () => {
+        let hasClicked = false;
+        render(
+            <LayerTreePanel
+                activeLayerId={null}
+                onSelectLayer={() => {}}
+                onSelectMembership={() => {}}
+                onSelectHeatmap={() => {
+                    hasClicked = true;
+                }}
+            />,
+        );
+
+        await userEvent.click(screen.getByRole("button", { name: "Heatmap" }));
+        expect(hasClicked).toBe(true);
+    });
+
+    it("reports opacity changes from the heatmap slider", async () => {
+        let reported: number | null = null;
+        render(
+            <LayerTreePanel
+                activeLayerId={null}
+                onSelectLayer={() => {}}
+                onSelectMembership={() => {}}
+                heatmapSelected
+                heatmapOpacity={30}
+                onHeatmapOpacityChange={(value) => {
+                    reported = value;
+                }}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText("Heatmap opacity"), {
+            target: { value: "80" },
+        });
+
+        expect(reported).toBe(80);
+    });
+
+    it("renders the Patrol Route label as plain text when no selection handler is given", () => {
+        render(
+            <LayerTreePanel
+                activeLayerId={null}
+                onSelectLayer={() => {}}
+                onSelectMembership={() => {}}
+                hasRoute
+                routeVisible
+            />,
+        );
+
+        expect(
+            screen.queryByRole("button", { name: "Patrol Route" }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText("Patrol Route")).toBeInTheDocument();
+    });
+
+    it("selects the patrol route row and highlights it when a selection handler is given", async () => {
+        render(
+            <LayerTreePanel
+                activeLayerId={null}
+                onSelectLayer={() => {}}
+                onSelectMembership={() => {}}
+                hasRoute
+                routeVisible
+                patrolRouteSelected={false}
+                onSelectPatrolRoute={() => {}}
+            />,
+        );
+
+        const routeButton = screen.getByRole("button", {
+            name: "Patrol Route",
+        });
+        expect(routeButton).not.toHaveAttribute("aria-current");
+    });
+
+    it("shows the patrol route row highlighted once selected", async () => {
+        render(
+            <LayerTreePanel
+                activeLayerId={null}
+                onSelectLayer={() => {}}
+                onSelectMembership={() => {}}
+                hasRoute
+                routeVisible
+                patrolRouteSelected
+                onSelectPatrolRoute={() => {}}
+            />,
+        );
+
+        const routeButton = screen.getByRole("button", {
+            name: "Patrol Route",
+        });
+        expect(routeButton).toHaveAttribute("aria-current", "true");
+        expect(routeButton.closest("div")?.className).toMatch(
+            /bg-brand-primary/,
+        );
+    });
+
+    it("calls onSelectPatrolRoute when the patrol route row is clicked", async () => {
+        let hasClicked = false;
+        render(
+            <LayerTreePanel
+                activeLayerId={null}
+                onSelectLayer={() => {}}
+                onSelectMembership={() => {}}
+                hasRoute
+                routeVisible
+                onSelectPatrolRoute={() => {
+                    hasClicked = true;
+                }}
+            />,
+        );
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Patrol Route" }),
+        );
+        expect(hasClicked).toBe(true);
     });
 
     it("deletes a feature everywhere via a membership's kebab menu", async () => {

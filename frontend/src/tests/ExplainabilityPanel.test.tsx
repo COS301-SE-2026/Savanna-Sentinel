@@ -39,8 +39,12 @@ function renderPanel(
         onHeatmapVisibleChange: vi.fn(),
         locationVisible: false,
         onLocationVisibleChange: vi.fn(),
-        opacity: 55,
-        onOpacityChange: vi.fn(),
+        opacityLabel: "Heatmap Opacity",
+        opacityValue: 55,
+        onOpacityValueChange: vi.fn(),
+        selection: null,
+        onSelectLayer: vi.fn(),
+        onSelectMembership: vi.fn(),
         ...overrides,
     };
     render(<ExplainabilityPanel {...props} />);
@@ -48,10 +52,12 @@ function renderPanel(
 }
 
 describe("ExplainabilityPanel", () => {
-    it("only renders a Risk Heatmap layer checkbox, no other layers", () => {
+    it("only renders a Heatmap layer checkbox, no other layers", () => {
         renderPanel();
         expect(
-            screen.getByRole("checkbox", { name: /risk heatmap/i }),
+            screen.getByRole("checkbox", {
+                name: /^toggle visibility for heatmap$/i,
+            }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole("checkbox", { name: /my location/i }),
@@ -61,12 +67,15 @@ describe("ExplainabilityPanel", () => {
         expect(screen.queryByText(/fence lines/i)).not.toBeInTheDocument();
     });
 
-    it("lists My Location directly after Risk Heatmap", () => {
+    it("lists My Location directly after Heatmap", () => {
         renderPanel();
-        const layers = screen
+        const names = screen
             .getAllByRole("checkbox")
-            .map((box) => box.closest("label")?.textContent);
-        expect(layers).toEqual(["Risk Heatmap", "My Location"]);
+            .map((box) => box.getAttribute("aria-label"));
+        expect(names).toEqual([
+            "Toggle visibility for Heatmap",
+            "Toggle visibility for My Location",
+        ]);
     });
 
     it("leaves My Location off until the user turns it on", () => {
@@ -84,27 +93,34 @@ describe("ExplainabilityPanel", () => {
         expect(props.onLocationVisibleChange).toHaveBeenCalledWith(true);
     });
 
-    it("calls onHeatmapVisibleChange when the Risk Heatmap checkbox is toggled", async () => {
+    it("calls onHeatmapVisibleChange when the Heatmap checkbox is toggled", async () => {
         const props = renderPanel({ heatmapVisible: true });
         await userEvent.click(
-            screen.getByRole("checkbox", { name: /risk heatmap/i }),
+            screen.getByRole("checkbox", {
+                name: /^toggle visibility for heatmap$/i,
+            }),
         );
         expect(props.onHeatmapVisibleChange).toHaveBeenCalledWith(false);
     });
 
     it("disables the opacity slider when the heatmap layer is off", () => {
-        renderPanel({ heatmapVisible: false });
+        renderPanel({ heatmapVisible: false, opacityDisabled: true });
         expect(screen.getByLabelText(/heatmap opacity/i)).toBeDisabled();
     });
 
     it("shows the current opacity percentage and reports changes", () => {
-        const props = renderPanel({ opacity: 55 });
+        const props = renderPanel({ opacityValue: 55 });
         expect(screen.getByText("55%")).toBeInTheDocument();
 
         fireEvent.change(screen.getByLabelText(/heatmap opacity/i), {
             target: { value: "80" },
         });
-        expect(props.onOpacityChange).toHaveBeenCalledWith(80);
+        expect(props.onOpacityValueChange).toHaveBeenCalledWith(80);
+    });
+
+    it("renders only one opacity slider when the heatmap row is selected", () => {
+        renderPanel({ heatmapSelected: true });
+        expect(screen.getAllByLabelText(/heatmap opacity/i)).toHaveLength(1);
     });
 
     it("computes Critical and High-risk cell counts from riskByCell", () => {

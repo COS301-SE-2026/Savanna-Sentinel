@@ -114,9 +114,11 @@ export function toWorkspaceFeatureCollections(
             opacity: style.opacity,
             icon: style.icon ?? null,
             iconColour: style.iconColour ?? "#1f2937",
+            iconOpacity: style.iconOpacity ?? 1,
             strokeWidth: style.strokeWidth ?? 2,
             lineDash: style.lineDash ?? "solid",
             label: style.label ?? "",
+            labelOpacity: style.labelOpacity ?? 1,
             outlineOpacity: style.outlineOpacity ?? 1,
         };
         const geoJsonFeature: GeoJSON.Feature = {

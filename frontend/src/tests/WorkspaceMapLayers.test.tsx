@@ -562,6 +562,72 @@ describe("WorkspaceMapLayers", () => {
         });
     });
 
+    it("drives each symbol layer's icon and label opacity from their own properties, independent of the fill's opacity", async () => {
+        seedOneOfEach();
+        const map = makeMap();
+        render(
+            <WorkspaceMapLayers
+                map={map as never}
+                excludedFeatureId={null}
+                selectedFeatureId={null}
+                onFeatureClick={() => {}}
+            />,
+        );
+        await waitFor(() =>
+            expect(map.sources["workspace-points"]).toBeDefined(),
+        );
+
+        for (const layerId of SYMBOL_PARTS) {
+            const layer = findGroupLayer(map, layerId) as {
+                paint?: Record<string, unknown>;
+            };
+            expect(layer.paint!["icon-opacity"]).toEqual([
+                "get",
+                "iconOpacity",
+            ]);
+            expect(layer.paint!["text-opacity"]).toEqual([
+                "get",
+                "labelOpacity",
+            ]);
+        }
+    });
+
+    it("bakes distinct iconOpacity and labelOpacity values into the point source data, separate from the fill opacity", async () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] });
+        useWorkspaceStore
+            .getState()
+            .setMembershipStyleOverride(created!.membershipId, {
+                opacity: 0.2,
+                iconOpacity: 0.6,
+                labelOpacity: 0.4,
+            });
+
+        const map = makeMap();
+        render(
+            <WorkspaceMapLayers
+                map={map as never}
+                excludedFeatureId={null}
+                selectedFeatureId={null}
+                onFeatureClick={() => {}}
+            />,
+        );
+        await waitFor(() =>
+            expect(map.sources["workspace-points"]).toBeDefined(),
+        );
+
+        const data = map.sources["workspace-points"]
+            .data as GeoJSON.FeatureCollection;
+        expect(data.features[0].properties).toMatchObject({
+            opacity: 0.2,
+            iconOpacity: 0.6,
+            labelOpacity: 0.4,
+        });
+    });
+
     it("keeps icons and labels small at the default zoom so a dense map of features doesn't get cluttered", async () => {
         seedOneOfEach();
         const map = makeMap();
