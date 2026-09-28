@@ -9,6 +9,7 @@ export function useWorkspacePois(): Poi[] {
         .map((f) => {
             const point = f.geometry as GeoJSON.Point;
             return{
+                id: f.id,
                 name: f.name || "Unnamed",
                 lat: point.coordinates[1],
                 lon: point.coordinates[0]

@@ -1,4 +1,4 @@
-import { Plus, Minus, Compass } from "lucide-react";
+import { Plus, Minus, Compass, MapPin } from "lucide-react";
 import type * as maplibregl from "maplibre-gl";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,9 @@ export interface MapControlsProps {
     defaultCenter?: [number, number];
     defaultZoom?: number;
     zoomDisabled?: boolean;
+    showReferenceButton?: boolean;
+    hasReferencePoint?: boolean;
+    onOpenPoiModal?: () => void;
 }
 
 export function MapControls({
@@ -15,6 +18,9 @@ export function MapControls({
     defaultCenter,
     defaultZoom,
     zoomDisabled,
+    showReferenceButton,
+    hasReferencePoint,
+    onOpenPoiModal,
 }: MapControlsProps) {
     return (
         <div className="absolute top-2 right-2 z-[var(--z-sticky)] flex flex-col gap-1">
@@ -59,6 +65,20 @@ export function MapControls({
             >
                 <Compass />
             </Button>
+
+            {showReferenceButton && (
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="mt-1 bg-color-surface-raised shadow-sm"
+                    aria-label="Set reference point"
+                    title={hasReferencePoint ? "Change reference point" : "Set reference point"}
+                    onClick={onOpenPoiModal}
+                >
+                    <MapPin className={hasReferencePoint ? "text-brand-primary" : "text-destructive animate-pulse"} />
+                </Button>
+            )}
         </div>
     );
 }

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 
 export interface Poi {
+    id: string;
     name: string;
     lat: number;
     lon: number;
@@ -14,20 +15,25 @@ export interface Poi {
 interface SelectReferenceModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    pois?: Poi[]
+    pois?: Poi[];
     onSelectPoi?: (poi: Poi) => void;
-}
+    onPreviewPoi?: (poi: Poi) => void;
+};
 
 
 const SelectReferenceModal = ({
     open,
     onOpenChange,
     pois = [],
-    onSelectPoi
+    onSelectPoi,
+    onPreviewPoi,
 }: SelectReferenceModalProps) => {
     const handleSelectPoi = (poi: Poi) => {
         onSelectPoi?.(poi);
         onOpenChange(false)
+    }
+    const handlePreviewPoi = (poi: Poi) => {
+        onPreviewPoi?.(poi);
     }
     
     return(
@@ -35,15 +41,15 @@ const SelectReferenceModal = ({
             open={open}
             onOpenChange={onOpenChange}
         >
-            <DialogContent preventBackdropClose>
-                <DialogHeader>
+            <DialogContent preventBackdropClose className="sm:max-w-md p-6">
+                <DialogHeader className="pb-1">
                     <DialogTitle>
                         Select Point of Interest for Location Tracking
                     </DialogTitle>
                 </DialogHeader>
-                <div className="relative my-4 h-64 w-full overflow-hidden rounded-md border border-color-border">
+                <div className="relative my-2 h-64 w-full overflow-y-auto rounded-lg border border-color-border shadow-inner">
                     <Table>
-                        <TableHeader className="bg-brand-primary">
+                        <TableHeader className="sticky top-0 z-10 bg-brand-primary">
                             <TableHead
                                 className={cn(theadClass, "text-center")}
                             >
@@ -78,7 +84,17 @@ const SelectReferenceModal = ({
                                             className={cn(cellClass, "text-center")}
                                         >
                                             <div className="flex items-center justify-center">
-                                                <Eye className="size-4 text-color-text-secondary" />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="size-7 hover:bg-color-surface-hover text-color-text-secondary hover:text-brand-primary"
+                                                    aria-label={`Preview ${poi.name} on map`}
+                                                    title="Fly map to location"
+                                                    onClick={() => handlePreviewPoi(poi)}
+                                                >
+                                                    <Eye className="size-4 text-color-text-secondary" />
+                                                </Button>
                                             </div>
                                         </TableCell>
                                         <TableCell
