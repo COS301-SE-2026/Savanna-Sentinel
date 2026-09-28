@@ -1323,6 +1323,7 @@ def is_sufficiently_diverse(
 NO_TOUR_FOUND = "no_tour_found"
 DUPLICATE_ROUTE = "duplicate_route"
 LONGER_THAN_BEST = "longer_than_best"
+STOP_IN_NO_GO = "stop_in_no_go"
 
 
 @dataclass
