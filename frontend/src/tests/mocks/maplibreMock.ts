@@ -203,6 +203,10 @@ export class FakeMap {
     fire(event: string, payload?: unknown) {
         this.listeners[event]?.forEach((h) => h(payload));
     }
+
+    flyTo() {
+        return;
+    }
 }
 
 export class FakeMarker {

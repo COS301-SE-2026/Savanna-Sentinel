@@ -5,6 +5,7 @@ import type { UserLocationStatus } from "@/hooks/useUserLocation";
 const MESSAGES: Partial<Record<UserLocationStatus, string>> = {
     denied: "Location blocked. Allow it to see yourself on the map.",
     unavailable: "Location unavailable on this device.",
+    "dead-reckoning": "GPS signal lost. Estimating position from motion.",
 };
 
 interface UserLocationNoticeProps {

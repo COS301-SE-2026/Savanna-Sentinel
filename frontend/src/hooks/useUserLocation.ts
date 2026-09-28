@@ -7,12 +7,15 @@ export type UserLocationStatus =
     | "locating"
     | "tracking"
     | "dead-reckoning"
+    | "needs-reference"
     | "denied"
     | "unavailable";
 
 export interface UseUserLocationResult {
     location: UserLocation | null;
     status: UserLocationStatus;
+    hasNoReferencePoint: boolean;
+    setReferencePoint: (loc: UserLocation) => void;
 }
 
 const PERMISSION_DENIED = 1;
@@ -36,16 +39,36 @@ function offsetToLatLon(lat: number, lon: number, dx: number, dy: number) {
     };
 }
 
-export function useUserLocation(enabled = true): UseUserLocationResult {
+export function useUserLocation(
+    enabled = true,
+    forceDeadReckoning = false,
+): UseUserLocationResult {
     const [location, setLocation] = useState<UserLocation | null>(null);
     const [status, setStatus] = useState<UserLocationStatus>(() =>
         navigator.geolocation ? "locating" : "unavailable",
     );
+    const [hasNoReferencePoint, setHasNoReferencePoint] = useState(false);
 
     const lastGpsLoc = useRef<UserLocation | null>(null);
     const currentVelocity = useRef<number>(0);
     const lastMotionTime = useRef<number | null>(null);
     const deadReckoningStartTime = useRef<number | null>(null);
+    const isForced = useRef(forceDeadReckoning);
+
+    useEffect(() => {
+        isForced.current = forceDeadReckoning;
+    }, [forceDeadReckoning]);
+
+    const setReferencePoint = (manualLocation: UserLocation) => {
+        lastGpsLoc.current = manualLocation;
+        currentVelocity.current = 0;
+        lastMotionTime.current = null;
+        deadReckoningStartTime.current = null;
+
+        setLocation(manualLocation);
+        setHasNoReferencePoint(false);
+        setStatus("dead-reckoning");
+    };
 
     useEffect(() => {
         if (!enabled) return undefined;
@@ -55,6 +78,8 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
 
         const watchId = geolocation.watchPosition(
             (position) => {
+                if (isForced.current && lastGpsLoc.current) return;
+
                 const { latitude, longitude, heading, accuracy } =
                     position.coords;
                 const newLoc: UserLocation = {
@@ -83,7 +108,8 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
                 if (lastGpsLoc.current) {
                     setStatus("dead-reckoning");
                 } else {
-                    setStatus("unavailable");
+                    setHasNoReferencePoint(true);
+                    setStatus("needs-reference");
                 }
             },
             WATCH_OPTIONS,
@@ -92,11 +118,17 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
         return () => geolocation.clearWatch(watchId);
     }, [enabled]);
 
+    const effectiveStatus: UserLocationStatus =
+        forceDeadReckoning && status === "tracking" ? "dead-reckoning" : status;
+
     //Offline location tracking
     useEffect(() => {
-        if (status !== "dead-reckoning" || !window.DeviceMotionEvent) {
+        if (effectiveStatus !== "dead-reckoning" || !window.DeviceMotionEvent) {
             return;
         }
+
+        currentVelocity.current = 0;
+        lastMotionTime.current = null;
 
         const handleMotion = (event: DeviceMotionEvent) => {
             //End offline handling when there is no known reference point
@@ -168,9 +200,20 @@ export function useUserLocation(enabled = true): UseUserLocationResult {
 
         window.addEventListener("devicemotion", handleMotion);
         return () => window.removeEventListener("devicemotion", handleMotion);
-    }, [status]);
+    }, [effectiveStatus]);
 
-    if (!enabled) return { location: null, status: "idle" };
+    if (!enabled)
+        return {
+            location: null,
+            status: "idle",
+            hasNoReferencePoint: false,
+            setReferencePoint: () => {},
+        };
 
-    return { location, status };
+    return {
+        location,
+        status: effectiveStatus,
+        hasNoReferencePoint,
+        setReferencePoint,
+    };
 }

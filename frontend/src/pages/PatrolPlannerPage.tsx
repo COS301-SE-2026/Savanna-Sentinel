@@ -30,7 +30,15 @@ import { usePollRouteJob } from "@/hooks/usePollRouteJob";
 import { parseGridCells, scoresByCell } from "@/lib/riskGrid";
 import { notifySafe, notifyCritical } from "@/components/ui/toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import type { ArmedField, LatLon } from "@/types/patrol";
+import {
+    initialStops,
+    stopsFromSaved,
+    toStopsPayload,
+    updateStop,
+    waypointPoints,
+    type StopsPayload,
+} from "@/lib/patrolStops";
+import type { LatLon, PlannerStop } from "@/types/patrol";
 import { getSnapHeightPx } from "@/lib/utils";
 import { useMapStore } from "@/store/mapStore";
 import { UserLocationLayer } from "@/components/map/UserLocationLayer";
@@ -57,12 +65,10 @@ const FULL_SNAP = 1;
 const DEFAULT_OPACITY_PERCENT = 30;
 
 interface SidebarContentProps {
-    startPoint: LatLon | null;
-    endPoint: LatLon | null;
-    armedField: ArmedField;
-    onArmField: (field: "start" | "end") => void;
-    onStartPointChange: (point: LatLon | null) => void;
-    onEndPointChange: (point: LatLon | null) => void;
+    stops: PlannerStop[];
+    armedStopId: string | null;
+    onArmStop: (id: string) => void;
+    onStopsChange: (stops: PlannerStop[]) => void;
     onGenerate: () => void;
     isGenerating: boolean;
     heatmapHasNoData: boolean;
@@ -102,12 +108,10 @@ interface SidebarContentProps {
 }
 
 function SidebarContent({
-    startPoint,
-    endPoint,
-    armedField,
-    onArmField,
-    onStartPointChange,
-    onEndPointChange,
+    stops,
+    armedStopId,
+    onArmStop,
+    onStopsChange,
     onGenerate,
     isGenerating,
     heatmapHasNoData,
@@ -163,12 +167,10 @@ function SidebarContent({
                 onSendToHeatmap={onSendRouteToHeatmap}
             />
             <PatrolPlannerForm
-                startPoint={startPoint}
-                endPoint={endPoint}
-                armedField={armedField}
-                onArmField={onArmField}
-                onStartPointChange={onStartPointChange}
-                onEndPointChange={onEndPointChange}
+                stops={stops}
+                armedStopId={armedStopId}
+                onArmStop={onArmStop}
+                onStopsChange={onStopsChange}
                 onGenerate={onGenerate}
                 isGenerating={isGenerating}
                 heatmapHasNoData={heatmapHasNoData}
@@ -270,9 +272,13 @@ export default function PatrolPlannerPage() {
         20.33, -34.41,
     ]);
 
-    const [startPoint, setStartPoint] = useState<LatLon | null>(null);
-    const [endPoint, setEndPoint] = useState<LatLon | null>(null);
-    const [armedField, setArmedField] = useState<ArmedField>(null);
+    const [stops, setStops] = useState<PlannerStop[]>(initialStops);
+    const [armedStopId, setArmedStopId] = useState<string | null>(null);
+    const [plannedStops, setPlannedStops] = useState<StopsPayload | null>(null);
+
+    const startPoint = stops[0].point;
+    const endPoint = stops[stops.length - 1].point;
+    const waypoints = useMemo(() => waypointPoints(stops), [stops]);
 
     const [requestId, setRequestId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -463,17 +469,23 @@ export default function PatrolPlannerPage() {
     }, [grid, map]);
 
     function handleMapClick(lngLat: { lng: number; lat: number }) {
-        if (!armedField) return;
-        const point = { lat: lngLat.lat, lon: lngLat.lng };
-        if (armedField === "start") setStartPoint(point);
-        else setEndPoint(point);
-        setArmedField(null);
+        if (!armedStopId) return;
+        const point: LatLon = { lat: lngLat.lat, lon: lngLat.lng };
+        setStops((prev) => updateStop(prev, armedStopId, point));
+        setArmedStopId(null);
         if (isMobile) setDrawerSnap(EXPANDED_SNAP);
     }
 
-    function handleArmField(field: "start" | "end") {
-        setArmedField(field);
+    function handleArmStop(id: string) {
+        setArmedStopId(id);
         if (isMobile) setDrawerSnap(COLLAPSED_SNAP);
+    }
+
+    function handleStopsChange(next: PlannerStop[]) {
+        setStops(next);
+        if (armedStopId && !next.some((stop) => stop.id === armedStopId)) {
+            setArmedStopId(null);
+        }
     }
 
     function handleSelectRoute(index: number) {
@@ -482,22 +494,17 @@ export default function PatrolPlannerPage() {
     }
 
     async function handleGenerate() {
-        if (!startPoint || !endPoint || hasNoRiskData) return;
+        const payload = toStopsPayload(stops);
+        if (!payload || hasNoRiskData) return;
         setLoadedRoute(null);
         setSavedRiskByCell(null);
         try {
             const job = await routeApi.generateRoute({
-                start_point: {
-                    type: "Point",
-                    coordinates: [startPoint.lon, startPoint.lat],
-                },
-                end_point: {
-                    type: "Point",
-                    coordinates: [endPoint.lon, endPoint.lat],
-                },
+                ...payload,
                 num_alternatives: 3,
                 risk_by_cell: Object.fromEntries(riskByCell),
             });
+            setPlannedStops(payload);
             setRequestId(job.request_id);
         } catch {
             notifyCritical("Could not start route planning");
@@ -513,23 +520,11 @@ export default function PatrolPlannerPage() {
 
     function handleLoadRoute(saved: SavedRoute) {
         setRequestId(null);
-        setLoadedRoute({
-            suggested_path: [],
-            path_geometry: saved.path_geometry,
-            distance_km: saved.distance_km,
-            risk_coverage: saved.risk_coverage,
-        });
         setLoadedRoute(toPlannedRoute(saved));
         setSavedRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
         setSelectedIndex(0);
-        setStartPoint({
-            lat: saved.start_point.coordinates[1],
-            lon: saved.start_point.coordinates[0],
-        });
-        setEndPoint({
-            lat: saved.end_point.coordinates[1],
-            lon: saved.end_point.coordinates[0],
-        });
+        setStops(stopsFromSaved(saved));
+        setArmedStopId(null);
     }
 
     async function handleSendRouteToHeatmap(saved: SavedRoute) {
@@ -550,19 +545,12 @@ export default function PatrolPlannerPage() {
     const canSave = requestId !== null;
 
     const handleSaveRoute = async (index: number) => {
-        if (!requestId || !startPoint || !endPoint) return;
+        if (!requestId || !plannedStops) return;
         setSavingIndex(index);
         try {
             const saved = await routeApi.saveRoute({
                 request_id: requestId,
-                start_point: {
-                    type: "Point",
-                    coordinates: [startPoint.lon, startPoint.lat],
-                },
-                end_point: {
-                    type: "Point",
-                    coordinates: [endPoint.lon, endPoint.lat],
-                },
+                ...plannedStops,
                 risk_by_cell: Object.fromEntries(riskByCell),
                 route: routes[index],
             });
@@ -577,15 +565,13 @@ export default function PatrolPlannerPage() {
     };
 
     const isGenerating = jobStatus === "queued" || jobStatus === "processing";
-    const isPickingActive = armedField !== null;
+    const isPickingActive = armedStopId !== null;
 
     const sidebarProps: SidebarContentProps = {
-        startPoint,
-        endPoint,
-        armedField,
-        onArmField: handleArmField,
-        onStartPointChange: setStartPoint,
-        onEndPointChange: setEndPoint,
+        stops,
+        armedStopId,
+        onArmStop: handleArmStop,
+        onStopsChange: handleStopsChange,
         onGenerate: handleGenerate,
         isGenerating,
         heatmapHasNoData: hasNoRiskData,
@@ -710,6 +696,7 @@ export default function PatrolPlannerPage() {
                         map={map}
                         startPoint={startPoint}
                         endPoint={endPoint}
+                        waypoints={waypoints}
                         routes={displayRoutes}
                         selectedIndex={selectedIndex}
                         opacityOverride={routeOpacity / 100}
@@ -749,7 +736,7 @@ export default function PatrolPlannerPage() {
                             Patrol planner
                         </DrawerTitle>
                         <DrawerDescription className="sr-only">
-                            Set start and end points, set time and fuel limits,
+                            Set a start point, an end point and up to 5 stops,
                             generate patrol routes, and compare the
                             alternatives.
                         </DrawerDescription>

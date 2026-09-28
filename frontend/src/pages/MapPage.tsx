@@ -10,6 +10,7 @@ import { ExplainabilityPanel } from "@/components/map/ExplainabilityPanel";
 import { NoDataBanner } from "@/components/map/NoDataBanner";
 import { UserLocationLayer } from "@/components/map/UserLocationLayer";
 import { UserLocationNotice } from "@/components/map/UserLocationNotice";
+import { GpsLossToggle } from "@/components/dev/GpsLossToggle";
 import { PatrolRouteLayer } from "@/components/map/PatrolRouteLayer";
 import {
     Drawer,
@@ -39,6 +40,10 @@ import type { WorkspaceSelection } from "@/components/workspace/StyleEditorPanel
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
 import { useLayerOpacityPreview } from "@/hooks/useLayerOpacityPreview";
+import SelectReferenceModal, {
+    type Poi,
+} from "@/components/map/SelectReferenceModal";
+import { useWorkspacePois } from "@/hooks/useWorkspacePois";
 
 const DEFAULT_ZOOM = 10;
 
@@ -179,12 +184,24 @@ export default function MapPage() {
     }, [heatmapStatus]);
 
     const [isLocationVisible, setLocationVisible] = useState(false);
-    const { location: userLocation, status: userLocationStatus } =
-        useUserLocation(isLocationVisible);
+    const [isGpsLossForced, setGpsLossForced] = useState(false);
+    const {
+        location: userLocation,
+        status: userLocationStatus,
+        hasNoReferencePoint,
+        setReferencePoint,
+    } = useUserLocation(isLocationVisible, isGpsLossForced);
 
     const userId = useAuthStore((s) => s.user?.id ?? null);
     const [pinnedRoute, setPinnedRoute] = useState<SavedRoute | null>(null);
     const [isRouteVisible, setRouteVisible] = useState(true);
+    const [isPoiModalOpen, setIsPoiModalOpen] = useState(false);
+
+    const isGpsFixed = userLocationStatus === "tracking";
+    const showReferenceButton = isLocationVisible && !isGpsFixed;
+    const hasReferencePoint = !hasNoReferencePoint;
+
+    const pois = useWorkspacePois();
 
     useEffect(() => {
         let isCurrent = true;
@@ -198,6 +215,10 @@ export default function MapPage() {
         };
     }, [userId]);
 
+    const pinnedWaypoints = useMemo(
+        () => (pinnedRoute?.waypoints ?? []).map(toLatLon),
+        [pinnedRoute],
+    );
     const routeForLayer = useMemo(
         () => (pinnedRoute ? [toPlannedRoute(pinnedRoute)] : []),
         [pinnedRoute],
@@ -220,6 +241,31 @@ export default function MapPage() {
 
     const { previewOpacity, setPreviewOpacity, label, opacityOverrides } =
         useLayerOpacityPreview(selection);
+
+    const handleSelectPoi = (poi: Poi) => {
+        setReferencePoint({
+            lat: poi.lat,
+            lon: poi.lon,
+            heading: 0,
+            accuracy: 10,
+        });
+    };
+
+    const handlePreviewPoi = (poi: Poi) => {
+        if (poi.id) {
+            handleFeatureClick(poi.id);
+        }
+
+        if (map) {
+            map.flyTo({
+                center: [poi.lon, poi.lat],
+                zoom: 12,
+                duration: 800,
+            });
+        }
+
+        setIsPoiModalOpen(false);
+    };
 
     const panelProps = {
         heatmapVisible: isHeatmapVisible,
@@ -280,7 +326,17 @@ export default function MapPage() {
                     map={map}
                     defaultCenter={mapCenter}
                     defaultZoom={DEFAULT_ZOOM}
-                />
+                    showReferenceButton={showReferenceButton}
+                    hasReferencePoint={hasReferencePoint}
+                    onOpenPoiModal={() => setIsPoiModalOpen(true)}
+                >
+                    {isLocationVisible && (
+                        <GpsLossToggle
+                            active={isGpsLossForced}
+                            onToggle={setGpsLossForced}
+                        />
+                    )}
+                </MapControls>
                 <MapLegend
                     bottomClassName={isMobile ? "" : "bottom-2"}
                     style={bottomAnchorStyle}
@@ -311,6 +367,7 @@ export default function MapPage() {
                         map={map}
                         startPoint={toLatLon(pinnedRoute.start_point)}
                         endPoint={toLatLon(pinnedRoute.end_point)}
+                        waypoints={pinnedWaypoints}
                         routes={routeForLayer}
                         selectedIndex={0}
                         opacityOverride={routeOpacity / 100}
@@ -331,6 +388,13 @@ export default function MapPage() {
                         heatmapStatus === "no-data" && !isNoDataBannerDismissed
                     }
                     onDismiss={() => setIsNoDataBannerDismissed(true)}
+                />
+                <SelectReferenceModal
+                    open={isPoiModalOpen}
+                    onOpenChange={setIsPoiModalOpen}
+                    pois={pois}
+                    onSelectPoi={handleSelectPoi}
+                    onPreviewPoi={handlePreviewPoi}
                 />
                 {gridStatus === "loading" && <LoadingPill label="Loading..." />}
             </div>
