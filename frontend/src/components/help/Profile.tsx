@@ -24,8 +24,10 @@ export default function Profile() {
             setMsg("Please enter a password before trying again");
             return;
         }
-        
-        setMsg(`The password you entered is not valid; Passwords must be at least 8 characters long. The Password you entered is ${password.length} characters long`);
+
+        setMsg(
+            `The password you entered is not valid; Passwords must be at least 8 characters long. The Password you entered is ${password.length} characters long`,
+        );
     };
 
     return (
@@ -36,8 +38,8 @@ export default function Profile() {
                         Profile Page
                     </CardTitle>
                     <CardDescription className="text-base text-color-surface-deep">
-                        Update your name details or change your password from this
-                        page.
+                        Update your name details or change your password from
+                        this page.
                     </CardDescription>
                 </CardHeader>
 
@@ -47,11 +49,18 @@ export default function Profile() {
                             Your Profile Details
                         </CardTitle>
                         <p className="text-base">
-                            In this section you can update your name and/or surname and then you would:
+                            In this section you can update your name and/or
+                            surname and then you would:
                         </p>
                         <ul className="text-base pl-6">
-                            <li>Click the Save button which applies the changes to your profile,</li>
-                            <li>Or click the Reset button which would discard your currently pending changes.</li>
+                            <li>
+                                Click the Save button which applies the changes
+                                to your profile,
+                            </li>
+                            <li>
+                                Or click the Reset button which would discard
+                                your currently pending changes.
+                            </li>
                         </ul>
                     </div>
 
@@ -64,7 +73,10 @@ export default function Profile() {
                         </p>
                         <ol className="text-base list-disc list-inside pl-6">
                             <li>Enter your current password</li>
-                            <li>Enter a new password that does not match your current password</li>
+                            <li>
+                                Enter a new password that does not match your
+                                current password
+                            </li>
                             <li>Confirm your new password by re-entering it</li>
                         </ol>
                     </div>
@@ -75,14 +87,16 @@ export default function Profile() {
                         </CardTitle>
                         <div className="space-y-4">
                             <p className="text-base">
-                                Password changes require all fields to be filled, the
-                                new password to meet the length requirement of 8 characters 
-                                and must not be equal to the current password, and the
+                                Password changes require all fields to be
+                                filled, the new password to meet the length
+                                requirement of 8 characters and must not be
+                                equal to the current password, and the
                                 confirmation field to match the new password.
                             </p>
 
                             <p className="text-base">
-                                You can test if a password would be valid by using the input below
+                                You can test if a password would be valid by
+                                using the input below
                             </p>
 
                             <div className="flex items-center gap-4 w-full pl-6">
@@ -91,17 +105,17 @@ export default function Profile() {
                                         Check Password
                                     </Button>
 
-                                    <Input 
+                                    <Input
                                         className="flex-1"
                                         placeholder={"Enter a password"}
                                         value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
+                                        onChange={(e) =>
+                                            setPassword(e.target.value)
+                                        }
                                     />
                                 </div>
 
-                                <p className="flex-1 text-base">
-                                    {msg}
-                                </p>
+                                <p className="flex-1 text-base">{msg}</p>
                             </div>
                         </div>
                     </div>
@@ -109,9 +123,7 @@ export default function Profile() {
             </Card>
 
             <Button>
-                <Link to="/profile">
-                    Click me to go to your profile
-                </Link>
+                <Link to="/profile">Click me to go to your profile</Link>
             </Button>
         </div>
     );

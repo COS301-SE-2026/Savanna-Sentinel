@@ -29,10 +29,10 @@ export default function Admin() {
                         </CardTitle>
                         <p>
                             Open <strong>Account Approvals</strong> to review
-                            pending registrations. Select <strong>Accept</strong> to
-                            activate an account or <strong>Reject</strong> to
-                            remove the pending registration. Confirm the action
-                            when prompted.
+                            pending registrations. Select{" "}
+                            <strong>Accept</strong> to activate an account or{" "}
+                            <strong>Reject</strong> to remove the pending
+                            registration. Confirm the action when prompted.
                         </p>
                     </div>
 
@@ -54,9 +54,9 @@ export default function Admin() {
                         </CardTitle>
                         <p>
                             Open <strong>Delete Accounts</strong> to find an
-                            active non-admin account. Select <strong>Delete</strong> and
-                            confirm to remove it. This action cannot be
-                            undone.
+                            active non-admin account. Select{" "}
+                            <strong>Delete</strong> and confirm to remove it.
+                            This action cannot be undone.
                         </p>
                     </div>
 

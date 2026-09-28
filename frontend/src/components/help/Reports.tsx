@@ -17,8 +17,8 @@ export default function Reports() {
                         Field Reports
                     </CardTitle>
                     <CardDescription className="text-base text-color-surface-deep">
-                        Use this page to view submitted reports, create a new report
-                        or draft and edit reports.
+                        Use this page to view submitted reports, create a new
+                        report or draft and edit reports.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5 text-base">
@@ -28,8 +28,8 @@ export default function Reports() {
                         </CardTitle>
                         <ul className="list-disc pl-5 space-y-1">
                             <li>
-                                Select the report type as either an incident or a
-                                sighting.
+                                Select the report type as either an incident or
+                                a sighting.
                             </li>
                             <li>Add a description to your report.</li>
                             <li>
@@ -42,19 +42,20 @@ export default function Reports() {
                             </li>
                             <li>Enter the date when the event happened.</li>
                             <li>
-                                You can either manually enter the coordinates where
-                                the event happened or click the 'Use current
-                                location' button to automatically use you current
-                                location.
+                                You can either manually enter the coordinates
+                                where the event happened or click the 'Use
+                                current location' button to automatically use
+                                you current location.
                             </li>
                             <li>
-                                You may optionally upload photos with the report.
+                                You may optionally upload photos with the
+                                report.
                             </li>
                             <p className="text-base">
-                                Afterwards you may Submit the report. Then you may
-                                use the pagination at the top to see your submitted
-                                reports to either edit, draft or delete that
-                                previous report.
+                                Afterwards you may Submit the report. Then you
+                                may use the pagination at the top to see your
+                                submitted reports to either edit, draft or
+                                delete that previous report.
                             </p>
                         </ul>
                     </div>
@@ -64,21 +65,19 @@ export default function Reports() {
                             All Reports Tab
                         </CardTitle>
                         <p className="text-base">
-                            Shows a table showing all the submitted reports. You may
-                            search and filter these reports.
+                            Shows a table showing all the submitted reports. You
+                            may search and filter these reports.
                         </p>
                         <p className="text-base">
-                            Each report has a sync status, indicating the status of
-                            its sync with the server.
+                            Each report has a sync status, indicating the status
+                            of its sync with the server.
                         </p>
                     </div>
                 </CardContent>
             </Card>
 
             <Button>
-                <Link to="/reports">
-                    Click me to go to submit a report
-                </Link>
+                <Link to="/reports">Click me to go to submit a report</Link>
             </Button>
         </div>
     );

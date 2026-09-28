@@ -43,11 +43,11 @@ export default function Workspace() {
                         <p>
                             Select a layer, then choose a drawing tool from the
                             toolbar to add a point, line, polygon, freehand
-                            shape, rectangle, or circle. Choose <strong>Select</strong> to
-                            select an existing feature. The style panel lets
-                            you adjust its appearance and behaviour; when
-                            available, use its geometry controls to edit the
-                            feature's shape.
+                            shape, rectangle, or circle. Choose{" "}
+                            <strong>Select</strong> to select an existing
+                            feature. The style panel lets you adjust its
+                            appearance and behaviour; when available, use its
+                            geometry controls to edit the feature's shape.
                         </p>
                     </div>
 
