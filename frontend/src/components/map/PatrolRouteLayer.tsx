@@ -30,6 +30,7 @@ export interface PatrolRouteLayerProps {
     endPoint: LatLon | null;
     routes: PlannedRoute[];
     selectedIndex: number;
+    opacityOverride?: number;
 }
 
 function createStartMarkerElement(): HTMLDivElement {
@@ -76,6 +77,7 @@ export function PatrolRouteLayer({
     endPoint,
     routes,
     selectedIndex,
+    opacityOverride,
 }: PatrolRouteLayerProps) {
     const startMarkerRef = useRef<maplibregl.Marker | null>(null);
     const endMarkerRef = useRef<maplibregl.Marker | null>(null);
@@ -132,6 +134,7 @@ export function PatrolRouteLayer({
             const sourceId = `patrol-route-${index}`;
             const layerId = `${sourceId}-line`;
             const isSelected = index === selectedIndex;
+            const lineOpacity = opacityOverride ?? (isSelected ? 1 : 0.4);
 
             const data: GeoJSON.Feature = {
                 type: "Feature",
@@ -161,7 +164,7 @@ export function PatrolRouteLayer({
                             ? SELECTED_ROUTE_COLOR
                             : UNSELECTED_ROUTE_COLOR,
                         "line-width": isSelected ? 5 : 2,
-                        "line-opacity": isSelected ? 1 : 0.4,
+                        "line-opacity": lineOpacity,
                     },
                 });
             } else {
@@ -171,16 +174,12 @@ export function PatrolRouteLayer({
                     isSelected ? SELECTED_ROUTE_COLOR : UNSELECTED_ROUTE_COLOR,
                 );
                 map.setPaintProperty(layerId, "line-width", isSelected ? 5 : 2);
-                map.setPaintProperty(
-                    layerId,
-                    "line-opacity",
-                    isSelected ? 1 : 0.4,
-                );
+                map.setPaintProperty(layerId, "line-opacity", lineOpacity);
             }
         });
 
         clearRouteSlots(map, routes.length);
-    }, [map, routes, selectedIndex]);
+    }, [map, routes, selectedIndex, opacityOverride]);
 
     useEffect(() => {
         return () => {
