@@ -88,6 +88,7 @@ class RouteListResponse(BaseModel):
     num_alternatives_requested: int | None = None
     num_alternatives_found: int | None = None
     shortfall_reason: str | None = None
+    terrain_stale: bool | None = None
     total: int
     page: int
     page_size: int

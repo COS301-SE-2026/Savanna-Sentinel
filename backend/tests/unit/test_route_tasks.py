@@ -1,8 +1,11 @@
+import json
+import re
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pyproj import Transformer
-from shapely.geometry import box
+from shapely.geometry import LineString, box
 
 from app.schemas.geo import GeoLineString
 from app.schemas.route import ParkGraph, PlannedRoute
@@ -419,3 +422,73 @@ def test_load_terrain_flags_a_pending_recompute():
 
     assert terrain.stale is True
     assert terrain.terrain_key == "7:old"
+
+
+# run_route_planning_job on the real park grid
+
+
+def _seeded_main_river():
+    seed = Path(__file__).resolve().parents[2] / (
+        "init-db/04_seed_workspace_layers.sql"
+    )
+    match = re.search(r"'Main River','(\{.*?\})'", seed.read_text())
+    return json.loads(match.group(1))
+
+
+def test_route_on_the_real_grid_never_crosses_an_impassable_river(
+    no_terrain,
+):
+    river = _seeded_main_river()
+    snapshot = {
+        "layers": [],
+        "memberships": [],
+        "features": [
+            {
+                "id": "river",
+                "type": "line",
+                "geometry": river,
+                "in_effect": True,
+                "buffer_enabled": False,
+                "buffer_distance_m": 100.0,
+                "rules": {"avoid": {"strength": 1.0}},
+            },
+        ],
+    }
+    meta = {"requested_hash": "h", "computed_hash": "h"}
+    with patch.object(
+        route_tasks,
+        "_read_terrain",
+        AsyncMock(return_value=(1, snapshot, [], meta)),
+    ):
+        no_terrain.return_value = _load_terrain()
+
+    result = run_route_planning_job(
+        park_id="klaserie",
+        start=(31.10, -24.20),
+        end=(31.20, -24.20),
+        num_alternatives=1,
+        seed=7,
+    )
+
+    terrain = no_terrain.return_value
+    (area,) = terrain.constraints.areas
+    straight = LineString(
+        [
+            terrain.constraints.to_grid((31.10, -24.20)),
+            terrain.constraints.to_grid((31.20, -24.20)),
+        ],
+    )
+    assert straight.intersects(area.area)
+    graph = route_tasks.build_park_graph("klaserie")
+    centres = {n.node_id: n.grid_xy for n in graph.nodes}
+    assert result["results"]
+    for route in result["results"]:
+        path = LineString([centres[c] for c in route["suggested_path"]])
+        drawn = LineString(
+            [
+                terrain.constraints.to_grid(c)
+                for c in route["path_geometry"]["coordinates"]
+            ],
+        )
+        assert not path.intersects(area.area)
+        assert not drawn.intersects(area.area)
