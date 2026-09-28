@@ -203,7 +203,8 @@ def hotspot_zones(
     return zones
 
 
-_PATH_CACHE: dict[tuple[str, str], PathResult | None] = {}
+_PATH_CACHE: dict[str, dict[tuple[str, str], PathResult | None]] = {}
+MAX_CACHED_TERRAINS = 4
 
 
 def clear_path_cache() -> None:
@@ -211,31 +212,37 @@ def clear_path_cache() -> None:
     _PATH_CACHE.clear()
 
 
+def _cached_paths(terrain_key: str) -> dict[tuple[str, str], PathResult | None]:
+    paths = _PATH_CACHE.pop(terrain_key, None)
+    if paths is None:
+        paths = {}
+        while len(_PATH_CACHE) >= MAX_CACHED_TERRAINS:
+            del _PATH_CACHE[next(iter(_PATH_CACHE))]
+    _PATH_CACHE[terrain_key] = paths
+    return paths
+
+
 def build_waypoint_distance_matrix(
     graph: ParkGraph,
     node_ids: list[str],
 ) -> dict[tuple[str, str], PathResult]:
-    """All-pairs shortest paths among the hub nodes.
 
-    Shortest paths depend only on the grid, not on the risk scores that
-    change per request, so results are cached across requests and
-    invalidated by route_repository.invalidate_grid_cache.
-    """
+    paths = _cached_paths(graph.terrain_key)
     matrix: dict[tuple[str, str], PathResult] = {}
     for source in node_ids:
         missing = [
             target
             for target in node_ids
-            if target != source and (source, target) not in _PATH_CACHE
+            if target != source and (source, target) not in paths
         ]
         if missing:
             reachable = dijkstra(graph, source, targets=missing)
             for target in missing:
-                _PATH_CACHE[(source, target)] = reachable.get(target)
+                paths[(source, target)] = reachable.get(target)
         for target in node_ids:
             if target == source:
                 continue
-            result = _PATH_CACHE.get((source, target))
+            result = paths.get((source, target))
             if result is not None:
                 matrix[(source, target)] = result
     return matrix

@@ -478,6 +478,126 @@ def test_build_waypoint_distance_matrix_omits_unreachable_pairs():
     assert matrix[("a", "b")].time_min == pytest.approx(1.0)
 
 
+def _line_graph_with_terrain(terrain_key, slow_edge_min=3.0):
+    """Line graph whose p2-p3 move costs slow_edge_min, under terrain_key."""
+    base = make_line_graph()
+    edges = [
+        GraphEdge(
+            e.from_node_id,
+            e.to_node_id,
+            distance_km=e.distance_km,
+            est_time_min=(
+                slow_edge_min
+                if {e.from_node_id, e.to_node_id} == {"p2", "p3"}
+                else e.est_time_min
+            ),
+        )
+        for e in base.edges
+    ]
+    return ParkGraph(
+        park_id=base.park_id,
+        nodes=base.nodes,
+        edges=edges,
+        terrain_key=terrain_key,
+    )
+
+
+@pytest.fixture
+def empty_path_cache():
+    route_planner.clear_path_cache()
+    yield
+    route_planner.clear_path_cache()
+
+
+def test_distance_matrix_reuses_paths_for_the_same_terrain(empty_path_cache):
+    first = _line_graph_with_terrain("v1:a")
+    route_planner.build_waypoint_distance_matrix(first, ["p1", "p5"])
+
+    same_key = _line_graph_with_terrain("v1:a", slow_edge_min=30.0)
+    matrix = route_planner.build_waypoint_distance_matrix(
+        same_key,
+        ["p1", "p5"],
+    )
+
+    assert matrix[("p1", "p5")].time_min == pytest.approx(12.0)
+
+
+def test_distance_matrix_recomputes_when_the_terrain_changes(
+    empty_path_cache,
+):
+    before = _line_graph_with_terrain("v1:a")
+    route_planner.build_waypoint_distance_matrix(before, ["p1", "p5"])
+
+    after = _line_graph_with_terrain("v2:b", slow_edge_min=30.0)
+    matrix = route_planner.build_waypoint_distance_matrix(after, ["p1", "p5"])
+
+    assert matrix[("p1", "p5")].time_min == pytest.approx(39.0)
+
+
+def test_distance_matrix_does_not_reuse_a_path_a_barrier_removed(
+    empty_path_cache,
+):
+    open_graph = _line_graph_with_terrain("v1:a")
+    route_planner.build_waypoint_distance_matrix(open_graph, ["p1", "p5"])
+
+    base = make_line_graph()
+    split = ParkGraph(
+        park_id=base.park_id,
+        nodes=base.nodes,
+        edges=[
+            e
+            for e in base.edges
+            if {e.from_node_id, e.to_node_id} != {"p2", "p3"}
+        ],
+        terrain_key="v2:river",
+    )
+    matrix = route_planner.build_waypoint_distance_matrix(split, ["p1", "p5"])
+
+    assert ("p1", "p5") not in matrix
+
+
+def test_path_cache_keeps_only_the_newest_terrains(empty_path_cache):
+    limit = route_planner.MAX_CACHED_TERRAINS
+    for version in range(limit + 1):
+        graph = _line_graph_with_terrain(f"v{version}")
+        route_planner.build_waypoint_distance_matrix(graph, ["p1", "p2"])
+
+    assert list(route_planner._PATH_CACHE) == [
+        f"v{version}" for version in range(1, limit + 1)
+    ]
+
+
+def test_path_cache_reusing_a_terrain_keeps_it(empty_path_cache):
+    limit = route_planner.MAX_CACHED_TERRAINS
+    for version in range(limit):
+        graph = _line_graph_with_terrain(f"v{version}")
+        route_planner.build_waypoint_distance_matrix(graph, ["p1", "p2"])
+
+    route_planner.build_waypoint_distance_matrix(
+        _line_graph_with_terrain("v0"),
+        ["p1", "p2"],
+    )
+    route_planner.build_waypoint_distance_matrix(
+        _line_graph_with_terrain("new"),
+        ["p1", "p2"],
+    )
+
+    assert "v0" in route_planner._PATH_CACHE
+    assert "v1" not in route_planner._PATH_CACHE
+
+
+def test_clear_path_cache_drops_every_terrain(empty_path_cache):
+    for key in ("v1:a", "v2:b"):
+        route_planner.build_waypoint_distance_matrix(
+            _line_graph_with_terrain(key),
+            ["p1", "p2"],
+        )
+
+    route_planner.clear_path_cache()
+
+    assert route_planner._PATH_CACHE == {}
+
+
 # Check if init uses tau max
 def test_init_pheromones():
     fixture = make_graph()
