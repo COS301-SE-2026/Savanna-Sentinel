@@ -3,10 +3,10 @@ import random
 from collections import Counter
 from dataclasses import dataclass, replace
 
-from shapely.geometry import LineString, MultiPoint
+from shapely.geometry import LineString
 
 from app.schemas.geo import GeoLineString
-from app.schemas.route import ParkGraph, PlannedRoute
+from app.schemas.route import GraphEdge, ParkGraph, PlannedRoute
 from app.workers.ml.path_smoothing import smooth_route
 from app.workers.ml.shortest_path import PathResult, dijkstra
 
@@ -1626,40 +1626,77 @@ def _cell_size_degrees(graph: ParkGraph) -> float:
     return cached
 
 
-# how far from a higher-priority cell a smoothed line may cross a barrier
-BRIDGE_REACH_CELLS = 1.5
-
-
 def _crosses_barrier(
     graph: ParkGraph,
     coords: list[tuple[float, float]],
 ) -> bool:
-    """Whether a display line crosses an impassable area away from a bridge.
-
-    Crossing within BRIDGE_REACH_CELLS of a cell that overrides the area is
-    allowed, since the grid path itself may cross there.
-    """
+    """Whether a display line touches any impassable area."""
     constraints = graph.constraints
     if constraints is None or not constraints.areas or len(coords) < 2:
         return False
-
     line = LineString([constraints.to_grid(c) for c in coords])
-    cell_m = _cell_size_degrees(graph) * KM_PER_DEGREE * 1000
-    reach = cell_m * BRIDGE_REACH_CELLS
+    return any(line.intersects(area.area) for area in constraints.areas)
+
+
+def _smoothed_run(
+    graph: ParkGraph,
+    run: list[tuple[float, float]],
+) -> list[tuple[float, float]]:
+    smoothed = smooth_route(run, _cell_size_degrees(graph))
+    return run if _crosses_barrier(graph, smoothed) else smoothed
+
+
+def _extend(
+    line: list[tuple[float, float]],
+    points: list[tuple[float, float]],
+) -> None:
+    joined = line and points and line[-1] == points[0]
+    line.extend(points[1:] if joined else points)
+
+
+def _route_line(
+    graph: ParkGraph,
+    path: list[str],
+    coords: list[tuple[float, float]],
+    edges_used: list[GraphEdge],
+) -> tuple[list[tuple[float, float]], float]:
+    """Display line and distance, with barrier crossings sent over the gate.
+
+    A move across an impassable area is drawn centre -> gate -> centre and
+    left unsmoothed, so the line crosses exactly where the bridge is. The
+    runs between crossings are smoothed as usual.
+    """
+    constraints = graph.constraints
+    if constraints is None or not constraints.areas:
+        smoothed = smooth_route(coords, _cell_size_degrees(graph))
+        return smoothed, math.fsum(e.distance_km for e in edges_used)
+
     centres = {n.node_id: n.grid_xy for n in graph.nodes}
-    for area in constraints.areas:
-        hit = line.intersection(area.area)
-        if hit.is_empty:
+    line: list[tuple[float, float]] = []
+    run = [coords[0]]
+    distance_km = 0.0
+    for i, (a, b) in enumerate(zip(path, path[1:])):
+        vias = constraints.crossing_vias(centres[a], centres[b])
+        if not vias:
+            run.append(coords[i + 1])
+            distance_km += edges_used[i].distance_km
             continue
-        bridges = [
-            centres[node_id]
-            for node_id in constraints.top_priority
-            if node_id in centres and constraints.overridden(area, node_id)
-        ]
-        allowed = MultiPoint(bridges).buffer(reach, cap_style="square")
-        if not allowed.covers(hit):
-            return True
-    return False
+        _extend(line, _smoothed_run(graph, run))
+        legs = [centres[a], *vias, centres[b]]
+        distance_km += (
+            math.fsum(math.dist(p, q) for p, q in zip(legs, legs[1:])) / 1000
+        )
+        _extend(
+            line,
+            [
+                coords[i],
+                *(constraints.from_grid(v) for v in vias),
+                coords[i + 1],
+            ],
+        )
+        run = [coords[i + 1]]
+    _extend(line, _smoothed_run(graph, run))
+    return line, distance_km
 
 
 def _to_planned_route(
@@ -1670,13 +1707,11 @@ def _to_planned_route(
     node_lookup = {n.node_id: n for n in graph.nodes}
     edge_lookup = {(e.from_node_id, e.to_node_id): e for e in graph.edges}
     coords = [node_lookup[nid].location.coordinates for nid in path]
-    smoothed = smooth_route(coords, _cell_size_degrees(graph))
-    if _crosses_barrier(graph, smoothed):
-        smoothed = coords
     edges_used = [edge_lookup[pair] for pair in zip(path, path[1:])]
+    line, distance_km = _route_line(graph, path, coords, edges_used)
     return PlannedRoute(
         suggested_path=path,
-        path_geometry=GeoLineString(coordinates=smoothed),
-        distance_km=sum(e.distance_km for e in edges_used),
+        path_geometry=GeoLineString(coordinates=line),
+        distance_km=distance_km,
         risk_coverage=risk_coverage,
     )

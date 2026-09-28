@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pyproj import Transformer
-from shapely.geometry import LineString, box
+from shapely.geometry import LineString, Point, box
 
 from app.schemas.geo import GeoLineString
 from app.schemas.route import ParkGraph, PlannedRoute
@@ -492,3 +492,67 @@ def test_route_on_the_real_grid_never_crosses_an_impassable_river(
         )
         assert not path.intersects(area.area)
         assert not drawn.intersects(area.area)
+
+
+_SEEDED_BRIDGE = (31.144496809, -24.204771374)
+
+
+def test_route_on_the_real_grid_crosses_the_river_on_the_bridge(no_terrain):
+    snapshot = {
+        "layers": [],
+        "memberships": [],
+        "features": [
+            {
+                "id": "river",
+                "type": "line",
+                "geometry": _seeded_main_river(),
+                "in_effect": True,
+                "buffer_enabled": False,
+                "buffer_distance_m": 100.0,
+                "rules": {"avoid": {"strength": 1.0, "priority": 1}},
+            },
+            {
+                "id": "bridge",
+                "type": "point",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": list(_SEEDED_BRIDGE),
+                },
+                "in_effect": True,
+                "buffer_enabled": True,
+                "buffer_distance_m": 250.0,
+                "rules": {"prefer": {"priority": 2}},
+            },
+        ],
+    }
+    meta = {"requested_hash": "h", "computed_hash": "h"}
+    with patch.object(
+        route_tasks,
+        "_read_terrain",
+        AsyncMock(return_value=(2, snapshot, [], meta)),
+    ):
+        no_terrain.return_value = _load_terrain()
+
+    result = run_route_planning_job(
+        park_id="klaserie",
+        start=(31.10, -24.20),
+        end=(31.20, -24.20),
+        num_alternatives=3,
+        seed=7,
+    )
+
+    constraints = no_terrain.return_value.constraints
+    (river,) = constraints.areas
+    bridge = Point(constraints.to_grid(_SEEDED_BRIDGE))
+    assert result["results"]
+    for route in result["results"]:
+        drawn = LineString(
+            [
+                constraints.to_grid(c)
+                for c in route["path_geometry"]["coordinates"]
+            ],
+        )
+        hits = drawn.intersection(river.area)
+        assert not hits.is_empty
+        points = [hits] if hits.geom_type == "Point" else list(hits.geoms)
+        assert all(point.distance(bridge) < 1.0 for point in points)

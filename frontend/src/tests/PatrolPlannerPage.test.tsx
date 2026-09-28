@@ -45,6 +45,9 @@ vi.mock("maplibre-gl", async () => {
 });
 
 import * as maplibregl from "maplibre-gl";
+import * as HeatmapLayerModule from "@/components/map/HeatmapLayer";
+import * as WorkspaceMapLayersModule from "@/components/workspace/WorkspaceMapLayers";
+import * as resolveModule from "@/lib/workspace/resolveVisibleFeatures";
 import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers, TEST_GRID } from "./mocks/riskHandlers";
@@ -54,6 +57,11 @@ import {
     COMPLETED_ROUTES,
 } from "./mocks/routeHandlers";
 import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
+import { workspaceHandlers } from "./mocks/workspaceHandlers";
+import {
+    initialWorkspaceState,
+    useWorkspaceStore,
+} from "@/store/workspaceStore";
 import type { FakeMap } from "./mocks/maplibreMock";
 import { useMapStore, initialMapState } from "@/store/mapStore";
 import { useAuthStore } from "@/store/authStore";
@@ -65,6 +73,7 @@ const server = setupServer(
     ...riskHandlers,
     ...routeHandlers,
     ...savedRouteHandlers,
+    ...workspaceHandlers,
 );
 beforeAll(() => server.listen());
 afterEach(async () => {
@@ -72,6 +81,7 @@ afterEach(async () => {
     mapRegistry.instances.length = 0;
     vi.restoreAllMocks();
     useMapStore.setState(initialMapState, true);
+    useWorkspaceStore.setState(initialWorkspaceState, true);
     await db.cache.clear();
     useAuthStore.setState({
         user: null,
@@ -822,5 +832,173 @@ describe("Location Handling", () => {
         expect(saveBody!.waypoints!.map((p) => p.coordinates)).toEqual([
             [31.06, -24.31],
         ]);
+    });
+});
+
+const MOCK_LAYER = {
+    id: "layer-test",
+    name: "Test Layer",
+    parentId: null,
+    order: 0,
+    defaultStyle: {},
+    defaultRules: {},
+};
+
+const MOCK_FEATURE = {
+    name: "Test river",
+    id: "feature-1",
+    type: "line" as const,
+    geometry: {
+        type: "LineString" as const,
+        coordinates: [
+            [31.14, -24.25],
+            [31.15, -24.15],
+        ],
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    inEffect: true,
+    bufferEnabled: false,
+    bufferDistanceM: 100,
+    rules: { avoid: { strength: 1 } },
+};
+
+const MOCK_MEMBERSHIP = {
+    id: "mem-1",
+    layerId: "layer-test",
+    featureId: "feature-1",
+    visible: true,
+    order: 0,
+    styleOverride: {},
+};
+
+function useMockWorkspace() {
+    useWorkspaceStore.setState({
+        status: "ready",
+        layers: [MOCK_LAYER],
+        memberships: [MOCK_MEMBERSHIP],
+        features: [MOCK_FEATURE],
+        loadWorkspace: vi.fn(),
+    });
+    vi.spyOn(resolveModule, "resolveVisibleFeatures").mockReturnValue([
+        {
+            membershipId: MOCK_MEMBERSHIP.id,
+            layerId: MOCK_MEMBERSHIP.layerId,
+            z: 0,
+            feature: MOCK_FEATURE,
+            style: { colour: "#000000", opacity: 1 },
+        },
+    ]);
+}
+
+function captureFeatureClicks() {
+    const captured: { onFeatureClick?: (id: string | null) => void } = {};
+    vi.spyOn(WorkspaceMapLayersModule, "WorkspaceMapLayers").mockImplementation(
+        (props) => {
+            captured.onFeatureClick = props.onFeatureClick;
+            return null;
+        },
+    );
+    return captured;
+}
+
+describe("PatrolPlannerPage workspace layers", () => {
+    it("loads workspace data on mount", async () => {
+        const loadWorkspace = vi.fn();
+        useWorkspaceStore.setState({ status: "idle", loadWorkspace });
+
+        renderPage();
+
+        await waitFor(() => expect(loadWorkspace).toHaveBeenCalledTimes(1));
+    });
+
+    it("draws the workspace on the planner map", async () => {
+        const layers = vi.spyOn(WorkspaceMapLayersModule, "WorkspaceMapLayers");
+
+        renderPage();
+        const map = await currentMap();
+
+        await waitFor(() =>
+            expect(layers).toHaveBeenLastCalledWith(
+                expect.objectContaining({ map, excludedFeatureId: null }),
+                undefined,
+            ),
+        );
+    });
+
+    it("lists workspace layers and features in a read-only panel", async () => {
+        useMockWorkspace();
+
+        renderPage();
+
+        expect(
+            await screen.findByRole("button", { name: "Test Layer" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("button", { name: "Test river" }),
+        ).toBeInTheDocument();
+    });
+
+    it("selects a workspace feature clicked on the map", async () => {
+        useMockWorkspace();
+        const captured = captureFeatureClicks();
+
+        renderPage();
+        const feature = await screen.findByRole("button", {
+            name: "Test river",
+        });
+
+        act(() => captured.onFeatureClick?.("feature-1"));
+
+        await waitFor(() =>
+            expect(feature).toHaveAttribute("aria-current", "true"),
+        );
+    });
+
+    it("ignores workspace feature clicks while placing a stop", async () => {
+        useMockWorkspace();
+        const captured = captureFeatureClicks();
+
+        renderPage();
+        const feature = await screen.findByRole("button", {
+            name: "Test river",
+        });
+        await userEvent.click(
+            screen.getByRole("button", { name: "Pick start point on map" }),
+        );
+
+        act(() => captured.onFeatureClick?.("feature-1"));
+
+        expect(feature).not.toHaveAttribute("aria-current");
+    });
+
+    it("draws the heatmap beneath the workspace and can hide it", async () => {
+        const heatmap = vi.spyOn(HeatmapLayerModule, "HeatmapLayer");
+
+        renderPage();
+        await currentMap();
+
+        expect(heatmap).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                beforeId: WorkspaceMapLayersModule.STACK_BOTTOM,
+            }),
+            undefined,
+        );
+
+        const calls = heatmap.mock.calls.length;
+        await userEvent.click(
+            screen.getByRole("checkbox", {
+                name: "Toggle visibility for Heatmap",
+            }),
+        );
+
+        await waitFor(() =>
+            expect(
+                screen.getByRole("checkbox", {
+                    name: "Toggle visibility for Heatmap",
+                }),
+            ).not.toBeChecked(),
+        );
+        expect(heatmap.mock.calls.length).toBe(calls);
     });
 });

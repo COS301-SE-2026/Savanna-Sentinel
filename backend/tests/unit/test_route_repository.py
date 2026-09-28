@@ -2,7 +2,7 @@ import json
 
 import pytest
 from pyproj import Transformer
-from shapely.geometry import LineString, box
+from shapely.geometry import LineString, Point, box
 
 from app.repositories import route_repository
 from app.repositories.route_repository import (
@@ -379,26 +379,40 @@ def test_area_barrier_blocks_moves_cutting_across_it(grid_5x5):
     assert (_id(1, 1), _id(1, 2)) in pairs
 
 
-def test_higher_priority_cell_lets_moves_cross_the_barrier(grid_5x5):
-    river = ImpassableArea("river", 1, _col_border(2))
-    bridge_cell = _id(2, 1)
-    graph = build_park_graph(
-        grid_5x5,
-        constraints=TerrainConstraints(
-            areas=[river],
-            top_priority={bridge_cell: 2},
-        ),
+def _bridge_at(x_km, y_km_below_top):
+    return Point(
+        _BASE_LEFT + x_km * _CELL_M,
+        _BASE_TOP - y_km_below_top * _CELL_M,
     )
 
+
+def _gated(area, bridge):
+    return TerrainConstraints(
+        areas=[area],
+        gates={area.feature_id: [bridge]},
+        gate_reach_m=_CELL_M / 2,
+        epsg=_EPSG,
+    )
+
+
+def test_gate_lets_only_nearby_moves_cross_the_barrier(grid_5x5):
+    river = ImpassableArea("river", 1, _col_border(2))
+    bridge = _bridge_at(2.0, 2.5)
+    graph = build_park_graph(grid_5x5, constraints=_gated(river, bridge))
+    centres = {n.node_id: n.grid_xy for n in graph.nodes}
+
     crossings = _crosses_border(graph.edges, 2)
-    assert crossings
-    assert all(bridge_cell in pair for pair in crossings)
-    assert (bridge_cell, _id(2, 2)) in crossings
+    assert (_id(2, 1), _id(2, 2)) in crossings
+    assert (_id(1, 1), _id(1, 2)) not in crossings
     assert (_id(0, 1), _id(0, 2)) not in crossings
+    assert all(
+        LineString([centres[a], centres[b]]).distance(bridge) <= _CELL_M / 2
+        for a, b in crossings
+    )
 
 
-def test_equal_priority_cell_does_not_open_the_barrier(grid_5x5):
-    river = ImpassableArea("river", 2, _col_border(2))
+def test_higher_priority_cell_alone_no_longer_opens_the_barrier(grid_5x5):
+    river = ImpassableArea("river", 1, _col_border(2))
     graph = build_park_graph(
         grid_5x5,
         constraints=TerrainConstraints(
@@ -753,18 +767,40 @@ def test_route_geometry_falls_back_when_smoothing_cuts_a_barrier(grid_5x5):
     assert not route_planner._crosses_barrier(graph, _raw(graph, path))
 
 
-def test_route_geometry_stays_smoothed_near_a_bridge(grid_5x5):
-    constraints = TerrainConstraints(
-        areas=[_rock_inside_the_corner()],
-        top_priority={_id(1, 3): 2},
-        epsg=_EPSG,
-    )
-    graph = build_park_graph(grid_5x5, constraints=constraints)
-    path = _corner_path()
+def _river_crossings(graph, coords):
+    line = LineString([graph.constraints.to_grid(c) for c in coords])
+    hits = line.intersection(graph.constraints.areas[0].area)
+    return [hits] if hits.geom_type == "Point" else list(hits.geoms)
+
+
+def test_route_geometry_crosses_exactly_at_the_gate(grid_5x5):
+    river = ImpassableArea("river", 1, _col_border(2))
+    bridge = _bridge_at(2.0, 2.2)
+    graph = build_park_graph(grid_5x5, constraints=_gated(river, bridge))
+    path = [_id(2, 0), _id(2, 1), _id(2, 2), _id(2, 3)]
 
     route = route_planner._to_planned_route(graph, path, 0.0)
 
-    assert route.path_geometry.coordinates != _raw(graph, path)
+    (crossing,) = _river_crossings(graph, route.path_geometry.coordinates)
+    assert crossing.distance(bridge) < 1.0
+    leg_m = (500**2 + 300**2) ** 0.5
+    assert route.distance_km == pytest.approx(2.0 + 2 * leg_m / 1000)
+
+
+def test_route_geometry_is_unchanged_away_from_barriers(grid_5x5):
+    river = ImpassableArea("river", 1, _col_border(2))
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=_gated(river, _bridge_at(2.0, 2.5)),
+    )
+    plain = build_park_graph(grid_5x5)
+    path = [_id(0, 0), _id(1, 0), _id(2, 0), _id(2, 1)]
+
+    gated = route_planner._to_planned_route(graph, path, 0.0)
+    ungated = route_planner._to_planned_route(plain, path, 0.0)
+
+    assert gated.path_geometry.coordinates == ungated.path_geometry.coordinates
+    assert gated.distance_km == pytest.approx(ungated.distance_km)
 
 
 def test_route_geometry_keeps_distance_when_falling_back(grid_5x5):
@@ -786,16 +822,12 @@ def test_route_geometry_keeps_distance_when_falling_back(grid_5x5):
     assert raw.distance_km == pytest.approx(smooth.distance_km)
 
 
-def test_planned_route_only_crosses_a_river_at_the_bridge(grid_5x5):
+def test_planned_route_crosses_a_river_exactly_at_the_bridge(grid_5x5):
     route_planner.clear_path_cache()
-    constraints = TerrainConstraints(
-        areas=[_river_at(2.0)],
-        top_priority={_id(2, 1): 2},
-        epsg=_EPSG,
-    )
+    bridge = _bridge_at(2.0, 2.2)
     graph = build_park_graph(
         grid_5x5,
-        constraints=constraints,
+        constraints=_gated(_river_at(2.0), bridge),
         terrain_key="river-bridge",
     )
 
@@ -808,12 +840,10 @@ def test_planned_route_only_crosses_a_river_at_the_bridge(grid_5x5):
     )
     route_planner.clear_path_cache()
 
-    route = plan.routes[0]
-    assert _id(2, 1) in route.suggested_path
-    assert not route_planner._crosses_barrier(
-        graph,
-        route.path_geometry.coordinates,
-    )
+    drawn = plan.routes[0].path_geometry.coordinates
+    crossings = _river_crossings(graph, drawn)
+    assert crossings
+    assert all(point.distance(bridge) < 1.0 for point in crossings)
 
 
 # Sanity checks against the real production grid file

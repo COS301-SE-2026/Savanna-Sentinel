@@ -8,7 +8,7 @@ import { MapLegend } from "@/components/map/MapLegend";
 import { HeatmapLayer } from "@/components/map/HeatmapLayer";
 import { PatrolRouteLayer } from "@/components/map/PatrolRouteLayer";
 import { LoadingPill } from "@/components/map/LoadingPill";
-import { History } from "lucide-react";
+import { History, Layers, Route } from "lucide-react";
 import { PatrolPlannerForm } from "@/components/patrol/PatrolPlannerForm";
 import { NoDataBanner } from "@/components/map/NoDataBanner";
 import { RouteComparisonView } from "@/components/patrol/RouteComparisonView";
@@ -47,6 +47,13 @@ import { UserLocationNotice } from "@/components/map/UserLocationNotice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MotionSimulator } from "@/components/dev/MotionSimulator";
+import { LayerTreePanel } from "@/components/workspace/LayerTreePanel";
+import {
+    STACK_BOTTOM,
+    WorkspaceMapLayers,
+} from "@/components/workspace/WorkspaceMapLayers";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useReadOnlyWorkspace } from "@/hooks/useReadOnlyWorkspace";
 
 const DEFAULT_ZOOM = 10;
 
@@ -227,6 +234,15 @@ export default function PatrolPlannerPage() {
         shortfallReason,
         isTerrainStale,
     } = usePollRouteJob(requestId);
+
+    const [isHeatmapVisible, setHeatmapVisible] = useState(true);
+    const {
+        selection,
+        selectedFeatureId,
+        handleFeatureClick,
+        handleSelectLayer,
+        handleSelectMembership,
+    } = useReadOnlyWorkspace();
 
     const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
         COLLAPSED_SNAP,
@@ -426,6 +442,23 @@ export default function PatrolPlannerPage() {
     const isGenerating = jobStatus === "queued" || jobStatus === "processing";
     const isPickingActive = armedStopId !== null;
 
+    function handleWorkspaceFeatureClick(featureId: string | null) {
+        if (isPickingActive) return;
+        handleFeatureClick(featureId);
+    }
+
+    const layerTree = (
+        <LayerTreePanel
+            activeLayerId={null}
+            selection={selection}
+            readOnly={true}
+            heatmapVisible={isHeatmapVisible}
+            onToggleHeatmap={setHeatmapVisible}
+            onSelectLayer={handleSelectLayer}
+            onSelectMembership={handleSelectMembership}
+        />
+    );
+
     const sidebarProps: SidebarContentProps = {
         stops,
         armedStopId,
@@ -497,17 +530,27 @@ export default function PatrolPlannerPage() {
                             : undefined
                     }
                 />
-                <HeatmapLayer
-                    map={map}
-                    grid={grid}
-                    riskByCell={
-                        loadedRoute
-                            ? (savedRiskByCell ?? new Map())
-                            : riskByCell
-                    }
-                    pickingActive={isPickingActive}
-                    isMobile={isMobile}
+                {/* released with MapView so cleanup runs before map.remove() */}
+                <WorkspaceMapLayers
+                    map={isGridLoading ? null : map}
+                    excludedFeatureId={null}
+                    selectedFeatureId={selectedFeatureId}
+                    onFeatureClick={handleWorkspaceFeatureClick}
                 />
+                {isHeatmapVisible && (
+                    <HeatmapLayer
+                        map={map}
+                        grid={grid}
+                        riskByCell={
+                            loadedRoute
+                                ? (savedRiskByCell ?? new Map())
+                                : riskByCell
+                        }
+                        pickingActive={isPickingActive}
+                        isMobile={isMobile}
+                        beforeId={STACK_BOTTOM}
+                    />
+                )}
                 <PatrolRouteLayer
                     map={map}
                     startPoint={startPoint}
@@ -536,6 +579,12 @@ export default function PatrolPlannerPage() {
                 />
             </div>
 
+            {!isMobile && (
+                <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-color-border bg-color-surface-raised">
+                    {layerTree}
+                </aside>
+            )}
+
             {isMobile && (
                 <Drawer
                     modal={false}
@@ -554,9 +603,35 @@ export default function PatrolPlannerPage() {
                             generate patrol routes, and compare the
                             alternatives.
                         </DrawerDescription>
-                        <div className="min-h-0 flex-1 overflow-y-auto">
-                            <SidebarContent {...sidebarProps} />
-                        </div>
+                        <Tabs defaultValue="plan" className="min-h-0 flex-1">
+                            <div className="shrink-0 border-b border-color-border px-4 py-2 bg-color-surface-raised">
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="plan" className="gap-2">
+                                        <Route className="size-4" />
+                                        Plan
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value="layers"
+                                        className="gap-2"
+                                    >
+                                        <Layers className="size-4" />
+                                        Layers
+                                    </TabsTrigger>
+                                </TabsList>
+                            </div>
+                            <TabsContent
+                                value="plan"
+                                className="m-0 min-h-0 flex-1 overflow-y-auto"
+                            >
+                                <SidebarContent {...sidebarProps} />
+                            </TabsContent>
+                            <TabsContent
+                                value="layers"
+                                className="m-0 min-h-0 flex-1 overflow-y-auto p-2"
+                            >
+                                {layerTree}
+                            </TabsContent>
+                        </Tabs>
                     </DrawerContent>
                 </Drawer>
             )}

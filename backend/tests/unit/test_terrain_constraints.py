@@ -2,13 +2,14 @@ import math
 
 import pytest
 from pyproj import Transformer
-from shapely.geometry import LineString, box
+from shapely.geometry import LineString, Point, box
 
 from app.workers.ml.terrain_constraints import (
     IMPASSABLE_STRENGTH,
     ImpassableArea,
     TerrainConstraints,
     build_constraints,
+    crossing_gates,
     impassable_areas,
     top_priority_by_cell,
 )
@@ -340,3 +341,184 @@ class TestTerrainConstraintsGeometry:
         constraints = TerrainConstraints(areas=[_wall()])
 
         assert not constraints.blocks_segment((5, 0), (10, 0), "cell-0")
+
+
+def _road_across_the_river():
+    """East-west line crossing the river at the middle of row 2."""
+    y = Y0 + 2.5 * SIZE
+    return {
+        "type": "LineString",
+        "coordinates": [_lonlat(X0, y), _lonlat(X0 + 5 * SIZE, y)],
+    }
+
+
+class TestCrossingGates:
+    def _gates(self, features, resolved, reach=500.0):
+        areas = impassable_areas(features, resolved, EPSG)
+        return crossing_gates(areas, features, resolved, EPSG, reach)
+
+    def test_higher_priority_bridge_becomes_a_gate(self):
+        features = [
+            _feature("river", _river()),
+            _feature("bridge", _point(2, 2)),
+        ]
+        resolved = {
+            "river": {"avoid": _impassable(priority=1)},
+            "bridge": {"prefer": _rule(priority=2)},
+        }
+
+        (gate,) = self._gates(features, resolved)["river"]
+
+        assert gate.distance(Point(_centre(2, 2))) < 1.0
+
+    def test_equal_or_lower_priority_features_are_not_gates(self):
+        features = [
+            _feature("river", _river()),
+            _feature("bridge", _point(2, 2)),
+        ]
+        resolved = {
+            "river": {"avoid": _impassable(priority=2)},
+            "bridge": {"prefer": _rule(priority=2)},
+        }
+
+        assert self._gates(features, resolved) == {}
+
+    def test_features_out_of_reach_are_not_gates(self):
+        features = [
+            _feature("river", _river()),
+            _feature("far", _point(2, 0)),
+        ]
+        resolved = {
+            "river": {"avoid": _impassable(priority=1)},
+            "far": {"prefer": _rule(priority=2)},
+        }
+
+        assert self._gates(features, resolved) == {}
+
+    def test_only_the_part_of_a_road_near_the_river_is_a_gate(self):
+        features = [
+            _feature("river", _river()),
+            _feature("road", _road_across_the_river()),
+        ]
+        resolved = {
+            "river": {"avoid": _impassable(priority=1)},
+            "road": {"prefer": _rule(priority=2)},
+        }
+
+        (gate,) = self._gates(features, resolved)["river"]
+
+        assert gate.length == pytest.approx(1000.0, rel=0.01)
+
+    def test_risk_rules_never_make_a_gate(self):
+        features = [
+            _feature("river", _river()),
+            _feature("zone", _point(2, 2)),
+        ]
+        resolved = {
+            "river": {"avoid": _impassable(priority=1)},
+            "zone": {"increase_risk": _rule(priority=9)},
+        }
+
+        assert self._gates(features, resolved) == {}
+
+    def test_build_constraints_reaches_half_a_cell(self):
+        features = [
+            _feature("river", _river()),
+            _feature("bridge", _point(2, 2)),
+        ]
+        resolved = {
+            "river": {"avoid": _impassable(priority=1)},
+            "bridge": {"prefer": _rule(priority=2)},
+        }
+
+        constraints = build_constraints(_cells(), EPSG, features, resolved)
+
+        assert constraints.gate_reach_m == pytest.approx(SIZE / 2)
+        assert list(constraints.gates) == ["river"]
+
+
+class TestGatedCrossings:
+    def _constraints(self):
+        wall = ImpassableArea("wall", 1, LineString([(5, -10), (5, 10)]))
+        return TerrainConstraints(
+            areas=[wall],
+            gates={"wall": [Point(5, 3)]},
+            gate_reach_m=4,
+        )
+
+    def test_opens_moves_that_pass_near_a_gate(self):
+        constraints = self._constraints()
+        (wall,) = constraints.areas
+
+        assert constraints.opens(wall, LineString([(0, 0), (10, 0)]))
+        assert not constraints.opens(wall, LineString([(0, -5), (10, -5)]))
+
+    def test_keeps_a_move_blocked_when_its_legs_meet_a_bend(self):
+        bend = ImpassableArea(
+            "river",
+            1,
+            LineString([(2, 10), (2, -2), (8, -2), (8, 10)]),
+        )
+        constraints = TerrainConstraints(
+            areas=[bend],
+            gates={"river": [Point(2, 1)]},
+            gate_reach_m=4,
+        )
+
+        assert not constraints.opens(bend, LineString([(0, 0), (10, 0)]))
+
+    def test_snaps_the_crossing_onto_the_barrier(self):
+        wall = ImpassableArea("wall", 1, LineString([(5, -10), (5, 10)]))
+        constraints = TerrainConstraints(
+            areas=[wall],
+            gates={"wall": [Point(5.4, 3)]},
+            gate_reach_m=4,
+        )
+
+        assert constraints.opens(wall, LineString([(0, 0), (10, 0)]))
+        assert constraints.crossing_vias((0, 0), (10, 0)) == [(5.0, 3.0)]
+
+    def test_areas_open_anywhere_near_a_gate(self):
+        lake = ImpassableArea("lake", 1, box(4, -10, 6, 10))
+        constraints = TerrainConstraints(
+            areas=[lake],
+            gates={"lake": [LineString([(4, 3), (6, 3)])]},
+            gate_reach_m=4,
+        )
+
+        assert constraints.opens(lake, LineString([(0, 0), (10, 0)]))
+        assert not constraints.opens(lake, LineString([(0, -8), (10, -8)]))
+
+    def test_opens_nothing_without_gates(self):
+        wall = ImpassableArea("wall", 1, LineString([(5, -10), (5, 10)]))
+        constraints = TerrainConstraints(areas=[wall], gate_reach_m=100)
+
+        assert not constraints.opens(wall, LineString([(0, 0), (10, 0)]))
+
+    def test_crossing_vias_go_through_the_gate(self):
+        constraints = self._constraints()
+
+        assert constraints.crossing_vias((0, 0), (10, 0)) == [(5.0, 3.0)]
+        assert constraints.crossing_vias((0, 0), (4, 0)) == []
+
+    def test_crossing_vias_are_ordered_along_the_move(self):
+        constraints = TerrainConstraints(
+            areas=[
+                ImpassableArea("far", 1, LineString([(8, -9), (8, 9)])),
+                ImpassableArea("near", 1, LineString([(2, -9), (2, 9)])),
+            ],
+            gates={"far": [Point(8, 1)], "near": [Point(2, -1)]},
+            gate_reach_m=4,
+        )
+
+        vias = constraints.crossing_vias((0, 0), (10, 0))
+
+        assert vias == [(2.0, -1.0), (8.0, 1.0)]
+
+    def test_from_grid_undoes_to_grid(self):
+        constraints = TerrainConstraints(epsg=EPSG)
+        point = tuple(_lonlat(*_centre(1, 3)))
+
+        back = constraints.from_grid(constraints.to_grid(point))
+
+        assert back == pytest.approx(point)

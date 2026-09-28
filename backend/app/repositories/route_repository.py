@@ -111,9 +111,10 @@ def _blocked_by_terrain(
 ) -> tuple[set[str], set[frozenset[str]]]:
     """Cells and moves an impassable area rules out.
 
-    A cell goes when its centre is inside the area, a move when the line
-    between the two centres crosses it. A cell a higher-priority rule
-    reaches (a bridge) is exempt, as is any move touching such a cell.
+    A cell goes when its centre is inside the area, unless a higher-priority
+    rule reaches it. A move goes when the line between the two centres
+    crosses the area, unless it passes close to one of the area's gates
+    (a higher-priority feature such as a bridge).
     """
     if constraints is None or not constraints.areas:
         return set(), set()
@@ -142,8 +143,7 @@ def _blocked_by_terrain(
         segment = LineString([centres[a], centres[b]])
         if any(
             prepared.intersects(segment)
-            and not constraints.overridden(area, a)
-            and not constraints.overridden(area, b)
+            and not constraints.opens(area, segment)
             for area, prepared in areas
         ):
             blocked_edges.add(pair)
