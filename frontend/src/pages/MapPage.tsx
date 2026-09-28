@@ -36,7 +36,9 @@ import {
     STACK_BOTTOM,
     WorkspaceMapLayers,
 } from "@/components/workspace/WorkspaceMapLayers";
-import { useReadOnlyWorkspace } from "@/hooks/useReadOnlyWorkspace";
+import type { WorkspaceSelection } from "@/components/workspace/StyleEditorPanel";
+import { useWorkspaceStore } from "@/store/workspaceStore";
+import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Layers, SlidersHorizontal } from "lucide-react";
 
@@ -72,13 +74,67 @@ export default function MapPage() {
     const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
         COLLAPSED_SNAP,
     );
-    const {
-        selection,
-        selectedFeatureId,
-        handleFeatureClick,
-        handleSelectLayer,
-        handleSelectMembership,
-    } = useReadOnlyWorkspace();
+    const [selection, setSelection] = useState<WorkspaceSelection>(null);
+    const memberships = useWorkspaceStore((s) => s.memberships);
+    const loadWorkspace = useWorkspaceStore((s) => s.loadWorkspace);
+
+    const selectedFeatureId =
+        selection?.kind === "membership"
+            ? (memberships.find((m) => m.id === selection.membershipId)
+                  ?.featureId ?? null)
+            : null;
+
+    useEffect(() => {
+        const status = useWorkspaceStore.getState().status;
+        if (status === "idle" || status === "error") {
+            loadWorkspace();
+        }
+    }, [loadWorkspace]);
+
+    function handleFeatureClick(featureId: string | null) {
+        if (!featureId) {
+            setSelection(null);
+            return;
+        }
+
+        const current = useWorkspaceStore.getState();
+        const rendered = resolveVisibleFeatures(
+            current.layers,
+            current.features,
+            current.memberships,
+        ).find((r) => r.feature.id === featureId);
+
+        if (rendered) {
+            setSelection({
+                kind: "membership",
+                membershipId: rendered.membershipId,
+            });
+        }
+    }
+
+    function handleSelectLayer(layerId: string | undefined) {
+        if (!layerId) {
+            setSelection(null);
+            return;
+        }
+
+        setSelection({
+            kind: "layer",
+            layerId,
+        });
+    }
+
+    function handleSelectMembership(membershipId: string | undefined) {
+        if (!membershipId) {
+            setSelection(null);
+            return;
+        }
+
+        setSelection({
+            kind: "membership",
+            membershipId,
+        });
+    }
 
     useEffect(() => {
         loadGrid();

@@ -78,9 +78,40 @@ def _coverage_neighbors(graph: ParkGraph) -> dict[str, frozenset[str]]:
     return cached
 
 
+# the map's High and Critical bands: a route has to get into these, lower
+# bands count from the cell next door
+ENTER_RISK = 0.5
+
+
+def _coverage_sets(graph: ParkGraph) -> dict[str, frozenset[str]]:
+    """node_id -> the cells a route covers by passing through that node.
+
+    A neighbour counts unless it is High or Critical. Those only count once
+    the route is inside a High or Critical block, which then covers the
+    block's cells next to it, so passing through a block covers it without
+    having to circle every cell.
+    """
+    cached = getattr(graph, "_coverage_sets_cache", None)
+    if cached is None:
+        risk = _node_risk(graph)
+        cached = {}
+        for node_id, cells in _coverage_neighbors(graph).items():
+            own = graph.cell_of.get(node_id, node_id)
+            inside = risk.get(own, 0.0) >= ENTER_RISK
+            cached[node_id] = frozenset(
+                c
+                for c in cells
+                if c in (node_id, own)
+                or inside
+                or risk.get(c, 0.0) < ENTER_RISK
+            )
+        graph._coverage_sets_cache = cached
+    return cached
+
+
 def covered_nodes(graph: ParkGraph, path: list[str]) -> frozenset[str]:
     """Every node covered by a path: the path's nodes plus their neighbours."""
-    neighbors = _coverage_neighbors(graph)
+    neighbors = _coverage_sets(graph)
     covered: set[str] = set()
     for node_id in path:
         covered |= neighbors.get(node_id, {node_id})
@@ -209,6 +240,23 @@ def hotspot_zones(
         key=lambda z: (-math.fsum(risk[c] for c in z[1]), order[z[0]]),
     )
     return zones
+
+
+def hub_candidates(graph: ParkGraph) -> list[tuple[str, list[str]]]:
+    zones = hotspot_zones(graph)
+    stops = {stop for stop, _ in zones}
+    threshold = max(ENTER_RISK, high_risk_threshold(graph))
+    must_enter = sorted(
+        (
+            n
+            for n in graph.nodes
+            if n.node_id not in graph.cell_of
+            and n.node_id not in stops
+            and n.risk_score >= threshold
+        ),
+        key=lambda n: -n.risk_score,
+    )
+    return zones + [(n.node_id, [n.node_id]) for n in must_enter]
 
 
 _PATH_CACHE: dict[str, dict[tuple[str, str], PathResult | None]] = {}
@@ -414,7 +462,7 @@ def _hop_coverage(graph: ParkGraph, hop: PathResult) -> set[str]:
     entry = cache.get(id(hop))
     if entry is not None and entry[0] is hop:
         return entry[1]
-    coverage_neighbors = _coverage_neighbors(graph)
+    coverage_neighbors = _coverage_sets(graph)
     hop_covered: set[str] = set()
     for node_id in hop.path[1:]:
         hop_covered |= coverage_neighbors.get(node_id, {node_id})
@@ -430,7 +478,7 @@ def _evaluate_hubs(
     if len(sequence) < 2:
         return None
     node_risk = _node_risk(graph)
-    coverage_neighbors = _coverage_neighbors(graph)
+    coverage_neighbors = _coverage_sets(graph)
     start = sequence[0]
     expanded = [start]
     time_used = risk_total = 0.0
@@ -1221,7 +1269,7 @@ def _fold_spurs(
     avoid: list[list[str]],
     min_distance: float,
 ) -> list[str]:
-    neighbors = _coverage_neighbors(graph)
+    neighbors = _coverage_sets(graph)
     ctx = _SpurContext(
         times=_edge_times(graph),
         contributions={
@@ -1318,7 +1366,7 @@ def straighten_path(
     if len(path) < 3:
         return path
     weights = _hotspot_weights(graph)
-    neighbors = _coverage_neighbors(graph)
+    neighbors = _coverage_sets(graph)
     times = _edge_times(graph)
 
     def contributions(node_id: str) -> list[str]:
@@ -1471,7 +1519,7 @@ def plan_routes(
     end_cell = graph.cell_of.get(end_node_id, end_node_id)
     waypoint_ids = [
         stop
-        for stop, cells in hotspot_zones(graph)[: config.max_waypoints]
+        for stop, cells in hub_candidates(graph)[: config.max_waypoints]
         if start_cell not in cells
         and end_cell not in cells
         and (hotspot_ids is None or stop in hotspot_ids)
@@ -1586,29 +1634,63 @@ def plan_routes(
 MIN_LEG_ITERATIONS = 40
 
 
+REASSIGN_PASSES = 3
+
+
 def assign_hotspots_to_legs(
     distance_matrix: dict[tuple[str, str], PathResult],
     stop_ids: list[str],
     hotspot_ids: list[str],
 ) -> list[list[str]]:
-    """Give each hotspot to the one leg it adds the least time to."""
-    legs: list[list[str]] = [[] for _ in stop_ids[1:]]
+    """Give each hotspot to the leg where it chains in cheapest.
+
+    Hotspots go one at a time to the cheapest spot in any leg's running
+    order, then each is moved to wherever it is now cheapest. So a hotspot
+    joins the leg where it sits between other hotspots, not just the leg it
+    would add the least to on its own.
+    """
+    orders = [[a, b] for a, b in zip(stop_ids, stop_ids[1:])]
+
+    def added(order: list[str], position: int, hub: str) -> float:
+        left, right = order[position - 1], order[position]
+        return (
+            _hop_time(distance_matrix, left, hub)
+            + _hop_time(distance_matrix, hub, right)
+            - _hop_time(distance_matrix, left, right)
+        )
+
+    def cheapest(hub: str) -> tuple[float, int, int] | None:
+        spots = [
+            (added(order, position, hub), leg, position)
+            for leg, order in enumerate(orders)
+            for position in range(1, len(order))
+        ]
+        spots = [spot for spot in spots if math.isfinite(spot[0])]
+        return min(spots, default=None)
+
     for hub in hotspot_ids:
-        best_leg, best_detour = None, math.inf
-        for i, (a, b) in enumerate(zip(stop_ids, stop_ids[1:])):
-            to_hub = distance_matrix.get((a, hub))
-            from_hub = distance_matrix.get((hub, b))
-            if to_hub is None or from_hub is None:
-                continue
-            direct = distance_matrix.get((a, b))
-            detour = to_hub.time_min + from_hub.time_min - (
-                direct.time_min if direct else 0.0
-            )
-            if detour < best_detour:
-                best_leg, best_detour = i, detour
-        if best_leg is not None:
-            legs[best_leg].append(hub)
-    return legs
+        spot = cheapest(hub)
+        if spot is not None:
+            _, leg, position = spot
+            orders[leg].insert(position, hub)
+
+    for _ in range(REASSIGN_PASSES):
+        moved = False
+        for leg, order in enumerate(orders):
+            for hub in list(order[1:-1]):
+                position = order.index(hub)
+                order.pop(position)
+                saving = added(order, position, hub)
+                spot = cheapest(hub)
+                if spot is not None and spot[0] < saving - COVERAGE_EPS:
+                    _, best_leg, best_position = spot
+                    orders[best_leg].insert(best_position, hub)
+                    moved = moved or best_leg != leg
+                else:
+                    order.insert(position, hub)
+        if not moved:
+            break
+    return [order[1:-1] for order in orders]
 
 
 def _stitch_legs(leg_plans: list[RoutePlan], k: int) -> list[str]:
@@ -1647,7 +1729,7 @@ def plan_routes_via(
     stop_set = {graph.cell_of.get(stop, stop) for stop in stops}
     hotspot_ids = [
         hub
-        for hub, cells in hotspot_zones(graph)[: config.max_waypoints]
+        for hub, cells in hub_candidates(graph)[: config.max_waypoints]
         if stop_set.isdisjoint(cells)
     ]
     matrix = build_waypoint_distance_matrix(

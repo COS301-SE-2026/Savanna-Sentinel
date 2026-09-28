@@ -150,7 +150,13 @@ def make_line_graph() -> ParkGraph:
 
 def test_covered_nodes_includes_direct_graph_neighbors():
     graph = make_line_graph()
-    assert route_planner.covered_nodes(graph, ["p2"]) == {"p1", "p2", "p3"}
+    assert route_planner.covered_nodes(graph, ["p4"]) == {"p4", "p5"}
+
+
+def test_covered_nodes_counts_a_high_risk_cell_only_when_entered():
+    graph = make_line_graph()
+    assert "p3" not in route_planner.covered_nodes(graph, ["p2"])
+    assert route_planner.covered_nodes(graph, ["p3"]) == {"p2", "p3", "p4"}
 
 
 def test_covered_nodes_excludes_nodes_two_hops_away():
@@ -181,8 +187,8 @@ def _without_move(graph, a, b):
 
 
 def test_covered_nodes_sees_across_a_line_barrier():
-    graph = _without_move(make_line_graph(), "p2", "p3")
-    assert route_planner.covered_nodes(graph, ["p2"]) == {"p1", "p2", "p3"}
+    graph = _without_move(make_line_graph(), "p4", "p5")
+    assert route_planner.covered_nodes(graph, ["p4"]) == {"p4", "p5"}
 
 
 def test_covered_nodes_ignores_blocked_moves_when_no_neighbor_edges():
@@ -220,7 +226,7 @@ def test_risk_coverage_counts_hotspots_across_a_line_barrier():
         GraphNode(
             node_id=n.node_id,
             location=n.location,
-            risk_score=0.9 if n.node_id == "p3" else 0.0,
+            risk_score=0.4 if n.node_id == "p3" else 0.0,
         )
         for n in full.nodes
     ]
@@ -1149,20 +1155,24 @@ def test_compute_risk_coverage_no_high_risk_nodes_within_coverage_radius():
     assert coverage == pytest.approx(0.0)
 
 
-def test_compute_risk_coverage_counts_high_risk_neighbor_within_one_hop():
-    """p3 (0.9) is adjacent to p2 - covered without being on the path."""
+def test_compute_risk_coverage_needs_to_enter_a_high_risk_cell():
+    """p3 (0.9) is High: passing next to it is not enough."""
     graph = make_line_graph()
-    coverage = route_planner.compute_risk_coverage(
+    beside = route_planner.compute_risk_coverage(
         graph, path=["p2"], threshold=0.5,
     )
-    assert coverage == pytest.approx(1.0)
+    inside = route_planner.compute_risk_coverage(
+        graph, path=["p3"], threshold=0.5,
+    )
+    assert beside == pytest.approx(0.0)
+    assert inside == pytest.approx(1.0)
 
 
 def test_compute_risk_coverage_counts_medium_cells_by_default():
     """p4 (0.4) is shown as Medium on the map, so it must count too."""
     graph = make_line_graph()
-    coverage = route_planner.compute_risk_coverage(graph, path=["p2"])
-    assert coverage == pytest.approx(0.9 / 1.3)
+    coverage = route_planner.compute_risk_coverage(graph, path=["p4"])
+    assert coverage == pytest.approx(0.4 / 1.3)
 
 
 def test_compute_risk_coverage_weights_cells_by_risk():
@@ -1237,16 +1247,16 @@ def test_compute_risk_coverage_respects_custom_threshold():
     graph = make_line_graph()
     coverage_default = route_planner.compute_risk_coverage(
         graph,
-        path=["p2"],
+        path=["p4"],
         threshold=0.5,
     )
     coverage_lower = route_planner.compute_risk_coverage(
         graph,
-        path=["p2"],
+        path=["p4"],
         threshold=0.3,
     )
-    assert coverage_default == pytest.approx(1.0)
-    assert coverage_lower == pytest.approx(0.9 / 1.3)
+    assert coverage_default == pytest.approx(0.0)
+    assert coverage_lower == pytest.approx(0.4 / 1.3)
 
 
 def test_plan_routes_uses_normalized_coverage_not_raw_search_sum(monkeypatch):
@@ -1956,10 +1966,10 @@ _LOOPED = ["a0", "a1", "a2", "a3", "b3", "c2", "b1", "b0"]
 
 
 def test_fold_spurs_retraces_a_detour_that_came_back_another_way():
-    graph = _strip_graph({"a3": 0.9})
+    graph = _strip_graph({"a3": 0.4})
     weights = route_planner._hotspot_weights(graph)
 
-    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.9, [], 0.0)
+    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.4, [], 0.0)
 
     assert folded == ["a0", "a1", "a2", "a1", "a0", "b0"]
 
@@ -1994,10 +2004,10 @@ def test_fold_spurs_keeps_a_return_leg_that_covers_needed_risk():
 
 
 def test_fold_spurs_drops_a_return_leg_the_target_can_spare():
-    graph = _strip_graph({"a3": 0.9, "c2": 0.3})
+    graph = _strip_graph({"a3": 0.4, "c2": 0.3})
     weights = route_planner._hotspot_weights(graph)
 
-    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.9, [], 0.0)
+    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.4, [], 0.0)
 
     assert folded == ["a0", "a1", "a2", "a1", "a0", "b0"]
 
@@ -2894,10 +2904,116 @@ def test_assign_hotspots_to_legs_picks_the_smallest_detour():
     ) == [["h"], []]
 
 
+
+def _chain_matrix():
+    """Return times where r fits the first leg alone but chains before p."""
+    times = {
+        ("a", "b"): 6, ("a", "r"): 4, ("r", "b"): 4,
+        ("b", "c"): 10, ("b", "r"): 5, ("r", "c"): 12,
+        ("b", "p"): 6, ("p", "c"): 5, ("r", "p"): 1, ("p", "r"): 1,
+        ("a", "p"): 20, ("p", "b"): 20,
+    }
+    return {pair: PathResult(t, list(pair)) for pair, t in times.items()}
+
+
+def test_assign_hotspots_to_legs_chains_a_hotspot_with_its_neighbours():
+    legs = route_planner.assign_hotspots_to_legs(
+        _chain_matrix(), ["a", "b", "c"], ["r", "p"],
+    )
+
+    assert legs == [[], ["r", "p"]]
+
+
+def test_assign_hotspots_to_legs_skips_an_unreachable_hotspot():
+    legs = route_planner.assign_hotspots_to_legs(
+        _chain_matrix(), ["a", "b", "c"], ["nowhere"],
+    )
+
+    assert legs == [[], []]
+
+
+def _hub_graph():
+    """Build a strip whose Medium zone holds an off-centre High cell."""
+    risks = {"h0": 0.3, "h1": 0.3, "h2": 0.6}
+    nodes = [
+        GraphNode(
+            node_id=node_id,
+            location=GeoPoint(coordinates=(0.01 * i, 0.0)),
+            risk_score=risk,
+        )
+        for i, (node_id, risk) in enumerate(risks.items())
+    ]
+    pairs = [("h0", "h1"), ("h1", "h2")]
+    edges = [GraphEdge(x, y, 1.0, 3.0) for x, y in pairs] + [
+        GraphEdge(y, x, 1.0, 3.0) for x, y in pairs
+    ]
+    return ParkGraph(park_id="hubs", nodes=nodes, edges=edges)
+
+
+def test_hub_candidates_add_every_high_risk_cell_as_a_stop():
+    graph = _hub_graph()
+    zone_stops = [stop for stop, _ in route_planner.hotspot_zones(graph)]
+
+    candidates = route_planner.hub_candidates(graph)
+
+    stops = [stop for stop, _ in candidates]
+    assert stops[: len(zone_stops)] == zone_stops
+    assert "h2" in stops
+    assert stops.count("h2") == 1
+
+
+def test_hub_candidates_leave_medium_cells_to_their_zone():
+    graph = _hub_graph()
+    zone_stops = {stop for stop, _ in route_planner.hotspot_zones(graph)}
+
+    extra = [
+        stop
+        for stop, _ in route_planner.hub_candidates(graph)
+        if stop not in zone_stops
+    ]
+
+    assert set(extra) <= {"h2"}
+
+
+def test_inside_a_high_risk_block_covers_the_block_next_to_it():
+    risks = {"b0": 0.1, "b1": 0.6, "b2": 0.9, "b3": 0.6}
+    nodes = [
+        GraphNode(
+            node_id=node_id,
+            location=GeoPoint(coordinates=(0.01 * i, 0.0)),
+            risk_score=risk,
+        )
+        for i, (node_id, risk) in enumerate(risks.items())
+    ]
+    pairs = [("b0", "b1"), ("b1", "b2"), ("b2", "b3")]
+    edges = [GraphEdge(x, y, 1.0, 3.0) for x, y in pairs] + [
+        GraphEdge(y, x, 1.0, 3.0) for x, y in pairs
+    ]
+    graph = ParkGraph(park_id="block", nodes=nodes, edges=edges)
+
+    assert route_planner.covered_nodes(graph, ["b2"]) == {"b1", "b2", "b3"}
+    assert route_planner.covered_nodes(graph, ["b0"]) == {"b0"}
+
+
+def test_a_path_point_inside_a_high_risk_cell_enters_it():
+    graph = _hub_graph()
+    graph.nodes.append(
+        GraphNode(
+            node_id="path-road-0-0",
+            location=GeoPoint(coordinates=(0.02, 0.0)),
+            risk_score=0.0,
+        ),
+    )
+    graph.cell_of["path-road-0-0"] = "h2"
+
+    assert "h2" in route_planner.covered_nodes(graph, ["path-road-0-0"])
+    assert "h2" not in route_planner.covered_nodes(graph, ["h1"])
+
+
 # straighten_path
 
 
-def _straighten_graph(hot=None):
+def _straighten_graph(hot=None, risk=0.4):
     """a-b-c with an a-c shortcut, and d hanging off b.
 
     d is only covered by passing b, so the detour through b is worth it
@@ -2908,7 +3024,7 @@ def _straighten_graph(hot=None):
         GraphNode(
             node_id=node_id,
             location=GeoPoint(coordinates=(0.01 * i, 0.0)),
-            risk_score=0.9 if node_id == hot else 0.0,
+            risk_score=risk if node_id == hot else 0.0,
         )
         for i, node_id in enumerate(ids)
     ]
@@ -2922,7 +3038,7 @@ def _straighten_graph(hot=None):
         nodes=nodes,
         edges=edges,
         neighbor_edges=grid,
-        terrain_key=f"straighten-{hot}",
+        terrain_key=f"straighten-{hot}-{risk}",
     )
 
 
@@ -2940,6 +3056,12 @@ def test_straighten_keeps_a_detour_that_covers_a_hotspot():
         "b",
         "c",
     ]
+
+
+def test_straighten_drops_a_detour_beside_a_high_risk_cell():
+    graph = _straighten_graph(hot="d", risk=0.9)
+
+    assert route_planner.straighten_path(graph, ["a", "b", "c"]) == ["a", "c"]
 
 
 def test_straighten_keeps_a_route_distinct_from_another():
