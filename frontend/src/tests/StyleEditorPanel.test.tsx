@@ -134,6 +134,80 @@ describe("StyleEditorPanel", () => {
         ).not.toBeInTheDocument();
     });
 
+    it("editing icon opacity for a selected membership writes to its styleOverride, without touching the fill opacity", () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] });
+
+        render(
+            <StyleEditorPanel
+                selection={{
+                    kind: "membership",
+                    membershipId: created!.membershipId,
+                }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+
+        const slider = screen.getByLabelText("Icon opacity");
+        fireEvent.change(slider, { target: { value: "30" } });
+
+        const membership = useWorkspaceStore
+            .getState()
+            .memberships.find((m) => m.id === created!.membershipId);
+        expect(membership?.styleOverride.iconOpacity).toBeCloseTo(0.3);
+        expect(membership?.styleOverride.opacity).toBeUndefined();
+    });
+
+    it("editing label opacity for a selected membership writes to its styleOverride, without touching the fill opacity", () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] });
+
+        render(
+            <StyleEditorPanel
+                selection={{
+                    kind: "membership",
+                    membershipId: created!.membershipId,
+                }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+
+        const slider = screen.getByLabelText("Label opacity");
+        fireEvent.change(slider, { target: { value: "30" } });
+
+        const membership = useWorkspaceStore
+            .getState()
+            .memberships.find((m) => m.id === created!.membershipId);
+        expect(membership?.styleOverride.labelOpacity).toBeCloseTo(0.3);
+        expect(membership?.styleOverride.opacity).toBeUndefined();
+    });
+
+    it("shows icon and label opacity sliders when a layer is selected", () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+
+        render(
+            <StyleEditorPanel
+                selection={{ kind: "layer", layerId: waterId }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+
+        expect(screen.getByLabelText("Icon opacity")).toBeInTheDocument();
+        expect(screen.getByLabelText("Label opacity")).toBeInTheDocument();
+    });
+
     it("shows an icon colour swatch defaulting to the baseline icon colour, independent of the shape colour", async () => {
         const waterId = useWorkspaceStore.getState().addLayer("Water", null);
         useWorkspaceStore.getState().setActiveLayer(waterId);

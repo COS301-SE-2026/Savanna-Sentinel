@@ -356,6 +356,30 @@ function StyleFields({
             <div>
                 <div className="mb-1 flex items-center justify-between">
                     <span className="text-sm text-color-text-primary">
+                        Icon opacity
+                    </span>
+                    <ResetButton
+                        show={isOverridden("iconOpacity")}
+                        onClick={() => onReset("iconOpacity")}
+                    />
+                </div>
+                <Slider
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round((resolved.iconOpacity ?? 1) * 100)}
+                    aria-label="Icon opacity"
+                    onChange={(e) =>
+                        onChange({
+                            iconOpacity: Number(e.target.value) / 100,
+                        })
+                    }
+                />
+            </div>
+
+            <div>
+                <div className="mb-1 flex items-center justify-between">
+                    <span className="text-sm text-color-text-primary">
                         Stroke width
                     </span>
                     <ResetButton
@@ -436,6 +460,30 @@ function StyleFields({
                     value={resolved.label ?? ""}
                     aria-label="Label"
                     onChange={(e) => onChange({ label: e.target.value })}
+                />
+            </div>
+
+            <div>
+                <div className="mb-1 flex items-center justify-between">
+                    <span className="text-sm text-color-text-primary">
+                        Label opacity
+                    </span>
+                    <ResetButton
+                        show={isOverridden("labelOpacity")}
+                        onClick={() => onReset("labelOpacity")}
+                    />
+                </div>
+                <Slider
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round((resolved.labelOpacity ?? 1) * 100)}
+                    aria-label="Label opacity"
+                    onChange={(e) =>
+                        onChange({
+                            labelOpacity: Number(e.target.value) / 100,
+                        })
+                    }
                 />
             </div>
         </div>
