@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import Admin from "@/components/help/Admin";
 import Heatmap from "@/components/help/Heatmap";
 import Workspace from "@/components/help/Workspace";
-import Reports from "@/components/help/Reports"
+import Reports from "@/components/help/Reports";
 import Profile from "@/components/help/Profile";
 import Patrol from "@/components/help/PatrolPlanner";
 
@@ -56,17 +56,17 @@ function Faq({ canViewStaff, canViewAnalyst, canViewRanger }: FaqProps) {
                     </p>
                 </div>
 
-                {canViewRanger &&
-                     <div>
+                {canViewRanger && (
+                    <div>
                         <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
                             How do I plan a patrol?
                         </CardTitle>
                         <p>
-                            Open Patrol Planner, set the start location, duration,
-                            and priority, then select Generate Route.
+                            Open Patrol Planner, set the start location,
+                            duration, and priority, then select Generate Route.
                         </p>
                     </div>
-                }
+                )}
 
                 <div>
                     <CardTitle className="text-base text-brand-primary uppercase tracking-wider">
@@ -83,10 +83,10 @@ function Faq({ canViewStaff, canViewAnalyst, canViewRanger }: FaqProps) {
                         How do I submit a tip-off?
                     </CardTitle>
                     <p>
-                        Open Tip-offs, choose a report type, add its details, date, and location,
-                        then submit it. You can add photos as well. A location
-                        is required; select a point on the map or use your
-                        current location.
+                        Open Tip-offs, choose a report type, add its details,
+                        date, and location, then submit it. You can add photos
+                        as well. A location is required; select a point on the
+                        map or use your current location.
                     </p>
                 </div>
 
@@ -97,9 +97,10 @@ function Faq({ canViewStaff, canViewAnalyst, canViewRanger }: FaqProps) {
                                 What can I find on the dashboard?
                             </CardTitle>
                             <p>
-                                Open the Dashboard to review reserve statistics, recent field reports,
-                                risk zones, report trends, and model performance.
-                                The dashboard refreshes its data periodically.
+                                Open the Dashboard to review reserve statistics,
+                                recent field reports, risk zones, report trends,
+                                and model performance. The dashboard refreshes
+                                its data periodically.
                             </p>
                         </div>
 
@@ -108,8 +109,8 @@ function Faq({ canViewStaff, canViewAnalyst, canViewRanger }: FaqProps) {
                                 How do I file a report?
                             </CardTitle>
                             <p>
-                                Open Reports and select New Report. Then enter the
-                                report details and submit it for review.
+                                Open Reports and select New Report. Then enter
+                                the report details and submit it for review.
                             </p>
                         </div>
                     </>
@@ -121,9 +122,9 @@ function Faq({ canViewStaff, canViewAnalyst, canViewRanger }: FaqProps) {
                             How do I upload data for ingestion?
                         </CardTitle>
                         <p>
-                            Open Ingestion and choose a CSV file that matches the required
-                            format. Review the parsed rows, correct any
-                            validation errors, then submit and confirm the
+                            Open Ingestion and choose a CSV file that matches
+                            the required format. Review the parsed rows, correct
+                            any validation errors, then submit and confirm the
                             upload.
                         </p>
                     </div>
@@ -156,11 +157,11 @@ function Faq({ canViewStaff, canViewAnalyst, canViewRanger }: FaqProps) {
 
 export default function HelpPage() {
     const user = useAuthStore((s) => s.user);
-    const canViewAll = user?.role === "admin"
+    const canViewAll = user?.role === "admin";
     const canViewRanger = user?.role === "ranger" || canViewAll;
     const canViewAnalyst = user?.role === "analyst" || canViewAll;
     const canViewStaffOnly = canViewAnalyst || canViewRanger || canViewAll;
-    
+
     return (
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
             <Tabs defaultValue="faq">
@@ -172,45 +173,46 @@ export default function HelpPage() {
                         <TabsTrigger className="text-sm" value="profile">
                             User Profile
                         </TabsTrigger>
-                        
-                        {
-                            canViewStaffOnly && (
+
+                        {canViewStaffOnly && (
                             <>
-                                <TabsTrigger className="text-sm" value="reports">
+                                <TabsTrigger
+                                    className="text-sm"
+                                    value="reports"
+                                >
                                     Reports
                                 </TabsTrigger>
-                                <TabsTrigger className="text-sm" value="heatmap">
+                                <TabsTrigger
+                                    className="text-sm"
+                                    value="heatmap"
+                                >
                                     Heatmap
                                 </TabsTrigger>
                             </>
-                            )
-                        }
+                        )}
 
-                        {
-                            canViewRanger && (
-                                <TabsTrigger className="text-sm" value="patrol">
-                                    Patrol Planner
-                                </TabsTrigger>
-                            )
-                        }
+                        {canViewRanger && (
+                            <TabsTrigger className="text-sm" value="patrol">
+                                Patrol Planner
+                            </TabsTrigger>
+                        )}
 
-                        {
-                            canViewAnalyst && (
+                        {canViewAnalyst && (
                             <>
-                                <TabsTrigger className="text-sm" value="workspace">
+                                <TabsTrigger
+                                    className="text-sm"
+                                    value="workspace"
+                                >
                                     Workspace
                                 </TabsTrigger>
                             </>
-                            )
-                        }
+                        )}
 
-                        {
-                            canViewAll && (
-                                <TabsTrigger className="text-sm" value="admin">
-                                    Admin Page
-                                </TabsTrigger>
-                            )
-                        }
+                        {canViewAll && (
+                            <TabsTrigger className="text-sm" value="admin">
+                                Admin Page
+                            </TabsTrigger>
+                        )}
                     </TabsList>
                 </div>
 
