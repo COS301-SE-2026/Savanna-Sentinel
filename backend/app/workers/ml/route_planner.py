@@ -3,6 +3,8 @@ import random
 from collections import Counter
 from dataclasses import dataclass, replace
 
+from shapely.geometry import LineString, MultiPoint
+
 from app.schemas.geo import GeoLineString
 from app.schemas.route import ParkGraph, PlannedRoute
 from app.workers.ml.path_smoothing import smooth_route
@@ -1624,6 +1626,42 @@ def _cell_size_degrees(graph: ParkGraph) -> float:
     return cached
 
 
+# how far from a higher-priority cell a smoothed line may cross a barrier
+BRIDGE_REACH_CELLS = 1.5
+
+
+def _crosses_barrier(
+    graph: ParkGraph,
+    coords: list[tuple[float, float]],
+) -> bool:
+    """Whether a display line crosses an impassable area away from a bridge.
+
+    Crossing within BRIDGE_REACH_CELLS of a cell that overrides the area is
+    allowed, since the grid path itself may cross there.
+    """
+    constraints = graph.constraints
+    if constraints is None or not constraints.areas or len(coords) < 2:
+        return False
+
+    line = LineString([constraints.to_grid(c) for c in coords])
+    cell_m = _cell_size_degrees(graph) * KM_PER_DEGREE * 1000
+    reach = cell_m * BRIDGE_REACH_CELLS
+    centres = {n.node_id: n.grid_xy for n in graph.nodes}
+    for area in constraints.areas:
+        hit = line.intersection(area.area)
+        if hit.is_empty:
+            continue
+        bridges = [
+            centres[node_id]
+            for node_id in constraints.top_priority
+            if node_id in centres and constraints.overridden(area, node_id)
+        ]
+        allowed = MultiPoint(bridges).buffer(reach, cap_style="square")
+        if not allowed.covers(hit):
+            return True
+    return False
+
+
 def _to_planned_route(
     graph: ParkGraph,
     path: list[str],
@@ -1633,6 +1671,8 @@ def _to_planned_route(
     edge_lookup = {(e.from_node_id, e.to_node_id): e for e in graph.edges}
     coords = [node_lookup[nid].location.coordinates for nid in path]
     smoothed = smooth_route(coords, _cell_size_degrees(graph))
+    if _crosses_barrier(graph, smoothed):
+        smoothed = coords
     edges_used = [edge_lookup[pair] for pair in zip(path, path[1:])]
     return PlannedRoute(
         suggested_path=path,

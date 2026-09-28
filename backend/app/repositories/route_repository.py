@@ -213,6 +213,7 @@ def build_park_graph(
         edges=edges,
         neighbor_edges=neighbor_edges,
         terrain_key=terrain_key,
+        constraints=constraints,
     )
 
 

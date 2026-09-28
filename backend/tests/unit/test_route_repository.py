@@ -12,6 +12,7 @@ from app.repositories.route_repository import (
 )
 from app.schemas.geo import GeoPoint
 from app.schemas.route import GraphEdge, GraphNode, ParkGraph
+from app.workers.ml import route_planner
 from app.workers.ml.terrain_constraints import (
     ImpassableArea,
     TerrainConstraints,
@@ -696,6 +697,123 @@ def test_find_nearest_node_rejects_a_point_walled_in(grid_5x5):
 
     with pytest.raises(ValueError, match="impassable"):
         find_nearest_node(graph, point, constraints)
+
+
+# route geometry near barriers
+
+
+def _corner_path():
+    """Along row 1 to column 3, then down column 3 to row 3."""
+    return [
+        _id(1, 0),
+        _id(1, 1),
+        _id(1, 2),
+        _id(1, 3),
+        _id(2, 3),
+        _id(3, 3),
+    ]
+
+
+def _rock_inside_the_corner(priority=1):
+    """Small area the rounded corner cuts through but no grid move does."""
+    x = _BASE_LEFT + 3.5 * _CELL_M - 300
+    y = _BASE_TOP - 1.5 * _CELL_M - 300
+    return ImpassableArea(
+        "rock",
+        priority,
+        box(x - 100, y - 100, x + 100, y + 100),
+    )
+
+
+def _raw(graph, path):
+    lookup = {n.node_id: n.location.coordinates for n in graph.nodes}
+    return [lookup[node_id] for node_id in path]
+
+
+def test_route_geometry_is_smoothed_without_barriers(grid_5x5):
+    graph = build_park_graph(grid_5x5)
+    path = _corner_path()
+
+    route = route_planner._to_planned_route(graph, path, 0.0)
+
+    assert route.path_geometry.coordinates != _raw(graph, path)
+
+
+def test_route_geometry_falls_back_when_smoothing_cuts_a_barrier(grid_5x5):
+    constraints = TerrainConstraints(
+        areas=[_rock_inside_the_corner()],
+        epsg=_EPSG,
+    )
+    graph = build_park_graph(grid_5x5, constraints=constraints)
+    path = _corner_path()
+
+    route = route_planner._to_planned_route(graph, path, 0.0)
+
+    assert route.path_geometry.coordinates == _raw(graph, path)
+    assert not route_planner._crosses_barrier(graph, _raw(graph, path))
+
+
+def test_route_geometry_stays_smoothed_near_a_bridge(grid_5x5):
+    constraints = TerrainConstraints(
+        areas=[_rock_inside_the_corner()],
+        top_priority={_id(1, 3): 2},
+        epsg=_EPSG,
+    )
+    graph = build_park_graph(grid_5x5, constraints=constraints)
+    path = _corner_path()
+
+    route = route_planner._to_planned_route(graph, path, 0.0)
+
+    assert route.path_geometry.coordinates != _raw(graph, path)
+
+
+def test_route_geometry_keeps_distance_when_falling_back(grid_5x5):
+    constraints = TerrainConstraints(
+        areas=[_rock_inside_the_corner()],
+        epsg=_EPSG,
+    )
+    smooth = route_planner._to_planned_route(
+        build_park_graph(grid_5x5),
+        _corner_path(),
+        0.0,
+    )
+    raw = route_planner._to_planned_route(
+        build_park_graph(grid_5x5, constraints=constraints),
+        _corner_path(),
+        0.0,
+    )
+
+    assert raw.distance_km == pytest.approx(smooth.distance_km)
+
+
+def test_planned_route_only_crosses_a_river_at_the_bridge(grid_5x5):
+    route_planner.clear_path_cache()
+    constraints = TerrainConstraints(
+        areas=[_river_at(2.0)],
+        top_priority={_id(2, 1): 2},
+        epsg=_EPSG,
+    )
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=constraints,
+        terrain_key="river-bridge",
+    )
+
+    plan = route_planner.plan_routes(
+        graph,
+        _id(0, 0),
+        _id(0, 4),
+        1,
+        route_planner.ACOConfig(seed=7),
+    )
+    route_planner.clear_path_cache()
+
+    route = plan.routes[0]
+    assert _id(2, 1) in route.suggested_path
+    assert not route_planner._crosses_barrier(
+        graph,
+        route.path_geometry.coordinates,
+    )
 
 
 # Sanity checks against the real production grid file

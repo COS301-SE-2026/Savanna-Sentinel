@@ -1,8 +1,12 @@
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.geo import GeoLineString, GeoPoint
+
+if TYPE_CHECKING:
+    from app.workers.ml.terrain_constraints import TerrainConstraints
 
 # Must match len(ACOConfig.phase_split) in app.workers.ml.route_planner -
 # plan_routes() silently truncates to that many phases, so requesting more
@@ -35,6 +39,7 @@ class ParkGraph:
     edges: list[GraphEdge] = field(default_factory=list)
     neighbor_edges: list[GraphEdge] | None = None
     terrain_key: str = ""
+    constraints: "TerrainConstraints | None" = None
 
 
 @dataclass
