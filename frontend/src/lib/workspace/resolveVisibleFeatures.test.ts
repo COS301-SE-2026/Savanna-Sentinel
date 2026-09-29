@@ -163,6 +163,19 @@ describe("toWorkspaceFeatureCollections", () => {
         });
     });
 
+    it("renders an explicit 'none' icon as no icon at all", () => {
+        const collections = toWorkspaceFeatureCollections([
+            {
+                feature: dam,
+                membershipId: "m",
+                layerId: "water",
+                z: 0,
+                style: { colour: "#2563eb", opacity: 1, icon: "none" },
+            },
+        ]);
+        expect(collections.points.features[0].properties?.icon).toBeNull();
+    });
+
     it("falls back to a fully opaque outline when the style doesn't set one", () => {
         const collections = toWorkspaceFeatureCollections([
             {
@@ -225,6 +238,44 @@ describe("toWorkspaceFeatureCollections", () => {
         ]);
         expect(collections.points.features[0].properties).toMatchObject({
             iconColour: "#ffffff",
+        });
+    });
+
+    it("falls back to fully opaque icon and label opacity when the style doesn't set them", () => {
+        const collections = toWorkspaceFeatureCollections([
+            {
+                feature: dam,
+                membershipId: "m",
+                layerId: "water",
+                z: 0,
+                style: { colour: "#2563eb", opacity: 0.2 },
+            },
+        ]);
+        expect(collections.points.features[0].properties).toMatchObject({
+            iconOpacity: 1,
+            labelOpacity: 1,
+        });
+    });
+
+    it("carries explicit icon and label opacity through, independent of the fill opacity", () => {
+        const collections = toWorkspaceFeatureCollections([
+            {
+                feature: dam,
+                membershipId: "m",
+                layerId: "water",
+                z: 0,
+                style: {
+                    colour: "#2563eb",
+                    opacity: 0.2,
+                    iconOpacity: 0.6,
+                    labelOpacity: 0.4,
+                },
+            },
+        ]);
+        expect(collections.points.features[0].properties).toMatchObject({
+            opacity: 0.2,
+            iconOpacity: 0.6,
+            labelOpacity: 0.4,
         });
     });
 

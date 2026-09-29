@@ -11,6 +11,13 @@ from app.workers.ml.risk_engine import (
 from app.workers.tasks.risk_tasks import _FEATURE_LOOKBACK_DAYS, _score
 
 
+@pytest.fixture(autouse=True)
+def terrain_repo():
+    with patch("app.workers.tasks.risk_tasks.TerrainRepository") as repo_cls:
+        repo_cls.return_value.get_risk_deltas = AsyncMock(return_value={})
+        yield repo_cls.return_value
+
+
 @pytest.mark.asyncio
 @patch("app.workers.tasks.risk_tasks.risk_repository")
 @patch("app.workers.tasks.risk_tasks._TaskSessionLocal")
@@ -51,7 +58,9 @@ async def test_score_computes_and_saves_snapshot_when_model_exists(
     mock_repo.get_active_model = AsyncMock(return_value=active_model)
     mock_repo.persist_grid_cells = AsyncMock()
     mock_repo.get_grid_cells = AsyncMock(
-        return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
+        return_value=[
+            {"cell_id": "c1", "cell_ref": "cell-1", "row": 0, "col": 0},
+        ],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
@@ -112,7 +121,9 @@ async def test_score_result_computed_at_matches_repository_value_not_reference_t
     mock_repo.get_active_model = AsyncMock(return_value=active_model)
     mock_repo.persist_grid_cells = AsyncMock()
     mock_repo.get_grid_cells = AsyncMock(
-        return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
+        return_value=[
+            {"cell_id": "c1", "cell_ref": "cell-1", "row": 0, "col": 0},
+        ],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
@@ -214,7 +225,9 @@ async def test_score_labels_manual_trigger_as_ad_hoc(
     mock_repo.get_active_model = AsyncMock(return_value=active_model)
     mock_repo.persist_grid_cells = AsyncMock()
     mock_repo.get_grid_cells = AsyncMock(
-        return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
+        return_value=[
+            {"cell_id": "c1", "cell_ref": "cell-1", "row": 0, "col": 0},
+        ],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
@@ -261,7 +274,9 @@ async def test_score_labels_scheduled_trigger_as_6h_by_default(
     mock_repo.get_active_model = AsyncMock(return_value=active_model)
     mock_repo.persist_grid_cells = AsyncMock()
     mock_repo.get_grid_cells = AsyncMock(
-        return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
+        return_value=[
+            {"cell_id": "c1", "cell_ref": "cell-1", "row": 0, "col": 0},
+        ],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
     mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
@@ -308,7 +323,9 @@ async def test_score_raises_a_low_model_cell_with_a_recent_incident(
     mock_repo.get_active_model = AsyncMock(return_value=active_model)
     mock_repo.persist_grid_cells = AsyncMock()
     mock_repo.get_grid_cells = AsyncMock(
-        return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
+        return_value=[
+            {"cell_id": "c1", "cell_ref": "cell-1", "row": 0, "col": 0},
+        ],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(
         return_value={
@@ -370,7 +387,9 @@ async def test_score_leaves_a_cell_untouched_when_its_incident_is_stale(
     mock_repo.get_active_model = AsyncMock(return_value=active_model)
     mock_repo.persist_grid_cells = AsyncMock()
     mock_repo.get_grid_cells = AsyncMock(
-        return_value=[{"cell_id": "c1", "row": 0, "col": 0}],
+        return_value=[
+            {"cell_id": "c1", "cell_ref": "cell-1", "row": 0, "col": 0},
+        ],
     )
     mock_repo.fetch_incidents_by_cell = AsyncMock(
         return_value={
@@ -401,3 +420,119 @@ async def test_score_leaves_a_cell_untouched_when_its_incident_is_stale(
     saved_explanations = mock_repo.save_heatmap_snapshot.call_args.args[5]
     assert saved_scores["c1"] == 0.1
     assert saved_explanations["c1"] == [("incident_density_self", 1.0)]
+
+
+def _mock_scoring_run(mock_session_local, mock_repo, mock_storage):
+    mock_session = AsyncMock()
+    mock_session_local.return_value.__aenter__.return_value = mock_session
+    mock_repo.get_active_model = AsyncMock(
+        return_value=MagicMock(
+            id="model-1",
+            object_storage_key="risk-models/klaserie/abc.json",
+        ),
+    )
+    mock_repo.persist_grid_cells = AsyncMock()
+    mock_repo.get_grid_cells = AsyncMock(
+        return_value=[
+            {"cell_id": "c1", "cell_ref": "cell-1", "row": 0, "col": 0},
+            {"cell_id": "c2", "cell_ref": "cell-2", "row": 0, "col": 5},
+        ],
+    )
+    mock_repo.fetch_incidents_by_cell = AsyncMock(return_value={})
+    mock_repo.fetch_sightings_by_cell = AsyncMock(return_value={})
+    mock_repo.save_heatmap_snapshot = AsyncMock(
+        return_value=("heatmap-1", datetime(2026, 6, 1, tzinfo=timezone.utc)),
+    )
+    mock_storage.download_model.return_value = b"model-bytes"
+
+
+@pytest.mark.asyncio
+@patch("app.workers.tasks.risk_tasks.explain_cells")
+@patch("app.workers.tasks.risk_tasks.score_cells")
+@patch("app.workers.tasks.risk_tasks.compute_cell_features")
+@patch("app.workers.tasks.risk_tasks.load_model")
+@patch("app.workers.tasks.risk_tasks._storage")
+@patch("app.workers.tasks.risk_tasks.risk_repository")
+@patch("app.workers.tasks.risk_tasks._TaskSessionLocal")
+async def test_score_applies_terrain_risk_deltas_by_cell_ref(
+    mock_session_local,
+    mock_repo,
+    mock_storage,
+    mock_load_model,
+    mock_compute_features,
+    mock_score_cells,
+    mock_explain_cells,
+    terrain_repo,
+):
+    _mock_scoring_run(mock_session_local, mock_repo, mock_storage)
+    terrain_repo.get_risk_deltas = AsyncMock(
+        return_value={"cell-1": 0.2, "cell-2": -0.3, "cell-99": 0.3},
+    )
+    mock_compute_features.return_value = {
+        "c1": {"incident_density_self": 1.0},
+        "c2": {"incident_density_self": 1.0},
+    }
+    mock_score_cells.return_value = {"c1": 0.4, "c2": 0.5}
+    mock_explain_cells.return_value = {
+        "c1": [("incident_density_self", 1.0)],
+        "c2": [("incident_density_self", 1.0)],
+    }
+
+    await _score("klaserie")
+
+    call = mock_repo.save_heatmap_snapshot.call_args
+    saved_scores = call.args[3]
+    saved_deltas = call.kwargs["terrain_deltas"]
+    assert saved_scores["c1"] == pytest.approx(0.6)
+    assert saved_scores["c2"] == pytest.approx(0.2)
+    assert saved_deltas["c1"] == pytest.approx(0.2)
+    assert saved_deltas["c2"] == pytest.approx(-0.3)
+    assert set(saved_deltas) == {"c1", "c2"}
+
+
+@pytest.mark.asyncio
+@patch("app.workers.tasks.risk_tasks.explain_cells")
+@patch("app.workers.tasks.risk_tasks.score_cells")
+@patch("app.workers.tasks.risk_tasks.compute_cell_features")
+@patch("app.workers.tasks.risk_tasks.load_model")
+@patch("app.workers.tasks.risk_tasks._storage")
+@patch("app.workers.tasks.risk_tasks.risk_repository")
+@patch("app.workers.tasks.risk_tasks._TaskSessionLocal")
+async def test_score_keeps_the_incident_floor_under_a_decrease_rule(
+    mock_session_local,
+    mock_repo,
+    mock_storage,
+    mock_load_model,
+    mock_compute_features,
+    mock_score_cells,
+    mock_explain_cells,
+    terrain_repo,
+):
+    _mock_scoring_run(mock_session_local, mock_repo, mock_storage)
+    mock_repo.fetch_incidents_by_cell = AsyncMock(
+        return_value={
+            "c1": [
+                {
+                    "occurred_at": datetime.now(timezone.utc),
+                    "severity": "high",
+                    "source_tier": "field_report",
+                },
+            ],
+        },
+    )
+    terrain_repo.get_risk_deltas = AsyncMock(
+        return_value={"cell-1": -0.3},
+    )
+    mock_compute_features.return_value = {"c1": {"incident_density_self": 1}}
+    mock_score_cells.return_value = {"c1": 0.1}
+    mock_explain_cells.return_value = {"c1": [("incident_density_self", 1.0)]}
+
+    await _score("klaserie")
+
+    call = mock_repo.save_heatmap_snapshot.call_args
+    assert call.args[3]["c1"] == pytest.approx(
+        _INCIDENT_FLOOR_BASE["high"],
+        rel=1e-6,
+    )
+    assert call.args[5]["c1"] == [("recent_incident", 1.0)]
+    assert call.kwargs["terrain_deltas"]["c1"] == 0.0

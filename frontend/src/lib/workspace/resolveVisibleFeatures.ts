@@ -5,6 +5,7 @@ import type {
     WorkspaceLayer,
     WorkspaceMembership,
 } from "./types";
+import { NO_ICON } from "./types";
 import { bufferFeatureMetres } from "./buffer";
 import {
     resolveBufferAppearance,
@@ -112,11 +113,13 @@ export function toWorkspaceFeatureCollections(
             z,
             colour: style.colour,
             opacity: style.opacity,
-            icon: style.icon ?? null,
+            icon: style.icon && style.icon !== NO_ICON ? style.icon : null,
             iconColour: style.iconColour ?? "#1f2937",
+            iconOpacity: style.iconOpacity ?? 1,
             strokeWidth: style.strokeWidth ?? 2,
             lineDash: style.lineDash ?? "solid",
             label: style.label ?? "",
+            labelOpacity: style.labelOpacity ?? 1,
             outlineOpacity: style.outlineOpacity ?? 1,
         };
         const geoJsonFeature: GeoJSON.Feature = {

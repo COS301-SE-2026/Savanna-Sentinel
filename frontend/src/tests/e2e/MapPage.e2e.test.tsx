@@ -71,7 +71,7 @@ test.describe("Heatmap page golden path", () => {
 
     test("shows an expanded legend and a working sidebar", async ({ page }) => {
         await expect(
-            page.getByRole("checkbox", { name: /risk heatmap/i }),
+            page.getByRole("checkbox", { name: /heatmap/i }),
         ).toBeChecked();
 
         await expect(
@@ -82,7 +82,7 @@ test.describe("Heatmap page golden path", () => {
         const opacitySlider = page.getByLabel(/heatmap opacity/i);
         await expect(opacitySlider).toBeEnabled();
 
-        await page.getByRole("checkbox", { name: /risk heatmap/i }).uncheck();
+        await page.getByRole("checkbox", { name: /heatmap/i }).uncheck();
         await expect(opacitySlider).toBeDisabled();
     });
 

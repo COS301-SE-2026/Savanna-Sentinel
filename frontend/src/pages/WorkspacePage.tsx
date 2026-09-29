@@ -26,14 +26,17 @@ import {
     StyleEditorPanel,
     type WorkspaceSelection,
 } from "@/components/workspace/StyleEditorPanel";
+import { Slider } from "@/components/ui/slider";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
 import { useMapStore } from "@/store/mapStore";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PARK_CENTER_FALLBACK, scoresByCell } from "@/lib/riskGrid";
+import { useLayerOpacityPreview } from "@/hooks/useLayerOpacityPreview";
 
 const DEFAULT_ZOOM = 10;
 const DRAW_CLICK_GUARD_MS = 300;
+const DEFAULT_HEATMAP_OPACITY_PERCENT = 30;
 
 export default function WorkspacePage() {
     const isMobile = useIsMobile();
@@ -78,6 +81,19 @@ export default function WorkspacePage() {
     const loadSnapshots = useMapStore((s) => s.loadSnapshots);
 
     const [isHeatmapVisible, setHeatmapVisible] = useState(true);
+    const [isHeatmapSelected, setHeatmapSelected] = useState(false);
+    const [heatmapOpacity, setHeatmapOpacity] = useState(
+        DEFAULT_HEATMAP_OPACITY_PERCENT,
+    );
+
+    const { previewOpacity, setPreviewOpacity, label, opacityOverrides } =
+        useLayerOpacityPreview(selection);
+    const opacityLabel = label ?? "Heatmap opacity";
+    const opacityValue = selection ? previewOpacity : heatmapOpacity;
+    const onOpacityValueChange = selection
+        ? setPreviewOpacity
+        : setHeatmapOpacity;
+    const isOpacityDisabled = !selection && !isHeatmapVisible;
 
     useEffect(() => {
         loadGrid();
@@ -99,16 +115,23 @@ export default function WorkspacePage() {
     }, [hasUnsavedChanges]);
 
     function handleSelectLayer(layerId: string) {
+        setHeatmapSelected(false);
         setActiveLayer(layerId);
         setSelection({ kind: "layer", layerId });
     }
 
     function selectMembership(membershipId: string) {
+        setHeatmapSelected(false);
         const membership = useWorkspaceStore
             .getState()
             .memberships.find((m) => m.id === membershipId);
         if (membership) setActiveLayer(membership.layerId);
         setSelection({ kind: "membership", membershipId });
+    }
+
+    function handleSelectHeatmap() {
+        setHeatmapSelected((selected) => !selected);
+        setSelection(null);
     }
 
     function handleSelectMembership(membershipId: string) {
@@ -146,6 +169,17 @@ export default function WorkspacePage() {
 
     function handleCancelEditGeometry() {
         setCancelEditSignal((n) => n + 1);
+    }
+
+    function handleDrawModeChange(mode: string) {
+        setActiveDrawMode(mode);
+        if (mode === "select" || selection?.kind !== "membership") return;
+        const membership = memberships.find(
+            (m) => m.id === selection.membershipId,
+        );
+        setSelection(
+            membership ? { kind: "layer", layerId: membership.layerId } : null,
+        );
     }
 
     function handleFeatureDrawn(membershipId: string) {
@@ -186,16 +220,38 @@ export default function WorkspacePage() {
 
     return (
         <div className="flex h-[calc(100dvh-3.5rem)] flex-col md:flex-row">
-            <aside className="max-h-[40%] w-full shrink-0 overflow-y-auto border-r border-color-border bg-color-surface-raised md:max-h-none md:w-[280px]">
-                <LayerTreePanel
-                    activeLayerId={activeLayerId}
-                    selection={selection}
-                    readOnly={isMobile}
-                    heatmapVisible={isHeatmapVisible}
-                    onToggleHeatmap={setHeatmapVisible}
-                    onSelectLayer={handleSelectLayer}
-                    onSelectMembership={handleSelectMembership}
-                />
+            <aside className="flex max-h-[40%] w-full shrink-0 flex-col overflow-hidden border-r border-color-border bg-color-surface-raised md:max-h-none md:w-[280px]">
+                <div className="min-h-0 flex-1">
+                    <LayerTreePanel
+                        activeLayerId={activeLayerId}
+                        selection={selection}
+                        readOnly={isMobile}
+                        heatmapVisible={isHeatmapVisible}
+                        onToggleHeatmap={setHeatmapVisible}
+                        heatmapSelected={isHeatmapSelected}
+                        onSelectHeatmap={handleSelectHeatmap}
+                        showHeatmapOpacitySlider={false}
+                        onSelectLayer={handleSelectLayer}
+                        onSelectMembership={handleSelectMembership}
+                    />
+                </div>
+                <div className="shrink-0 border-t border-color-border p-2">
+                    <div className="mb-1 flex items-center justify-between text-sm text-color-text-primary">
+                        <span>{opacityLabel}</span>
+                        <span>{opacityValue}%</span>
+                    </div>
+                    <Slider
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={opacityValue}
+                        disabled={isOpacityDisabled}
+                        aria-label={opacityLabel}
+                        onChange={(e) =>
+                            onOpacityValueChange(Number(e.target.value))
+                        }
+                    />
+                </div>
             </aside>
 
             <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -211,6 +267,7 @@ export default function WorkspacePage() {
                     excludedFeatureId={editingFeatureId}
                     selectedFeatureId={selectedFeatureId}
                     onFeatureClick={handleFeatureClick}
+                    opacityOverrides={opacityOverrides}
                 />
                 <MapControls
                     map={map}
@@ -224,6 +281,7 @@ export default function WorkspacePage() {
                     riskByCell={riskByCell}
                     pickingActive
                     isMobile={isMobile}
+                    opacityOverride={heatmapOpacity / 100}
                     beforeId={STACK_BOTTOM}
                     visible={isHeatmapVisible}
                 />
@@ -237,7 +295,7 @@ export default function WorkspacePage() {
                         }
                         finishEditSignal={finishEditSignal}
                         cancelEditSignal={cancelEditSignal}
-                        onModeChange={setActiveDrawMode}
+                        onModeChange={handleDrawModeChange}
                         onDrawingChange={setIsDrawingStroke}
                         onFeatureDrawn={handleFeatureDrawn}
                         trailing={

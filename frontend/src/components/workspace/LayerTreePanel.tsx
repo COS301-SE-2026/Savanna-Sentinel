@@ -8,18 +8,35 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { computeReorderedSiblingIds } from "@/lib/workspace/tree";
 import { LayerTreeNode } from "./LayerTreeNode";
 import { LayerPickerDialog } from "./LayerPickerDialog";
 import type { WorkspaceSelection } from "./StyleEditorPanel";
 
+const selectedRowClass = "bg-brand-primary/10";
+
 export interface LayerTreePanelProps {
     activeLayerId: string | null;
     selection?: WorkspaceSelection;
     readOnly?: boolean;
+    rootLayersCollapsed?: boolean;
     heatmapVisible?: boolean;
     onToggleHeatmap?: (visible: boolean) => void;
+    heatmapSelected?: boolean;
+    onSelectHeatmap?: () => void;
+    heatmapOpacity?: number;
+    onHeatmapOpacityChange?: (opacity: number) => void;
+    showHeatmapOpacitySlider?: boolean;
+    locationVisible?: boolean;
+    onToggleLocation?: (visible: boolean) => void;
+    hasRoute?: boolean;
+    routeVisible?: boolean;
+    onToggleRoute?: (visible: boolean) => void;
+    onRemoveRoute?: () => void;
+    patrolRouteSelected?: boolean;
+    onSelectPatrolRoute?: () => void;
     onSelectLayer: (layerId: string) => void;
     onSelectMembership: (membershipId: string) => void;
 }
@@ -28,8 +45,22 @@ export function LayerTreePanel({
     activeLayerId,
     selection = null,
     readOnly = false,
+    rootLayersCollapsed = false,
     heatmapVisible = false,
     onToggleHeatmap = () => {},
+    heatmapSelected = false,
+    onSelectHeatmap = () => {},
+    heatmapOpacity = 30,
+    onHeatmapOpacityChange = () => {},
+    showHeatmapOpacitySlider = true,
+    locationVisible = false,
+    onToggleLocation = () => {},
+    hasRoute = false,
+    routeVisible = false,
+    onToggleRoute = () => {},
+    onRemoveRoute,
+    patrolRouteSelected = false,
+    onSelectPatrolRoute,
     onSelectLayer,
     onSelectMembership,
 }: LayerTreePanelProps) {
@@ -134,6 +165,7 @@ export function LayerTreePanel({
                                 activeLayerId={activeLayerId}
                                 selection={selection}
                                 readOnly={readOnly}
+                                defaultExpanded={!rootLayersCollapsed}
                                 onSelectLayer={onSelectLayer}
                                 onSelectMembership={onSelectMembership}
                                 onMoveMembership={setMoveMembershipId}
@@ -143,7 +175,9 @@ export function LayerTreePanel({
                     </SortableContext>
 
                     <li className="list-none">
-                        <div className="flex min-h-9 items-center gap-1 pr-2">
+                        <div
+                            className={`flex min-h-9 items-center gap-1 pr-2 ${heatmapSelected ? selectedRowClass : ""}`}
+                        >
                             {!readOnly && <span className="size-5 shrink-0" />}
                             <span className="size-5 shrink-0" />
                             <Checkbox
@@ -153,11 +187,102 @@ export function LayerTreePanel({
                                 }
                                 aria-label="Toggle visibility for Heatmap"
                             />
-                            <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-color-text-primary">
+                            <button
+                                type="button"
+                                aria-current={
+                                    heatmapSelected ? "true" : undefined
+                                }
+                                onClick={onSelectHeatmap}
+                                className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-color-text-primary"
+                            >
                                 Heatmap
+                            </button>
+                        </div>
+                        {heatmapSelected && showHeatmapOpacitySlider && (
+                            <div className="px-2 pb-2 pl-11">
+                                <div className="mb-1 flex items-center justify-between text-sm text-color-text-primary">
+                                    <span>Opacity</span>
+                                    <span>{heatmapOpacity}%</span>
+                                </div>
+                                <Slider
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    value={heatmapOpacity}
+                                    aria-label="Heatmap opacity"
+                                    onChange={(e) =>
+                                        onHeatmapOpacityChange(
+                                            Number(e.target.value),
+                                        )
+                                    }
+                                />
+                            </div>
+                        )}
+                    </li>
+
+                    <li className="list-none">
+                        <div className="flex min-h-9 items-center gap-1 pr-2">
+                            {!readOnly && <span className="size-5 shrink-0" />}
+                            <span className="size-5 shrink-0" />
+                            <Checkbox
+                                checked={locationVisible}
+                                onChange={(e) =>
+                                    onToggleLocation(e.target.checked)
+                                }
+                                aria-label="Toggle visibility for My Location"
+                            />
+                            <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-color-text-primary">
+                                My Location
                             </span>
                         </div>
                     </li>
+
+                    {hasRoute && (
+                        <li className="list-none">
+                            <div
+                                className={`flex min-h-9 items-center gap-1 pr-2 ${patrolRouteSelected ? selectedRowClass : ""}`}
+                            >
+                                {!readOnly && (
+                                    <span className="size-5 shrink-0" />
+                                )}
+                                <span className="size-5 shrink-0" />
+                                <Checkbox
+                                    checked={routeVisible}
+                                    onChange={(e) =>
+                                        onToggleRoute(e.target.checked)
+                                    }
+                                    aria-label="Toggle visibility for Patrol Route"
+                                />
+                                {onSelectPatrolRoute ? (
+                                    <button
+                                        type="button"
+                                        aria-current={
+                                            patrolRouteSelected
+                                                ? "true"
+                                                : undefined
+                                        }
+                                        onClick={onSelectPatrolRoute}
+                                        className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-color-text-primary"
+                                    >
+                                        Patrol Route
+                                    </button>
+                                ) : (
+                                    <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-color-text-primary">
+                                        Patrol Route
+                                    </span>
+                                )}
+                                {onRemoveRoute && (
+                                    <button
+                                        type="button"
+                                        onClick={onRemoveRoute}
+                                        className="rounded-sm px-1 text-xs text-color-text-secondary underline hover:text-color-text-primary focus-visible:ring-2 focus-visible:ring-brand-primary"
+                                    >
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+                        </li>
+                    )}
                 </ul>
             </DndContext>
 

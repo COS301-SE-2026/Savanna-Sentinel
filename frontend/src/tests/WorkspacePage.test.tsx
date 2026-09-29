@@ -5,6 +5,7 @@ import {
     cleanup,
     waitFor,
     fireEvent,
+    within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
@@ -232,6 +233,31 @@ describe("WorkspacePage", () => {
         expect(await screen.findByText("Point feature")).toBeInTheDocument();
     });
 
+    it("deselects the current feature but keeps its layer selected when a drawing tool is chosen", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] });
+        useWorkspaceStore
+            .getState()
+            .renameFeature(created!.featureId, "My point");
+
+        renderWorkspace();
+
+        await userEvent.click(await screen.findByText("My point"));
+        expect(await screen.findByText("Point feature")).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("button", { name: "Line" }));
+
+        expect(screen.queryByText("Point feature")).not.toBeInTheDocument();
+        expect(
+            screen.getByText("Water", { selector: "button" }),
+        ).toHaveAttribute("aria-current", "true");
+        expect(useWorkspaceStore.getState().activeLayerId).toBe(waterId);
+    });
+
     it("blocks selecting a feature by clicking it on the map while a drawing tool is active", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
         const waterId = useWorkspaceStore.getState().addLayer("Water", null);
@@ -366,6 +392,97 @@ describe("WorkspacePage", () => {
                 "visibility",
                 "none",
             );
+        });
+    });
+
+    it("selects the heatmap row and reveals a single dynamic opacity slider, deselecting any workspace layer and leaving the style editor untouched", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+
+        renderWorkspace();
+        await screen.findByText("Water");
+        const tree = within(screen.getAllByRole("list")[0]);
+
+        await userEvent.click(
+            await tree.findByRole("button", { name: "Water" }),
+        );
+        expect(
+            await tree.findByRole("button", { name: "Water" }),
+        ).toHaveAttribute("aria-current", "true");
+
+        await userEvent.click(
+            await tree.findByRole("button", { name: "Heatmap" }),
+        );
+
+        expect(
+            await screen.findByLabelText("Heatmap opacity"),
+        ).toBeInTheDocument();
+        expect(screen.getAllByLabelText("Heatmap opacity")).toHaveLength(1);
+        expect(tree.getByRole("button", { name: "Water" })).not.toHaveAttribute(
+            "aria-current",
+        );
+        expect(
+            screen.getByText(
+                "Select a layer or a feature to edit its appearance.",
+            ),
+        ).toBeInTheDocument();
+
+        await userEvent.click(tree.getByRole("button", { name: "Water" }));
+        expect(
+            screen.queryByLabelText("Heatmap opacity"),
+        ).not.toBeInTheDocument();
+        expect(useWorkspaceStore.getState().activeLayerId).toBe(waterId);
+    });
+
+    it("relabels the dynamic opacity slider to the selected layer's name", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        useWorkspaceStore.getState().addLayer("Water", null);
+
+        renderWorkspace();
+        const tree = within(screen.getAllByRole("list")[0]);
+
+        expect(
+            await screen.findByLabelText("Heatmap opacity"),
+        ).toBeInTheDocument();
+
+        await userEvent.click(
+            await tree.findByRole("button", { name: "Water" }),
+        );
+
+        expect(
+            screen.queryByLabelText("Heatmap opacity"),
+        ).not.toBeInTheDocument();
+        expect(screen.getByLabelText("Water Opacity")).toBeInTheDocument();
+    });
+
+    it("applies the heatmap opacity slider to the rendered grid", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
+
+        renderWorkspace();
+
+        await waitFor(() => {
+            const ids = addLayerSpy.mock.calls.map(
+                ([layer]) => (layer as { id: string }).id,
+            );
+            expect(ids).toContain("patrol-risk-grid-fill");
+        });
+        const map = addLayerSpy.mock.instances[0] as unknown as FakeMap;
+
+        await userEvent.click(
+            await screen.findByRole("button", { name: "Heatmap" }),
+        );
+        fireEvent.change(await screen.findByLabelText("Heatmap opacity"), {
+            target: { value: "80" },
+        });
+
+        await waitFor(() => {
+            const data = map.sources["patrol-risk-grid"].data as {
+                features: { properties: { fillOpacity: number } }[];
+            };
+            expect(
+                data.features.some((f) => f.properties.fillOpacity === 0.8),
+            ).toBe(true);
         });
     });
 
@@ -551,7 +668,6 @@ describe("WorkspacePage", () => {
         const duplicateId = useWorkspaceStore
             .getState()
             .duplicateFeatureToLayer(created!.membershipId, upperId);
-        // Hide the first membership so only the duplicate is rendered.
         useWorkspaceStore
             .getState()
             .toggleMembershipVisibility(created!.membershipId, false);
@@ -577,6 +693,108 @@ describe("WorkspacePage", () => {
         expect(byId(created!.membershipId)?.styleOverride.opacity).not.toBe(
             0.5,
         );
+    });
+
+    it("keeps a feature's rendering-opacity preview on the map after it is deselected", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const store = useWorkspaceStore.getState();
+        const layerId = store.addLayer("Water", null);
+        store.setActiveLayer(layerId);
+        const created = store.drawFeature("point", {
+            type: "Point",
+            coordinates: [0, 0],
+        });
+        const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
+
+        renderWorkspace();
+
+        await waitFor(() => expect(addLayerSpy).toHaveBeenCalled());
+        const map = addLayerSpy.mock.instances[0] as unknown as FakeMap;
+        map.queryRenderedFeaturesResult = [
+            { properties: { id: created!.featureId } },
+        ];
+        map.fireClick({ lng: 0, lat: 0 });
+
+        const slider = await screen.findByLabelText("Point Opacity");
+        fireEvent.change(slider, { target: { value: "35" } });
+
+        const pointsData = () =>
+            map.sources["workspace-points"].data as {
+                features: { properties: { opacity: number } }[];
+            };
+
+        await waitFor(() => {
+            expect(pointsData().features[0].properties.opacity).toBeCloseTo(
+                0.35,
+            );
+        });
+
+        map.queryRenderedFeaturesResult = [];
+        map.fireClick({ lng: 50, lat: 50 });
+
+        await waitFor(() => {
+            expect(
+                screen.queryByLabelText("Point Opacity"),
+            ).not.toBeInTheDocument();
+        });
+
+        expect(pointsData().features[0].properties.opacity).toBeCloseTo(0.35);
+    });
+
+    it("fades a polygon's border, icon and label along with its fill when previewing opacity", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const store = useWorkspaceStore.getState();
+        const layerId = store.addLayer("Water", null);
+        store.setActiveLayer(layerId);
+        const created = store.drawFeature("polygon", {
+            type: "Polygon",
+            coordinates: [
+                [
+                    [0, 0],
+                    [10, 0],
+                    [10, 10],
+                    [0, 10],
+                    [0, 0],
+                ],
+            ],
+        });
+        const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
+
+        renderWorkspace();
+
+        await waitFor(() => expect(addLayerSpy).toHaveBeenCalled());
+        const map = addLayerSpy.mock.instances[0] as unknown as FakeMap;
+        map.queryRenderedFeaturesResult = [
+            { properties: { id: created!.featureId } },
+        ];
+        map.fireClick({ lng: 5, lat: 5 });
+
+        const slider = await screen.findByLabelText("Polygon Opacity");
+        fireEvent.change(slider, { target: { value: "40" } });
+
+        await waitFor(() => {
+            const polygonData = map.sources["workspace-polygons"].data as {
+                features: {
+                    properties: { opacity: number; outlineOpacity: number };
+                }[];
+            };
+            expect(polygonData.features[0].properties.opacity).toBeCloseTo(0.4);
+            expect(
+                polygonData.features[0].properties.outlineOpacity,
+            ).toBeCloseTo(0.4);
+
+            const iconData = map.sources["workspace-polygon-icons"].data as {
+                features: {
+                    properties: { iconOpacity: number; labelOpacity: number };
+                }[];
+            };
+            expect(iconData.features[0].properties.iconOpacity).toBeCloseTo(
+                0.4,
+            );
+            expect(iconData.features[0].properties.labelOpacity).toBeCloseTo(
+                0.4,
+            );
+        });
     });
 
     it("shows an error toast and keeps the Save button enabled when the server rejects the save", async () => {

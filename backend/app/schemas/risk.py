@@ -113,6 +113,7 @@ class CellExplainResponse(BaseModel):
     cell_id: str
     heatmap_id: str
     top_features: list[ExplainFeature]
+    terrain_delta: float = 0.0
     self_incidents: list[IncidentDetail]
     neighbor_incidents: list[IncidentDetail]
     self_sightings: list[SightingDetail]

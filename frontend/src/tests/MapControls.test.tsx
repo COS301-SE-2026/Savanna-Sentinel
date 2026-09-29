@@ -85,4 +85,67 @@ describe("MapControls", () => {
             }),
         );
     });
+
+    it("does not render the reference button when showReferenceButton is false", () => {
+        render(<MapControls map={null} />);
+        expect(
+            screen.queryByRole("button", { name: /set reference point/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("renders the reference button when showReferenceButton is true and triggers onOpenPoiModal when clicked", async () => {
+        const onOpenPoiModal = vi.fn();
+        render(
+            <MapControls
+                map={null}
+                showReferenceButton
+                onOpenPoiModal={onOpenPoiModal}
+            />,
+        );
+
+        const button = screen.getByRole("button", {
+            name: /set reference point/i,
+        });
+        expect(button).toBeInTheDocument();
+
+        await userEvent.click(button);
+        expect(onOpenPoiModal).toHaveBeenCalledTimes(1);
+    });
+
+    it("applies the 'set reference point' title and pulsing error styles", () => {
+        render(
+            <MapControls
+                map={null}
+                showReferenceButton
+                hasReferencePoint={false}
+            />,
+        );
+
+        const button = screen.getByRole("button", {
+            name: /set reference point/i,
+        });
+        expect(button).toHaveAttribute("title", "Set reference point");
+
+        const icon = button.querySelector("svg");
+        expect(icon).toHaveClass("text-destructive", "animate-pulse");
+        expect(icon).not.toHaveClass("text-brand-primary");
+    });
+    it("applies the 'change reference point' title and primary brand styles when hasReferencePoint is true", () => {
+        render(
+            <MapControls
+                map={null}
+                showReferenceButton
+                hasReferencePoint={true}
+            />,
+        );
+
+        const button = screen.getByRole("button", {
+            name: /set reference point/i,
+        });
+        expect(button).toHaveAttribute("title", "Change reference point");
+
+        const icon = button.querySelector("svg");
+        expect(icon).toHaveClass("text-brand-primary");
+        expect(icon).not.toHaveClass("text-destructive", "animate-pulse");
+    });
 });

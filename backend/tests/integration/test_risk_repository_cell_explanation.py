@@ -431,3 +431,63 @@ async def test_get_cell_explanation_excludes_sightings_past_model_lookback():
 
     assert result is not None
     assert result["self_sightings"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_cell_explanation_returns_the_snapshot_terrain_delta():
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+        await session.commit()
+        cells = await get_grid_cells(session, _PARK)
+
+    target = cells[0]
+    assert target["cell_ref"].startswith("cell-")
+
+    async with _Session() as session:
+        user_id = await _ensure_test_user()
+        now = datetime.now(timezone.utc)
+        model_id = await save_model_version(
+            session,
+            _PARK,
+            object_storage_key="test-key",
+            trained_by=user_id,
+            window_start=now - timedelta(days=180),
+            window_end=now,
+            n_examples=1,
+            metrics={},
+        )
+        await save_heatmap_snapshot(
+            session,
+            model_id,
+            cells=[target],
+            scores={target["cell_id"]: 0.55},
+            features_per_cell={target["cell_id"]: {}},
+            explanations={
+                target["cell_id"]: [("incident_density_self", 0.9)],
+            },
+            terrain_deltas={target["cell_id"]: 0.15},
+        )
+        await session.commit()
+
+    async with _Session() as session:
+        result = await get_cell_explanation(session, target["cell_id"])
+
+    assert result["terrain_delta"] == pytest.approx(0.15)
+
+
+@pytest.mark.asyncio
+async def test_get_cell_explanation_defaults_terrain_delta_to_zero():
+    async with _Session() as session:
+        await persist_grid_cells(session, _PARK)
+        await session.commit()
+        cells = await get_grid_cells(session, _PARK)
+
+    target = cells[0]
+    async with _Session() as session:
+        await _create_heatmap_for_cell(session, target)
+        await session.commit()
+
+    async with _Session() as session:
+        result = await get_cell_explanation(session, target["cell_id"])
+
+    assert result["terrain_delta"] == 0.0

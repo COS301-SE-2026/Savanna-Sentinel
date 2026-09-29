@@ -32,7 +32,6 @@ import {
     parseGridCells,
     scoresByCell,
 } from "@/lib/riskGrid";
-import { LayerTreePanel } from "@/components/workspace/LayerTreePanel";
 import {
     STACK_BOTTOM,
     WorkspaceMapLayers,
@@ -40,8 +39,11 @@ import {
 import type { WorkspaceSelection } from "@/components/workspace/StyleEditorPanel";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Layers, SlidersHorizontal } from "lucide-react";
+import { useLayerOpacityPreview } from "@/hooks/useLayerOpacityPreview";
+import SelectReferenceModal, {
+    type Poi,
+} from "@/components/map/SelectReferenceModal";
+import { useWorkspacePois } from "@/hooks/useWorkspacePois";
 
 const DEFAULT_ZOOM = 10;
 
@@ -76,6 +78,9 @@ export default function MapPage() {
         COLLAPSED_SNAP,
     );
     const [selection, setSelection] = useState<WorkspaceSelection>(null);
+    const [isHeatmapSelected, setHeatmapSelected] = useState(false);
+    const [isRouteSelected, setRouteSelected] = useState(false);
+    const [routeOpacity, setRouteOpacity] = useState(100);
     const memberships = useWorkspaceStore((s) => s.memberships);
     const loadWorkspace = useWorkspaceStore((s) => s.loadWorkspace);
 
@@ -106,6 +111,8 @@ export default function MapPage() {
         ).find((r) => r.feature.id === featureId);
 
         if (rendered) {
+            setHeatmapSelected(false);
+            setRouteSelected(false);
             setSelection({
                 kind: "membership",
                 membershipId: rendered.membershipId,
@@ -119,6 +126,8 @@ export default function MapPage() {
             return;
         }
 
+        setHeatmapSelected(false);
+        setRouteSelected(false);
         setSelection({
             kind: "layer",
             layerId,
@@ -131,10 +140,24 @@ export default function MapPage() {
             return;
         }
 
+        setHeatmapSelected(false);
+        setRouteSelected(false);
         setSelection({
             kind: "membership",
             membershipId,
         });
+    }
+
+    function handleSelectHeatmap() {
+        setHeatmapSelected((selected) => !selected);
+        setRouteSelected(false);
+        setSelection(null);
+    }
+
+    function handleSelectRoute() {
+        setRouteSelected((selected) => !selected);
+        setHeatmapSelected(false);
+        setSelection(null);
     }
 
     useEffect(() => {
@@ -162,12 +185,23 @@ export default function MapPage() {
 
     const [isLocationVisible, setLocationVisible] = useState(false);
     const [isGpsLossForced, setGpsLossForced] = useState(false);
-    const { location: userLocation, status: userLocationStatus } =
-        useUserLocation(isLocationVisible, isGpsLossForced);
+    const {
+        location: userLocation,
+        status: userLocationStatus,
+        hasNoReferencePoint,
+        setReferencePoint,
+    } = useUserLocation(isLocationVisible, isGpsLossForced);
 
     const userId = useAuthStore((s) => s.user?.id ?? null);
     const [pinnedRoute, setPinnedRoute] = useState<SavedRoute | null>(null);
     const [isRouteVisible, setRouteVisible] = useState(true);
+    const [isPoiModalOpen, setIsPoiModalOpen] = useState(false);
+
+    const isGpsFixed = userLocationStatus === "tracking";
+    const showReferenceButton = isLocationVisible && !isGpsFixed;
+    const hasReferencePoint = !hasNoReferencePoint;
+
+    const pois = useWorkspacePois();
 
     useEffect(() => {
         let isCurrent = true;
@@ -193,6 +227,7 @@ export default function MapPage() {
     async function handleRemoveRoute() {
         await clearPinnedRoute().catch(() => {});
         setPinnedRoute(null);
+        setRouteSelected(false);
     }
 
     const bottomAnchorStyle = isMobile
@@ -204,18 +239,71 @@ export default function MapPage() {
           }
         : undefined;
 
+    const { previewOpacity, setPreviewOpacity, label, opacityOverrides } =
+        useLayerOpacityPreview(selection);
+
+    const handleSelectPoi = (poi: Poi) => {
+        setReferencePoint({
+            lat: poi.lat,
+            lon: poi.lon,
+            heading: 0,
+            accuracy: 10,
+        });
+    };
+
+    const handlePreviewPoi = (poi: Poi) => {
+        if (poi.id) {
+            handleFeatureClick(poi.id);
+        }
+
+        if (map) {
+            map.flyTo({
+                center: [poi.lon, poi.lat],
+                zoom: 12,
+                duration: 800,
+            });
+        }
+
+        setIsPoiModalOpen(false);
+    };
+
     const panelProps = {
         heatmapVisible: isHeatmapVisible,
         onHeatmapVisibleChange: setHeatmapVisible,
         locationVisible: isLocationVisible,
         onLocationVisibleChange: setLocationVisible,
-        opacity,
-        onOpacityChange: setOpacity,
+        opacityLabel: selection
+            ? (label ?? "Heatmap Opacity")
+            : isRouteSelected
+              ? "Patrol Route Opacity"
+              : "Heatmap Opacity",
+        opacityValue: selection
+            ? previewOpacity
+            : isRouteSelected
+              ? routeOpacity
+              : opacity,
+        onOpacityValueChange: selection
+            ? setPreviewOpacity
+            : isRouteSelected
+              ? setRouteOpacity
+              : setOpacity,
+        opacityDisabled: selection
+            ? false
+            : isRouteSelected
+              ? !isRouteVisible
+              : !isHeatmapVisible,
         gridStale: isGridStale,
         hasRoute: pinnedRoute !== null,
         routeVisible: isRouteVisible,
         onRouteVisibleChange: setRouteVisible,
         onRemoveRoute: handleRemoveRoute,
+        patrolRouteSelected: isRouteSelected,
+        onSelectPatrolRoute: handleSelectRoute,
+        selection,
+        onSelectLayer: handleSelectLayer,
+        onSelectMembership: handleSelectMembership,
+        heatmapSelected: isHeatmapSelected,
+        onSelectHeatmap: handleSelectHeatmap,
     };
 
     return (
@@ -238,6 +326,9 @@ export default function MapPage() {
                     map={map}
                     defaultCenter={mapCenter}
                     defaultZoom={DEFAULT_ZOOM}
+                    showReferenceButton={showReferenceButton}
+                    hasReferencePoint={hasReferencePoint}
+                    onOpenPoiModal={() => setIsPoiModalOpen(true)}
                 >
                     {isLocationVisible && (
                         <GpsLossToggle
@@ -258,6 +349,7 @@ export default function MapPage() {
                     excludedFeatureId={null}
                     selectedFeatureId={selectedFeatureId}
                     onFeatureClick={handleFeatureClick}
+                    opacityOverrides={opacityOverrides}
                 />
                 {isHeatmapVisible && (
                     <HeatmapLayer
@@ -278,6 +370,7 @@ export default function MapPage() {
                         waypoints={pinnedWaypoints}
                         routes={routeForLayer}
                         selectedIndex={0}
+                        opacityOverride={routeOpacity / 100}
                     />
                 )}
                 {isLocationVisible && (
@@ -296,22 +389,15 @@ export default function MapPage() {
                     }
                     onDismiss={() => setIsNoDataBannerDismissed(true)}
                 />
+                <SelectReferenceModal
+                    open={isPoiModalOpen}
+                    onOpenChange={setIsPoiModalOpen}
+                    pois={pois}
+                    onSelectPoi={handleSelectPoi}
+                    onPreviewPoi={handlePreviewPoi}
+                />
                 {gridStatus === "loading" && <LoadingPill label="Loading..." />}
             </div>
-
-            {!isMobile && (
-                <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-color-border bg-color-surface-raised">
-                    <LayerTreePanel
-                        activeLayerId={null}
-                        selection={selection}
-                        readOnly={true}
-                        heatmapVisible={isHeatmapVisible}
-                        onToggleHeatmap={setHeatmapVisible}
-                        onSelectLayer={handleSelectLayer}
-                        onSelectMembership={handleSelectMembership}
-                    />
-                </aside>
-            )}
 
             {isMobile && (
                 <Drawer
@@ -328,50 +414,11 @@ export default function MapPage() {
                         </DrawerTitle>
                         <DrawerDescription className="sr-only">
                             Choose a snapshot date, toggle map layers, adjust
-                            heatmap opacity, and view the risk summary, and
-                            toggle map layers
+                            opacity, and view the risk summary.
                         </DrawerDescription>
-                        <Tabs>
-                            <div className="shrink-0 border-b border-color-border px-4 py-2 bg-color-surface-raised">
-                                <TabsList className="grid w-full grid-cols-2">
-                                    <TabsTrigger
-                                        value="layers"
-                                        className="gap-2"
-                                    >
-                                        <Layers className="size-4" />
-                                        Layers
-                                    </TabsTrigger>
-                                    <TabsTrigger
-                                        value="controls"
-                                        className="gap-2"
-                                    >
-                                        <SlidersHorizontal className="size-4" />
-                                        Controls
-                                    </TabsTrigger>
-                                </TabsList>
-                            </div>
-
-                            <TabsContent
-                                value="layers"
-                                className="flex-1 overflow-y-auto p-2 m-0"
-                            >
-                                <LayerTreePanel
-                                    activeLayerId={null}
-                                    selection={selection}
-                                    readOnly={true}
-                                    heatmapVisible={isHeatmapVisible}
-                                    onToggleHeatmap={setHeatmapVisible}
-                                    onSelectLayer={handleSelectLayer}
-                                    onSelectMembership={handleSelectMembership}
-                                />
-                            </TabsContent>
-                            <TabsContent
-                                value="controls"
-                                className="flex-1 overflow-y-auto p-2 m-0"
-                            >
-                                <ExplainabilityPanel {...panelProps} />
-                            </TabsContent>
-                        </Tabs>
+                        <div className="min-h-0 flex-1 overflow-y-auto">
+                            <ExplainabilityPanel {...panelProps} />
+                        </div>
                     </DrawerContent>
                 </Drawer>
             )}

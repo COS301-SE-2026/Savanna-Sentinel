@@ -43,16 +43,26 @@ import { getSnapHeightPx } from "@/lib/utils";
 import { useMapStore } from "@/store/mapStore";
 import { UserLocationLayer } from "@/components/map/UserLocationLayer";
 import { useUserLocation } from "@/hooks/useUserLocation";
+import { requestMotionPermission } from "@/lib/motionPermission";
 import { UserLocationNotice } from "@/components/map/UserLocationNotice";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { MotionSimulator } from "@/components/dev/MotionSimulator";
+import { Slider } from "@/components/ui/slider";
+import {
+    STACK_BOTTOM,
+    WorkspaceMapLayers,
+} from "@/components/workspace/WorkspaceMapLayers";
+import { LayerTreePanel } from "@/components/workspace/LayerTreePanel";
+import type { WorkspaceSelection } from "@/components/workspace/StyleEditorPanel";
+import { useWorkspaceStore } from "@/store/workspaceStore";
+import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
+import { useLayerOpacityPreview } from "@/hooks/useLayerOpacityPreview";
 
 const DEFAULT_ZOOM = 10;
 
 const COLLAPSED_SNAP = "24px";
 const EXPANDED_SNAP = 0.6;
 const FULL_SNAP = 1;
+
+const DEFAULT_OPACITY_PERCENT = 30;
 
 interface SidebarContentProps {
     stops: PlannerStop[];
@@ -67,9 +77,11 @@ interface SidebarContentProps {
     selectedIndex: number;
     numAlternativesRequested: number | null;
     shortfallReason: string | null;
+    isTerrainStale: boolean;
     onSelectRoute: (index: number) => void;
     onClearRoutes: () => void;
     onSaveRoute: (index: number) => void;
+    onSendCardToHeatmap: (index: number) => void;
     savingIndex: number | null;
     savedIndices: Set<number>;
     canSave: boolean;
@@ -77,8 +89,24 @@ interface SidebarContentProps {
     onLoadDialogOpenChange: (open: boolean) => void;
     onLoadRoute: (saved: SavedRoute) => void;
     onSendRouteToHeatmap: (saved: SavedRoute) => void;
+    heatmapVisible: boolean;
+    onHeatmapVisibleChange: (visible: boolean) => void;
     locationVisible: boolean;
     onLocationVisibleChange: (visible: boolean) => void;
+    hasRoute: boolean;
+    routeVisible: boolean;
+    onRouteVisibleChange: (visible: boolean) => void;
+    patrolRouteSelected: boolean;
+    onSelectPatrolRoute: () => void;
+    opacityLabel: string;
+    opacityValue: number;
+    onOpacityValueChange: (opacity: number) => void;
+    opacityDisabled: boolean;
+    selection: WorkspaceSelection;
+    onSelectLayer: (layerId: string) => void;
+    onSelectMembership: (membershipId: string) => void;
+    heatmapSelected: boolean;
+    onSelectHeatmap: () => void;
 }
 
 function SidebarContent({
@@ -94,9 +122,11 @@ function SidebarContent({
     selectedIndex,
     numAlternativesRequested,
     shortfallReason,
+    isTerrainStale,
     onSelectRoute,
     onClearRoutes,
     onSaveRoute,
+    onSendCardToHeatmap,
     savingIndex,
     savedIndices,
     canSave,
@@ -104,8 +134,24 @@ function SidebarContent({
     onLoadDialogOpenChange,
     onLoadRoute,
     onSendRouteToHeatmap,
+    heatmapVisible,
+    onHeatmapVisibleChange,
     locationVisible,
     onLocationVisibleChange,
+    hasRoute,
+    routeVisible,
+    onRouteVisibleChange,
+    patrolRouteSelected,
+    onSelectPatrolRoute,
+    opacityLabel,
+    opacityValue,
+    onOpacityValueChange,
+    opacityDisabled,
+    selection,
+    onSelectLayer,
+    onSelectMembership,
+    heatmapSelected,
+    onSelectHeatmap,
 }: SidebarContentProps) {
     return (
         <div className="flex flex-col gap-5 p-4">
@@ -145,27 +191,53 @@ function SidebarContent({
                     selectedIndex={selectedIndex}
                     onSelect={onSelectRoute}
                     onSave={onSaveRoute}
+                    onSendToHeatmap={onSendCardToHeatmap}
                     savingIndex={savingIndex}
                     savedIndices={savedIndices}
                     canSave={canSave}
                     numAlternativesRequested={numAlternativesRequested}
                     shortfallReason={shortfallReason}
+                    isTerrainStale={isTerrainStale}
                 />
             </div>
-            <div className="flex min-h-11 w-full cursor-pointer items-center gap-2">
-                <Checkbox
-                    id="show-location"
-                    checked={locationVisible}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        onLocationVisibleChange(e.target.checked)
+            <div className="overflow-hidden rounded-md border border-color-border">
+                <LayerTreePanel
+                    activeLayerId={null}
+                    selection={selection}
+                    readOnly
+                    rootLayersCollapsed
+                    heatmapVisible={heatmapVisible}
+                    onToggleHeatmap={onHeatmapVisibleChange}
+                    heatmapSelected={heatmapSelected}
+                    onSelectHeatmap={onSelectHeatmap}
+                    showHeatmapOpacitySlider={false}
+                    locationVisible={locationVisible}
+                    onToggleLocation={onLocationVisibleChange}
+                    hasRoute={hasRoute}
+                    routeVisible={routeVisible}
+                    onToggleRoute={onRouteVisibleChange}
+                    patrolRouteSelected={patrolRouteSelected}
+                    onSelectPatrolRoute={onSelectPatrolRoute}
+                    onSelectLayer={onSelectLayer}
+                    onSelectMembership={onSelectMembership}
+                />
+            </div>
+            <div>
+                <div className="mb-2 flex items-center justify-between text-sm text-color-text-primary">
+                    <span>{opacityLabel}</span>
+                    <span>{opacityValue}%</span>
+                </div>
+                <Slider
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={opacityValue}
+                    disabled={opacityDisabled}
+                    aria-label={opacityLabel}
+                    onChange={(e) =>
+                        onOpacityValueChange(Number(e.target.value))
                     }
                 />
-                <Label
-                    htmlFor="show-location"
-                    className="cursor-pointer text-sm font-medium text-color-text-primary select-none"
-                >
-                    My Location
-                </Label>
             </div>
         </div>
     );
@@ -222,6 +294,7 @@ export default function PatrolPlannerPage() {
         routes,
         numAlternativesRequested,
         shortfallReason,
+        isTerrainStale,
     } = usePollRouteJob(requestId);
 
     const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
@@ -236,16 +309,28 @@ export default function PatrolPlannerPage() {
     }
 
     const [savingIndex, setSavingIndex] = useState<number | null>(null);
-    const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
+    const [savedRoutes, setSavedRoutes] = useState<Map<number, SavedRoute>>(
+        new Map(),
+    );
+    const savedIndices = useMemo(
+        () => new Set(savedRoutes.keys()),
+        [savedRoutes],
+    );
 
     const [prevRoutesForSave, setPrevRoutesForSave] = useState(routes);
     if (routes !== prevRoutesForSave) {
         setPrevRoutesForSave(routes);
-        setSavedIndices(new Set());
+        setSavedRoutes(new Map());
     }
 
     const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
-    const [loadedRoute, setLoadedRoute] = useState<PlannedRoute | null>(null);
+    const [loadedSavedRoute, setLoadedSavedRoute] = useState<SavedRoute | null>(
+        null,
+    );
+    const loadedRoute = useMemo<PlannedRoute | null>(
+        () => (loadedSavedRoute ? toPlannedRoute(loadedSavedRoute) : null),
+        [loadedSavedRoute],
+    );
     const [savedRiskByCell, setSavedRiskByCell] = useState<Map<
         string,
         number
@@ -269,6 +354,87 @@ export default function PatrolPlannerPage() {
     const { location: userLocation, status: userLocationStatus } =
         useUserLocation(isLocationVisible);
 
+    const [isHeatmapVisible, setHeatmapVisible] = useState(true);
+    const [isRouteVisible, setRouteVisible] = useState(true);
+    const [opacity, setOpacity] = useState(DEFAULT_OPACITY_PERCENT);
+    const [routeOpacity, setRouteOpacity] = useState(100);
+
+    const [selection, setSelection] = useState<WorkspaceSelection>(null);
+    const [isHeatmapSelected, setHeatmapSelected] = useState(false);
+    const [isPatrolRouteSelected, setPatrolRouteSelected] = useState(false);
+    const memberships = useWorkspaceStore((s) => s.memberships);
+    const loadWorkspace = useWorkspaceStore((s) => s.loadWorkspace);
+
+    const selectedFeatureId =
+        selection?.kind === "membership"
+            ? (memberships.find((m) => m.id === selection.membershipId)
+                  ?.featureId ?? null)
+            : null;
+
+    useEffect(() => {
+        const status = useWorkspaceStore.getState().status;
+        if (status === "idle" || status === "error") {
+            loadWorkspace();
+        }
+    }, [loadWorkspace]);
+
+    function handleFeatureClick(featureId: string | null) {
+        if (armedStopId) return;
+        if (!featureId) {
+            setSelection(null);
+            return;
+        }
+        const current = useWorkspaceStore.getState();
+        const rendered = resolveVisibleFeatures(
+            current.layers,
+            current.features,
+            current.memberships,
+        ).find((r) => r.feature.id === featureId);
+        if (rendered) {
+            setHeatmapSelected(false);
+            setPatrolRouteSelected(false);
+            setSelection({
+                kind: "membership",
+                membershipId: rendered.membershipId,
+            });
+        }
+    }
+
+    function handleSelectLayer(layerId: string | undefined) {
+        if (!layerId) {
+            setSelection(null);
+            return;
+        }
+        setHeatmapSelected(false);
+        setPatrolRouteSelected(false);
+        setSelection({ kind: "layer", layerId });
+    }
+
+    function handleSelectMembership(membershipId: string | undefined) {
+        if (!membershipId) {
+            setSelection(null);
+            return;
+        }
+        setHeatmapSelected(false);
+        setPatrolRouteSelected(false);
+        setSelection({ kind: "membership", membershipId });
+    }
+
+    function handleSelectHeatmap() {
+        setHeatmapSelected((selected) => !selected);
+        setPatrolRouteSelected(false);
+        setSelection(null);
+    }
+
+    function handleSelectPatrolRoute() {
+        setPatrolRouteSelected((selected) => !selected);
+        setHeatmapSelected(false);
+        setSelection(null);
+    }
+
+    const { previewOpacity, setPreviewOpacity, label, opacityOverrides } =
+        useLayerOpacityPreview(selection);
+
     const bottomAnchorStyle = isMobile
         ? {
               bottom: `calc(${Math.min(
@@ -279,23 +445,11 @@ export default function PatrolPlannerPage() {
         : undefined;
 
     const handleLocationVisibleChange = async (visible: boolean) => {
-        if (visible && typeof DeviceMotionEvent !== "undefined") {
-            const deviceMotionEventPermission =
-                DeviceMotionEvent as unknown as {
-                    requestPermission?: () => Promise<
-                        "granted" | "denied" | "default"
-                    >;
-                };
-
-            if (
-                typeof deviceMotionEventPermission.requestPermission ===
-                "function"
-            ) {
-                try {
-                    await deviceMotionEventPermission.requestPermission();
-                } catch {
-                    console.warn("Motion sensor permission failed or denied");
-                }
+        if (visible) {
+            try {
+                await requestMotionPermission();
+            } catch {
+                console.warn("Motion sensor permission failed or denied");
             }
         }
         setLocationVisible(visible);
@@ -351,7 +505,7 @@ export default function PatrolPlannerPage() {
     async function handleGenerate() {
         const payload = toStopsPayload(stops);
         if (!payload || hasNoRiskData) return;
-        setLoadedRoute(null);
+        setLoadedSavedRoute(null);
         setSavedRiskByCell(null);
         try {
             const job = await routeApi.generateRoute({
@@ -368,14 +522,14 @@ export default function PatrolPlannerPage() {
 
     function handleClearRoutes() {
         setRequestId(null);
-        setLoadedRoute(null);
+        setLoadedSavedRoute(null);
         setSavedRiskByCell(null);
         setSelectedIndex(0);
     }
 
     function handleLoadRoute(saved: SavedRoute) {
         setRequestId(null);
-        setLoadedRoute(toPlannedRoute(saved));
+        setLoadedSavedRoute(saved);
         setSavedRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
         setSelectedIndex(0);
         setStops(stopsFromSaved(saved));
@@ -399,8 +553,8 @@ export default function PatrolPlannerPage() {
 
     const canSave = requestId !== null;
 
-    const handleSaveRoute = async (index: number) => {
-        if (!requestId || !plannedStops) return;
+    async function saveRouteAt(index: number): Promise<SavedRoute | null> {
+        if (!requestId || !plannedStops) return null;
         setSavingIndex(index);
         try {
             const saved = await routeApi.saveRoute({
@@ -410,14 +564,31 @@ export default function PatrolPlannerPage() {
                 route: routes[index],
             });
             await cacheSavedRoute(user?.id ?? null, saved).catch(() => {});
-            setSavedIndices((prev) => new Set(prev).add(index));
-            notifySafe("Route saved");
+            setSavedRoutes((prev) => new Map(prev).set(index, saved));
+            return saved;
         } catch {
             notifyCritical("Could not save route");
+            return null;
         } finally {
             setSavingIndex(null);
         }
+    }
+
+    const handleSaveRoute = async (index: number) => {
+        if (await saveRouteAt(index)) notifySafe("Route saved");
     };
+
+    async function handleSendCardToHeatmap(index: number) {
+        if (!user?.id) {
+            notifyCritical("Could not send the route to the heatmap");
+            return;
+        }
+        const saved =
+            loadedSavedRoute ??
+            savedRoutes.get(index) ??
+            (await saveRouteAt(index));
+        if (saved) await handleSendRouteToHeatmap(saved);
+    }
 
     const isGenerating = jobStatus === "queued" || jobStatus === "processing";
     const isPickingActive = armedStopId !== null;
@@ -436,8 +607,10 @@ export default function PatrolPlannerPage() {
         selectedIndex,
         numAlternativesRequested: loadedRoute ? null : numAlternativesRequested,
         shortfallReason: loadedRoute ? null : shortfallReason,
+        isTerrainStale: loadedRoute ? false : isTerrainStale,
         onSelectRoute: handleSelectRoute,
         onSaveRoute: handleSaveRoute,
+        onSendCardToHeatmap: handleSendCardToHeatmap,
         savingIndex,
         savedIndices,
         canSave,
@@ -445,8 +618,40 @@ export default function PatrolPlannerPage() {
         onLoadDialogOpenChange: setIsLoadDialogOpen,
         onLoadRoute: handleLoadRoute,
         onSendRouteToHeatmap: handleSendRouteToHeatmap,
+        heatmapVisible: isHeatmapVisible,
+        onHeatmapVisibleChange: setHeatmapVisible,
         locationVisible: isLocationVisible,
         onLocationVisibleChange: handleLocationVisibleChange,
+        hasRoute: displayRoutes.length > 0,
+        routeVisible: isRouteVisible,
+        onRouteVisibleChange: setRouteVisible,
+        patrolRouteSelected: isPatrolRouteSelected,
+        onSelectPatrolRoute: handleSelectPatrolRoute,
+        opacityLabel: selection
+            ? (label ?? "Heatmap Opacity")
+            : isPatrolRouteSelected
+              ? "Patrol Route Opacity"
+              : "Heatmap Opacity",
+        opacityValue: selection
+            ? previewOpacity
+            : isPatrolRouteSelected
+              ? routeOpacity
+              : opacity,
+        onOpacityValueChange: selection
+            ? setPreviewOpacity
+            : isPatrolRouteSelected
+              ? setRouteOpacity
+              : setOpacity,
+        opacityDisabled: selection
+            ? false
+            : isPatrolRouteSelected
+              ? !isRouteVisible
+              : !isHeatmapVisible,
+        selection,
+        onSelectLayer: handleSelectLayer,
+        onSelectMembership: handleSelectMembership,
+        heatmapSelected: isHeatmapSelected,
+        onSelectHeatmap: handleSelectHeatmap,
     };
 
     return (
@@ -492,25 +697,39 @@ export default function PatrolPlannerPage() {
                             : undefined
                     }
                 />
-                <HeatmapLayer
+                <WorkspaceMapLayers
                     map={map}
-                    grid={grid}
-                    riskByCell={
-                        loadedRoute
-                            ? (savedRiskByCell ?? new Map())
-                            : riskByCell
-                    }
-                    pickingActive={isPickingActive}
-                    isMobile={isMobile}
+                    excludedFeatureId={null}
+                    selectedFeatureId={selectedFeatureId}
+                    onFeatureClick={handleFeatureClick}
+                    opacityOverrides={opacityOverrides}
                 />
-                <PatrolRouteLayer
-                    map={map}
-                    startPoint={startPoint}
-                    endPoint={endPoint}
-                    waypoints={waypoints}
-                    routes={displayRoutes}
-                    selectedIndex={selectedIndex}
-                />
+                {isHeatmapVisible && (
+                    <HeatmapLayer
+                        map={map}
+                        grid={grid}
+                        riskByCell={
+                            loadedRoute
+                                ? (savedRiskByCell ?? new Map())
+                                : riskByCell
+                        }
+                        pickingActive={isPickingActive}
+                        isMobile={isMobile}
+                        opacityOverride={opacity / 100}
+                        beforeId={STACK_BOTTOM}
+                    />
+                )}
+                {isRouteVisible && (
+                    <PatrolRouteLayer
+                        map={map}
+                        startPoint={startPoint}
+                        endPoint={endPoint}
+                        waypoints={waypoints}
+                        routes={displayRoutes}
+                        selectedIndex={selectedIndex}
+                        opacityOverride={routeOpacity / 100}
+                    />
+                )}
                 {isLocationVisible && (
                     <>
                         <UserLocationLayer map={map} location={userLocation} />
@@ -555,8 +774,6 @@ export default function PatrolPlannerPage() {
                     </DrawerContent>
                 </Drawer>
             )}
-
-            <MotionSimulator />
         </div>
     );
 }

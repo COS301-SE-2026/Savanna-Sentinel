@@ -1,4 +1,11 @@
-import { render, screen, waitFor, act, within } from "@testing-library/react";
+import {
+    render,
+    screen,
+    waitFor,
+    act,
+    within,
+    fireEvent,
+} from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -48,11 +55,20 @@ import * as maplibregl from "maplibre-gl";
 import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers, TEST_GRID } from "./mocks/riskHandlers";
-import { routeHandlers, ROUTE_REQUEST_ID } from "./mocks/routeHandlers";
+import {
+    routeHandlers,
+    ROUTE_REQUEST_ID,
+    COMPLETED_ROUTES,
+} from "./mocks/routeHandlers";
 import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
+import { workspaceHandlers } from "./mocks/workspaceHandlers";
 import type { FakeMap } from "./mocks/maplibreMock";
 import { useMapStore, initialMapState } from "@/store/mapStore";
 import { useAuthStore } from "@/store/authStore";
+import {
+    initialWorkspaceState,
+    useWorkspaceStore,
+} from "@/store/workspaceStore";
 import { loadPinnedRoute } from "@/offline/pinnedRouteCache";
 import { db } from "@/offline/db";
 import { RISK_LEVEL_COLORS } from "@/lib/mapTokens";
@@ -61,6 +77,7 @@ const server = setupServer(
     ...riskHandlers,
     ...routeHandlers,
     ...savedRouteHandlers,
+    ...workspaceHandlers,
 );
 beforeAll(() => server.listen());
 afterEach(async () => {
@@ -74,6 +91,7 @@ afterEach(async () => {
         accessToken: null,
         refreshToken: null,
     });
+    useWorkspaceStore.setState(initialWorkspaceState, true);
 });
 afterAll(() => server.close());
 
@@ -147,8 +165,46 @@ describe("PatrolPlannerPage", () => {
         expect(await screen.findByText("Route A")).toBeInTheDocument();
         expect(screen.getByText("Route B")).toBeInTheDocument();
         expect(
-            screen.getByRole("button", { name: "Selected" }),
+            screen.getByRole("button", { name: "Route A", pressed: true }),
         ).toBeInTheDocument();
+    });
+
+    it("selects the patrol route row and flows its opacity slider through to the rendered route lines", async () => {
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+        const map = await currentMap();
+
+        expect(
+            screen.queryByLabelText(/patrol route opacity/i),
+        ).not.toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Patrol Route" }),
+        );
+        expect(
+            await screen.findByLabelText(/patrol route opacity/i),
+        ).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/patrol route opacity/i), {
+            target: { value: "40" },
+        });
+
+        await waitFor(() =>
+            expect(map.setPaintProperty).toHaveBeenCalledWith(
+                "patrol-route-0-line",
+                "line-opacity",
+                0.4,
+            ),
+        );
+        expect(map.setPaintProperty).toHaveBeenCalledWith(
+            "patrol-route-1-line",
+            "line-opacity",
+            0.4,
+        );
     });
 
     it("sends the currently displayed risk heatmap with the route request", async () => {
@@ -218,7 +274,7 @@ describe("PatrolPlannerPage", () => {
         expect(() => unmount()).not.toThrow();
     });
 
-    it("switches the Selected pill when a different card is chosen", async () => {
+    it("switches the selected card when a different card is clicked", async () => {
         renderPage();
         await userEvent.type(
             screen.getByLabelText(/^start point$/i),
@@ -232,12 +288,14 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /generate routes/i }),
         );
 
-        await screen.findByText("Route B");
-        await userEvent.click(screen.getByRole("button", { name: "Select" }));
+        await userEvent.click(await screen.findByText("Route B"));
 
         expect(
-            await screen.findAllByRole("button", { name: "Selected" }),
-        ).toHaveLength(1);
+            screen.getByRole("button", { name: "Route B", pressed: true }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("button", { name: "Route A", pressed: false }),
+        ).toBeInTheDocument();
     });
 
     it("ignores map clicks until a field is armed", async () => {
@@ -288,6 +346,58 @@ describe("PatrolPlannerPage", () => {
         );
     });
 
+    describe("clicking a workspace feature on the map", () => {
+        async function renderWithFeature() {
+            useWorkspaceStore.setState({ loadWorkspace: vi.fn() });
+            const waterId = useWorkspaceStore
+                .getState()
+                .addLayer("Water", null);
+            useWorkspaceStore.getState().setActiveLayer(waterId);
+            const created = useWorkspaceStore.getState().drawFeature("point", {
+                type: "Point",
+                coordinates: [31.05, -24.3],
+            });
+            renderPage();
+            const map = await currentMap();
+            map.queryRenderedFeaturesResult = [
+                { properties: { id: created!.featureId } },
+            ];
+            return map;
+        }
+
+        it("selects the feature when no point is being placed", async () => {
+            const map = await renderWithFeature();
+
+            await act(async () => {
+                map.fireClick({ lng: 31.05, lat: -24.3 });
+            });
+
+            expect(
+                screen.queryByLabelText("Heatmap Opacity"),
+            ).not.toBeInTheDocument();
+        });
+
+        it("places the armed point without selecting the feature", async () => {
+            const map = await renderWithFeature();
+
+            await userEvent.click(
+                screen.getByRole("button", {
+                    name: "Pick start point on map",
+                }),
+            );
+            await act(async () => {
+                map.fireClick({ lng: 31.05, lat: -24.3 });
+            });
+
+            expect(screen.getByLabelText(/^start point$/i)).toHaveValue(
+                "-24.30000, 31.05000",
+            );
+            expect(
+                screen.getByLabelText("Heatmap Opacity"),
+            ).toBeInTheDocument();
+        });
+    });
+
     it("warns when the risk grid cannot be loaded", async () => {
         server.use(
             http.get("http://localhost:8000/v1/risk/grid", () =>
@@ -336,6 +446,36 @@ describe("PatrolPlannerPage", () => {
 
         expect(
             await screen.findByText("Could not start route planning"),
+        ).toBeInTheDocument();
+    });
+
+    it("explains a route blocked by an impassable feature on stale terrain", async () => {
+        server.use(
+            http.get("http://localhost:8000/v1/routes", () =>
+                HttpResponse.json({
+                    ...COMPLETED_ROUTES,
+                    num_alternatives_found: 0,
+                    total: 0,
+                    results: [],
+                    shortfall_reason: "blocked_by_no_go",
+                    terrain_stale: true,
+                }),
+            ),
+        );
+
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+
+        expect(
+            await screen.findByText(
+                /can't be reached without crossing an impassable feature/i,
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(/workspace changes are still being applied/i),
         ).toBeInTheDocument();
     });
 
@@ -467,6 +607,136 @@ describe("PatrolPlannerPage", () => {
         expect(await loadPinnedRoute("u1")).toEqual(SAVED_ROUTE);
     });
 
+    it("sending an unsaved card to the heatmap saves it first, then pins it", async () => {
+        useAuthStore.setState({
+            user: { id: "u1", username: "tester", role: "ranger" },
+            accessToken: "token",
+            refreshToken: "refresh",
+        });
+        let saveCalls = 0;
+        server.use(
+            http.post("http://localhost:8000/v1/routes/save", () => {
+                saveCalls += 1;
+                return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+            }),
+        );
+
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route B");
+
+        await userEvent.click(
+            screen.getByRole("button", {
+                name: /^save and show route b on heatmap$/i,
+            }),
+        );
+
+        expect(await screen.findByText("heatmap page")).toBeInTheDocument();
+        expect(saveCalls).toBe(1);
+        expect(await loadPinnedRoute("u1")).toEqual(SAVED_ROUTE);
+    });
+
+    it("sending an already saved card to the heatmap does not save it again", async () => {
+        useAuthStore.setState({
+            user: { id: "u1", username: "tester", role: "ranger" },
+            accessToken: "token",
+            refreshToken: "refresh",
+        });
+        let saveCalls = 0;
+        server.use(
+            http.post("http://localhost:8000/v1/routes/save", () => {
+                saveCalls += 1;
+                return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+            }),
+        );
+
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route a/i }),
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
+        await screen.findByText("Route saved");
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^show route a on heatmap$/i }),
+        );
+
+        expect(await screen.findByText("heatmap page")).toBeInTheDocument();
+        expect(saveCalls).toBe(1);
+        expect(await loadPinnedRoute("u1")).toEqual(SAVED_ROUTE);
+    });
+
+    it("sends a loaded route to the heatmap from its card without saving", async () => {
+        useAuthStore.setState({
+            user: { id: "u1", username: "tester", role: "ranger" },
+            accessToken: "token",
+            refreshToken: "refresh",
+        });
+        let saveCalls = 0;
+        server.use(
+            http.post("http://localhost:8000/v1/routes/save", () => {
+                saveCalls += 1;
+                return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+            }),
+        );
+
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        await userEvent.click(
+            await screen.findByRole("button", { name: /55\.0 km/i }),
+        );
+        await screen.findByText("Route A");
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^show route a on heatmap$/i }),
+        );
+
+        expect(await screen.findByText("heatmap page")).toBeInTheDocument();
+        expect(saveCalls).toBe(0);
+        expect(await loadPinnedRoute("u1")).toEqual(SAVED_ROUTE);
+    });
+
+    it("does not save a card when there is no account to pin it against", async () => {
+        let saveCalls = 0;
+        server.use(
+            http.post("http://localhost:8000/v1/routes/save", () => {
+                saveCalls += 1;
+                return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+            }),
+        );
+
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+
+        await userEvent.click(
+            screen.getByRole("button", {
+                name: /^save and show route a on heatmap$/i,
+            }),
+        );
+
+        expect(
+            await screen.findByText(/could not send the route to the heatmap/i),
+        ).toBeInTheDocument();
+        expect(saveCalls).toBe(0);
+        expect(screen.queryByText("heatmap page")).not.toBeInTheDocument();
+    });
+
     it("warns instead of navigating when there is no account to store the route against", async () => {
         renderPage();
         await userEvent.click(
@@ -571,6 +841,41 @@ describe("Location Handling", () => {
 
     afterEach(() => {
         vi.unstubAllGlobals();
+    });
+
+    it("highlights the heatmap row in the layer tree when it is clicked", async () => {
+        renderPage();
+
+        const heatmapButton = await screen.findByRole("button", {
+            name: "Heatmap",
+        });
+
+        expect(heatmapButton).not.toHaveAttribute("aria-current");
+        await userEvent.click(heatmapButton);
+
+        expect(heatmapButton).toHaveAttribute("aria-current", "true");
+    });
+
+    it("starts workspace root layers collapsed in the layer tree", async () => {
+        useWorkspaceStore.setState({ loadWorkspace: vi.fn() });
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().addLayer("Western water", waterId);
+
+        renderPage();
+
+        expect(await screen.findByText("Water")).toBeInTheDocument();
+        expect(screen.queryByText("Western water")).not.toBeInTheDocument();
+    });
+
+    it("renders only one opacity slider when the heatmap row is selected", async () => {
+        renderPage();
+
+        const heatmapButton = await screen.findByRole("button", {
+            name: "Heatmap",
+        });
+        await userEvent.click(heatmapButton);
+
+        expect(screen.getAllByLabelText(/heatmap opacity/i)).toHaveLength(1);
     });
 
     it("renders my location unchecked by default without rendering the location layer", async () => {

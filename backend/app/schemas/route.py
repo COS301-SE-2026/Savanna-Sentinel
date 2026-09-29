@@ -1,8 +1,12 @@
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.geo import GeoLineString, GeoPoint
+
+if TYPE_CHECKING:
+    from app.workers.ml.terrain_constraints import TerrainConstraints
 
 # Must match len(ACOConfig.phase_split) in app.workers.ml.route_planner -
 # plan_routes() silently truncates to that many phases, so requesting more
@@ -17,6 +21,7 @@ class GraphNode:
     node_id: str
     location: GeoPoint
     risk_score: float
+    grid_xy: tuple[float, float] | None = None
 
 
 @dataclass
@@ -32,6 +37,11 @@ class ParkGraph:
     park_id: str
     nodes: list[GraphNode] = field(default_factory=list)
     edges: list[GraphEdge] = field(default_factory=list)
+    neighbor_edges: list[GraphEdge] | None = None
+    terrain_key: str = ""
+    constraints: "TerrainConstraints | None" = None
+    cell_of: dict[str, str] = field(default_factory=dict)
+    epsg: int = 0
 
 
 @dataclass
@@ -80,6 +90,7 @@ class RouteListResponse(BaseModel):
     num_alternatives_requested: int | None = None
     num_alternatives_found: int | None = None
     shortfall_reason: str | None = None
+    terrain_stale: bool | None = None
     total: int
     page: int
     page_size: int

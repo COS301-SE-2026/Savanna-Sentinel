@@ -62,13 +62,13 @@ Original Image can be found at `docs > demo2 > architecture`, if a higher resolu
 
 ### Quality Requirement Mapping
 
-| Quality Requirement                    | Architectural Decision                                                                                                                                                                                                                                                                                                              |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Security                               | Implementation of AES-256/TLS1.3 encryption, and the use of JWT with RBAC to enforce API endpoint access.                                                                                                                                                                                                                           |
-| Reliability >= 99.9% uptime            | Docker Compose restart policies ensure automatic recovery of crashed containers.<br />Additionally the PWA functionality ensures that the application is still able to function even if the server becomes temporarily unavailable.                                                                                                 |
-| Performance for 60 concurrent users    | FastAPI's async I/O prevents blocking during concurrent requests. PostGIS GiST indexing and Redis caching will also improve performance during heavy queries, while the client will use MapLibre GL to handle client-side rendering, improving performance.                                                                        |
-| Maximum of 2 hours downtime in a month | CI/CD prevents broken code from reaching our production, and in the case of downtime, our redeploy previous commit strategy ensures a rapid recovery within 2 hours if deployment fails.                                                                                                                                            |
-| Maintainability                        | * Implementation of Github actions using its CI pipeline, running an automated test suite to ensure that requirements are matched.<br />* Implementation of SonarQube to point out maintainability issues in code, to ensure easy modification of code in the future.<br />* Codecov ensures that test coverage hits at least 75% |
+| Quality Requirement                    | Architectural Decision                                                                                                                                                                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Security                               | Implementation of AES-256/TLS1.3 encryption, and the use of JWT with RBAC to enforce API endpoint access.                                                                                                                                                    |
+| Reliability >= 99.9% uptime            | Docker Compose restart policies ensure automatic recovery of crashed containers.<br />Additionally the PWA functionality ensures that the application is still able to function even if the server becomes temporarily unavailable.                          |
+| Performance for 60 concurrent users    | FastAPI's async I/O prevents blocking during concurrent requests. PostGIS GiST indexing and Redis caching will also improve performance during heavy queries, while the client will use MapLibre GL to handle client-side rendering, improving performance. |
+| Maximum of 2 hours downtime in a month | CI/CD prevents broken code from reaching our production, and in the case of downtime, our redeploy previous commit strategy ensures a rapid recovery within 2 hours if deployment fails.                                                                     |
+| Maintainability                        | * Implementation of Github actions using its CI pipeline, running an automated test suite to ensure that requirements are matched.<br />* Codecov ensures that test coverage hits at least 75%                                                              |
 
 ## Technology Requirements
 
@@ -87,7 +87,7 @@ The technology requirements for Savanna Sentinel encompass the architectural and
 | Backend API     | Python FastAPI                          |
 | Background Jobs | Celery + Redis                          |
 | Database        | PostgreSQL +  PostGIS                   |
-| Object Storage  | Seaweed                                   |
+| Object Storage  | Seaweed                                 |
 | AI / ML         | sckit-learn + GeoPandas + pandas + SHAP |
 | Security        | JWT(PyJWT, HS256)                       |
 | Reverse Proxy   | Caddy                                   |

@@ -50,10 +50,7 @@ class TerrainService:
         return True
 
     async def risk_adjustments(self) -> TerrainEffectsResponse:
-        rows = await self.repo.get_effects()
-        return await self._respond(
-            {ref: risk for ref, risk, _ in rows if risk != 0.0},
-        )
+        return await self._respond(await self.repo.get_risk_deltas())
 
     async def route_costs(self) -> TerrainEffectsResponse:
         rows = await self.repo.get_effects()

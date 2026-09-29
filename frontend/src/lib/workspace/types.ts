@@ -5,13 +5,17 @@ export interface FeatureStyle {
     opacity: number;
     icon?: string;
     iconColour?: string;
+    iconOpacity?: number;
     strokeWidth?: number;
     lineDash?: "solid" | "dashed" | "dotted";
     label?: string;
+    labelOpacity?: number;
     outlineOpacity?: number;
     bufferColour?: string;
     bufferOpacity?: number;
 }
+
+export const NO_ICON = "none";
 
 export const DEFAULT_BUFFER_OPACITY = 0.2;
 export const DEFAULT_BUFFER_DISTANCE_M = 100;
@@ -22,8 +26,10 @@ export const APPLICATION_DEFAULT_STYLE: FeatureStyle = {
     colour: "#6b7280",
     opacity: 1,
     iconColour: "#1f2937",
+    iconOpacity: 1,
     strokeWidth: 2,
     lineDash: "solid",
+    labelOpacity: 1,
     outlineOpacity: 1,
     bufferOpacity: DEFAULT_BUFFER_OPACITY,
 };

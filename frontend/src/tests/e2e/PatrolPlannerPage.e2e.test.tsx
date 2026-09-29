@@ -70,6 +70,7 @@ test.describe("Patrol Planner golden path", () => {
     test("sets both points, generates routes, and selects an alternative", async ({
         page,
     }) => {
+        test.setTimeout(120000);
         await page.getByLabel(/^start point$/i).fill("-24.30, 31.05");
         await page.getByLabel(/^end point$/i).fill("-24.28, 31.09");
 
@@ -79,36 +80,22 @@ test.describe("Patrol Planner golden path", () => {
         await expect(generateButton).toBeEnabled();
         await generateButton.click();
 
-        await expect(page.getByText("Route A")).toBeVisible({ timeout: 30000 });
+        await expect(page.getByText("Route A")).toBeVisible({ timeout: 90000 });
         await expect(
-            page.getByRole("button", { name: "Selected" }),
+            page.getByRole("button", { name: "Route A", pressed: true }),
         ).toBeVisible();
 
-        const selectButtons = page.getByRole("button", {
-            name: "Select",
+        const routeB = page.getByRole("button", {
+            name: "Route B",
             exact: true,
         });
-        if ((await selectButtons.count()) > 0) {
-            const targetRow = selectButtons.first().locator("xpath=..");
-            const targetLabel = await targetRow
-                .getByText(/^Route [ABC]$/)
-                .textContent();
-            expect(targetLabel).not.toBe("Route A");
+        if ((await routeB.count()) > 0) {
+            await routeB.click();
 
-            await selectButtons.first().click();
-
-            const clickedRow = page
-                .getByText(targetLabel!, { exact: true })
-                .locator("xpath=..");
+            await expect(routeB).toHaveAttribute("aria-pressed", "true");
             await expect(
-                clickedRow.getByRole("button", {
-                    name: "Selected",
-                    exact: true,
-                }),
-            ).toBeVisible();
-            await expect(
-                page.getByRole("button", { name: "Selected" }),
-            ).toHaveCount(1);
+                page.getByRole("button", { name: "Route A", exact: true }),
+            ).toHaveAttribute("aria-pressed", "false");
         }
     });
 

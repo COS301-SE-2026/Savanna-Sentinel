@@ -27,6 +27,10 @@ vi.mock("maplibre-gl", async () => {
 import * as maplibregl from "maplibre-gl";
 import * as WorkspaceMapLayersModule from "@/components/workspace/WorkspaceMapLayers";
 import * as LayerTreePanelModule from "@/components/workspace/LayerTreePanel";
+import * as useWorkspacePoisModule from "@/hooks/useWorkspacePois";
+import * as MapControlsModule from "@/components/map/MapControls";
+import * as useUserLocationModule from "@/hooks/useUserLocation";
+import * as SelectReferenceModalModule from "@/components/map/SelectReferenceModal";
 import MapPage from "@/pages/MapPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers } from "./mocks/riskHandlers";
@@ -42,6 +46,8 @@ import {
     useWorkspaceStore,
 } from "@/store/workspaceStore";
 import * as resolveModule from "@/lib/workspace/resolveVisibleFeatures";
+import type React from "react";
+import { type Poi } from "@/components/map/SelectReferenceModal";
 
 const USER_ID = "u1";
 const MOCK_LAYER = {
@@ -219,7 +225,9 @@ describe("MapPage", () => {
         });
 
         await userEvent.click(
-            screen.getByRole("checkbox", { name: /risk heatmap/i }),
+            screen.getByRole("checkbox", {
+                name: /^toggle visibility for heatmap$/i,
+            }),
         );
 
         await waitFor(() => {
@@ -328,7 +336,9 @@ describe("MapPage", () => {
 
     it("has no Patrol Route layer control until a route has been sent over", async () => {
         renderPage();
-        await screen.findByRole("checkbox", { name: /risk heatmap/i });
+        await screen.findByRole("checkbox", {
+            name: /^toggle visibility for heatmap$/i,
+        });
 
         expect(
             screen.queryByRole("checkbox", { name: /patrol route/i }),
@@ -407,6 +417,55 @@ describe("MapPage", () => {
         expect(await loadPinnedRoute(USER_ID)).toBeNull();
     });
 
+    it("selects the patrol route row and reveals its opacity slider", async () => {
+        await signInWithPinnedRoute();
+        renderPage();
+
+        expect(
+            screen.queryByLabelText(/patrol route opacity/i),
+        ).not.toBeInTheDocument();
+
+        await userEvent.click(
+            await screen.findByRole("button", { name: "Patrol Route" }),
+        );
+
+        expect(
+            await screen.findByLabelText(/patrol route opacity/i),
+        ).toBeInTheDocument();
+    });
+
+    it("flows the patrol route opacity slider through to the rendered route line", async () => {
+        await signInWithPinnedRoute();
+        const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
+        renderPage();
+
+        await waitFor(() => {
+            const ids = addLayerSpy.mock.calls.map(
+                ([layer]) => (layer as { id: string }).id,
+            );
+            expect(ids).toContain("patrol-route-0-line");
+        });
+        const map = addLayerSpy.mock.instances[0] as unknown as FakeMap;
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Patrol Route" }),
+        );
+        fireEvent.change(
+            await screen.findByLabelText(/patrol route opacity/i),
+            {
+                target: { value: "40" },
+            },
+        );
+
+        await waitFor(() =>
+            expect(map.setPaintProperty).toHaveBeenCalledWith(
+                "patrol-route-0-line",
+                "line-opacity",
+                0.4,
+            ),
+        );
+    });
+
     it("tears down cleanly on unmount", async () => {
         const addLayerSpy = vi.spyOn(maplibregl.Map.prototype, "addLayer");
         const { unmount } = renderPage();
@@ -453,6 +512,19 @@ describe("MapPage", () => {
         expect(layerButton).toHaveAttribute("aria-current", "true");
     });
 
+    it("highlights the heatmap row in the layer tree when it is clicked", async () => {
+        renderPage();
+
+        const heatmapButton = await screen.findByRole("button", {
+            name: "Heatmap",
+        });
+
+        expect(heatmapButton).not.toHaveAttribute("aria-current");
+        await userEvent.click(heatmapButton);
+
+        expect(heatmapButton).toHaveAttribute("aria-current", "true");
+    });
+
     it("selects a membership item and figures out the id", async () => {
         useWorkspaceStore.setState({
             status: "ready",
@@ -463,6 +535,9 @@ describe("MapPage", () => {
 
         renderPage();
 
+        await userEvent.click(
+            await screen.findByRole("button", { name: "Expand layer" }),
+        );
         const membershipButton = await screen.findByRole("button", {
             name: "Test feature",
         });
@@ -496,6 +571,9 @@ describe("MapPage", () => {
 
         renderPage();
 
+        await userEvent.click(
+            await screen.findByRole("button", { name: "Expand layer" }),
+        );
         const membershipButton = await screen.findByRole("button", {
             name: "Test feature",
         });
@@ -607,7 +685,7 @@ describe("MapPage", () => {
         });
     });
 
-    it("ignores map feature clicks if a feature cannot be found", async () => {
+    it("ignores map feature clicks if a feature cannot be found null version", async () => {
         let capturedOnFeatureClick: ((id: string | null) => void) | undefined;
 
         vi.spyOn(
@@ -711,5 +789,149 @@ describe("MapPage", () => {
             capturedProps.onSelectMembership(undefined as unknown as string);
         });
         expect(capturedProps.selection).toBeNull();
+    });
+
+    it("passes showReferenceButton and hasReferencePoint to MapControls and fetches POIs from useWorkspace", async () => {
+        const mockPois = [
+            { id: "poi-1", name: "Test 1", lat: -24.3, lon: 31.05 },
+        ];
+
+        vi.spyOn(useWorkspacePoisModule, "useWorkspacePois").mockReturnValue(
+            mockPois,
+        );
+
+        let capturedControlsProps: React.ComponentProps<
+            typeof MapControlsModule.MapControls
+        > | null = null;
+        vi.spyOn(MapControlsModule, "MapControls").mockImplementation(
+            (props) => {
+                capturedControlsProps = props;
+                return <div data-testid="mock-map-controls" />;
+            },
+        );
+
+        const mockSetReferencePoint = vi.fn();
+        vi.spyOn(useUserLocationModule, "useUserLocation").mockReturnValue({
+            location: null,
+            status: "needs-reference",
+            hasNoReferencePoint: true,
+            setReferencePoint: mockSetReferencePoint,
+        });
+
+        const { unmount } = renderPage();
+
+        expect(capturedControlsProps!.showReferenceButton).toBe(false);
+        expect(capturedControlsProps!.hasReferencePoint).toBe(false);
+
+        const locationToggle = await screen.findByRole("checkbox", {
+            name: /my location/i,
+        });
+        await userEvent.click(locationToggle);
+
+        await waitFor(() => {
+            expect(capturedControlsProps!.showReferenceButton).toBe(true);
+        });
+        expect(capturedControlsProps!.hasReferencePoint).toBe(false);
+
+        unmount();
+    });
+
+    it("opens SelectReferenceModal, sets reference point on POI select, and handles previewing a POI", async () => {
+        const mockPoi: Poi = {
+            id: "poi-1",
+            name: "Test 1",
+            lat: -24.3,
+            lon: 31.05,
+        };
+        vi.spyOn(useWorkspacePoisModule, "useWorkspacePois").mockReturnValue([
+            mockPoi,
+        ]);
+
+        const mockSetReferencePoint = vi.fn();
+        vi.spyOn(useUserLocationModule, "useUserLocation").mockReturnValue({
+            location: null,
+            status: "needs-reference",
+            hasNoReferencePoint: true,
+            setReferencePoint: mockSetReferencePoint,
+        });
+
+        let capturedModalProps: React.ComponentProps<
+            typeof SelectReferenceModalModule.default
+        > | null = null;
+
+        vi.spyOn(SelectReferenceModalModule, "default").mockImplementation(
+            (props) => {
+                capturedModalProps = props;
+                return <div data-testid="mock-select-reference-modal" />;
+            },
+        );
+
+        let capturedControlsProps: React.ComponentProps<
+            typeof MapControlsModule.MapControls
+        > | null = null;
+        vi.spyOn(MapControlsModule, "MapControls").mockImplementation(
+            (props) => {
+                capturedControlsProps = props;
+                return <div data-testid="mock-map-controls" />;
+            },
+        );
+
+        const addSourceSpy = vi.spyOn(maplibregl.Map.prototype, "addSource");
+
+        useWorkspaceStore.setState({
+            status: "ready",
+            layers: [MOCK_LAYER],
+            memberships: [MOCK_MEMBERSHIP],
+            features: [MOCK_FEATURE],
+        });
+
+        vi.spyOn(resolveModule, "resolveVisibleFeatures").mockReturnValue([
+            {
+                membershipId: MOCK_MEMBERSHIP.id,
+                layerId: MOCK_MEMBERSHIP.layerId,
+                z: 0,
+                feature: MOCK_FEATURE,
+                style: { colour: "#000000", opacity: 1 },
+            },
+        ]);
+
+        const { unmount } = renderPage();
+
+        await waitFor(() => expect(addSourceSpy).toHaveBeenCalled());
+        const map = addSourceSpy.mock.instances[0] as unknown as FakeMap;
+        map.flyTo = vi.fn();
+
+        expect(capturedModalProps!.open).toBe(false);
+        expect(capturedModalProps!.pois).toEqual([mockPoi]);
+
+        act(() => {
+            capturedControlsProps!.onOpenPoiModal?.();
+        });
+        expect(capturedModalProps!.open).toBe(true);
+
+        act(() => {
+            capturedModalProps!.onSelectPoi?.(mockPoi);
+        });
+
+        expect(mockSetReferencePoint).toHaveBeenCalledWith({
+            lat: -24.3,
+            lon: 31.05,
+            heading: 0,
+            accuracy: 10,
+        });
+
+        act(() => {
+            capturedModalProps!.onPreviewPoi?.(mockPoi);
+        });
+
+        expect(capturedModalProps!.open).toBe(false);
+
+        expect(map.flyTo).toHaveBeenCalledWith({
+            center: [31.05, -24.3],
+            zoom: 12,
+            duration: 800,
+        });
+
+        unmount();
     });
 });
