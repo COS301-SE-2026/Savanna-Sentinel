@@ -109,6 +109,14 @@ class TerrainRepository:
             (row.cell_ref, row.risk_delta, row.route_multiplier) for row in rows
         ]
 
+    async def get_risk_deltas(self) -> dict[str, float]:
+        rows = await self.db.execute(
+            select(_effects.c.cell_ref, _effects.c.risk_delta).where(
+                _effects.c.risk_delta != 0.0,
+            ),
+        )
+        return {row.cell_ref: row.risk_delta for row in rows}
+
     async def get_meta(self) -> dict[str, Any]:
         row = (await self.db.execute(select(_meta))).mappings().first()
         if row is None:
