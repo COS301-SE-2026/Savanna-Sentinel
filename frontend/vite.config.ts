@@ -2,12 +2,35 @@ import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
+import type { Plugin } from "vite";
+import { readFileSync } from "node:fs";
 import path from "path";
+
+function maplibreWorker(): Plugin {
+    const dist = path.resolve(__dirname, "node_modules/maplibre-gl/dist");
+    return {
+        name: "maplibre-worker",
+        apply: "build",
+        generateBundle() {
+            for (const name of [
+                "maplibre-gl-worker.mjs",
+                "maplibre-gl-shared.mjs",
+            ]) {
+                this.emitFile({
+                    type: "asset",
+                    fileName: `assets/${name}`,
+                    source: readFileSync(path.join(dist, name)),
+                });
+            }
+        },
+    };
+}
 
 export default defineConfig({
     plugins: [
         react(),
         tailwindcss(),
+        maplibreWorker(),
         VitePWA({
             strategies: "injectManifest",
             srcDir: "src",
@@ -51,7 +74,7 @@ export default defineConfig({
                 ],
             },
             injectManifest: {
-                globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+                globPatterns: ["**/*.{js,mjs,css,html,ico,png,svg,woff2}"],
                 globIgnores: ["logo.png"],
                 maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
             },
