@@ -1,3 +1,8 @@
+# V4 (2026-09-29)
+
+* Updated functional Requirements
+* Slightly modified non-functional requirements to state that a badge is no longer being used
+
 # V3 (2026-09-02)
 
 * Added updated use cases

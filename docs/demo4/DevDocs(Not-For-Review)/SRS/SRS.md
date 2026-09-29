@@ -1,4 +1,3 @@
-
 # SIGILL - Software Requirements Specifications
 
 ---
@@ -137,6 +136,7 @@ Savanna Sentinel is a standalone web-based platform. It exposes a versioned REST
 
 **NOTE:** This subsystem is included for completeness, even if they do not count towards the total use case count
 ![Authoritzation Subsystem](../use-cases/images/sav_sent_use_cases_auth_light.png)
+
 #### Use Case Scope
 
 | Use Case Number               | Starts With/Ends With                                                                                                                                                                                                                                                                                                                                                     |
@@ -279,8 +279,14 @@ Dedicated Functional Requiremnts document [here](../functional-requirements/Func
 - **R3.2.1:** The system will display a heatmap layer on the map indicating high-risk areas based on the calculated risk scores.
 - **R3.2.2:** The system will provide an interactive time range slider allowing users to select a time interval and view its corresponding risk hotspots
 - **R3.2.3:** The system will provide interactive map controls including a legend describing the heatmap scale.
-- **R3.2.4:** The system will provide interactive data filters allowing users to filter map layers by record type (e.g Incidents, Sightings, Tip-offs)
+- **R3.2.4:** The system will provide interactive data filters allowing users to filter map layers.
 - **R3.2.5:** The system will enforce role-based access control on all map data API endpoints, such that each role receives only the data it is authorised to access as defined by the RBAC policy.
+
+#### 4.3.3 - R3.3 Location Tracking
+
+* **R3.3.1:** The system will display an updating icon of the user's location on the map.
+* **R3.3.2:** The system will track the user's location using the device's motion sensors if a GPS signal cannot be located.
+* **R3.3.3:** The system will allow the user to select a known point of interest if their last known location cannot be determined.
 
 ---
 
@@ -307,7 +313,7 @@ Dedicated Functional Requiremnts document [here](../functional-requirements/Func
 
 #### 4.5.1 - R5.1: Constraint-Based Route Generation
 
-- **R5.1.1:** The Patrol Planner will accept custom user parameters, including starting point, maximum time allowed and fuel usage constraints.
+- **R5.1.1:** The Patrol Planner will accept custom user parameters.
 - **R5.1.2:** The Patrol Planner will consume the current Risk Heatmap and the supplied resource constraints to generate multiple alternative patrol routes per planning request.
 - **R5.1.3:** All route alternatives generated from a single planning request will share a common request ID and will be returned together to the requesting user.
 
@@ -350,6 +356,8 @@ Dedicated Functional Requiremnts document [here](../functional-requirements/Func
 - **R6.2.6:** Deleted field reports will be soft-deleted and retained in the database for audit purposes.
 - **R6.2.7:** The system will allow Admins to edit any field report regardless of the submitting Ranger, with the same field-level permissions defined in R6.2.2–R6.2.4.
 - **R6.2.8:** The system will allow Admins to delete any field report regardless of the submitting Ranger.
+- **R6.2.9:** The system will allow Users to leave comments on reports.
+- **R6.2.10:** The system will allow Users to change the status of reports from Unknown, Unresolved, and Resolved.
 
 #### 4.6.3 - R6.3: Synchronisation and Conflict Handling
 
@@ -450,6 +458,39 @@ Dedicated Functional Requiremnts document [here](../functional-requirements/Func
 
 ---
 
+
+
+### 4.11 - R11: Geospatial Workspace
+
+*Subsystem: Geospatial Workspace*
+
+#### 4.11.1 - R11.1: Drawing System
+
+* **R11.1.1:** The system will allow the user to draw on the map, using Polygons, Line, Freedraw, and Point objects.
+* **R11.1.2:** The system will allow the user to undo changes on newly added map elements.
+
+#### 4.11.4 - R11.2: Map Elements
+
+* **R11.2.1:** The system will allow the user to annotate map elements, including assigning labels, icons, and colours.
+* **R11.2.2:** The system will allow a buffer to be assigned to an element to display the effect it has on the surrounding area.
+* **R11.2.3:** The system will allow rules to be assigned to a map element.
+
+#### 4.11.3 - R11.3 Rule system
+
+* **R11.3.1:** The system will allow rules to be assigned to map elements. to increase/drecrease the risk associated with the area, and/or reward or punish the patrol planner for following the element
+* **R11.3.2:** The system will allow priorities to be assigned to elements, which will take precedence over any intersecting elements with a lower priority.
+* **R11.3.3:** The system will allow a buffer decay to be specified for an element, decreasing the strength of the associated rule with distance from the element.
+* **R11.3.4:** The system will allow the rules of an element to be toggled on or off without needing to modify the strength of the associated rule.
+
+#### 4.11.4 - R11.4 Layer System
+
+* **R11.4.1:** The system will allow the user to create layers, and create elements/layers as children of a layer.
+* **R11.4.2:** The system will allow the user to toggle the visibility of layers/elements
+* **R11.4.3:** The system will allow the user to move elements between layers.
+* **R11.4.4:** The system will allow the user to delete elements/layers.
+
+---
+
 ## 5. Non-Functional Requirements
 
 Dedicated Non-Functional Requiremnts document [here](<../non-functional/Non%20Functional%20Requirements.md>)
@@ -476,7 +517,7 @@ Uptime Badge on the main README page.
 
 #### 5.2.3 Performance
 
-K6 Performance test with ~90 Concurrent users performing various tasks in estimated distributions, with a badge on the main README stating the p(95) response time
+K6 Performance test with ~66 Concurrent users performing various tasks in estimated distributions.
 
 #### 5.2.4 Availability
 

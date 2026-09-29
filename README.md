@@ -81,7 +81,7 @@ The SRS contains an abridged version of the use cases, full use case documentati
 - [Deployment Diagrams (Production)](./docs/demo4/PDF/Production%20Deployment.pdf)
 - [Deplyoment Document](./docs/demo4/PDF/Deployment.pdf)
 - [Domain Model](./docs/demo4/PDF/UpdatedDomain.jpg)
-- [Functional Requirements](./docs/demo4/PDF/FunctionalRequirements.pdf)
+- [Functional Requirements](./docs/demo4/PDF/Functional%20Requirement.pdf)
 - [NFR Traceability Matrix](./docs/demo4/PDF/Non%20Functional%20Requirements%20Matrix.pdf)
 - [Non-Functional Requirements](./docs/demo4/PDF/Non%20Functional%20Requirements.pdf)
 - [Service Contracts](<https://savannasentinel.co.za/v1/openapi.json>)
