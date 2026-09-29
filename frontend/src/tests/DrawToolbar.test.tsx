@@ -413,6 +413,52 @@ describe("DrawToolbar", () => {
         expect(instance.setMode).toHaveBeenCalledWith("point");
     });
 
+    it("shows a tooltip describing a tool on hover", async () => {
+        const map = makeMap();
+        render(
+            <DrawToolbar
+                map={map as never}
+                activeLayerId="water"
+                editingFeature={null}
+                onEditingFeatureHandled={() => {}}
+                finishEditSignal={0}
+                cancelEditSignal={0}
+            />,
+        );
+
+        await userEvent.hover(
+            await screen.findByRole("button", { name: "Polygon" }),
+        );
+
+        expect(await screen.findByRole("tooltip")).toHaveTextContent(
+            "Draw a polygon",
+        );
+    });
+
+    it("tells the user to choose a layer when hovering a disabled tool", async () => {
+        const map = makeMap();
+        render(
+            <DrawToolbar
+                map={map as never}
+                activeLayerId={null}
+                editingFeature={null}
+                onEditingFeatureHandled={() => {}}
+                finishEditSignal={0}
+                cancelEditSignal={0}
+            />,
+        );
+
+        const pointButton = await screen.findByRole("button", {
+            name: "Point",
+        });
+        expect(pointButton).toBeDisabled();
+        await userEvent.hover(pointButton.parentElement as HTMLElement);
+
+        expect(await screen.findByRole("tooltip")).toHaveTextContent(
+            "Point: choose a layer first",
+        );
+    });
+
     it("marks the active tool as pressed and clears the previous tool's pressed state", async () => {
         const map = makeMap();
         render(

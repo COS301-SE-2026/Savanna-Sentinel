@@ -236,6 +236,37 @@ describe("RuleEditorDialog for a layer", () => {
         ).toEqual({ prefer: { enabled: true, strength: 0.7 } });
     });
 
+    it("offers no Reset on a top-level layer, which has nothing to inherit from", () => {
+        const { layerId } = setup();
+        useWorkspaceStore
+            .getState()
+            .setLayerDefaultRule(layerId, "avoid", { strength: 0.9 });
+        renderDialog({ kind: "layer", layerId });
+
+        expect(
+            screen.queryByRole("button", {
+                name: "Reset Avoid following strength",
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("offers Reset on a nested layer's own rule settings", () => {
+        const { layerId } = setup();
+        const childId = useWorkspaceStore
+            .getState()
+            .addLayer("Rivers", layerId);
+        useWorkspaceStore
+            .getState()
+            .setLayerDefaultRule(childId, "avoid", { strength: 0.9 });
+        renderDialog({ kind: "layer", layerId: childId });
+
+        expect(
+            screen.getByRole("button", {
+                name: "Reset Avoid following strength",
+            }),
+        ).toBeInTheDocument();
+    });
+
     it("names the layer in the title", () => {
         const { layerId } = setup();
         renderDialog({ kind: "layer", layerId });
