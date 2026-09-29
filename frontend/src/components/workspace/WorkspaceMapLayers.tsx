@@ -589,21 +589,30 @@ export function WorkspaceMapLayers({
             const lineOpacity = 0.25 + wave * 0.45;
             const circleRadius = STATIC_HALO_CIRCLE_RADIUS - 1 + wave * 2;
             const circleOpacity = 0.25 + wave * 0.25;
-            if (map.getLayer(HALO_OUTLINE)) {
-                map.setPaintProperty(HALO_OUTLINE, "line-width", lineWidth);
-                map.setPaintProperty(HALO_OUTLINE, "line-opacity", lineOpacity);
-            }
-            if (map.getLayer(HALO_POINTS)) {
-                map.setPaintProperty(
-                    HALO_POINTS,
-                    "circle-radius",
-                    circleRadius,
-                );
-                map.setPaintProperty(
-                    HALO_POINTS,
-                    "circle-opacity",
-                    circleOpacity,
-                );
+            try {
+                if (map.getLayer(HALO_OUTLINE)) {
+                    map.setPaintProperty(HALO_OUTLINE, "line-width", lineWidth);
+                    map.setPaintProperty(
+                        HALO_OUTLINE,
+                        "line-opacity",
+                        lineOpacity,
+                    );
+                }
+                if (map.getLayer(HALO_POINTS)) {
+                    map.setPaintProperty(
+                        HALO_POINTS,
+                        "circle-radius",
+                        circleRadius,
+                    );
+                    map.setPaintProperty(
+                        HALO_POINTS,
+                        "circle-opacity",
+                        circleOpacity,
+                    );
+                }
+            } catch {
+                // map was removed before this effect's cleanup ran; stop
+                return;
             }
             frameId = requestAnimationFrame(tick);
         };

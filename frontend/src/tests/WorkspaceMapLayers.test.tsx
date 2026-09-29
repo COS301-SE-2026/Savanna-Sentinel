@@ -988,6 +988,39 @@ describe("WorkspaceMapLayers", () => {
             expect(rafSpy).toHaveBeenCalled();
         });
 
+        it("does not throw when a queued pulse frame fires after the map was removed", async () => {
+            reducedMotion(false);
+            const waterId = useWorkspaceStore
+                .getState()
+                .addLayer("Water", null);
+            useWorkspaceStore.getState().setActiveLayer(waterId);
+            const created = useWorkspaceStore
+                .getState()
+                .drawFeature("point", { type: "Point", coordinates: [1, 2] });
+
+            const map = makeMap();
+            const frames: FrameRequestCallback[] = [];
+            vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) =>
+                frames.push(cb),
+            );
+
+            const { unmount } = render(
+                <WorkspaceMapLayers
+                    map={map as never}
+                    excludedFeatureId={null}
+                    selectedFeatureId={created!.featureId}
+                    onFeatureClick={() => {}}
+                />,
+            );
+            await waitFor(() => expect(frames.length).toBeGreaterThan(0));
+            await act(async () => {});
+
+            map.remove();
+
+            expect(() => frames[0](performance.now())).not.toThrow();
+            unmount();
+        });
+
         it("stops the pulsing animation once the selection is cleared", async () => {
             reducedMotion(false);
             const waterId = useWorkspaceStore
