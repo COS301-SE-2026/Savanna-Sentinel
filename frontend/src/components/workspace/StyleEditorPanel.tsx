@@ -22,6 +22,7 @@ import { BufferSection } from "./BufferSection";
 import { BufferStyleFields } from "./BufferStyleFields";
 import { InEffectSection } from "./InEffectSection";
 import { ResetButton } from "./ResetButton";
+import { ConfirmDeleteFeatureDialog } from "./ConfirmDeleteDialog";
 
 export type WorkspaceSelection =
     | { kind: "membership"; membershipId: string }
@@ -58,6 +59,8 @@ export function StyleEditorPanel({
     );
     const renameFeature = useWorkspaceStore((s) => s.renameFeature);
     const renameLayer = useWorkspaceStore((s) => s.renameLayer);
+    const deleteFeature = useWorkspaceStore((s) => s.deleteFeature);
+    const [isConfirmingDelete, setConfirmingDelete] = useState(false);
 
     if (!selection) {
         return (
@@ -70,6 +73,8 @@ export function StyleEditorPanel({
     if (selection.kind === "layer") {
         const layer = layers.find((l) => l.id === selection.layerId);
         if (!layer) return null;
+        const isLayerOverride = (prop: keyof FeatureStyle) =>
+            layer.parentId !== null && layer.defaultStyle[prop] !== undefined;
         return (
             <div className="flex h-full flex-col overflow-y-auto">
                 <div className="border-b border-color-border p-3">
@@ -91,9 +96,7 @@ export function StyleEditorPanel({
                 <StyleFields
                     title="Layer style"
                     resolved={resolveLayerChainStyle(layers, layer.id)}
-                    isOverridden={(prop) =>
-                        layer.defaultStyle[prop] !== undefined
-                    }
+                    isOverridden={isLayerOverride}
                     onChange={(patch) => setLayerDefaultStyle(layer.id, patch)}
                     onReset={(prop) =>
                         clearLayerDefaultStyleProperty(layer.id, prop)
@@ -106,9 +109,7 @@ export function StyleEditorPanel({
                     </p>
                     <BufferStyleFields
                         resolved={resolveLayerChainStyle(layers, layer.id)}
-                        isOverridden={(prop) =>
-                            layer.defaultStyle[prop] !== undefined
-                        }
+                        isOverridden={isLayerOverride}
                         onChange={(patch) =>
                             setLayerDefaultStyle(layer.id, patch)
                         }
@@ -221,6 +222,24 @@ export function StyleEditorPanel({
                     </ul>
                 </div>
             )}
+
+            <div className="mt-auto border-t border-color-border p-3">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    disabled={editingFeatureId === feature.id}
+                    onClick={() => setConfirmingDelete(true)}
+                >
+                    Delete feature
+                </Button>
+            </div>
+            <ConfirmDeleteFeatureDialog
+                open={isConfirmingDelete}
+                onOpenChange={setConfirmingDelete}
+                feature={feature}
+                onConfirm={() => deleteFeature(feature.id)}
+            />
         </div>
     );
 }
