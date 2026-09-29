@@ -31,6 +31,7 @@ PATH_CELL_REACH = 0.75
 # a stop links to cell centres and path points within these many cells
 STOP_CELL_REACH = 1.0
 STOP_PATH_REACH = 0.5
+PATH_JOIN_M = 25.0
 
 
 @lru_cache(maxsize=None)
@@ -208,10 +209,13 @@ def _path_network(
     costs: dict[str, float],
     constraints: "TerrainConstraints | None",
 ) -> tuple[list[GraphNode], list[GraphEdge], dict[str, str]]:
-    """Nodes along preferred lines, joined to each other and to their cell.
+    """Nodes along preferred lines, joined to each other and to a cell.
 
-    Moves along a line cost its prefer multiplier. Any move crossing an
-    impassable area is dropped unless a gate opens it, as on the grid.
+    Moves along a line cost its prefer multiplier. Lines whose points meet
+    within PATH_JOIN_M are joined there. Each point links to the nearest
+    cell centre it can reach, so a short bridge inside one cell still
+    reaches both banks. Any move crossing an impassable area is dropped
+    unless a gate opens it, as on the grid.
     """
     areas = (
         [(area, prep(area.area)) for area in constraints.areas]
@@ -219,6 +223,7 @@ def _path_network(
         else []
     )
     tree = STRtree([Point(cell.grid_xy) for cell in cells])
+    link_reach_m = cell_m * MAX_SNAP_CELLS
 
     def blocked(a_xy: tuple[float, float], b_xy: tuple[float, float]) -> bool:
         return bool(areas) and _crosses(
@@ -227,9 +232,22 @@ def _path_network(
             LineString([a_xy, b_xy]),
         )
 
+    def reachable_cell(xy: tuple[float, float]) -> GraphNode | None:
+        near = [
+            cells[int(index)]
+            for index in tree.query(Point(xy).buffer(link_reach_m))
+        ]
+        for cell in sorted(near, key=lambda c: math.dist(xy, c.grid_xy)):
+            if math.dist(xy, cell.grid_xy) > link_reach_m:
+                break
+            if not blocked(xy, cell.grid_xy):
+                return cell
+        return None
+
     nodes: list[GraphNode] = []
     edges: list[GraphEdge] = []
     cell_of: dict[str, str] = {}
+    line_of: list[tuple[str, int]] = []
     for line in paths:
         for part_index, part in enumerate(line.parts):
             previous = None
@@ -247,14 +265,16 @@ def _path_network(
                         grid_xy=xy,
                     ),
                 )
+                line_of.append((line.feature_id, part_index))
                 cell_of[node_id] = cell.node_id
-                if not blocked(xy, cell.grid_xy):
+                link = reachable_cell(xy)
+                if link is not None:
                     edges += _two_way(
                         node_id,
-                        cell.node_id,
+                        link.node_id,
                         xy,
-                        cell.grid_xy,
-                        costs.get(cell.node_id, 1.0),
+                        link.grid_xy,
+                        costs.get(link.node_id, 1.0),
                     )
                 if previous is not None and not blocked(previous[1], xy):
                     edges += _two_way(
@@ -265,6 +285,23 @@ def _path_network(
                         line.multiplier,
                     )
                 previous = (node_id, xy)
+
+    if not nodes:
+        return nodes, edges, cell_of
+    points = [Point(node.grid_xy) for node in nodes]
+    pairs = STRtree(points).query(
+        points,
+        predicate="dwithin",
+        distance=PATH_JOIN_M,
+    )
+    for i, j in zip(*pairs):
+        a, b = nodes[int(i)], nodes[int(j)]
+        if (
+            i < j
+            and line_of[i] != line_of[j]
+            and not blocked(a.grid_xy, b.grid_xy)
+        ):
+            edges += _two_way(a.node_id, b.node_id, a.grid_xy, b.grid_xy, 1.0)
     return nodes, edges, cell_of
 
 
