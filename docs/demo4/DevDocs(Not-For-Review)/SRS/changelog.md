@@ -2,6 +2,7 @@
 
 * Updated functional Requirements
 * Slightly modified non-functional requirements to state that a badge is no longer being used
+* Updated Use Case Diagram and Scope
 
 # V3 (2026-09-02)
 

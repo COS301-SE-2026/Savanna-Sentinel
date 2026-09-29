@@ -1,6 +1,8 @@
-# V3 
+# V3
 
 * Updated CI CD
+* Updated NFR Matrix
+* 
 
 # V2 (2026-09-02)
 
