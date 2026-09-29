@@ -14,6 +14,7 @@ from app.repositories.route_repository import (
 from app.schemas.geo import GeoPoint
 from app.schemas.route import GraphEdge, GraphNode, ParkGraph
 from app.workers.ml import route_planner
+from app.workers.ml.shortest_path import dijkstra
 from app.workers.ml.terrain_constraints import (
     ImpassableArea,
     TerrainConstraints,
@@ -912,6 +913,17 @@ def test_path_points_off_the_grid_are_skipped(grid_5x5):
     assert len(graph.cell_of) == 2
 
 
+def test_paths_wholly_off_the_grid_add_nothing(grid_5x5):
+    plain = build_park_graph(grid_5x5)
+    graph = build_park_graph(
+        grid_5x5,
+        paths=[_road((-3.0, 2.3), (-2.0, 2.3))],
+    )
+
+    assert graph.cell_of == {}
+    assert graph.edges == plain.edges
+
+
 def test_a_path_cannot_cross_an_impassable_river(grid_5x5):
     river = ImpassableArea("river", 1, _col_border(2))
     graph = build_park_graph(
@@ -935,6 +947,94 @@ def test_a_path_crosses_the_river_on_a_bridge(grid_5x5):
     ids = _path_ids(graph)
 
     assert (ids[1], ids[2]) in _pairs(graph.edges)
+
+
+def test_touching_paths_join_end_to_end(grid_5x5):
+    west = _road((0.5, 2.3), (2.0, 2.3), feature_id="west")
+    east = _road((2.002, 2.3), (3.5, 2.3), feature_id="east")
+    graph = build_park_graph(grid_5x5, paths=[west, east])
+    pairs = _pairs(graph.edges)
+
+    assert ("path-west-0-1", "path-east-0-0") in pairs
+    assert ("path-east-0-0", "path-west-0-1") in pairs
+
+
+def test_paths_further_apart_do_not_join(grid_5x5):
+    west = _road((0.5, 2.3), (2.0, 2.3), feature_id="west")
+    east = _road((2.1, 2.3), (3.5, 2.3), feature_id="east")
+    graph = build_park_graph(grid_5x5, paths=[west, east])
+
+    assert ("path-west-0-1", "path-east-0-0") not in _pairs(graph.edges)
+
+
+def test_touching_paths_do_not_join_across_a_barrier(grid_5x5):
+    west = _road((0.5, 2.3), (2.0, 2.3), feature_id="west")
+    east = _road((2.002, 2.3), (3.5, 2.3), feature_id="east")
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=TerrainConstraints(areas=[_river_at(2.001)], epsg=_EPSG),
+        paths=[west, east],
+    )
+
+    assert ("path-west-0-1", "path-east-0-0") not in _pairs(graph.edges)
+
+
+def test_a_path_point_links_to_the_nearest_cell_it_can_reach(grid_5x5):
+    x = _BASE_LEFT + 2.4 * _CELL_M
+    y = _BASE_TOP - 2.425 * _CELL_M
+    wall = ImpassableArea("wall", 1, box(x - 30, y - 30, x + 30, y + 30))
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=TerrainConstraints(areas=[wall], epsg=_EPSG),
+        paths=[_road((2.3, 2.35), feature_id="track")],
+    )
+
+    assert graph.cell_of["path-track-0-0"] == _id(2, 2)
+    assert _linked(graph, "path-track-0-0") == {_id(2, 1)}
+
+
+def _km_line(*points_km):
+    return LineString(
+        [
+            (_BASE_LEFT + x_km * _CELL_M, _BASE_TOP - y_km * _CELL_M)
+            for x_km, y_km in points_km
+        ],
+    )
+
+
+def test_a_short_bridge_over_a_winding_river_carries_the_road(grid_5x5):
+    river = ImpassableArea(
+        "river",
+        1,
+        _km_line(
+            (2.15, 0.0),
+            (2.15, 2.3),
+            (2.3, 2.3),
+            (2.3, 2.1),
+            (2.45, 2.1),
+            (2.45, 5.0),
+        ),
+    )
+    bridge = _km_line((2.12, 2.2), (2.18, 2.2))
+    constraints = TerrainConstraints(
+        areas=[river],
+        gates={"river": [bridge]},
+        gate_reach_m=_CELL_M / 2,
+        epsg=_EPSG,
+    )
+    graph = build_park_graph(
+        grid_5x5,
+        constraints=constraints,
+        paths=[
+            _road((0.5, 2.2), (1.5, 2.2), (2.12, 2.2), feature_id="west"),
+            _road((2.12, 2.2), (2.18, 2.2), feature_id="bridge"),
+            _road((2.18, 2.2), (2.2, 1.5), (3.5, 1.5), feature_id="east"),
+        ],
+    )
+
+    fastest = dijkstra(graph, "path-west-0-0", ["path-east-0-2"])
+
+    assert "path-bridge-0-0" in fastest["path-east-0-2"].path
 
 
 def test_stops_snap_to_cells_not_path_points(grid_5x5):
