@@ -150,7 +150,13 @@ def make_line_graph() -> ParkGraph:
 
 def test_covered_nodes_includes_direct_graph_neighbors():
     graph = make_line_graph()
-    assert route_planner.covered_nodes(graph, ["p2"]) == {"p1", "p2", "p3"}
+    assert route_planner.covered_nodes(graph, ["p4"]) == {"p4", "p5"}
+
+
+def test_covered_nodes_counts_a_high_risk_cell_only_when_entered():
+    graph = make_line_graph()
+    assert "p3" not in route_planner.covered_nodes(graph, ["p2"])
+    assert route_planner.covered_nodes(graph, ["p3"]) == {"p2", "p3", "p4"}
 
 
 def test_covered_nodes_excludes_nodes_two_hops_away():
@@ -164,6 +170,72 @@ def test_covered_nodes_unions_neighbors_across_the_whole_path():
     graph = make_line_graph()
     covered = route_planner.covered_nodes(graph, ["p1", "p5"])
     assert covered == {"p1", "p2", "p4", "p5"}
+
+
+def _without_move(graph, a, b):
+    """Graph with the a-b move blocked but a and b still grid neighbours."""
+    return ParkGraph(
+        park_id=graph.park_id,
+        nodes=graph.nodes,
+        edges=[
+            e
+            for e in graph.edges
+            if {e.from_node_id, e.to_node_id} != {a, b}
+        ],
+        neighbor_edges=graph.edges,
+    )
+
+
+def test_covered_nodes_sees_across_a_line_barrier():
+    graph = _without_move(make_line_graph(), "p4", "p5")
+    assert route_planner.covered_nodes(graph, ["p4"]) == {"p4", "p5"}
+
+
+def test_covered_nodes_ignores_blocked_moves_when_no_neighbor_edges():
+    full = make_line_graph()
+    graph = ParkGraph(
+        park_id=full.park_id,
+        nodes=full.nodes,
+        edges=[
+            e
+            for e in full.edges
+            if {e.from_node_id, e.to_node_id} != {"p2", "p3"}
+        ],
+    )
+    assert route_planner.covered_nodes(graph, ["p2"]) == {"p1", "p2"}
+
+
+def test_covered_nodes_never_includes_removed_cells():
+    full = make_line_graph()
+    kept = [n for n in full.nodes if n.node_id != "p3"]
+    remaining = [
+        e for e in full.edges if "p3" not in (e.from_node_id, e.to_node_id)
+    ]
+    graph = ParkGraph(
+        park_id=full.park_id,
+        nodes=kept,
+        edges=remaining,
+        neighbor_edges=remaining,
+    )
+    assert route_planner.covered_nodes(graph, ["p2"]) == {"p1", "p2"}
+
+
+def test_risk_coverage_counts_hotspots_across_a_line_barrier():
+    full = make_line_graph()
+    nodes = [
+        GraphNode(
+            node_id=n.node_id,
+            location=n.location,
+            risk_score=0.4 if n.node_id == "p3" else 0.0,
+        )
+        for n in full.nodes
+    ]
+    graph = _without_move(
+        ParkGraph(park_id=full.park_id, nodes=nodes, edges=full.edges),
+        "p2",
+        "p3",
+    )
+    assert route_planner.compute_risk_coverage(graph, ["p1", "p2"]) == 1.0
 
 
 def _stops(graph, threshold=None):
@@ -410,6 +482,126 @@ def test_build_waypoint_distance_matrix_omits_unreachable_pairs():
     assert ("a", "isolated") not in matrix
     assert ("isolated", "a") not in matrix
     assert matrix[("a", "b")].time_min == pytest.approx(1.0)
+
+
+def _line_graph_with_terrain(terrain_key, slow_edge_min=3.0):
+    """Line graph whose p2-p3 move costs slow_edge_min, under terrain_key."""
+    base = make_line_graph()
+    edges = [
+        GraphEdge(
+            e.from_node_id,
+            e.to_node_id,
+            distance_km=e.distance_km,
+            est_time_min=(
+                slow_edge_min
+                if {e.from_node_id, e.to_node_id} == {"p2", "p3"}
+                else e.est_time_min
+            ),
+        )
+        for e in base.edges
+    ]
+    return ParkGraph(
+        park_id=base.park_id,
+        nodes=base.nodes,
+        edges=edges,
+        terrain_key=terrain_key,
+    )
+
+
+@pytest.fixture
+def empty_path_cache():
+    route_planner.clear_path_cache()
+    yield
+    route_planner.clear_path_cache()
+
+
+def test_distance_matrix_reuses_paths_for_the_same_terrain(empty_path_cache):
+    first = _line_graph_with_terrain("v1:a")
+    route_planner.build_waypoint_distance_matrix(first, ["p1", "p5"])
+
+    same_key = _line_graph_with_terrain("v1:a", slow_edge_min=30.0)
+    matrix = route_planner.build_waypoint_distance_matrix(
+        same_key,
+        ["p1", "p5"],
+    )
+
+    assert matrix[("p1", "p5")].time_min == pytest.approx(12.0)
+
+
+def test_distance_matrix_recomputes_when_the_terrain_changes(
+    empty_path_cache,
+):
+    before = _line_graph_with_terrain("v1:a")
+    route_planner.build_waypoint_distance_matrix(before, ["p1", "p5"])
+
+    after = _line_graph_with_terrain("v2:b", slow_edge_min=30.0)
+    matrix = route_planner.build_waypoint_distance_matrix(after, ["p1", "p5"])
+
+    assert matrix[("p1", "p5")].time_min == pytest.approx(39.0)
+
+
+def test_distance_matrix_does_not_reuse_a_path_a_barrier_removed(
+    empty_path_cache,
+):
+    open_graph = _line_graph_with_terrain("v1:a")
+    route_planner.build_waypoint_distance_matrix(open_graph, ["p1", "p5"])
+
+    base = make_line_graph()
+    split = ParkGraph(
+        park_id=base.park_id,
+        nodes=base.nodes,
+        edges=[
+            e
+            for e in base.edges
+            if {e.from_node_id, e.to_node_id} != {"p2", "p3"}
+        ],
+        terrain_key="v2:river",
+    )
+    matrix = route_planner.build_waypoint_distance_matrix(split, ["p1", "p5"])
+
+    assert ("p1", "p5") not in matrix
+
+
+def test_path_cache_keeps_only_the_newest_terrains(empty_path_cache):
+    limit = route_planner.MAX_CACHED_TERRAINS
+    for version in range(limit + 1):
+        graph = _line_graph_with_terrain(f"v{version}")
+        route_planner.build_waypoint_distance_matrix(graph, ["p1", "p2"])
+
+    assert list(route_planner._PATH_CACHE) == [
+        f"v{version}" for version in range(1, limit + 1)
+    ]
+
+
+def test_path_cache_reusing_a_terrain_keeps_it(empty_path_cache):
+    limit = route_planner.MAX_CACHED_TERRAINS
+    for version in range(limit):
+        graph = _line_graph_with_terrain(f"v{version}")
+        route_planner.build_waypoint_distance_matrix(graph, ["p1", "p2"])
+
+    route_planner.build_waypoint_distance_matrix(
+        _line_graph_with_terrain("v0"),
+        ["p1", "p2"],
+    )
+    route_planner.build_waypoint_distance_matrix(
+        _line_graph_with_terrain("new"),
+        ["p1", "p2"],
+    )
+
+    assert "v0" in route_planner._PATH_CACHE
+    assert "v1" not in route_planner._PATH_CACHE
+
+
+def test_clear_path_cache_drops_every_terrain(empty_path_cache):
+    for key in ("v1:a", "v2:b"):
+        route_planner.build_waypoint_distance_matrix(
+            _line_graph_with_terrain(key),
+            ["p1", "p2"],
+        )
+
+    route_planner.clear_path_cache()
+
+    assert route_planner._PATH_CACHE == {}
 
 
 # Check if init uses tau max
@@ -963,20 +1155,24 @@ def test_compute_risk_coverage_no_high_risk_nodes_within_coverage_radius():
     assert coverage == pytest.approx(0.0)
 
 
-def test_compute_risk_coverage_counts_high_risk_neighbor_within_one_hop():
-    """p3 (0.9) is adjacent to p2 - covered without being on the path."""
+def test_compute_risk_coverage_needs_to_enter_a_high_risk_cell():
+    """p3 (0.9) is High: passing next to it is not enough."""
     graph = make_line_graph()
-    coverage = route_planner.compute_risk_coverage(
+    beside = route_planner.compute_risk_coverage(
         graph, path=["p2"], threshold=0.5,
     )
-    assert coverage == pytest.approx(1.0)
+    inside = route_planner.compute_risk_coverage(
+        graph, path=["p3"], threshold=0.5,
+    )
+    assert beside == pytest.approx(0.0)
+    assert inside == pytest.approx(1.0)
 
 
 def test_compute_risk_coverage_counts_medium_cells_by_default():
     """p4 (0.4) is shown as Medium on the map, so it must count too."""
     graph = make_line_graph()
-    coverage = route_planner.compute_risk_coverage(graph, path=["p2"])
-    assert coverage == pytest.approx(0.9 / 1.3)
+    coverage = route_planner.compute_risk_coverage(graph, path=["p4"])
+    assert coverage == pytest.approx(0.4 / 1.3)
 
 
 def test_compute_risk_coverage_weights_cells_by_risk():
@@ -1051,16 +1247,16 @@ def test_compute_risk_coverage_respects_custom_threshold():
     graph = make_line_graph()
     coverage_default = route_planner.compute_risk_coverage(
         graph,
-        path=["p2"],
+        path=["p4"],
         threshold=0.5,
     )
     coverage_lower = route_planner.compute_risk_coverage(
         graph,
-        path=["p2"],
+        path=["p4"],
         threshold=0.3,
     )
-    assert coverage_default == pytest.approx(1.0)
-    assert coverage_lower == pytest.approx(0.9 / 1.3)
+    assert coverage_default == pytest.approx(0.0)
+    assert coverage_lower == pytest.approx(0.4 / 1.3)
 
 
 def test_plan_routes_uses_normalized_coverage_not_raw_search_sum(monkeypatch):
@@ -1770,10 +1966,10 @@ _LOOPED = ["a0", "a1", "a2", "a3", "b3", "c2", "b1", "b0"]
 
 
 def test_fold_spurs_retraces_a_detour_that_came_back_another_way():
-    graph = _strip_graph({"a3": 0.9})
+    graph = _strip_graph({"a3": 0.4})
     weights = route_planner._hotspot_weights(graph)
 
-    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.9, [], 0.0)
+    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.4, [], 0.0)
 
     assert folded == ["a0", "a1", "a2", "a1", "a0", "b0"]
 
@@ -1808,10 +2004,10 @@ def test_fold_spurs_keeps_a_return_leg_that_covers_needed_risk():
 
 
 def test_fold_spurs_drops_a_return_leg_the_target_can_spare():
-    graph = _strip_graph({"a3": 0.9, "c2": 0.3})
+    graph = _strip_graph({"a3": 0.4, "c2": 0.3})
     weights = route_planner._hotspot_weights(graph)
 
-    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.9, [], 0.0)
+    folded = route_planner._fold_spurs(graph, _LOOPED, weights, 0.4, [], 0.0)
 
     assert folded == ["a0", "a1", "a2", "a1", "a0", "b0"]
 
@@ -2563,6 +2759,125 @@ def test_plan_routes_via_fails_when_any_leg_has_no_route(monkeypatch):
     assert plan.shortfall == route_planner.NO_TOUR_FOUND
 
 
+@pytest.fixture
+def split_line_graph():
+    """Line graph p1..p5 with the p2-p3 move blocked by a barrier."""
+    route_planner.clear_path_cache()
+    base = make_line_graph()
+    yield ParkGraph(
+        park_id=base.park_id,
+        nodes=base.nodes,
+        edges=[
+            e
+            for e in base.edges
+            if {e.from_node_id, e.to_node_id} != {"p2", "p3"}
+        ],
+        neighbor_edges=base.edges,
+        terrain_key="split",
+    )
+    route_planner.clear_path_cache()
+
+
+def _no_phases(*args, **kwargs):
+    raise AssertionError("planning should stop before any phase runs")
+
+
+def test_plan_routes_reports_a_barrier_between_start_and_end(
+    split_line_graph,
+    monkeypatch,
+):
+    monkeypatch.setattr(route_planner, "run_phase", _no_phases)
+
+    plan = route_planner.plan_routes(
+        split_line_graph,
+        "p1",
+        "p5",
+        3,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.routes == []
+    assert plan.shortfall == route_planner.BLOCKED_BY_NO_GO
+
+
+def test_plan_routes_on_one_side_of_a_barrier_still_plans(split_line_graph):
+    plan = route_planner.plan_routes(
+        split_line_graph,
+        "p3",
+        "p5",
+        1,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.routes
+    assert plan.shortfall != route_planner.BLOCKED_BY_NO_GO
+    assert plan.routes[0].suggested_path[0] == "p3"
+    assert plan.routes[0].suggested_path[-1] == "p5"
+
+
+def test_plan_routes_loop_is_never_reported_as_blocked(split_line_graph):
+    plan = route_planner.plan_routes(
+        split_line_graph,
+        "p1",
+        "p1",
+        1,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.shortfall != route_planner.BLOCKED_BY_NO_GO
+
+
+def test_plan_routes_via_reports_a_barrier_on_any_leg(
+    split_line_graph,
+    monkeypatch,
+):
+    def fail(*args, **kwargs):
+        raise AssertionError("no leg should be planned")
+
+    monkeypatch.setattr(route_planner, "plan_routes", fail)
+
+    plan = route_planner.plan_routes_via(
+        split_line_graph,
+        ["p1", "p2", "p5"],
+        3,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.routes == []
+    assert plan.shortfall == route_planner.BLOCKED_BY_NO_GO
+
+
+def test_plan_routes_via_with_two_blocked_stops_reports_the_barrier(
+    split_line_graph,
+):
+    plan = route_planner.plan_routes_via(
+        split_line_graph,
+        ["p2", "p4"],
+        3,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.routes == []
+    assert plan.shortfall == route_planner.BLOCKED_BY_NO_GO
+
+
+def test_plan_routes_via_on_one_side_of_a_barrier_still_plans(
+    split_line_graph,
+):
+    plan = route_planner.plan_routes_via(
+        split_line_graph,
+        ["p3", "p4", "p5"],
+        1,
+        route_planner.ACOConfig(seed=7),
+    )
+
+    assert plan.routes
+    path = plan.routes[0].suggested_path
+    assert path[0] == "p3"
+    assert path[-1] == "p5"
+    assert "p4" in path
+
+
 def test_stitch_legs_falls_back_to_a_short_legs_best_route():
     legs = [
         route_planner.RoutePlan(routes=[_leg(["start", "mid"])]),
@@ -2587,3 +2902,210 @@ def test_assign_hotspots_to_legs_picks_the_smallest_detour():
     assert route_planner.assign_hotspots_to_legs(
         matrix, ["a", "b", "c"], ["h"],
     ) == [["h"], []]
+
+
+
+def _chain_matrix():
+    """Return times where r fits the first leg alone but chains before p."""
+    times = {
+        ("a", "b"): 6, ("a", "r"): 4, ("r", "b"): 4,
+        ("b", "c"): 10, ("b", "r"): 5, ("r", "c"): 12,
+        ("b", "p"): 6, ("p", "c"): 5, ("r", "p"): 1, ("p", "r"): 1,
+        ("a", "p"): 20, ("p", "b"): 20,
+    }
+    return {pair: PathResult(t, list(pair)) for pair, t in times.items()}
+
+
+def test_assign_hotspots_to_legs_chains_a_hotspot_with_its_neighbours():
+    legs = route_planner.assign_hotspots_to_legs(
+        _chain_matrix(), ["a", "b", "c"], ["r", "p"],
+    )
+
+    assert legs == [[], ["r", "p"]]
+
+
+def test_assign_hotspots_to_legs_skips_an_unreachable_hotspot():
+    legs = route_planner.assign_hotspots_to_legs(
+        _chain_matrix(), ["a", "b", "c"], ["nowhere"],
+    )
+
+    assert legs == [[], []]
+
+
+def _hub_graph():
+    """Build a strip whose Medium zone holds an off-centre High cell."""
+    risks = {"h0": 0.3, "h1": 0.3, "h2": 0.6}
+    nodes = [
+        GraphNode(
+            node_id=node_id,
+            location=GeoPoint(coordinates=(0.01 * i, 0.0)),
+            risk_score=risk,
+        )
+        for i, (node_id, risk) in enumerate(risks.items())
+    ]
+    pairs = [("h0", "h1"), ("h1", "h2")]
+    edges = [GraphEdge(x, y, 1.0, 3.0) for x, y in pairs] + [
+        GraphEdge(y, x, 1.0, 3.0) for x, y in pairs
+    ]
+    return ParkGraph(park_id="hubs", nodes=nodes, edges=edges)
+
+
+def test_hub_candidates_add_every_high_risk_cell_as_a_stop():
+    graph = _hub_graph()
+    zone_stops = [stop for stop, _ in route_planner.hotspot_zones(graph)]
+
+    candidates = route_planner.hub_candidates(graph)
+
+    stops = [stop for stop, _ in candidates]
+    assert stops[: len(zone_stops)] == zone_stops
+    assert "h2" in stops
+    assert stops.count("h2") == 1
+
+
+def test_hub_candidates_leave_medium_cells_to_their_zone():
+    graph = _hub_graph()
+    zone_stops = {stop for stop, _ in route_planner.hotspot_zones(graph)}
+
+    extra = [
+        stop
+        for stop, _ in route_planner.hub_candidates(graph)
+        if stop not in zone_stops
+    ]
+
+    assert set(extra) <= {"h2"}
+
+
+def test_inside_a_high_risk_block_covers_the_block_next_to_it():
+    risks = {"b0": 0.1, "b1": 0.6, "b2": 0.9, "b3": 0.6}
+    nodes = [
+        GraphNode(
+            node_id=node_id,
+            location=GeoPoint(coordinates=(0.01 * i, 0.0)),
+            risk_score=risk,
+        )
+        for i, (node_id, risk) in enumerate(risks.items())
+    ]
+    pairs = [("b0", "b1"), ("b1", "b2"), ("b2", "b3")]
+    edges = [GraphEdge(x, y, 1.0, 3.0) for x, y in pairs] + [
+        GraphEdge(y, x, 1.0, 3.0) for x, y in pairs
+    ]
+    graph = ParkGraph(park_id="block", nodes=nodes, edges=edges)
+
+    assert route_planner.covered_nodes(graph, ["b2"]) == {"b1", "b2", "b3"}
+    assert route_planner.covered_nodes(graph, ["b0"]) == {"b0"}
+
+
+def test_a_path_point_inside_a_high_risk_cell_enters_it():
+    graph = _hub_graph()
+    graph.nodes.append(
+        GraphNode(
+            node_id="path-road-0-0",
+            location=GeoPoint(coordinates=(0.02, 0.0)),
+            risk_score=0.0,
+        ),
+    )
+    graph.cell_of["path-road-0-0"] = "h2"
+
+    assert "h2" in route_planner.covered_nodes(graph, ["path-road-0-0"])
+    assert "h2" not in route_planner.covered_nodes(graph, ["h1"])
+
+
+# straighten_path
+
+
+def _straighten_graph(hot=None, risk=0.4):
+    """a-b-c with an a-c shortcut, and d hanging off b.
+
+    d is only covered by passing b, so the detour through b is worth it
+    exactly when d is a hotspot.
+    """
+    ids = ["a", "b", "c", "d"]
+    nodes = [
+        GraphNode(
+            node_id=node_id,
+            location=GeoPoint(coordinates=(0.01 * i, 0.0)),
+            risk_score=risk if node_id == hot else 0.0,
+        )
+        for i, node_id in enumerate(ids)
+    ]
+    pairs = [("a", "b", 1.0), ("b", "c", 1.0), ("a", "c", 1.5), ("b", "d", 1.0)]
+    edges = [GraphEdge(x, y, 1.0, t) for x, y, t in pairs] + [
+        GraphEdge(y, x, 1.0, t) for x, y, t in pairs
+    ]
+    grid = [e for e in edges if {e.from_node_id, e.to_node_id} != {"a", "c"}]
+    return ParkGraph(
+        park_id="straighten",
+        nodes=nodes,
+        edges=edges,
+        neighbor_edges=grid,
+        terrain_key=f"straighten-{hot}-{risk}",
+    )
+
+
+def test_straighten_takes_a_faster_way_that_covers_the_same():
+    graph = _straighten_graph()
+
+    assert route_planner.straighten_path(graph, ["a", "b", "c"]) == ["a", "c"]
+
+
+def test_straighten_keeps_a_detour_that_covers_a_hotspot():
+    graph = _straighten_graph(hot="d")
+
+    assert route_planner.straighten_path(graph, ["a", "b", "c"]) == [
+        "a",
+        "b",
+        "c",
+    ]
+
+
+def test_straighten_drops_a_detour_beside_a_high_risk_cell():
+    graph = _straighten_graph(hot="d", risk=0.9)
+
+    assert route_planner.straighten_path(graph, ["a", "b", "c"]) == ["a", "c"]
+
+
+def test_straighten_keeps_a_route_distinct_from_another():
+    graph = _straighten_graph()
+
+    straightened = route_planner.straighten_path(
+        graph,
+        ["a", "b", "c"],
+        avoid=[["a", "c"]],
+        min_distance=0.05,
+    )
+
+    assert straightened == ["a", "b", "c"]
+
+
+def test_straighten_never_collapses_a_loop():
+    graph = _straighten_graph()
+
+    assert route_planner.straighten_path(graph, ["a", "b", "a"]) == [
+        "a",
+        "b",
+        "a",
+    ]
+
+
+def test_straighten_leaves_short_paths_alone():
+    graph = _straighten_graph()
+
+    assert route_planner.straighten_path(graph, ["a", "c"]) == ["a", "c"]
+
+
+def test_plan_routes_straightens_the_routes_it_returns(
+    monkeypatch,
+    empty_path_cache,
+):
+    graph = _straighten_graph()
+    _phase_stub(monkeypatch, [(["a", "b", "c"], 0.0)] * 6)
+
+    plan = route_planner.plan_routes(
+        graph,
+        "a",
+        "c",
+        1,
+        _three_phase_config(),
+    )
+
+    assert plan.routes[0].suggested_path == ["a", "c"]

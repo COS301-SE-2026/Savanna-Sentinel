@@ -331,3 +331,100 @@ async def test_get_routes_success_paginates_results(
     assert result.total == 5
     assert result.page == 2
     assert result.page_size == 2
+
+
+# get_routes - terrain staleness
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stale", [True, False])
+@patch("app.services.route_service.celery_app")
+@patch("app.services.route_service.run_route_planning_job")
+async def test_get_routes_reports_whether_the_terrain_was_stale(
+    mock_run_task,
+    mock_celery_app,
+    stale,
+    db_session,
+):
+    generated = await generate_route_job(
+        db_session,
+        _FakeUser(),
+        _make_request(),
+    )
+    mock_celery_app.AsyncResult.return_value = MagicMock(
+        state="SUCCESS",
+        result={
+            "results": [],
+            "num_alternatives_requested": 3,
+            "num_alternatives_found": 0,
+            "shortfall_reason": "blocked_by_no_go",
+            "terrain_stale": stale,
+        },
+    )
+
+    result = await get_routes(
+        db_session,
+        _FakeUser(),
+        request_id=generated.job_id,
+    )
+
+    assert result.terrain_stale is stale
+    assert result.shortfall_reason == "blocked_by_no_go"
+
+
+@pytest.mark.asyncio
+@patch("app.services.route_service.celery_app")
+@patch("app.services.route_service.run_route_planning_job")
+async def test_get_routes_terrain_stale_is_unknown_for_older_results(
+    mock_run_task,
+    mock_celery_app,
+    db_session,
+):
+    generated = await generate_route_job(
+        db_session,
+        _FakeUser(),
+        _make_request(),
+    )
+    mock_celery_app.AsyncResult.return_value = MagicMock(
+        state="SUCCESS",
+        result={
+            "results": [],
+            "num_alternatives_requested": 3,
+            "num_alternatives_found": 0,
+        },
+    )
+
+    result = await get_routes(
+        db_session,
+        _FakeUser(),
+        request_id=generated.job_id,
+    )
+
+    assert result.terrain_stale is None
+
+
+@pytest.mark.asyncio
+@patch("app.services.route_service.celery_app")
+@patch("app.services.route_service.run_route_planning_job")
+async def test_get_routes_terrain_stale_is_unknown_while_processing(
+    mock_run_task,
+    mock_celery_app,
+    db_session,
+):
+    generated = await generate_route_job(
+        db_session,
+        _FakeUser(),
+        _make_request(),
+    )
+    mock_celery_app.AsyncResult.return_value = MagicMock(
+        state="STARTED",
+        result=None,
+    )
+
+    result = await get_routes(
+        db_session,
+        _FakeUser(),
+        request_id=generated.job_id,
+    )
+
+    assert result.terrain_stale is None

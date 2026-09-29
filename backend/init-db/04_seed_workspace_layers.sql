@@ -39,3 +39,28 @@ INSERT INTO public.workspace_memberships (id,feature_id,layer_id,display_order,s
 	 ('ca9bc828-ced9-4adf-8e62-6bb207ffffbb'::uuid,'032d5913-fc8f-45f5-a307-c05eba82bda9'::uuid,'88b9e378-9bff-4003-9073-ecc7c03d5674'::uuid,10,'{"icon": "binoculars", "label": "Elephant herd", "colour": "#009193", "icon_colour": "#009193", "buffer_colour": "#06b050", "buffer_opacity": 0.24}'),
 	 ('7b405420-c3ad-4be7-ae74-350fde67e35d'::uuid,'0a7f2818-3bf8-4ed9-b591-6892a2126958'::uuid,'88b9e378-9bff-4003-9073-ecc7c03d5674'::uuid,15,'{"icon": "tent", "label": "Ranger outpost", "colour": "#06b050", "icon_colour": "#06b050"}');
 
+INSERT INTO public.workspace_features (id,feature_type,name,geometry,in_effect,buffer_enabled,buffer_distance_m,rules,created_at,updated_at) VALUES
+	 ('5f72d19c-3016-46e6-9591-07a68415581d'::uuid,'point'::public.workspace_feature_type,'Main Road Bridge','{"type": "Point", "coordinates": [31.144496809, -24.204771374]}',true,true,250.0,'{"prefer": {"priority": 2}}','2026-09-28 17:30:00+02','2026-09-28 17:30:00+02');
+
+INSERT INTO public.workspace_memberships (id,feature_id,layer_id,display_order,style_override) VALUES
+	 ('560535eb-2980-432a-900c-407c0a2711c1'::uuid,'5f72d19c-3016-46e6-9591-07a68415581d'::uuid,'88b9e378-9bff-4003-9073-ecc7c03d5674'::uuid,16,'{"icon": "route", "label": "Main Road Bridge", "colour": "#926000", "icon_colour": "#926000"}');
+
+UPDATE public.workspace_features
+SET rules = '{"avoid": {"strength": 1.0, "priority": 1}}'
+WHERE id IN (
+	'd9eaf372-7256-4990-acb0-764a3791492b'::uuid,
+	'ad3e187a-3cb5-4d79-936c-b24f8c531d9e'::uuid
+);
+
+UPDATE public.workspace_features
+SET rules = '{"prefer": {"strength": 1.0, "priority": 1}}'
+WHERE id = 'a119239b-a1ba-4c7a-a716-c60545c58626'::uuid;
+
+UPDATE public.workspace_features
+SET rules = '{"prefer": {"strength": 0.8, "priority": 1}}'
+WHERE id IN (
+	'814e2d66-277d-400d-a7f3-bac85d199b23'::uuid,
+	'a885c6f6-05cd-48f2-a089-d04f5e3509c4'::uuid,
+	'cfebf0fb-e349-4dd8-824e-347684075fd5'::uuid,
+	'40c07c1c-62b8-43c6-922f-51f9fdac8b49'::uuid
+);

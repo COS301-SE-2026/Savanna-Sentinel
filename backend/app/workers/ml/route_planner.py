@@ -3,8 +3,10 @@ import random
 from collections import Counter
 from dataclasses import dataclass, replace
 
+from shapely.geometry import LineString
+
 from app.schemas.geo import GeoLineString
-from app.schemas.route import ParkGraph, PlannedRoute
+from app.schemas.route import GraphEdge, ParkGraph, PlannedRoute
 from app.workers.ml.path_smoothing import smooth_route
 from app.workers.ml.shortest_path import PathResult, dijkstra
 
@@ -54,32 +56,62 @@ def _node_risk(graph: ParkGraph) -> dict[str, float]:
 
 
 def _coverage_neighbors(graph: ParkGraph) -> dict[str, frozenset[str]]:
-    """node_id -> itself plus every node directly graph-adjacent to it.
 
-    Since this graph's edges are built from grid adjacency (see
-    route_repository._load_grid), a node's direct neighbours are its
-    geometric surroundings. Used as a patrol-presence/deterrence coverage
-    radius: a cell counts as covered if the route passes adjacent to it.
-
-    This is a documented simplification, and not specifically final.
-    """
     cached = getattr(graph, "_coverage_neighbors_cache", None)
     if cached is None:
+        adjacency = (
+            graph.edges
+            if graph.neighbor_edges is None
+            else graph.neighbor_edges
+        )
         undirected: dict[str, set[str]] = {}
-        for e in graph.edges:
+        for e in adjacency:
             undirected.setdefault(e.from_node_id, set()).add(e.to_node_id)
             undirected.setdefault(e.to_node_id, set()).add(e.from_node_id)
         cached = {
             n.node_id: frozenset({n.node_id} | undirected.get(n.node_id, set()))
             for n in graph.nodes
         }
+        for node_id, cell in graph.cell_of.items():
+            cached[node_id] = cached[cell] | {node_id}
         graph._coverage_neighbors_cache = cached
+    return cached
+
+
+# the map's High and Critical bands: a route has to get into these, lower
+# bands count from the cell next door
+ENTER_RISK = 0.5
+
+
+def _coverage_sets(graph: ParkGraph) -> dict[str, frozenset[str]]:
+    """node_id -> the cells a route covers by passing through that node.
+
+    A neighbour counts unless it is High or Critical. Those only count once
+    the route is inside a High or Critical block, which then covers the
+    block's cells next to it, so passing through a block covers it without
+    having to circle every cell.
+    """
+    cached = getattr(graph, "_coverage_sets_cache", None)
+    if cached is None:
+        risk = _node_risk(graph)
+        cached = {}
+        for node_id, cells in _coverage_neighbors(graph).items():
+            own = graph.cell_of.get(node_id, node_id)
+            inside = risk.get(own, 0.0) >= ENTER_RISK
+            cached[node_id] = frozenset(
+                c
+                for c in cells
+                if c in (node_id, own)
+                or inside
+                or risk.get(c, 0.0) < ENTER_RISK
+            )
+        graph._coverage_sets_cache = cached
     return cached
 
 
 def covered_nodes(graph: ParkGraph, path: list[str]) -> frozenset[str]:
     """Every node covered by a path: the path's nodes plus their neighbours."""
-    neighbors = _coverage_neighbors(graph)
+    neighbors = _coverage_sets(graph)
     covered: set[str] = set()
     for node_id in path:
         covered |= neighbors.get(node_id, {node_id})
@@ -108,7 +140,11 @@ def high_risk_threshold(
     """
     cached = getattr(graph, "_high_risk_threshold_cache", None)
     if cached is None:
-        scores = sorted(_node_risk(graph).values())
+        scores = sorted(
+            score
+            for node_id, score in _node_risk(graph).items()
+            if node_id not in graph.cell_of
+        )
         cached = absolute
         if scores and scores[-1] < absolute:
             index = min(int(quantile * len(scores)), len(scores) - 1)
@@ -206,7 +242,25 @@ def hotspot_zones(
     return zones
 
 
-_PATH_CACHE: dict[tuple[str, str], PathResult | None] = {}
+def hub_candidates(graph: ParkGraph) -> list[tuple[str, list[str]]]:
+    zones = hotspot_zones(graph)
+    stops = {stop for stop, _ in zones}
+    threshold = max(ENTER_RISK, high_risk_threshold(graph))
+    must_enter = sorted(
+        (
+            n
+            for n in graph.nodes
+            if n.node_id not in graph.cell_of
+            and n.node_id not in stops
+            and n.risk_score >= threshold
+        ),
+        key=lambda n: -n.risk_score,
+    )
+    return zones + [(n.node_id, [n.node_id]) for n in must_enter]
+
+
+_PATH_CACHE: dict[str, dict[tuple[str, str], PathResult | None]] = {}
+MAX_CACHED_TERRAINS = 4
 
 
 def clear_path_cache() -> None:
@@ -214,31 +268,37 @@ def clear_path_cache() -> None:
     _PATH_CACHE.clear()
 
 
+def _cached_paths(terrain_key: str) -> dict[tuple[str, str], PathResult | None]:
+    paths = _PATH_CACHE.pop(terrain_key, None)
+    if paths is None:
+        paths = {}
+        while len(_PATH_CACHE) >= MAX_CACHED_TERRAINS:
+            del _PATH_CACHE[next(iter(_PATH_CACHE))]
+    _PATH_CACHE[terrain_key] = paths
+    return paths
+
+
 def build_waypoint_distance_matrix(
     graph: ParkGraph,
     node_ids: list[str],
 ) -> dict[tuple[str, str], PathResult]:
-    """All-pairs shortest paths among the hub nodes.
 
-    Shortest paths depend only on the grid, not on the risk scores that
-    change per request, so results are cached across requests and
-    invalidated by route_repository.invalidate_grid_cache.
-    """
+    paths = _cached_paths(graph.terrain_key)
     matrix: dict[tuple[str, str], PathResult] = {}
     for source in node_ids:
         missing = [
             target
             for target in node_ids
-            if target != source and (source, target) not in _PATH_CACHE
+            if target != source and (source, target) not in paths
         ]
         if missing:
             reachable = dijkstra(graph, source, targets=missing)
             for target in missing:
-                _PATH_CACHE[(source, target)] = reachable.get(target)
+                paths[(source, target)] = reachable.get(target)
         for target in node_ids:
             if target == source:
                 continue
-            result = _PATH_CACHE.get((source, target))
+            result = paths.get((source, target))
             if result is not None:
                 matrix[(source, target)] = result
     return matrix
@@ -402,7 +462,7 @@ def _hop_coverage(graph: ParkGraph, hop: PathResult) -> set[str]:
     entry = cache.get(id(hop))
     if entry is not None and entry[0] is hop:
         return entry[1]
-    coverage_neighbors = _coverage_neighbors(graph)
+    coverage_neighbors = _coverage_sets(graph)
     hop_covered: set[str] = set()
     for node_id in hop.path[1:]:
         hop_covered |= coverage_neighbors.get(node_id, {node_id})
@@ -418,7 +478,7 @@ def _evaluate_hubs(
     if len(sequence) < 2:
         return None
     node_risk = _node_risk(graph)
-    coverage_neighbors = _coverage_neighbors(graph)
+    coverage_neighbors = _coverage_sets(graph)
     start = sequence[0]
     expanded = [start]
     time_used = risk_total = 0.0
@@ -1209,7 +1269,7 @@ def _fold_spurs(
     avoid: list[list[str]],
     min_distance: float,
 ) -> list[str]:
-    neighbors = _coverage_neighbors(graph)
+    neighbors = _coverage_sets(graph)
     ctx = _SpurContext(
         times=_edge_times(graph),
         contributions={
@@ -1285,6 +1345,89 @@ def meet_coverage_target(
     return tour.hubs, path
 
 
+STRAIGHTEN_WINDOW = 20
+
+
+def straighten_path(
+    graph: ParkGraph,
+    path: list[str],
+    avoid: list[list[str]] | None = None,
+    min_distance: float = 0.0,
+) -> list[str]:
+    """Swap stretches of a route for faster ones that keep its coverage.
+
+    From each node, the furthest later node within STRAIGHTEN_WINDOW that
+    a faster path reaches is joined by that path, as long as no hotspot
+    the route covered is lost and it stays min_distance from every route
+    in avoid. On a graph with preferred lines this pulls the route back
+    onto roads everywhere a detour isn't covering risk.
+    """
+    avoid = avoid or []
+    if len(path) < 3:
+        return path
+    weights = _hotspot_weights(graph)
+    neighbors = _coverage_sets(graph)
+    times = _edge_times(graph)
+
+    cache: dict[str, tuple[str, ...]] = {}
+
+    def contributions(node_id: str) -> tuple[str, ...]:
+        cells = cache.get(node_id)
+        if cells is None:
+            cells = tuple(
+                c for c in neighbors.get(node_id, {node_id}) if c in weights
+            )
+            cache[node_id] = cells
+        return cells
+
+    counts: Counter = Counter()
+    for node_id in path:
+        counts.update(contributions(node_id))
+
+    i = 0
+    while i < len(path) - 2:
+        last = min(len(path) - 1, i + STRAIGHTEN_WINDOW)
+        reach = dijkstra(graph, path[i], targets=set(path[i + 2 : last + 1]))
+        elapsed = [0.0]
+        for pair in zip(path[i:last], path[i + 1 : last + 1]):
+            elapsed.append(elapsed[-1] + times[pair])
+        # cells covered by the nodes a swap to j would skip, path[i+1:j]
+        skipped: dict[str, int] = {}
+        for node_id in path[i + 1 : last]:
+            for c in contributions(node_id):
+                skipped[c] = skipped.get(c, 0) + 1
+        for j in range(last, i + 1, -1):
+            if j < last:
+                for c in contributions(path[j]):
+                    skipped[c] -= 1
+            hop = reach.get(path[j])
+            if hop is None or path[j] == path[i]:
+                continue
+            if hop.time_min >= elapsed[j - i] - COVERAGE_EPS:
+                continue
+            delta = Counter({c: -n for c, n in skipped.items() if n})
+            for node_id in hop.path[1:-1]:
+                delta.update(contributions(node_id))
+            change = math.fsum(
+                weights[c] * ((counts[c] + d > 0) - (counts[c] > 0))
+                for c, d in delta.items()
+            )
+            if change < -COVERAGE_EPS:
+                continue
+            candidate = path[:i] + hop.path + path[j + 1 :]
+            if any(
+                route_distance(candidate, prior) < min_distance
+                for prior in avoid
+            ):
+                continue
+            path = candidate
+            counts.update(delta)
+            counts = +counts
+            break
+        i += 1
+    return path
+
+
 def edge_set(path: list[str]) -> set[tuple[str, str]]:
     return set(zip(path, path[1:]))
 
@@ -1319,6 +1462,8 @@ def is_sufficiently_diverse(
 NO_TOUR_FOUND = "no_tour_found"
 DUPLICATE_ROUTE = "duplicate_route"
 LONGER_THAN_BEST = "longer_than_best"
+STOP_IN_NO_GO = "stop_in_no_go"
+BLOCKED_BY_NO_GO = "blocked_by_no_go"
 
 
 @dataclass
@@ -1392,15 +1537,22 @@ def plan_routes(
     config = config or ACOConfig()
 
     rng = random.Random(config.seed)
+    start_cell = graph.cell_of.get(start_node_id, start_node_id)
+    end_cell = graph.cell_of.get(end_node_id, end_node_id)
     waypoint_ids = [
         stop
-        for stop, cells in hotspot_zones(graph)[: config.max_waypoints]
-        if start_node_id not in cells
-        and end_node_id not in cells
+        for stop, cells in hub_candidates(graph)[: config.max_waypoints]
+        if start_cell not in cells
+        and end_cell not in cells
         and (hotspot_ids is None or stop in hotspot_ids)
     ]
     hub_ids = list(dict.fromkeys([start_node_id, end_node_id, *waypoint_ids]))
     distance_matrix = build_waypoint_distance_matrix(graph, hub_ids)
+    if (
+        start_node_id != end_node_id
+        and (start_node_id, end_node_id) not in distance_matrix
+    ):
+        return RoutePlan(routes=[], shortfall=BLOCKED_BY_NO_GO)
     seed_tour = None
     if config.seed_with_greedy:
         seed_tour = greedy_tour(
@@ -1469,11 +1621,25 @@ def plan_routes(
         accepted_waypoint_paths.append(waypoint_path)
         accepted_expanded_paths.append(expanded_path)
         pheromones = apply_partial_penalty(pheromones, waypoint_path, config)
+    straightened: list[list[str]] = []
+    for k, path in enumerate(accepted_expanded_paths):
+        path = straighten_path(
+            graph,
+            path,
+            straightened + accepted_expanded_paths[k + 1 :],
+            config.min_diversity,
+        )
+        if len(path) > 1 and all(
+            route_distance(path, prior) >= config.min_diversity
+            for prior in straightened
+        ):
+            straightened.append(path)
+    if len(straightened) < len(accepted_expanded_paths):
+        shortfalls.append(DUPLICATE_ROUTE)
     routes = sorted(
         (
             _to_planned_route(graph, p, compute_risk_coverage(graph, p))
-            for p in accepted_expanded_paths
-            if len(p) > 1
+            for p in straightened
         ),
         key=lambda r: r.distance_km,
     )
@@ -1490,29 +1656,63 @@ def plan_routes(
 MIN_LEG_ITERATIONS = 40
 
 
+REASSIGN_PASSES = 3
+
+
 def assign_hotspots_to_legs(
     distance_matrix: dict[tuple[str, str], PathResult],
     stop_ids: list[str],
     hotspot_ids: list[str],
 ) -> list[list[str]]:
-    """Give each hotspot to the one leg it adds the least time to."""
-    legs: list[list[str]] = [[] for _ in stop_ids[1:]]
+    """Give each hotspot to the leg where it chains in cheapest.
+
+    Hotspots go one at a time to the cheapest spot in any leg's running
+    order, then each is moved to wherever it is now cheapest. So a hotspot
+    joins the leg where it sits between other hotspots, not just the leg it
+    would add the least to on its own.
+    """
+    orders = [[a, b] for a, b in zip(stop_ids, stop_ids[1:])]
+
+    def added(order: list[str], position: int, hub: str) -> float:
+        left, right = order[position - 1], order[position]
+        return (
+            _hop_time(distance_matrix, left, hub)
+            + _hop_time(distance_matrix, hub, right)
+            - _hop_time(distance_matrix, left, right)
+        )
+
+    def cheapest(hub: str) -> tuple[float, int, int] | None:
+        spots = [
+            (added(order, position, hub), leg, position)
+            for leg, order in enumerate(orders)
+            for position in range(1, len(order))
+        ]
+        spots = [spot for spot in spots if math.isfinite(spot[0])]
+        return min(spots, default=None)
+
     for hub in hotspot_ids:
-        best_leg, best_detour = None, math.inf
-        for i, (a, b) in enumerate(zip(stop_ids, stop_ids[1:])):
-            to_hub = distance_matrix.get((a, hub))
-            from_hub = distance_matrix.get((hub, b))
-            if to_hub is None or from_hub is None:
-                continue
-            direct = distance_matrix.get((a, b))
-            detour = to_hub.time_min + from_hub.time_min - (
-                direct.time_min if direct else 0.0
-            )
-            if detour < best_detour:
-                best_leg, best_detour = i, detour
-        if best_leg is not None:
-            legs[best_leg].append(hub)
-    return legs
+        spot = cheapest(hub)
+        if spot is not None:
+            _, leg, position = spot
+            orders[leg].insert(position, hub)
+
+    for _ in range(REASSIGN_PASSES):
+        moved = False
+        for leg, order in enumerate(orders):
+            for hub in list(order[1:-1]):
+                position = order.index(hub)
+                order.pop(position)
+                saving = added(order, position, hub)
+                spot = cheapest(hub)
+                if spot is not None and spot[0] < saving - COVERAGE_EPS:
+                    _, best_leg, best_position = spot
+                    orders[best_leg].insert(best_position, hub)
+                    moved = moved or best_leg != leg
+                else:
+                    order.insert(position, hub)
+        if not moved:
+            break
+    return [order[1:-1] for order in orders]
 
 
 def _stitch_legs(leg_plans: list[RoutePlan], k: int) -> list[str]:
@@ -1548,15 +1748,17 @@ def plan_routes_via(
     if len(stops) < 2:
         return plan_routes(graph, stops[0], stops[0], num_alternatives, config)
 
-    stop_set = set(stops)
+    stop_set = {graph.cell_of.get(stop, stop) for stop in stops}
     hotspot_ids = [
         hub
-        for hub, cells in hotspot_zones(graph)[: config.max_waypoints]
+        for hub, cells in hub_candidates(graph)[: config.max_waypoints]
         if stop_set.isdisjoint(cells)
     ]
     matrix = build_waypoint_distance_matrix(
         graph, list(dict.fromkeys([*stops, *hotspot_ids])),
     )
+    if any((a, b) not in matrix for a, b in zip(stops, stops[1:])):
+        return RoutePlan(routes=[], shortfall=BLOCKED_BY_NO_GO)
     leg_hotspots = assign_hotspots_to_legs(matrix, stops, hotspot_ids)
     leg_config = replace(
         config,
@@ -1603,12 +1805,100 @@ def plan_routes_via(
 def _cell_size_degrees(graph: ParkGraph) -> float:
     cached = getattr(graph, "_cell_size_degrees_cache", None)
     if cached is None:
+        grid_edges = (
+            graph.edges
+            if graph.neighbor_edges is None
+            else graph.neighbor_edges
+        )
         cached = min(
-            (e.distance_km for e in graph.edges if e.distance_km > 0),
+            (e.distance_km for e in grid_edges if e.distance_km > 0),
             default=0.0,
         ) / KM_PER_DEGREE
         graph._cell_size_degrees_cache = cached
     return cached
+
+
+def _crosses_barrier(
+    graph: ParkGraph,
+    coords: list[tuple[float, float]],
+) -> bool:
+    """Whether a display line touches any impassable area."""
+    constraints = graph.constraints
+    if constraints is None or not constraints.areas or len(coords) < 2:
+        return False
+    line = LineString([constraints.to_grid(c) for c in coords])
+    return any(line.intersects(area.area) for area in constraints.areas)
+
+
+def _smoothed_run(
+    graph: ParkGraph,
+    run: list[tuple[float, float]],
+) -> list[tuple[float, float]]:
+    smoothed = smooth_route(run, _cell_size_degrees(graph))
+    return run if _crosses_barrier(graph, smoothed) else smoothed
+
+
+def _extend(
+    line: list[tuple[float, float]],
+    points: list[tuple[float, float]],
+) -> None:
+    joined = line and points and line[-1] == points[0]
+    line.extend(points[1:] if joined else points)
+
+
+def _route_line(
+    graph: ParkGraph,
+    path: list[str],
+    coords: list[tuple[float, float]],
+    edges_used: list[GraphEdge],
+) -> tuple[list[tuple[float, float]], float]:
+    """Display line and distance, drawn exactly where the terrain says.
+
+    A move across an impassable area is drawn centre -> gate -> centre, so
+    the line crosses exactly at the bridge. Moves on or onto a preferred
+    line are drawn as is, so the route traces the path. Both are left
+    unsmoothed; the runs between them are smoothed as usual.
+    """
+    constraints = graph.constraints
+    has_barriers = constraints is not None and bool(constraints.areas)
+    if not has_barriers and not graph.cell_of:
+        smoothed = smooth_route(coords, _cell_size_degrees(graph))
+        return smoothed, math.fsum(e.distance_km for e in edges_used)
+
+    centres = {n.node_id: n.grid_xy for n in graph.nodes}
+    line: list[tuple[float, float]] = []
+    run = [coords[0]]
+    distance_km = 0.0
+    for i, (a, b) in enumerate(zip(path, path[1:])):
+        vias = (
+            constraints.crossing_vias(centres[a], centres[b])
+            if has_barriers
+            else []
+        )
+        on_path = a in graph.cell_of or b in graph.cell_of
+        if not vias and not on_path:
+            run.append(coords[i + 1])
+            distance_km += edges_used[i].distance_km
+            continue
+        _extend(line, _smoothed_run(graph, run))
+        if vias:
+            legs = [centres[a], *vias, centres[b]]
+            distance_km += (
+                math.fsum(math.dist(p, q) for p, q in zip(legs, legs[1:]))
+                / 1000
+            )
+            exact = [
+                coords[i],
+                *(constraints.from_grid(v) for v in vias),
+                coords[i + 1],
+            ]
+        else:
+            distance_km += edges_used[i].distance_km
+            exact = [coords[i], coords[i + 1]]
+        _extend(line, exact)
+        run = [coords[i + 1]]
+    _extend(line, _smoothed_run(graph, run))
+    return line, distance_km
 
 
 def _to_planned_route(
@@ -1619,11 +1909,11 @@ def _to_planned_route(
     node_lookup = {n.node_id: n for n in graph.nodes}
     edge_lookup = {(e.from_node_id, e.to_node_id): e for e in graph.edges}
     coords = [node_lookup[nid].location.coordinates for nid in path]
-    smoothed = smooth_route(coords, _cell_size_degrees(graph))
     edges_used = [edge_lookup[pair] for pair in zip(path, path[1:])]
+    line, distance_km = _route_line(graph, path, coords, edges_used)
     return PlannedRoute(
         suggested_path=path,
-        path_geometry=GeoLineString(coordinates=smoothed),
-        distance_km=sum(e.distance_km for e in edges_used),
+        path_geometry=GeoLineString(coordinates=line),
+        distance_km=distance_km,
         risk_coverage=risk_coverage,
     )

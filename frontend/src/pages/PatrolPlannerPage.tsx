@@ -77,6 +77,7 @@ interface SidebarContentProps {
     selectedIndex: number;
     numAlternativesRequested: number | null;
     shortfallReason: string | null;
+    isTerrainStale: boolean;
     onSelectRoute: (index: number) => void;
     onClearRoutes: () => void;
     onSaveRoute: (index: number) => void;
@@ -120,6 +121,7 @@ function SidebarContent({
     selectedIndex,
     numAlternativesRequested,
     shortfallReason,
+    isTerrainStale,
     onSelectRoute,
     onClearRoutes,
     onSaveRoute,
@@ -192,6 +194,7 @@ function SidebarContent({
                     canSave={canSave}
                     numAlternativesRequested={numAlternativesRequested}
                     shortfallReason={shortfallReason}
+                    isTerrainStale={isTerrainStale}
                 />
             </div>
             <div className="overflow-hidden rounded-md border border-color-border">
@@ -287,6 +290,7 @@ export default function PatrolPlannerPage() {
         routes,
         numAlternativesRequested,
         shortfallReason,
+        isTerrainStale,
     } = usePollRouteJob(requestId);
 
     const [drawerSnap, setDrawerSnap] = useState<string | number | null>(
@@ -569,6 +573,7 @@ export default function PatrolPlannerPage() {
         selectedIndex,
         numAlternativesRequested: loadedRoute ? null : numAlternativesRequested,
         shortfallReason: loadedRoute ? null : shortfallReason,
+        isTerrainStale: loadedRoute ? false : isTerrainStale,
         onSelectRoute: handleSelectRoute,
         onSaveRoute: handleSaveRoute,
         savingIndex,

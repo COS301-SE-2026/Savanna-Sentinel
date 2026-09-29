@@ -123,6 +123,7 @@ async def get_routes(
     num_requested = None
     num_found = None
     shortfall_reason = None
+    terrain_stale = None
 
     if result.state == "SUCCESS":
         payload = result.result
@@ -130,6 +131,7 @@ async def get_routes(
         num_requested = payload["num_alternatives_requested"]
         num_found = payload["num_alternatives_found"]
         shortfall_reason = payload.get("shortfall_reason")
+        terrain_stale = payload.get("terrain_stale")
 
     start = (page - 1) * page_size
     page_results = routes[start : start + page_size]
@@ -140,6 +142,7 @@ async def get_routes(
         num_alternatives_requested=num_requested,
         num_alternatives_found=num_found,
         shortfall_reason=shortfall_reason,
+        terrain_stale=terrain_stale,
         total=len(routes),
         page=page,
         page_size=page_size,

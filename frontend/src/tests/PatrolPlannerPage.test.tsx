@@ -55,7 +55,11 @@ import * as maplibregl from "maplibre-gl";
 import PatrolPlannerPage from "@/pages/PatrolPlannerPage";
 import { Toaster } from "@/components/ui/sonner";
 import { riskHandlers, TEST_GRID } from "./mocks/riskHandlers";
-import { routeHandlers, ROUTE_REQUEST_ID } from "./mocks/routeHandlers";
+import {
+    routeHandlers,
+    ROUTE_REQUEST_ID,
+    COMPLETED_ROUTES,
+} from "./mocks/routeHandlers";
 import { savedRouteHandlers, SAVED_ROUTE } from "./mocks/savedRouteHandlers";
 import { workspaceHandlers } from "./mocks/workspaceHandlers";
 import type { FakeMap } from "./mocks/maplibreMock";
@@ -388,6 +392,36 @@ describe("PatrolPlannerPage", () => {
 
         expect(
             await screen.findByText("Could not start route planning"),
+        ).toBeInTheDocument();
+    });
+
+    it("explains a route blocked by an impassable feature on stale terrain", async () => {
+        server.use(
+            http.get("http://localhost:8000/v1/routes", () =>
+                HttpResponse.json({
+                    ...COMPLETED_ROUTES,
+                    num_alternatives_found: 0,
+                    total: 0,
+                    results: [],
+                    shortfall_reason: "blocked_by_no_go",
+                    terrain_stale: true,
+                }),
+            ),
+        );
+
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+
+        expect(
+            await screen.findByText(
+                /can't be reached without crossing an impassable feature/i,
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(/workspace changes are still being applied/i),
         ).toBeInTheDocument();
     });
 

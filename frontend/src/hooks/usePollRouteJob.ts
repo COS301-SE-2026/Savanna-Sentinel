@@ -9,6 +9,7 @@ export interface UsePollRouteJobResult {
     numAlternativesRequested: number | null;
     numAlternativesFound: number | null;
     shortfallReason: string | null;
+    isTerrainStale: boolean;
 }
 
 async function fetchRouteJob(
@@ -39,5 +40,7 @@ export function usePollRouteJob(
                 : null,
         shortfallReason:
             status === "completed" ? (result?.shortfall_reason ?? null) : null,
+        isTerrainStale:
+            status === "completed" && result?.terrain_stale === true,
     };
 }
