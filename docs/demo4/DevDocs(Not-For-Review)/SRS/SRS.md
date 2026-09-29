@@ -559,4 +559,4 @@ Automated restarts of crashing containers through docker, with a current website
 ## 6. Domain Model
 
 Original image can be found in the domain folder of the docs.
-![Domain Model](../domain/UpdatedDomain.jpg)
+![Domain Model](../domain/Domain%20Model.png)
