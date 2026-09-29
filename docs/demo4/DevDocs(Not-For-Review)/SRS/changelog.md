@@ -1,3 +1,10 @@
+# V4 (2026-09-29)
+
+* Updated functional Requirements
+* Slightly modified non-functional requirements to state that a badge is no longer being used
+* Updated Use Case Diagram and Scope
+* Updated Domain Model
+
 # V3 (2026-09-02)
 
 * Added updated use cases

@@ -67,9 +67,31 @@ The SRS contains an abridged version of the use cases, full use case documentati
 
 </details>
 
+<details>
+<summary><h3>Demo 4</h3></summary>
+
+- [Software Requirements Specification (SRS)](./docs/demo4/PDF/SRS.pdf)
+- [Software Architecture Specification (SAS)](./docs/demo4/PDF/SAS.pdf)
+- [Architecture Diagram](./docs/demo4/PDF/Architecture%20Diagram.pdf)
+- [Brand Style Guide (Interactive)](<https://cos301-se-2026.github.io/Savanna-Sentinel/demo2/DevDocs(Not-For-Review)/brand-style/brand_style_guide.html>)
+- [Brand Style GUide (Static, {Some aspects broken})](./docs/demo4/PDF/Brand%20Style%20Guide.pdf)
+- [CICD Diagram](./docs/demo4/PDF/CICD%20Diagram.pdf)
+- [Coding Standards](./docs/demo4/PDF/Coding%20Standards.pdf)
+- [Deployment Diagrams (Development)](./docs/demo4/PDF/Development%20Deployment.pdf)
+- [Deployment Diagrams (Production)](./docs/demo4/PDF/Production%20Deployment.pdf)
+- [Deployment Document](./docs/demo4/PDF/Deployment.pdf)
+- [Domain Model](./docs/demo4/PDF/Domain%20Model.pdf)
+- [Functional Requirements](./docs/demo4/PDF/Functional%20Requirement.pdf)
+- [NFR Traceability Matrix](./docs/demo4/PDF/Non%20Functional%20Requirements%20Matrix.pdf)
+- [Non-Functional Requirements](./docs/demo4/PDF/Non%20Functional%20Requirements.pdf)
+- [Service Contracts](<https://savannasentinel.co.za/v1/openapi.json>)
+- [Testing Policy](./docs/demo4/PDF/Testing%20Policy.pdf)
+- [Use Case Diagrams](./docs/demo4/PDF/Use%20Case%20Diagram%20&%20Scope.pdf)
+- [User Manual](./docs/demo4/PDF/User%20Manual.pdf)
+
 ### NFR evidence
 
-The [Demo 3 NFR Traceability Matrix](./docs/demo3/PDF/Non%20Functional%20Requirements%20Matrix.pdf) records each requirement, its implementation tactic, and the evidence used to assess it. See the [GitHub Actions workflows](./.github/workflows/) for the automated evidence:
+The [Demo 3 NFR Traceability Matrix](./docs/demo4/PDF/Non%20Functional%20Requirements%20Matrix.pdf) records each requirement, its implementation tactic, and the evidence used to assess it. See the [GitHub Actions workflows](./.github/workflows/) for the automated evidence:
 
 | Requirement | Evidence |
 | ----------- | -------- |
@@ -82,6 +104,10 @@ The k6 workflow runs five scenarios concurrently (30 health-check, 6 login, 15 r
 It takes ~10 minutes to run the test suite (Mainly because of e2e), and roughly 30 ~ 40 minutes for our CI to deploy from dev -> main
 
 Maintainability is evidenced here through repeatable lint, test, build, and coverage checks in CI.
+
+</details>
+
+
 
 ## Team
 

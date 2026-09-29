@@ -1,3 +1,9 @@
+# V3
+
+* Updated CI CD
+* Updated NFR Matrix
+* 
+
 # V2 (2026-09-02)
 
 - Reworked the service contracts (Previously API Contracts)

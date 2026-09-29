@@ -1,5 +1,11 @@
 # Changelog
 
+### V 4 (2026-09-29)
+
+* Added geospatial subsystem
+* Added location tracking use cases
+* Added Generate and training model use cases
+
 ### V 3.0 (2026-09-01)
 
 * Added comment system use cases

@@ -17,8 +17,6 @@
 
 # Functional Requirements
 
-The Functional Requirements provided below ensure that the Savanna Sentinel system meets users needs. The requirements are organized by feature area and align with the user stories
-
 ---
 
 # R1: User Access and Security Management
@@ -72,8 +70,14 @@ The Functional Requirements provided below ensure that the Savanna Sentinel syst
 - **R3.2.1:** The system will display a heatmap layer on the map indicating high-risk areas based on the calculated risk scores.
 - **R3.2.2:** The system will provide an interactive time range slider allowing users to select a time interval and view its corresponding risk hotspots
 - **R3.2.3:** The system will provide interactive map controls including a legend describing the heatmap scale.
-- **R3.2.4:** The system will provide interactive data filters allowing users to filter map layers by record type (e.g Incidents, Sightings, Tip-offs)
+- **R3.2.4:** The system will provide interactive data filters allowing users to filter map layers.
 - **R3.2.5:** The system will enforce role-based access control on all map data API endpoints, such that each role receives only the data it is authorised to access as defined by the RBAC policy.
+
+## R3.3 Location Tracking
+
+* **R3.3.1:** The system will display an updating icon of the user's location on the map.
+* **R3.3.2:** The system will track the user's location using the device's motion sensors if a GPS signal cannot be located.
+* **R3.3.3:** The system will allow the user to select a known point of interest if their last known location cannot be determined.
 
 ---
 
@@ -100,7 +104,7 @@ The Functional Requirements provided below ensure that the Savanna Sentinel syst
 
 ## R5.1: Constraint-Based Route Generation
 
-- **R5.1.1:** The Patrol Planner will accept custom user parameters, including starting point, maximum time allowed and fuel usage constraints.
+- **R5.1.1:** The Patrol Planner will accept custom user parameters, including starting point.
 - **R5.1.2:** The Patrol Planner will consume the current Risk Heatmap and the supplied resource constraints to generate multiple alternative patrol routes per planning request.
 - **R5.1.3:** All route alternatives generated from a single planning request will share a common request ID and will be returned together to the requesting user.
 
@@ -143,6 +147,8 @@ The Functional Requirements provided below ensure that the Savanna Sentinel syst
 - **R6.2.6:** Deleted field reports will be soft-deleted and retained in the database for audit purposes.
 - **R6.2.7:** The system will allow Admins to edit any field report regardless of the submitting Ranger, with the same field-level permissions defined in R6.2.2–R6.2.4.
 - **R6.2.8:** The system will allow Admins to delete any field report regardless of the submitting Ranger.
+- **R6.2.9:** The system will allow Users to leave comments on reports.
+- **R6.2.10:** The system will allow Users to change the status of reports from Unknown, Unresolved, and Resolved.
 
 ## R6.3: Synchronisation and Conflict Handling
 
@@ -239,3 +245,32 @@ The Functional Requirements provided below ensure that the Savanna Sentinel syst
 - **R10.1.2:** The system will enforce server-side form validation on all user inputs, independent of client-side validation, to prevent malformed data
 - **R10.1.3:** The system will require user passwords to be a minimum of 8 characters in length.
 - **R10.1.4:** The system will display clear, human-readable error messages when form validation fails.
+
+# R11: Geospatial Workspace
+
+*Subsystem: Geospatial Workspace*
+
+## R11.1: Drawing System
+
+* **R11.1.1:** The system will allow the user to draw on the map, using Polygons, Line, Freedraw, and Point objects.
+* **R11.1.2:** The system will allow the user to undo changes on newly added map elements.
+
+## R11.2: Map Elements
+
+* **R11.2.1:** The system will allow the user to annotate map elements, including assigning labels, icons, and colours.
+* **R11.2.2:** The system will allow a buffer to be assigned to an element to display the effect it has on the surrounding area.
+* **R11.2.3:** The system will allow rules to be assigned to a map element.
+
+## R11.3 Rule system
+
+* **R11.3.1:** The system will allow rules to be assigned to map elements. to increase/drecrease the risk associated with the area, and/or reward or punish the patrol planner for following the element
+* **R11.3.2:** The system will allow priorities to be assigned to elements, which will take precedence over any intersecting elements with a lower priority.
+* **R11.3.3:** The system will allow a buffer decay to be specified for an element, decreasing the strength of the associated rule with distance from the element.
+* **R11.3.4:** The system will allow the rules of an element to be toggled on or off without needing to modify the strength of the associated rule.
+
+## R11.4 Layer System
+
+* **R11.4.1:** The system will allow the user to create layers, and create elements/layers as children of a layer.
+* **R11.4.2:** The system will allow the user to toggle the visibility of layers/elements
+* **R11.4.3:** The system will allow the user to move elements between layers.
+* **R11.4.4:** The system will allow the user to delete elements/layers.
