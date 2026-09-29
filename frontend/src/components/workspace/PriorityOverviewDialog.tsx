@@ -83,7 +83,7 @@ export function PriorityOverviewDialog({
                             No features have rules set yet.
                         </p>
                     ) : (
-                        <div className="overflow-hidden rounded-lg border border-color-border">
+                        <div className="shrink-0 overflow-hidden rounded-lg border border-color-border">
                             <Table>
                                 <TableHeader className="bg-brand-primary">
                                     <TableRow className="hover:bg-transparent">

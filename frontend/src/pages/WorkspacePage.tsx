@@ -171,6 +171,17 @@ export default function WorkspacePage() {
         setCancelEditSignal((n) => n + 1);
     }
 
+    function handleDrawModeChange(mode: string) {
+        setActiveDrawMode(mode);
+        if (mode === "select" || selection?.kind !== "membership") return;
+        const membership = memberships.find(
+            (m) => m.id === selection.membershipId,
+        );
+        setSelection(
+            membership ? { kind: "layer", layerId: membership.layerId } : null,
+        );
+    }
+
     function handleFeatureDrawn(membershipId: string) {
         lastDrawnAtRef.current = performance.now();
         setSelection({ kind: "membership", membershipId });
@@ -284,7 +295,7 @@ export default function WorkspacePage() {
                         }
                         finishEditSignal={finishEditSignal}
                         cancelEditSignal={cancelEditSignal}
-                        onModeChange={setActiveDrawMode}
+                        onModeChange={handleDrawModeChange}
                         onDrawingChange={setIsDrawingStroke}
                         onFeatureDrawn={handleFeatureDrawn}
                         trailing={

@@ -99,6 +99,7 @@ interface IntentSectionProps {
     view: ResolvedRuleView;
     inheritedFrom: string;
     hasBuffer: boolean;
+    canReset: boolean;
     onChange: (patch: RuleSettings) => void;
     onReset: (property: RuleProperty) => void;
 }
@@ -108,6 +109,7 @@ function IntentSection({
     view,
     inheritedFrom,
     hasBuffer,
+    canReset,
     onChange,
     onReset,
 }: IntentSectionProps) {
@@ -134,7 +136,7 @@ function IntentSection({
                     </span>
                 )}
                 <ResetButton
-                    show={view.source[property] === "own"}
+                    show={canReset && view.source[property] === "own"}
                     label={`Reset ${label} ${PROPERTY_LABEL[property]}`}
                     onClick={() => onReset(property)}
                 />
@@ -255,6 +257,7 @@ export function RuleEditorDialog({
         : `Layer behaviour: ${getLayerDisplayName(layer!)}`;
     const hasBuffer = feature ? feature.bufferEnabled : true;
     const inheritedFrom = feature ? "layer" : "parent layer";
+    const canReset = feature !== undefined || layer!.parentId !== null;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -302,6 +305,7 @@ export function RuleEditorDialog({
                             }
                             inheritedFrom={inheritedFrom}
                             hasBuffer={hasBuffer}
+                            canReset={canReset}
                             onChange={(patch) =>
                                 feature
                                     ? setFeatureRule(feature.id, intent, patch)
