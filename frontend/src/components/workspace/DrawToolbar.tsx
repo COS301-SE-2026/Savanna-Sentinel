@@ -23,6 +23,12 @@ import {
     Circle,
 } from "lucide-react";
 
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { WorkspaceFeature } from "@/lib/workspace/types";
 import {
     FREEHAND_DRAW_MODES,
@@ -39,14 +45,51 @@ declare global {
 }
 
 const TOOLBAR_MODES = [
-    { mode: "select", label: "Select", Icon: MousePointer2 },
-    { mode: "point", label: "Point", Icon: CircleDot },
-    { mode: "linestring", label: "Line", Icon: Spline },
-    { mode: "polygon", label: "Polygon", Icon: Hexagon },
-    { mode: "freehand", label: "Freehand", Icon: PenTool },
-    { mode: "rectangle", label: "Rectangle", Icon: RectangleHorizontal },
-    { mode: "circle", label: "Circle", Icon: Circle },
+    {
+        mode: "select",
+        label: "Select",
+        hint: "Select and edit features",
+        Icon: MousePointer2,
+    },
+    { mode: "point", label: "Point", hint: "Draw a point", Icon: CircleDot },
+    { mode: "linestring", label: "Line", hint: "Draw a line", Icon: Spline },
+    {
+        mode: "polygon",
+        label: "Polygon",
+        hint: "Draw a polygon",
+        Icon: Hexagon,
+    },
+    {
+        mode: "freehand",
+        label: "Freehand",
+        hint: "Draw freehand",
+        Icon: PenTool,
+    },
+    {
+        mode: "rectangle",
+        label: "Rectangle",
+        hint: "Draw a rectangle",
+        Icon: RectangleHorizontal,
+    },
+    { mode: "circle", label: "Circle", hint: "Draw a circle", Icon: Circle },
 ] as const;
+
+function ToolTooltip({
+    content,
+    children,
+}: {
+    content: string;
+    children: ReactNode;
+}) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>{children}</TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={6}>
+                {content}
+            </TooltipContent>
+        </Tooltip>
+    );
+}
 
 const CLICK_TO_ADD_MODES = new Set(["polygon", "linestring"]);
 
@@ -378,44 +421,60 @@ export function DrawToolbar({
     }, [editingFeature, updateActiveMode]);
 
     return (
-        <>
+        <TooltipProvider delayDuration={300}>
             <div ref={freehandRef}>
                 <div className="absolute left-2 top-2 z-[var(--z-dropdown)] flex items-stretch gap-2">
                     <div
                         data-terra-draw-instance={instanceKey}
                         className="flex gap-1 rounded-lg border border-color-border bg-color-surface-raised p-1 shadow-md"
                     >
-                        {TOOLBAR_MODES.map(({ mode, label, Icon }) => {
+                        {TOOLBAR_MODES.map(({ mode, label, hint, Icon }) => {
                             const isActive =
                                 mode === "freehand"
                                     ? FREEHAND_DRAW_MODES.has(activeMode)
                                     : activeMode === mode;
                             return (
-                                <button
+                                <ToolTooltip
                                     key={mode}
-                                    type="button"
-                                    aria-label={label}
-                                    aria-pressed={isActive}
-                                    disabled={!activeLayerId}
-                                    onClick={() => {
-                                        if (mode === "freehand") {
-                                            setIsFreehandMenuOpen(
-                                                (open) => !open,
-                                            );
-                                            return;
-                                        }
-                                        setIsFreehandMenuOpen(false);
-                                        drawRef.current?.setMode(mode);
-                                        updateActiveMode(mode);
-                                    }}
-                                    className={`flex size-8 items-center justify-center rounded hover:bg-color-surface-bg disabled:cursor-not-allowed disabled:opacity-40 ${
-                                        isActive
-                                            ? "bg-brand-primary/10 text-brand-primary"
-                                            : "text-color-text-primary"
-                                    }`}
+                                    content={
+                                        activeLayerId
+                                            ? hint
+                                            : `${label}: choose a layer first`
+                                    }
                                 >
-                                    <Icon className="size-4" />
-                                </button>
+                                    <span
+                                        className={`flex ${
+                                            activeLayerId
+                                                ? ""
+                                                : "cursor-not-allowed"
+                                        }`}
+                                    >
+                                        <button
+                                            type="button"
+                                            aria-label={label}
+                                            aria-pressed={isActive}
+                                            disabled={!activeLayerId}
+                                            onClick={() => {
+                                                if (mode === "freehand") {
+                                                    setIsFreehandMenuOpen(
+                                                        (open) => !open,
+                                                    );
+                                                    return;
+                                                }
+                                                setIsFreehandMenuOpen(false);
+                                                drawRef.current?.setMode(mode);
+                                                updateActiveMode(mode);
+                                            }}
+                                            className={`flex size-8 items-center justify-center rounded hover:bg-color-surface-bg disabled:pointer-events-none disabled:opacity-40 ${
+                                                isActive
+                                                    ? "bg-brand-primary/10 text-brand-primary"
+                                                    : "text-color-text-primary"
+                                            }`}
+                                        >
+                                            <Icon className="size-4" />
+                                        </button>
+                                    </span>
+                                </ToolTooltip>
                             );
                         })}
                     </div>
@@ -423,40 +482,48 @@ export function DrawToolbar({
                 </div>
                 {isFreehandMenuOpen && (
                     <div className="absolute left-2 top-12 z-[var(--z-dropdown)] flex gap-1 rounded-lg border border-color-border bg-color-surface-raised p-1 shadow-md">
-                        <button
-                            type="button"
-                            aria-label="Freehand polygon"
-                            aria-pressed={activeMode === "freehand"}
-                            onClick={() => {
-                                drawRef.current?.setMode("freehand");
-                                updateActiveMode("freehand");
-                                setIsFreehandMenuOpen(false);
-                            }}
-                            className={`flex size-8 items-center justify-center rounded hover:bg-color-surface-bg ${
-                                activeMode === "freehand"
-                                    ? "bg-brand-primary/10 text-brand-primary"
-                                    : "text-color-text-primary"
-                            }`}
-                        >
-                            <Hexagon className="size-4" />
-                        </button>
-                        <button
-                            type="button"
-                            aria-label="Freehand line"
-                            aria-pressed={activeMode === "freehand-linestring"}
-                            onClick={() => {
-                                drawRef.current?.setMode("freehand-linestring");
-                                updateActiveMode("freehand-linestring");
-                                setIsFreehandMenuOpen(false);
-                            }}
-                            className={`flex size-8 items-center justify-center rounded hover:bg-color-surface-bg ${
-                                activeMode === "freehand-linestring"
-                                    ? "bg-brand-primary/10 text-brand-primary"
-                                    : "text-color-text-primary"
-                            }`}
-                        >
-                            <Spline className="size-4" />
-                        </button>
+                        <ToolTooltip content="Freehand polygon">
+                            <button
+                                type="button"
+                                aria-label="Freehand polygon"
+                                aria-pressed={activeMode === "freehand"}
+                                onClick={() => {
+                                    drawRef.current?.setMode("freehand");
+                                    updateActiveMode("freehand");
+                                    setIsFreehandMenuOpen(false);
+                                }}
+                                className={`flex size-8 items-center justify-center rounded hover:bg-color-surface-bg ${
+                                    activeMode === "freehand"
+                                        ? "bg-brand-primary/10 text-brand-primary"
+                                        : "text-color-text-primary"
+                                }`}
+                            >
+                                <Hexagon className="size-4" />
+                            </button>
+                        </ToolTooltip>
+                        <ToolTooltip content="Freehand line">
+                            <button
+                                type="button"
+                                aria-label="Freehand line"
+                                aria-pressed={
+                                    activeMode === "freehand-linestring"
+                                }
+                                onClick={() => {
+                                    drawRef.current?.setMode(
+                                        "freehand-linestring",
+                                    );
+                                    updateActiveMode("freehand-linestring");
+                                    setIsFreehandMenuOpen(false);
+                                }}
+                                className={`flex size-8 items-center justify-center rounded hover:bg-color-surface-bg ${
+                                    activeMode === "freehand-linestring"
+                                        ? "bg-brand-primary/10 text-brand-primary"
+                                        : "text-color-text-primary"
+                                }`}
+                            >
+                                <Spline className="size-4" />
+                            </button>
+                        </ToolTooltip>
                     </div>
                 )}
             </div>
@@ -472,6 +539,6 @@ export function DrawToolbar({
                     to cancel
                 </div>
             )}
-        </>
+        </TooltipProvider>
     );
 }
