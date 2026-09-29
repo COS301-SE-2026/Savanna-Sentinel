@@ -45,9 +45,10 @@ export default function Patrol() {
                             The selected route is emphasized on the map, while
                             the alternate routes are overlayed. This is done so
                             you may compare your currently selected route to the
-                            alternatives. You may change the current selected
-                            route by clicking the 'Select' button in the top
-                            right of the route's card.
+                            alternatives. Click anywhere on a route's card to
+                            select it. The map pin button on a card shows that
+                            route on the heatmap page, saving it first if you
+                            have not saved it yet.
                         </p>
                     </div>
 

@@ -165,7 +165,7 @@ describe("PatrolPlannerPage", () => {
         expect(await screen.findByText("Route A")).toBeInTheDocument();
         expect(screen.getByText("Route B")).toBeInTheDocument();
         expect(
-            screen.getByRole("button", { name: "Selected" }),
+            screen.getByRole("button", { name: "Route A", pressed: true }),
         ).toBeInTheDocument();
     });
 
@@ -274,7 +274,7 @@ describe("PatrolPlannerPage", () => {
         expect(() => unmount()).not.toThrow();
     });
 
-    it("switches the Selected pill when a different card is chosen", async () => {
+    it("switches the selected card when a different card is clicked", async () => {
         renderPage();
         await userEvent.type(
             screen.getByLabelText(/^start point$/i),
@@ -288,12 +288,14 @@ describe("PatrolPlannerPage", () => {
             screen.getByRole("button", { name: /generate routes/i }),
         );
 
-        await screen.findByText("Route B");
-        await userEvent.click(screen.getByRole("button", { name: "Select" }));
+        await userEvent.click(await screen.findByText("Route B"));
 
         expect(
-            await screen.findAllByRole("button", { name: "Selected" }),
-        ).toHaveLength(1);
+            screen.getByRole("button", { name: "Route B", pressed: true }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("button", { name: "Route A", pressed: false }),
+        ).toBeInTheDocument();
     });
 
     it("ignores map clicks until a field is armed", async () => {
@@ -551,6 +553,136 @@ describe("PatrolPlannerPage", () => {
 
         expect(await screen.findByText("heatmap page")).toBeInTheDocument();
         expect(await loadPinnedRoute("u1")).toEqual(SAVED_ROUTE);
+    });
+
+    it("sending an unsaved card to the heatmap saves it first, then pins it", async () => {
+        useAuthStore.setState({
+            user: { id: "u1", username: "tester", role: "ranger" },
+            accessToken: "token",
+            refreshToken: "refresh",
+        });
+        let saveCalls = 0;
+        server.use(
+            http.post("http://localhost:8000/v1/routes/save", () => {
+                saveCalls += 1;
+                return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+            }),
+        );
+
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route B");
+
+        await userEvent.click(
+            screen.getByRole("button", {
+                name: /^save and show route b on heatmap$/i,
+            }),
+        );
+
+        expect(await screen.findByText("heatmap page")).toBeInTheDocument();
+        expect(saveCalls).toBe(1);
+        expect(await loadPinnedRoute("u1")).toEqual(SAVED_ROUTE);
+    });
+
+    it("sending an already saved card to the heatmap does not save it again", async () => {
+        useAuthStore.setState({
+            user: { id: "u1", username: "tester", role: "ranger" },
+            accessToken: "token",
+            refreshToken: "refresh",
+        });
+        let saveCalls = 0;
+        server.use(
+            http.post("http://localhost:8000/v1/routes/save", () => {
+                saveCalls += 1;
+                return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+            }),
+        );
+
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route a/i }),
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: /^save route$/i }),
+        );
+        await screen.findByText("Route saved");
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^show route a on heatmap$/i }),
+        );
+
+        expect(await screen.findByText("heatmap page")).toBeInTheDocument();
+        expect(saveCalls).toBe(1);
+        expect(await loadPinnedRoute("u1")).toEqual(SAVED_ROUTE);
+    });
+
+    it("sends a loaded route to the heatmap from its card without saving", async () => {
+        useAuthStore.setState({
+            user: { id: "u1", username: "tester", role: "ranger" },
+            accessToken: "token",
+            refreshToken: "refresh",
+        });
+        let saveCalls = 0;
+        server.use(
+            http.post("http://localhost:8000/v1/routes/save", () => {
+                saveCalls += 1;
+                return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+            }),
+        );
+
+        renderPage();
+        await userEvent.click(
+            screen.getByRole("button", { name: /load previous/i }),
+        );
+        await userEvent.click(
+            await screen.findByRole("button", { name: /55\.0 km/i }),
+        );
+        await screen.findByText("Route A");
+
+        await userEvent.click(
+            screen.getByRole("button", { name: /^show route a on heatmap$/i }),
+        );
+
+        expect(await screen.findByText("heatmap page")).toBeInTheDocument();
+        expect(saveCalls).toBe(0);
+        expect(await loadPinnedRoute("u1")).toEqual(SAVED_ROUTE);
+    });
+
+    it("does not save a card when there is no account to pin it against", async () => {
+        let saveCalls = 0;
+        server.use(
+            http.post("http://localhost:8000/v1/routes/save", () => {
+                saveCalls += 1;
+                return HttpResponse.json(SAVED_ROUTE, { status: 201 });
+            }),
+        );
+
+        renderPage();
+        await enterBothPoints();
+        await userEvent.click(
+            screen.getByRole("button", { name: /generate routes/i }),
+        );
+        await screen.findByText("Route A");
+
+        await userEvent.click(
+            screen.getByRole("button", {
+                name: /^save and show route a on heatmap$/i,
+            }),
+        );
+
+        expect(
+            await screen.findByText(/could not send the route to the heatmap/i),
+        ).toBeInTheDocument();
+        expect(saveCalls).toBe(0);
+        expect(screen.queryByText("heatmap page")).not.toBeInTheDocument();
     });
 
     it("warns instead of navigating when there is no account to store the route against", async () => {
