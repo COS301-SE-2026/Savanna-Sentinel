@@ -11,11 +11,13 @@ from app.core.risk_windows import (
     INCIDENT_LOOKBACK_DAYS as _FEATURE_LOOKBACK_DAYS,
 )
 from app.repositories import risk_repository
+from app.repositories.terrain_repository import TerrainRepository
 from app.services.risk_model_storage import RiskModelStorage
 from app.workers.celery_app import celery_app
 from app.workers.ml.explainability import explain_cells
 from app.workers.ml.risk_engine import (
     _SIGHTING_LOOKBACK_DAYS,
+    apply_terrain_adjustments,
     build_training_examples,
     compute_cell_features,
     compute_incident_floors,
@@ -117,6 +119,15 @@ def run_risk_training_job(
     return asyncio.run(_train(park_id, start_dt, end_dt, triggered_by))
 
 
+async def _terrain_risk_deltas(session, cells: list[dict]) -> dict[str, float]:
+    risk_by_ref = await TerrainRepository(session).get_risk_deltas()
+    return {
+        cell["cell_id"]: risk_by_ref[cell["cell_ref"]]
+        for cell in cells
+        if cell["cell_ref"] in risk_by_ref
+    }
+
+
 async def _score(park_id: str, triggered_manually: bool = False) -> dict:
     async with _TaskSessionLocal() as session:
         active_model = await risk_repository.get_active_model(session, park_id)
@@ -167,11 +178,13 @@ async def _score(park_id: str, triggered_manually: bool = False) -> dict:
             incidents_by_cell,
             reference_time,
         )
-        for cell_id, model_score in list(scores.items()):
-            floor = floors.get(cell_id, 0.0)
-            if floor > model_score:
-                scores[cell_id] = floor
-                explanations[cell_id] = [("recent_incident", 1.0)]
+        scores, terrain_deltas, floored = apply_terrain_adjustments(
+            scores,
+            floors,
+            await _terrain_risk_deltas(session, cells),
+        )
+        for cell_id in floored:
+            explanations[cell_id] = [("recent_incident", 1.0)]
 
         heatmap_id, computed_at = await risk_repository.save_heatmap_snapshot(
             session,
@@ -181,6 +194,7 @@ async def _score(park_id: str, triggered_manually: bool = False) -> dict:
             features_per_cell,
             explanations,
             time_interval="ad-hoc" if triggered_manually else "6h",
+            terrain_deltas=terrain_deltas,
         )
         await session.commit()
 
