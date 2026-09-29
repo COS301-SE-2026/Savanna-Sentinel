@@ -698,8 +698,8 @@ async def get_cell_explanation(
 ) -> dict | None:
     result = await session.execute(
         text("""
-            SELECT crs.heatmap_id, rh.computed_at, em.key_reason,
-                em.confidence_level
+            SELECT crs.heatmap_id, rh.computed_at, crs.terrain_delta,
+                em.key_reason, em.confidence_level
             FROM cell_risk_scores crs
             JOIN risk_heatmaps rh ON rh.id = crs.heatmap_id
             JOIN explainability_metrics em ON em.cell_id = crs.id
@@ -741,6 +741,7 @@ async def get_cell_explanation(
     return {
         "heatmap_id": latest_heatmap_id,
         "top_features": top_features,
+        "terrain_delta": rows[0].terrain_delta,
         **details,
     }
 
