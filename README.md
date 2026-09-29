@@ -67,6 +67,27 @@ The SRS contains an abridged version of the use cases, full use case documentati
 
 </details>
 
+<details>
+<summary><h3>Demo 4</h3></summary>
+
+- [Software Requirements Specification (SRS)](./docs/demo4/PDF/SRS.pdf)
+- [Software Archiecture Specification (SAS)](./docs/demo4/PDF/SAS.pdf)
+- [Use Case Diagrams](./docs/demo4/PDF/Use%20Case%20Diagram%20&%20Scope.pdf)
+- [Deployment Diagrams](./docs/demo4/PDF/Production%20Deployment%20Diagram.png)
+- [Service Contracts](<https://savannasentinel.co.za/v1/openapi.json>)
+- [NFR Traceability Matrix](./docs/demo4/PDF/Non%20Functional%20Requirements%20Matrix.pdf)
+- [User Manual](./docs/demo4/PDF/Non%20Functional%20User%20Manual.pdf)
+- [CICD Diagram](./docs/demo4/PDF/CICD%20Diagram.png)
+- [Architecture Diagram](./docs/demo4/PDF/Architecture%20Diagram.jpg)
+- [Domain Model](./docs/demo4/PDF/UpdatedDomain.jpg)
+- [Functional Requirements](./docs/demo4/PDF/FunctionalRequirements.pdf)
+- [Non-Functional Requirements](./docs/demo4/PDF/Non%20Functional%20Requirements.pdf)
+- [Brand Style Guide](<https://cos301-se-2026.github.io/Savanna-Sentinel/demo2/DevDocs(Not-For-Review)/brand-style/brand_style_guide.html>)
+- [Coding Standards](./docs/demo4/PDF/Coding%20Standards.pdf)
+- [Testing Policy](./docs/demo4/PDF/Testing%20Policy.pdf)
+
+</details>
+
 ### NFR evidence
 
 The [Demo 3 NFR Traceability Matrix](./docs/demo3/PDF/Non%20Functional%20Requirements%20Matrix.pdf) records each requirement, its implementation tactic, and the evidence used to assess it. See the [GitHub Actions workflows](./.github/workflows/) for the automated evidence:
