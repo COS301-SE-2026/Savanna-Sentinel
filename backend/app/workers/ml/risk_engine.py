@@ -206,6 +206,25 @@ def compute_incident_floors(
     return floors
 
 
+def apply_terrain_adjustments(
+    scores: dict[str, float],
+    floors: dict[str, float],
+    deltas: dict[str, float],
+) -> tuple[dict[str, float], dict[str, float], set[str]]:
+    final: dict[str, float] = {}
+    applied: dict[str, float] = {}
+    floored: set[str] = set()
+    for cell_id, model_score in scores.items():
+        floor = floors.get(cell_id, 0.0)
+        adjusted = min(1.0, max(0.0, model_score + deltas.get(cell_id, 0.0)))
+        final[cell_id] = max(floor, adjusted)
+        applied[cell_id] = final[cell_id] - max(floor, model_score)
+        if floor > model_score:
+            floored.add(cell_id)
+
+    return final, applied, floored
+
+
 def build_training_examples(
     cells: list[dict],
     incidents_by_cell: dict[str, list[dict]],
