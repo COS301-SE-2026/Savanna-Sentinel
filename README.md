@@ -67,6 +67,22 @@ The SRS contains an abridged version of the use cases, full use case documentati
 
 </details>
 
+### NFR evidence
+
+The [Demo 3 NFR Traceability Matrix](./docs/demo3/PDF/Non%20Functional%20Requirements%20Matrix.pdf) records each requirement, its implementation tactic, and the evidence used to assess it. See the [GitHub Actions workflows](./.github/workflows/) for the automated evidence:
+
+| Requirement | Evidence |
+| ----------- | -------- |
+| Security | [Security workflow](./.github/workflows/security.yml) and the [HTTP Observatory](https://developer.mozilla.org/en-US/observatory/analyze?host=savannasentinel.co.za) |
+| Availability | [UptimeRobot badge](https://stats.uptimerobot.com/qEIREIc10V), showing the uptime ratio over the last 21 days |
+| Performance | [k6 test](./frontend/src/tests/NFR/Performance.test.js), run by the [E2E workflow](./.github/workflows/e2e.yml) |
+| Deployment and maintainability | [Backend CI](./.github/workflows/backend-ci.yml) and [Frontend CI](./.github/workflows/frontend-ci.yml) run automated checks and tests; [Codecov](https://codecov.io/gh/COS301-SE-2026/Savanna-Sentinel) reports uploaded test coverage |
+
+The k6 workflow runs five scenarios concurrently (30 health-check, 6 login, 15 report, 5 ingestion, and 10 media-upload virtual users: 66 total) and checks p95 response time below 2 seconds and failed requests below 1%. The badge reflects the latest workflow run that successfully writes it.
+It takes ~10 minutes to run the test suite (Mainly because of e2e), and roughly 30 ~ 40 minutes for our CI to deploy from dev -> main
+
+Maintainability is evidenced here through repeatable lint, test, build, and coverage checks in CI.
+
 ## Team
 
 <div align="left">
