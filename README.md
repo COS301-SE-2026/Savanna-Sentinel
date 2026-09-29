@@ -77,7 +77,7 @@ The SRS contains an abridged version of the use cases, full use case documentati
 - [Service Contracts](<https://savannasentinel.co.za/v1/openapi.json>)
 - [NFR Traceability Matrix](./docs/demo4/PDF/Non%20Functional%20Requirements%20Matrix.pdf)
 - [User Manual](./docs/demo4/PDF/Non%20Functional%20User%20Manual.pdf)
-- [CICD Diagram](./docs/demo4/PDF/CICD%20Diagram.png)
+- [CICD Diagram](./docs/demo4/PDF/CICD%20Diagram.pdf)
 - [Architecture Diagram](./docs/demo4/PDF/Architecture%20Diagram.jpg)
 - [Domain Model](./docs/demo4/PDF/UpdatedDomain.jpg)
 - [Functional Requirements](./docs/demo4/PDF/FunctionalRequirements.pdf)

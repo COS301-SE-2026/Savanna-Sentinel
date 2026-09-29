@@ -11,3 +11,8 @@
 ### V3
 
 - Updated the CI/CD diagram to match the pipeline.yml split and the SSH -> SSM deploy switch.
+
+### V4
+
+* Removed Sonarqube
+* Added Security Pipeline
