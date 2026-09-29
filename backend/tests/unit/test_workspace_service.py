@@ -359,6 +359,17 @@ def test_unknown_style_keys_are_still_rejected():
         WorkspaceStyle(buffer_size=3)
 
 
+def test_an_explicit_no_icon_is_accepted_and_stored():
+    style = WorkspaceStyle(icon="none")
+
+    assert style.to_stored() == {"icon": "none"}
+
+
+def test_an_unknown_icon_key_is_rejected():
+    with pytest.raises(ValidationError):
+        WorkspaceStyle(icon="rocket")
+
+
 @pytest.mark.asyncio
 async def test_save_forwards_the_buffer_and_in_effect_fields():
     repo = FakeWorkspaceRepo()
