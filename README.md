@@ -87,7 +87,7 @@ The SRS contains an abridged version of the use cases, full use case documentati
 - [Service Contracts](<https://savannasentinel.co.za/v1/openapi.json>)
 - [Testing Policy](./docs/demo4/PDF/Testing%20Policy.pdf)
 - [Use Case Diagrams](./docs/demo4/PDF/Use%20Case%20Diagram%20&%20Scope.pdf)
-- [User Manual](./docs/demo4/PDF/Non%20Functional%20User%20Manual.pdf)
+- [User Manual](./docs/demo4/PDF/User%20Manual.pdf)
 
 </details>
 
