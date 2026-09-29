@@ -110,6 +110,7 @@ export const TEST_CELL_EXPLAIN: CellExplainResponse = {
         { feature_name: "incident_density_self", contribution: 0.6 },
         { feature_name: "sighting_density_self", contribution: 0.4 },
     ],
+    terrain_delta: 0,
     self_incidents: [
         {
             incident_type: "snare",

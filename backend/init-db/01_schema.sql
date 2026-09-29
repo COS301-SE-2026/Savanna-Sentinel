@@ -260,7 +260,8 @@ CREATE TABLE cell_risk_scores (
     id            UUID  PRIMARY KEY DEFAULT uuid_generate_v4(),
     heatmap_id    UUID  NOT NULL REFERENCES risk_heatmaps(id) ON DELETE CASCADE,
     grid_cell_id  UUID  NOT NULL REFERENCES grid_cells(id) ON DELETE CASCADE,
-    risk_score    FLOAT NOT NULL
+    risk_score    FLOAT NOT NULL,
+    terrain_delta FLOAT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE grid_cell_features (

@@ -269,6 +269,7 @@ async def test_explain_cell_returns_top_features_for_analyst():
     assert response.status_code == 200
     body = response.json()
     assert body["top_features"][0]["feature_name"] == "incident_density_self"
+    assert body["terrain_delta"] == 0.0
 
 
 @pytest.mark.asyncio

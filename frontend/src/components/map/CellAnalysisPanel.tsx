@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Binoculars, TriangleAlert, X } from "lucide-react";
+import {
+    Binoculars,
+    TrendingDown,
+    TrendingUp,
+    TriangleAlert,
+    X,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +47,28 @@ function getFeatureLabel(featureName: string): string {
         .split("_")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");
+}
+
+function TerrainRulesRow({ delta }: { delta: number }) {
+    const points = Math.round(Math.abs(delta) * 100);
+    if (points === 0) return null;
+    const isRaised = delta > 0;
+    const Icon = isRaised ? TrendingUp : TrendingDown;
+    return (
+        <div className="mb-2 flex items-center gap-2">
+            <span className="min-w-[130px] text-sm text-color-text-primary">
+                Terrain rules
+            </span>
+            <span className="flex flex-1 items-center gap-1.5 text-sm text-color-text-secondary">
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
+                {isRaised ? "Raised score" : "Lowered score"}
+            </span>
+            <span className="text-sm text-color-text-secondary tabular-nums">
+                {isRaised ? "+" : "\u2212"}
+                {points} pts
+            </span>
+        </div>
+    );
 }
 
 function formatIncidentType(incidentType: string): string {
@@ -306,6 +334,11 @@ export function CellAnalysisPanel({
                             </div>
                         );
                     })}
+                {explainStatus === "loaded" &&
+                    !isExplanationStale &&
+                    explanation && (
+                        <TerrainRulesRow delta={explanation.terrain_delta} />
+                    )}
             </div>
 
             {explainStatus === "loaded" &&

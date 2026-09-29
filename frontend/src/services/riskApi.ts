@@ -64,6 +64,7 @@ export interface CellExplainResponse {
     cell_id: string;
     heatmap_id: string;
     top_features: ExplainFeature[];
+    terrain_delta: number;
     self_incidents: IncidentDetail[];
     neighbor_incidents: IncidentDetail[];
     self_sightings: SightingDetail[];

@@ -30,6 +30,7 @@ _cell_risk_scores_table = table(
     column("heatmap_id"),
     column("grid_cell_id"),
     column("risk_score"),
+    column("terrain_delta"),
 )
 _grid_cell_features_table = table(
     "grid_cell_features",
@@ -223,7 +224,7 @@ async def persist_grid_cells(session: AsyncSession, park_id: str) -> None:
 async def get_grid_cells(session: AsyncSession, park_id: str) -> list[dict]:
     result = await session.execute(
         text("""
-            SELECT id, row_index, col_index,
+            SELECT id, cell_ref, row_index, col_index,
                 ST_AsGeoJSON(polygon_bounds) AS geojson
             FROM grid_cells
             WHERE park_id = :park_id
@@ -236,6 +237,7 @@ async def get_grid_cells(session: AsyncSession, park_id: str) -> list[dict]:
         cells.append(
             {
                 "cell_id": str(row.id),
+                "cell_ref": row.cell_ref,
                 "row": row.row_index,
                 "col": row.col_index,
                 "corners": [
@@ -374,7 +376,9 @@ async def save_heatmap_snapshot(
     features_per_cell: dict[str, dict[str, float]],
     explanations: dict[str, list[tuple[str, float]]],
     time_interval: str = "6h",
+    terrain_deltas: dict[str, float] | None = None,
 ) -> tuple[str, datetime]:
+    terrain_deltas = terrain_deltas or {}
     heatmap_result = await session.execute(
         text("""
             INSERT INTO risk_heatmaps (model_id, grid_resolution, time_interval)
@@ -402,6 +406,7 @@ async def save_heatmap_snapshot(
                 "heatmap_id": heatmap_id,
                 "grid_cell_id": cell_id,
                 "risk_score": scores[cell_id],
+                "terrain_delta": terrain_deltas.get(cell_id, 0.0),
             },
         )
         feature_rows.append(
@@ -693,8 +698,8 @@ async def get_cell_explanation(
 ) -> dict | None:
     result = await session.execute(
         text("""
-            SELECT crs.heatmap_id, rh.computed_at, em.key_reason,
-                em.confidence_level
+            SELECT crs.heatmap_id, rh.computed_at, crs.terrain_delta,
+                em.key_reason, em.confidence_level
             FROM cell_risk_scores crs
             JOIN risk_heatmaps rh ON rh.id = crs.heatmap_id
             JOIN explainability_metrics em ON em.cell_id = crs.id
@@ -736,6 +741,7 @@ async def get_cell_explanation(
     return {
         "heatmap_id": latest_heatmap_id,
         "top_features": top_features,
+        "terrain_delta": rows[0].terrain_delta,
         **details,
     }
 

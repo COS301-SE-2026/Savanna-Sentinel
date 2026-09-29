@@ -364,6 +364,7 @@ async def get_cell_explanation(session, cell_id: str) -> CellExplainResponse:
         top_features=[
             ExplainFeature(**feature) for feature in data["top_features"]
         ],
+        terrain_delta=data["terrain_delta"],
         self_incidents=[
             IncidentDetail(**incident) for incident in data["self_incidents"]
         ],

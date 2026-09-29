@@ -29,6 +29,9 @@ class FakeTerrainRepo:
     async def get_effects(self):
         return self.effects
 
+    async def get_risk_deltas(self):
+        return {ref: risk for ref, risk, _ in self.effects if risk != 0.0}
+
     async def get_meta(self):
         return self.meta
 
