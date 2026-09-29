@@ -535,6 +535,9 @@ describe("MapPage", () => {
 
         renderPage();
 
+        await userEvent.click(
+            await screen.findByRole("button", { name: "Expand layer" }),
+        );
         const membershipButton = await screen.findByRole("button", {
             name: "Test feature",
         });
@@ -568,6 +571,9 @@ describe("MapPage", () => {
 
         renderPage();
 
+        await userEvent.click(
+            await screen.findByRole("button", { name: "Expand layer" }),
+        );
         const membershipButton = await screen.findByRole("button", {
             name: "Test feature",
         });

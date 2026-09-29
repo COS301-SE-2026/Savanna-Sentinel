@@ -346,6 +346,58 @@ describe("PatrolPlannerPage", () => {
         );
     });
 
+    describe("clicking a workspace feature on the map", () => {
+        async function renderWithFeature() {
+            useWorkspaceStore.setState({ loadWorkspace: vi.fn() });
+            const waterId = useWorkspaceStore
+                .getState()
+                .addLayer("Water", null);
+            useWorkspaceStore.getState().setActiveLayer(waterId);
+            const created = useWorkspaceStore.getState().drawFeature("point", {
+                type: "Point",
+                coordinates: [31.05, -24.3],
+            });
+            renderPage();
+            const map = await currentMap();
+            map.queryRenderedFeaturesResult = [
+                { properties: { id: created!.featureId } },
+            ];
+            return map;
+        }
+
+        it("selects the feature when no point is being placed", async () => {
+            const map = await renderWithFeature();
+
+            await act(async () => {
+                map.fireClick({ lng: 31.05, lat: -24.3 });
+            });
+
+            expect(
+                screen.queryByLabelText("Heatmap Opacity"),
+            ).not.toBeInTheDocument();
+        });
+
+        it("places the armed point without selecting the feature", async () => {
+            const map = await renderWithFeature();
+
+            await userEvent.click(
+                screen.getByRole("button", {
+                    name: "Pick start point on map",
+                }),
+            );
+            await act(async () => {
+                map.fireClick({ lng: 31.05, lat: -24.3 });
+            });
+
+            expect(screen.getByLabelText(/^start point$/i)).toHaveValue(
+                "-24.30000, 31.05000",
+            );
+            expect(
+                screen.getByLabelText("Heatmap Opacity"),
+            ).toBeInTheDocument();
+        });
+    });
+
     it("warns when the risk grid cannot be loaded", async () => {
         server.use(
             http.get("http://localhost:8000/v1/risk/grid", () =>
@@ -802,6 +854,17 @@ describe("Location Handling", () => {
         await userEvent.click(heatmapButton);
 
         expect(heatmapButton).toHaveAttribute("aria-current", "true");
+    });
+
+    it("starts workspace root layers collapsed in the layer tree", async () => {
+        useWorkspaceStore.setState({ loadWorkspace: vi.fn() });
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().addLayer("Western water", waterId);
+
+        renderPage();
+
+        expect(await screen.findByText("Water")).toBeInTheDocument();
+        expect(screen.queryByText("Western water")).not.toBeInTheDocument();
     });
 
     it("renders only one opacity slider when the heatmap row is selected", async () => {
