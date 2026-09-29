@@ -109,6 +109,7 @@ export function ExplainabilityPanel({
                     activeLayerId={null}
                     selection={selection}
                     readOnly
+                    rootLayersCollapsed
                     heatmapVisible={heatmapVisible}
                     onToggleHeatmap={onHeatmapVisibleChange}
                     heatmapSelected={heatmapSelected}

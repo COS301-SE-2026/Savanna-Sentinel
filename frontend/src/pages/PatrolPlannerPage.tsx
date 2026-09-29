@@ -205,6 +205,7 @@ function SidebarContent({
                     activeLayerId={null}
                     selection={selection}
                     readOnly
+                    rootLayersCollapsed
                     heatmapVisible={heatmapVisible}
                     onToggleHeatmap={onHeatmapVisibleChange}
                     heatmapSelected={heatmapSelected}
@@ -378,6 +379,7 @@ export default function PatrolPlannerPage() {
     }, [loadWorkspace]);
 
     function handleFeatureClick(featureId: string | null) {
+        if (armedStopId) return;
         if (!featureId) {
             setSelection(null);
             return;
