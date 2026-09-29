@@ -33,6 +33,20 @@ export function getDescendantLayerIds(
     return result;
 }
 
+export function getLayerChainIds(
+    layers: WorkspaceLayer[],
+    layerId: string,
+): string[] {
+    const byId = new Map(layers.map((l) => [l.id, l]));
+    const chain: string[] = [];
+    let current = byId.get(layerId);
+    while (current && !chain.includes(current.id)) {
+        chain.push(current.id);
+        current = current.parentId ? byId.get(current.parentId) : undefined;
+    }
+    return chain;
+}
+
 export type LayerCheckboxState = "checked" | "unchecked" | "indeterminate";
 
 export function computeLayerCheckboxState(

@@ -15,6 +15,8 @@ export interface FeatureStyle {
     bufferOpacity?: number;
 }
 
+export const NO_ICON = "none";
+
 export const DEFAULT_BUFFER_OPACITY = 0.2;
 export const DEFAULT_BUFFER_DISTANCE_M = 100;
 export const MIN_BUFFER_DISTANCE_M = 1;
