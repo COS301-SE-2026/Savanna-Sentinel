@@ -268,4 +268,59 @@ describe("CellAnalysisPanel", () => {
         expect(onClosed).toHaveBeenCalledTimes(1);
         vi.useRealTimers();
     });
+
+    describe("terrain rules row", () => {
+        function renderWithTerrainDelta(terrainDelta: number) {
+            server.use(
+                http.get(
+                    "http://localhost:8000/v1/risk/heatmap/cells/:cellId/explain",
+                    () =>
+                        HttpResponse.json({
+                            ...TEST_CELL_EXPLAIN,
+                            terrain_delta: terrainDelta,
+                        }),
+                ),
+            );
+            seedCellRef();
+            render(
+                <CellAnalysisPanel
+                    level="alert"
+                    row={14}
+                    col={7}
+                    score={0.6}
+                    cellRef="cell-1"
+                    isClosing={false}
+                    onClose={vi.fn()}
+                    onClosed={vi.fn()}
+                />,
+            );
+        }
+
+        it("shows how many points terrain rules raised the score", async () => {
+            renderWithTerrainDelta(0.12);
+
+            expect(
+                await screen.findByText("Terrain rules"),
+            ).toBeInTheDocument();
+            expect(screen.getByText("Raised score")).toBeInTheDocument();
+            expect(screen.getByText("+12 pts")).toBeInTheDocument();
+        });
+
+        it("shows how many points terrain rules lowered the score", async () => {
+            renderWithTerrainDelta(-0.08);
+
+            expect(
+                await screen.findByText("Terrain rules"),
+            ).toBeInTheDocument();
+            expect(screen.getByText("Lowered score")).toBeInTheDocument();
+            expect(screen.getByText("\u22128 pts")).toBeInTheDocument();
+        });
+
+        it("hides the row when terrain rules made no visible change", async () => {
+            renderWithTerrainDelta(0.004);
+
+            await screen.findByText("Incident density (this cell)");
+            expect(screen.queryByText("Terrain rules")).not.toBeInTheDocument();
+        });
+    });
 });
