@@ -72,19 +72,19 @@ The SRS contains an abridged version of the use cases, full use case documentati
 
 - [Software Requirements Specification (SRS)](./docs/demo4/PDF/SRS.pdf)
 - [Software Archiecture Specification (SAS)](./docs/demo4/PDF/SAS.pdf)
-- [Use Case Diagrams](./docs/demo4/PDF/Use%20Case%20Diagram%20&%20Scope.pdf)
-- [Deployment Diagrams](./docs/demo4/PDF/Production%20Deployment%20Diagram.png)
-- [Service Contracts](<https://savannasentinel.co.za/v1/openapi.json>)
-- [NFR Traceability Matrix](./docs/demo4/PDF/Non%20Functional%20Requirements%20Matrix.pdf)
-- [User Manual](./docs/demo4/PDF/Non%20Functional%20User%20Manual.pdf)
-- [CICD Diagram](./docs/demo4/PDF/CICD%20Diagram.pdf)
 - [Architecture Diagram](./docs/demo4/PDF/Architecture%20Diagram.pdf)
+- [Brand Style Guide](<https://cos301-se-2026.github.io/Savanna-Sentinel/demo2/DevDocs(Not-For-Review)/brand-style/brand_style_guide.html>)
+- [CICD Diagram](./docs/demo4/PDF/CICD%20Diagram.pdf)
+- [Coding Standards](./docs/demo4/PDF/Coding%20Standards.pdf)
+- [Deployment Diagrams](./docs/demo4/PDF/Production%20Deployment%20Diagram.png)
 - [Domain Model](./docs/demo4/PDF/UpdatedDomain.jpg)
 - [Functional Requirements](./docs/demo4/PDF/FunctionalRequirements.pdf)
+- [NFR Traceability Matrix](./docs/demo4/PDF/Non%20Functional%20Requirements%20Matrix.pdf)
 - [Non-Functional Requirements](./docs/demo4/PDF/Non%20Functional%20Requirements.pdf)
-- [Brand Style Guide](<https://cos301-se-2026.github.io/Savanna-Sentinel/demo2/DevDocs(Not-For-Review)/brand-style/brand_style_guide.html>)
-- [Coding Standards](./docs/demo4/PDF/Coding%20Standards.pdf)
+- [Service Contracts](<https://savannasentinel.co.za/v1/openapi.json>)
 - [Testing Policy](./docs/demo4/PDF/Testing%20Policy.pdf)
+- [Use Case Diagrams](./docs/demo4/PDF/Use%20Case%20Diagram%20&%20Scope.pdf)
+- [User Manual](./docs/demo4/PDF/Non%20Functional%20User%20Manual.pdf)
 
 </details>
 
