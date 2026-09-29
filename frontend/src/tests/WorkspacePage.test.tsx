@@ -233,6 +233,31 @@ describe("WorkspacePage", () => {
         expect(await screen.findByText("Point feature")).toBeInTheDocument();
     });
 
+    it("deselects the current feature but keeps its layer selected when a drawing tool is chosen", async () => {
+        vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] });
+        useWorkspaceStore
+            .getState()
+            .renameFeature(created!.featureId, "My point");
+
+        renderWorkspace();
+
+        await userEvent.click(await screen.findByText("My point"));
+        expect(await screen.findByText("Point feature")).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("button", { name: "Line" }));
+
+        expect(screen.queryByText("Point feature")).not.toBeInTheDocument();
+        expect(
+            screen.getByText("Water", { selector: "button" }),
+        ).toHaveAttribute("aria-current", "true");
+        expect(useWorkspaceStore.getState().activeLayerId).toBe(waterId);
+    });
+
     it("blocks selecting a feature by clicking it on the map while a drawing tool is active", async () => {
         vi.spyOn(useMobileModule, "useIsMobile").mockReturnValue(false);
         const waterId = useWorkspaceStore.getState().addLayer("Water", null);

@@ -1,20 +1,22 @@
 import { WORKSPACE_ICONS } from "@/lib/workspace/icons";
+import { NO_ICON } from "@/lib/workspace/types";
 
 export interface IconPickerProps {
     value: string | undefined;
-    onChange: (icon: string | undefined) => void;
+    onChange: (icon: string) => void;
 }
 
 export function IconPicker({ value, onChange }: IconPickerProps) {
+    const hasNoIcon = value === undefined || value === NO_ICON;
     return (
         <div className="grid grid-cols-5 gap-1">
             <button
                 type="button"
                 aria-label="No icon"
-                aria-pressed={value === undefined}
-                onClick={() => onChange(undefined)}
+                aria-pressed={hasNoIcon}
+                onClick={() => onChange(NO_ICON)}
                 className={`flex size-8 items-center justify-center rounded border text-xs text-color-text-secondary ${
-                    value === undefined
+                    hasNoIcon
                         ? "border-brand-primary bg-color-surface-bg"
                         : "border-color-border"
                 }`}

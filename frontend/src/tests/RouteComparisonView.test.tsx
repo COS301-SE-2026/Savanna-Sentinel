@@ -8,6 +8,7 @@ import { COMPLETED_ROUTES } from "./mocks/routeHandlers";
 
 const SAVE_PROPS = {
     onSave: vi.fn(),
+    onSendToHeatmap: vi.fn(),
     savingIndex: null,
     savedIndices: new Set<number>(),
     canSave: true,
@@ -130,7 +131,7 @@ describe("RouteComparisonView", () => {
         expect(screen.getByText("58%")).toHaveClass("text-status-caution-text");
     });
 
-    it("shows Selected on the selected card and Select on the rest", () => {
+    it("marks only the selected card as pressed", () => {
         render(
             <RouteComparisonView
                 status="completed"
@@ -141,11 +142,14 @@ describe("RouteComparisonView", () => {
             />,
         );
         expect(
-            screen.getByRole("button", { name: "Selected" }),
+            screen.getByRole("button", { name: "Route A", pressed: true }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole("button", { name: "Select" }),
+            screen.getByRole("button", { name: "Route B", pressed: false }),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: /^select(ed)?$/i }),
+        ).not.toBeInTheDocument();
     });
 
     it("calls onSelect with the clicked route's index", async () => {
@@ -159,8 +163,51 @@ describe("RouteComparisonView", () => {
                 {...SAVE_PROPS}
             />,
         );
-        await userEvent.click(screen.getByRole("button", { name: "Select" }));
+        await userEvent.click(screen.getByRole("button", { name: "Route B" }));
         expect(onSelect).toHaveBeenCalledWith(1);
+    });
+
+    it("sends the card's route to the heatmap without selecting it", async () => {
+        const onSelect = vi.fn();
+        const onSendToHeatmap = vi.fn();
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={ROUTES}
+                selectedIndex={0}
+                {...SAVE_PROPS}
+                onSelect={onSelect}
+                onSendToHeatmap={onSendToHeatmap}
+            />,
+        );
+        await userEvent.click(
+            screen.getByRole("button", {
+                name: "Save and show Route B on heatmap",
+            }),
+        );
+        expect(onSendToHeatmap).toHaveBeenCalledWith(1);
+        expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("labels the heatmap button without saving once the card is saved", () => {
+        render(
+            <RouteComparisonView
+                status="completed"
+                routes={ROUTES}
+                selectedIndex={0}
+                onSelect={vi.fn()}
+                {...SAVE_PROPS}
+                savedIndices={new Set([0])}
+            />,
+        );
+        expect(
+            screen.getByRole("button", { name: "Show Route A on heatmap" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("button", {
+                name: "Save and show Route B on heatmap",
+            }),
+        ).toBeInTheDocument();
     });
 
     it("shows a message when there are no feasible routes", () => {
@@ -215,6 +262,7 @@ describe("RouteComparisonView", () => {
                 selectedIndex={0}
                 onSelect={vi.fn()}
                 onSave={vi.fn()}
+                onSendToHeatmap={vi.fn()}
                 savingIndex={null}
                 savedIndices={new Set()}
                 canSave={false}
@@ -234,6 +282,7 @@ describe("RouteComparisonView", () => {
                 selectedIndex={0}
                 onSelect={vi.fn()}
                 onSave={onSave}
+                onSendToHeatmap={vi.fn()}
                 savingIndex={null}
                 savedIndices={new Set()}
                 canSave
@@ -266,6 +315,7 @@ describe("RouteComparisonView", () => {
                 selectedIndex={0}
                 onSelect={vi.fn()}
                 onSave={onSave}
+                onSendToHeatmap={vi.fn()}
                 savingIndex={null}
                 savedIndices={new Set()}
                 canSave
@@ -293,6 +343,7 @@ describe("RouteComparisonView", () => {
                 selectedIndex={0}
                 onSelect={vi.fn()}
                 onSave={onSave}
+                onSendToHeatmap={vi.fn()}
                 savingIndex={null}
                 savedIndices={new Set()}
                 canSave
@@ -321,6 +372,7 @@ describe("RouteComparisonView", () => {
                 selectedIndex={0}
                 onSelect={vi.fn()}
                 onSave={vi.fn()}
+                onSendToHeatmap={vi.fn()}
                 savingIndex={null}
                 savedIndices={new Set([0])}
                 canSave

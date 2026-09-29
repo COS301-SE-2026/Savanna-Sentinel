@@ -81,6 +81,7 @@ interface SidebarContentProps {
     onSelectRoute: (index: number) => void;
     onClearRoutes: () => void;
     onSaveRoute: (index: number) => void;
+    onSendCardToHeatmap: (index: number) => void;
     savingIndex: number | null;
     savedIndices: Set<number>;
     canSave: boolean;
@@ -125,6 +126,7 @@ function SidebarContent({
     onSelectRoute,
     onClearRoutes,
     onSaveRoute,
+    onSendCardToHeatmap,
     savingIndex,
     savedIndices,
     canSave,
@@ -189,6 +191,7 @@ function SidebarContent({
                     selectedIndex={selectedIndex}
                     onSelect={onSelectRoute}
                     onSave={onSaveRoute}
+                    onSendToHeatmap={onSendCardToHeatmap}
                     savingIndex={savingIndex}
                     savedIndices={savedIndices}
                     canSave={canSave}
@@ -202,6 +205,7 @@ function SidebarContent({
                     activeLayerId={null}
                     selection={selection}
                     readOnly
+                    rootLayersCollapsed
                     heatmapVisible={heatmapVisible}
                     onToggleHeatmap={onHeatmapVisibleChange}
                     heatmapSelected={heatmapSelected}
@@ -305,16 +309,28 @@ export default function PatrolPlannerPage() {
     }
 
     const [savingIndex, setSavingIndex] = useState<number | null>(null);
-    const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
+    const [savedRoutes, setSavedRoutes] = useState<Map<number, SavedRoute>>(
+        new Map(),
+    );
+    const savedIndices = useMemo(
+        () => new Set(savedRoutes.keys()),
+        [savedRoutes],
+    );
 
     const [prevRoutesForSave, setPrevRoutesForSave] = useState(routes);
     if (routes !== prevRoutesForSave) {
         setPrevRoutesForSave(routes);
-        setSavedIndices(new Set());
+        setSavedRoutes(new Map());
     }
 
     const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
-    const [loadedRoute, setLoadedRoute] = useState<PlannedRoute | null>(null);
+    const [loadedSavedRoute, setLoadedSavedRoute] = useState<SavedRoute | null>(
+        null,
+    );
+    const loadedRoute = useMemo<PlannedRoute | null>(
+        () => (loadedSavedRoute ? toPlannedRoute(loadedSavedRoute) : null),
+        [loadedSavedRoute],
+    );
     const [savedRiskByCell, setSavedRiskByCell] = useState<Map<
         string,
         number
@@ -363,6 +379,7 @@ export default function PatrolPlannerPage() {
     }, [loadWorkspace]);
 
     function handleFeatureClick(featureId: string | null) {
+        if (armedStopId) return;
         if (!featureId) {
             setSelection(null);
             return;
@@ -488,7 +505,7 @@ export default function PatrolPlannerPage() {
     async function handleGenerate() {
         const payload = toStopsPayload(stops);
         if (!payload || hasNoRiskData) return;
-        setLoadedRoute(null);
+        setLoadedSavedRoute(null);
         setSavedRiskByCell(null);
         try {
             const job = await routeApi.generateRoute({
@@ -505,14 +522,14 @@ export default function PatrolPlannerPage() {
 
     function handleClearRoutes() {
         setRequestId(null);
-        setLoadedRoute(null);
+        setLoadedSavedRoute(null);
         setSavedRiskByCell(null);
         setSelectedIndex(0);
     }
 
     function handleLoadRoute(saved: SavedRoute) {
         setRequestId(null);
-        setLoadedRoute(toPlannedRoute(saved));
+        setLoadedSavedRoute(saved);
         setSavedRiskByCell(new Map(Object.entries(saved.risk_by_cell)));
         setSelectedIndex(0);
         setStops(stopsFromSaved(saved));
@@ -536,8 +553,8 @@ export default function PatrolPlannerPage() {
 
     const canSave = requestId !== null;
 
-    const handleSaveRoute = async (index: number) => {
-        if (!requestId || !plannedStops) return;
+    async function saveRouteAt(index: number): Promise<SavedRoute | null> {
+        if (!requestId || !plannedStops) return null;
         setSavingIndex(index);
         try {
             const saved = await routeApi.saveRoute({
@@ -547,14 +564,31 @@ export default function PatrolPlannerPage() {
                 route: routes[index],
             });
             await cacheSavedRoute(user?.id ?? null, saved).catch(() => {});
-            setSavedIndices((prev) => new Set(prev).add(index));
-            notifySafe("Route saved");
+            setSavedRoutes((prev) => new Map(prev).set(index, saved));
+            return saved;
         } catch {
             notifyCritical("Could not save route");
+            return null;
         } finally {
             setSavingIndex(null);
         }
+    }
+
+    const handleSaveRoute = async (index: number) => {
+        if (await saveRouteAt(index)) notifySafe("Route saved");
     };
+
+    async function handleSendCardToHeatmap(index: number) {
+        if (!user?.id) {
+            notifyCritical("Could not send the route to the heatmap");
+            return;
+        }
+        const saved =
+            loadedSavedRoute ??
+            savedRoutes.get(index) ??
+            (await saveRouteAt(index));
+        if (saved) await handleSendRouteToHeatmap(saved);
+    }
 
     const isGenerating = jobStatus === "queued" || jobStatus === "processing";
     const isPickingActive = armedStopId !== null;
@@ -576,6 +610,7 @@ export default function PatrolPlannerPage() {
         isTerrainStale: loadedRoute ? false : isTerrainStale,
         onSelectRoute: handleSelectRoute,
         onSaveRoute: handleSaveRoute,
+        onSendCardToHeatmap: handleSendCardToHeatmap,
         savingIndex,
         savedIndices,
         canSave,

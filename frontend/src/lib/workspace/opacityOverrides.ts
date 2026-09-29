@@ -1,4 +1,5 @@
 import type { ResolvedFeature } from "./resolveVisibleFeatures";
+import { resolveBufferAppearance } from "./styleResolution";
 
 export interface LayerOpacityOverride {
     kind: "layer" | "membership";
@@ -25,6 +26,11 @@ export function applyOpacityOverrides(
             membershipOverrides.get(r.membershipId) ??
             layerOverrides.get(r.layerId);
         if (opacity === undefined) return r;
+        const scale = r.style.opacity > 0 ? opacity / r.style.opacity : opacity;
+        const bufferOpacity = Math.min(
+            1,
+            resolveBufferAppearance(r.style).opacity * scale,
+        );
         return {
             ...r,
             style: {
@@ -33,7 +39,7 @@ export function applyOpacityOverrides(
                 outlineOpacity: opacity,
                 iconOpacity: opacity,
                 labelOpacity: opacity,
-                bufferOpacity: opacity,
+                bufferOpacity,
             },
         };
     });

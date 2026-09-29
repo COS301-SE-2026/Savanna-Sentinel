@@ -450,7 +450,7 @@ def _seeded_main_river():
     seed = Path(__file__).resolve().parents[2] / (
         "init-db/04_seed_workspace_layers.sql"
     )
-    match = re.search(r"'Main River','(\{.*?\})'", seed.read_text())
+    match = re.search(r"'Klaserie River','(\{.*?\})'", seed.read_text())
     return json.loads(match.group(1))
 
 
@@ -515,7 +515,7 @@ def test_route_on_the_real_grid_never_crosses_an_impassable_river(
         assert not drawn.intersects(area.area)
 
 
-_SEEDED_BRIDGE = (31.144496809, -24.204771374)
+_SEEDED_BRIDGE = (31.146843, -24.203114)
 
 
 def test_route_on_the_real_grid_crosses_the_river_on_the_bridge(no_terrain):
@@ -582,7 +582,7 @@ def test_route_on_the_real_grid_crosses_the_river_on_the_bridge(no_terrain):
 def test_route_on_the_real_grid_drives_along_a_preferred_road(no_terrain):
     road = json.loads(
         re.search(
-            r"'Road 1','(\{.*?\})'",
+            r"'Bushbuck Road','(\{.*?\})'",
             (
                 Path(__file__).resolve().parents[2]
                 / "init-db/04_seed_workspace_layers.sql"

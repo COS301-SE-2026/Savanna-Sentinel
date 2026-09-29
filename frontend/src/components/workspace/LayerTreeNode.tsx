@@ -19,6 +19,7 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
     computeLayerCheckboxState,
     computeLayerInEffectState,
+    getLayerChainIds,
 } from "@/lib/workspace/tree";
 import {
     getFeatureDisplayName,
@@ -30,6 +31,10 @@ import type {
     WorkspaceMembership,
 } from "@/lib/workspace/types";
 import type { WorkspaceSelection } from "./StyleEditorPanel";
+import {
+    ConfirmDeleteDialog,
+    ConfirmDeleteFeatureDialog,
+} from "./ConfirmDeleteDialog";
 
 export interface LayerTreeNodeProps {
     layer: WorkspaceLayer;
@@ -37,6 +42,7 @@ export interface LayerTreeNodeProps {
     activeLayerId: string | null;
     selection?: WorkspaceSelection;
     readOnly?: boolean;
+    defaultExpanded?: boolean;
     onSelectLayer: (layerId: string) => void;
     onSelectMembership: (membershipId: string) => void;
     onMoveMembership: (membershipId: string) => void;
@@ -45,6 +51,7 @@ export interface LayerTreeNodeProps {
 
 const selectedRowClass = "bg-brand-primary/10";
 const activeLayerRowClass = "bg-brand-primary/5";
+const selectionContextRowClass = "bg-color-surface-bg";
 
 const menuItemClass =
     "cursor-pointer rounded px-2 py-1.5 text-sm text-color-text-primary outline-none hover:bg-color-surface-bg";
@@ -70,13 +77,15 @@ export function LayerTreeNode({
     activeLayerId,
     selection = null,
     readOnly = false,
+    defaultExpanded = true,
     onSelectLayer,
     onSelectMembership,
     onMoveMembership,
     onDuplicateMembership,
 }: LayerTreeNodeProps) {
-    const [isExpanded, setExpanded] = useState(true);
+    const [isExpanded, setExpanded] = useState(defaultExpanded);
     const [isRenaming, setRenaming] = useState(false);
+    const [isConfirmingDelete, setConfirmingDelete] = useState(false);
     const [draftName, setDraftName] = useState(layer.name ?? "");
     const renameInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,6 +135,20 @@ export function LayerTreeNode({
     const isSelected =
         selection?.kind === "layer" && selection.layerId === layer.id;
     const isActiveLayer = activeLayerId === layer.id;
+    const selectedMembership =
+        selection?.kind === "membership"
+            ? memberships.find((m) => m.id === selection.membershipId)
+            : undefined;
+    const isOnSelectedFeaturePath =
+        selectedMembership !== undefined &&
+        getLayerChainIds(layers, selectedMembership.layerId).includes(layer.id);
+    const rowHighlightClass = isSelected
+        ? selectedRowClass
+        : isActiveLayer
+          ? activeLayerRowClass
+          : isOnSelectedFeaturePath
+            ? selectionContextRowClass
+            : "";
 
     function commitRename() {
         renameLayer(layer.id, draftName.trim());
@@ -135,7 +158,7 @@ export function LayerTreeNode({
     return (
         <li className="list-none" ref={setNodeRef} style={sortableStyle}>
             <div
-                className={`flex min-h-9 items-center gap-1 pr-2 ${isSelected ? selectedRowClass : isActiveLayer ? activeLayerRowClass : ""}`}
+                className={`flex min-h-9 items-center gap-1 pr-2 ${rowHighlightClass}`}
                 style={{ paddingLeft: `${depth * 16}px` }}
             >
                 {!readOnly && (
@@ -256,7 +279,7 @@ export function LayerTreeNode({
                                 </DropdownMenu.Item>
                                 <DropdownMenu.Item
                                     className={dangerMenuItemClass}
-                                    onSelect={() => deleteLayer(layer.id)}
+                                    onSelect={() => setConfirmingDelete(true)}
                                 >
                                     Delete layer
                                 </DropdownMenu.Item>
@@ -264,6 +287,13 @@ export function LayerTreeNode({
                         </DropdownMenu.Portal>
                     </DropdownMenu.Root>
                 )}
+                <ConfirmDeleteDialog
+                    open={isConfirmingDelete}
+                    onOpenChange={setConfirmingDelete}
+                    title="Delete layer?"
+                    description={`"${getLayerDisplayName(layer)}" and all of its child layers will be deleted, along with any features that are not also in another layer.`}
+                    onConfirm={() => deleteLayer(layer.id)}
+                />
             </div>
 
             {isExpanded && (
@@ -285,8 +315,14 @@ export function LayerTreeNode({
                                     depth={depth}
                                     readOnly={readOnly}
                                     isSelected={
-                                        selection?.kind === "membership" &&
-                                        selection.membershipId === membership.id
+                                        selectedMembership?.id === membership.id
+                                    }
+                                    isOtherInstanceOfSelection={
+                                        selectedMembership !== undefined &&
+                                        selectedMembership.id !==
+                                            membership.id &&
+                                        selectedMembership.featureId ===
+                                            membership.featureId
                                     }
                                     onSelectMembership={onSelectMembership}
                                     onMoveMembership={onMoveMembership}
@@ -329,6 +365,7 @@ interface MembershipRowProps {
     depth: number;
     readOnly: boolean;
     isSelected: boolean;
+    isOtherInstanceOfSelection: boolean;
     onSelectMembership: (membershipId: string) => void;
     onMoveMembership: (membershipId: string) => void;
     onDuplicateMembership: (membershipId: string) => void;
@@ -340,11 +377,13 @@ function MembershipRow({
     depth,
     readOnly,
     isSelected,
+    isOtherInstanceOfSelection,
     onSelectMembership,
     onMoveMembership,
     onDuplicateMembership,
 }: MembershipRowProps) {
     const [isRenaming, setRenaming] = useState(false);
+    const [isConfirmingDelete, setConfirmingDelete] = useState(false);
     const [draftName, setDraftName] = useState(getFeatureDisplayName(feature));
     const renameInputRef = useRef<HTMLInputElement>(null);
 
@@ -380,7 +419,13 @@ function MembershipRow({
     return (
         <li
             ref={setNodeRef}
-            className={`flex min-h-8 items-center gap-1 pr-2 ${isSelected ? selectedRowClass : ""}`}
+            className={`flex min-h-8 items-center gap-1 pr-2 ${
+                isSelected
+                    ? selectedRowClass
+                    : isOtherInstanceOfSelection
+                      ? selectionContextRowClass
+                      : ""
+            }`}
             style={{ ...sortableStyle, paddingLeft: `${(depth + 1) * 16}px` }}
         >
             {!readOnly && (
@@ -481,7 +526,7 @@ function MembershipRow({
                             )}
                             <DropdownMenu.Item
                                 className={dangerMenuItemClass}
-                                onSelect={() => deleteFeature(feature.id)}
+                                onSelect={() => setConfirmingDelete(true)}
                             >
                                 Delete feature everywhere
                             </DropdownMenu.Item>
@@ -489,6 +534,12 @@ function MembershipRow({
                     </DropdownMenu.Portal>
                 </DropdownMenu.Root>
             )}
+            <ConfirmDeleteFeatureDialog
+                open={isConfirmingDelete}
+                onOpenChange={setConfirmingDelete}
+                feature={feature}
+                onConfirm={() => deleteFeature(feature.id)}
+            />
         </li>
     );
 }

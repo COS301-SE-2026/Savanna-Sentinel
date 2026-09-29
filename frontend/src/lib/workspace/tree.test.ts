@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     wouldCreateCycle,
     getDescendantLayerIds,
+    getLayerChainIds,
     computeLayerCheckboxState,
     getPrecedenceOrderedLayerIds,
     computeReorderedSiblingIds,
@@ -94,6 +95,31 @@ describe("computeLayerCheckboxState", () => {
         expect(computeLayerCheckboxState(layers, memberships, "water")).toBe(
             "indeterminate",
         );
+    });
+});
+
+describe("getLayerChainIds", () => {
+    it("returns the layer followed by every ancestor up to the root", () => {
+        const layers = [
+            layer("water", null),
+            layer("rivers", "water"),
+            layer("seasonal", "rivers"),
+            layer("roads", null),
+        ];
+        expect(getLayerChainIds(layers, "seasonal")).toEqual([
+            "seasonal",
+            "rivers",
+            "water",
+        ]);
+    });
+
+    it("returns an empty chain for an unknown layer", () => {
+        expect(getLayerChainIds([layer("water", null)], "missing")).toEqual([]);
+    });
+
+    it("stops instead of looping forever on a parent cycle", () => {
+        const layers = [layer("a", "b"), layer("b", "a")];
+        expect(getLayerChainIds(layers, "a")).toEqual(["a", "b"]);
     });
 });
 

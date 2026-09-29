@@ -25,6 +25,7 @@ WORKSPACE_ICON_KEYS = (
     "moon",
     "star",
 )
+NO_ICON_KEY = "none"
 
 _HEX_COLOUR = r"^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
 _UUID = (
@@ -58,7 +59,7 @@ class WorkspaceStyle(BaseModel):
     @field_validator("icon")
     @classmethod
     def _known_icon(cls, value: Optional[str]) -> Optional[str]:
-        if value is not None and value not in WORKSPACE_ICON_KEYS:
+        if value not in (None, NO_ICON_KEY, *WORKSPACE_ICON_KEYS):
             raise ValueError(f"unknown icon key: {value}")
         return value
 

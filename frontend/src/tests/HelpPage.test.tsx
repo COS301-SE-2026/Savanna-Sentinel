@@ -140,6 +140,9 @@ describe("HelpPage", () => {
 
         await user.click(screen.getByRole("tab", { name: "Workspace" }));
         expect(screen.getByText("Organising layers")).toBeInTheDocument();
+        expect(
+            screen.getByText("How layer changes reach features"),
+        ).toBeInTheDocument();
 
         await user.click(screen.getByRole("tab", { name: "Admin Page" }));
         expect(screen.getByText("Account approvals")).toBeInTheDocument();

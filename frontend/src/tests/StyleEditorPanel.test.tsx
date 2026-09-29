@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, afterEach } from "vitest";
 
@@ -685,6 +685,49 @@ describe("StyleEditorPanel", () => {
         expect(created.featureId).toBeDefined();
     });
 
+    it("offers no Reset on a top-level layer's style, which has nothing to inherit from", () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setLayerDefaultStyle(waterId, {
+            colour: "#2b7bb9",
+            bufferOpacity: 0.4,
+        });
+        render(
+            <StyleEditorPanel
+                selection={{ kind: "layer", layerId: waterId }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+
+        expect(
+            screen.queryByRole("button", { name: /^Reset/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("offers Reset on a nested layer's own style", () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        const riversId = useWorkspaceStore
+            .getState()
+            .addLayer("Rivers", waterId);
+        useWorkspaceStore.getState().setLayerDefaultStyle(riversId, {
+            colour: "#2b7bb9",
+            bufferOpacity: 0.4,
+        });
+        render(
+            <StyleEditorPanel
+                selection={{ kind: "layer", layerId: riversId }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+
+        expect(screen.getAllByRole("button", { name: /^Reset/ })).toHaveLength(
+            2,
+        );
+    });
+
     it("shows a Behaviour button for a selected layer too", async () => {
         const waterId = useWorkspaceStore.getState().addLayer("Water", null);
         render(
@@ -701,5 +744,134 @@ describe("StyleEditorPanel", () => {
         );
 
         expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("choosing No icon stores an explicit 'none' so it survives a save over an inherited icon", async () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore
+            .getState()
+            .setLayerDefaultStyle(waterId, { icon: "droplet" });
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] })!;
+
+        render(
+            <StyleEditorPanel
+                selection={{
+                    kind: "membership",
+                    membershipId: created.membershipId,
+                }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+
+        const noIcon = screen.getByRole("button", { name: "No icon" });
+        expect(noIcon).toHaveAttribute("aria-pressed", "false");
+        await userEvent.click(noIcon);
+
+        const membership = useWorkspaceStore
+            .getState()
+            .memberships.find((m) => m.id === created.membershipId);
+        expect(membership?.styleOverride.icon).toBe("none");
+        expect(noIcon).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("deletes the feature from every layer after confirming the button at the bottom", async () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        const riverId = useWorkspaceStore.getState().addLayer("River", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] })!;
+        useWorkspaceStore
+            .getState()
+            .duplicateFeatureToLayer(created.membershipId, riverId);
+
+        render(
+            <StyleEditorPanel
+                selection={{
+                    kind: "membership",
+                    membershipId: created.membershipId,
+                }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+
+        const buttons = screen.getAllByRole("button");
+        const deleteButton = screen.getByRole("button", {
+            name: "Delete feature",
+        });
+        expect(buttons.at(-1)).toBe(deleteButton);
+
+        await userEvent.click(deleteButton);
+        expect(useWorkspaceStore.getState().features).toHaveLength(1);
+
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(
+            within(dialog).getByRole("button", { name: "Delete" }),
+        );
+
+        const state = useWorkspaceStore.getState();
+        expect(state.features).toHaveLength(0);
+        expect(state.memberships).toHaveLength(0);
+    });
+
+    it("keeps the feature when the delete confirmation is cancelled", async () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] })!;
+
+        render(
+            <StyleEditorPanel
+                selection={{
+                    kind: "membership",
+                    membershipId: created.membershipId,
+                }}
+                editingFeatureId={null}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+
+        await userEvent.click(
+            screen.getByRole("button", { name: "Delete feature" }),
+        );
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(
+            within(dialog).getByRole("button", { name: "Cancel" }),
+        );
+
+        expect(useWorkspaceStore.getState().features).toHaveLength(1);
+    });
+
+    it("disables Delete feature while the feature's geometry is being edited", () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().setActiveLayer(waterId);
+        const created = useWorkspaceStore
+            .getState()
+            .drawFeature("point", { type: "Point", coordinates: [0, 0] })!;
+
+        render(
+            <StyleEditorPanel
+                selection={{
+                    kind: "membership",
+                    membershipId: created.membershipId,
+                }}
+                editingFeatureId={created.featureId}
+                onToggleEditGeometry={() => {}}
+                onCancelEditGeometry={() => {}}
+            />,
+        );
+
+        expect(
+            screen.getByRole("button", { name: "Delete feature" }),
+        ).toBeDisabled();
     });
 });

@@ -163,6 +163,19 @@ describe("toWorkspaceFeatureCollections", () => {
         });
     });
 
+    it("renders an explicit 'none' icon as no icon at all", () => {
+        const collections = toWorkspaceFeatureCollections([
+            {
+                feature: dam,
+                membershipId: "m",
+                layerId: "water",
+                z: 0,
+                style: { colour: "#2563eb", opacity: 1, icon: "none" },
+            },
+        ]);
+        expect(collections.points.features[0].properties?.icon).toBeNull();
+    });
+
     it("falls back to a fully opaque outline when the style doesn't set one", () => {
         const collections = toWorkspaceFeatureCollections([
             {

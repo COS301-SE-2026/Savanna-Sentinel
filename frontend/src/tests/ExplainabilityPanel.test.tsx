@@ -4,6 +4,10 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
 import { ExplainabilityPanel } from "@/components/map/ExplainabilityPanel";
 import { useMapStore, initialMapState } from "@/store/mapStore";
+import {
+    useWorkspaceStore,
+    initialWorkspaceState,
+} from "@/store/workspaceStore";
 import type { HeatmapCell } from "@/services/riskApi";
 
 function makeCell(ref: string, riskScore: number): HeatmapCell {
@@ -28,6 +32,7 @@ function makeCellsByRef(): Map<string, HeatmapCell> {
 
 afterEach(() => {
     useMapStore.setState(initialMapState, true);
+    useWorkspaceStore.setState(initialWorkspaceState, true);
 });
 
 function renderPanel(
@@ -65,6 +70,16 @@ describe("ExplainabilityPanel", () => {
         expect(screen.queryByText(/roads/i)).not.toBeInTheDocument();
         expect(screen.queryByText(/water sources/i)).not.toBeInTheDocument();
         expect(screen.queryByText(/fence lines/i)).not.toBeInTheDocument();
+    });
+
+    it("starts workspace root layers collapsed", () => {
+        const waterId = useWorkspaceStore.getState().addLayer("Water", null);
+        useWorkspaceStore.getState().addLayer("Western water", waterId);
+
+        renderPanel();
+
+        expect(screen.getByText("Water")).toBeInTheDocument();
+        expect(screen.queryByText("Western water")).not.toBeInTheDocument();
     });
 
     it("lists My Location directly after Heatmap", () => {

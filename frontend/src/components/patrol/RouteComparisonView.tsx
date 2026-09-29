@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Save } from "lucide-react";
+import { MapPinned, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,7 @@ export interface RouteComparisonViewProps {
     selectedIndex: number;
     onSelect: (index: number) => void;
     onSave: (index: number) => void;
+    onSendToHeatmap: (index: number) => void;
     savingIndex: number | null;
     savedIndices: Set<number>;
     canSave: boolean;
@@ -86,6 +87,7 @@ export function RouteComparisonView({
     selectedIndex,
     onSelect,
     onSave,
+    onSendToHeatmap,
     savingIndex,
     savedIndices,
     canSave,
@@ -176,10 +178,10 @@ export function RouteComparisonView({
                         <div
                             key={index}
                             className={cn(
-                                "rounded-md border bg-color-surface-raised p-3",
+                                "relative rounded-md border bg-color-surface-raised p-3",
                                 isSelected
                                     ? "border-2 border-brand-primary"
-                                    : "border-color-border",
+                                    : "border-color-border hover:bg-color-surface-bg",
                             )}
                         >
                             <div className="mb-3 flex items-center gap-2">
@@ -191,9 +193,34 @@ export function RouteComparisonView({
                                             : UNSELECTED_ROUTE_COLOR,
                                     }}
                                 />
-                                <span className="flex-1 text-sm font-semibold">
+                                <button
+                                    type="button"
+                                    aria-pressed={isSelected}
+                                    onClick={() => onSelect(index)}
+                                    className="flex-1 cursor-pointer text-left text-sm font-semibold outline-none after:absolute after:inset-0 after:rounded-md focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-brand-primary focus-visible:after:[--tw-outline-style:solid]"
+                                >
                                     {ROUTE_LABELS[index]}
-                                </span>
+                                </button>
+                                <Button
+                                    type="button"
+                                    size="icon-xs"
+                                    variant="outline"
+                                    className="relative z-10"
+                                    disabled={savingIndex === index}
+                                    aria-label={
+                                        !canSave || savedIndices.has(index)
+                                            ? `Show ${ROUTE_LABELS[index]} on heatmap`
+                                            : `Save and show ${ROUTE_LABELS[index]} on heatmap`
+                                    }
+                                    title={
+                                        !canSave || savedIndices.has(index)
+                                            ? "Show on heatmap"
+                                            : "Save and show on heatmap"
+                                    }
+                                    onClick={() => onSendToHeatmap(index)}
+                                >
+                                    <MapPinned className="size-3.5" />
+                                </Button>
                                 <Button
                                     type="button"
                                     size="icon-xs"
@@ -215,27 +242,14 @@ export function RouteComparisonView({
                                             ? "Loaded routes can't be re-saved - generate a new route to save it"
                                             : undefined
                                     }
-                                    className={
-                                        savedIndices.has(index)
-                                            ? "text-status-safe"
-                                            : undefined
-                                    }
+                                    className={cn(
+                                        "relative z-10",
+                                        savedIndices.has(index) &&
+                                            "text-status-safe",
+                                    )}
                                 >
                                     <Save className="size-3.5" />
                                 </Button>
-                                <button
-                                    type="button"
-                                    aria-pressed={isSelected}
-                                    onClick={() => onSelect(index)}
-                                    className={cn(
-                                        "rounded-full px-3 py-0.5 text-xs",
-                                        isSelected
-                                            ? "bg-brand-primary text-color-text-inverse"
-                                            : "border border-color-border",
-                                    )}
-                                >
-                                    {isSelected ? "Selected" : "Select"}
-                                </button>
                             </div>
                             <dl className="flex flex-col gap-1 text-sm">
                                 <div className="flex justify-between">
