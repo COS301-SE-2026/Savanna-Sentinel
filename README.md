@@ -71,7 +71,7 @@ The SRS contains an abridged version of the use cases, full use case documentati
 <summary><h3>Demo 4</h3></summary>
 
 - [Software Requirements Specification (SRS)](./docs/demo4/PDF/SRS.pdf)
-- [Software Archiecture Specification (SAS)](./docs/demo4/PDF/SAS.pdf)
+- [Software Architecture Specification (SAS)](./docs/demo4/PDF/SAS.pdf)
 - [Architecture Diagram](./docs/demo4/PDF/Architecture%20Diagram.pdf)
 - [Brand Style Guide (Interactive)](<https://cos301-se-2026.github.io/Savanna-Sentinel/demo2/DevDocs(Not-For-Review)/brand-style/brand_style_guide.html>)
 - [Brand Style GUide (Static, {Some aspects broken})](./docs/demo4/PDF/Brand%20Style%20Guide.pdf)
@@ -89,11 +89,9 @@ The SRS contains an abridged version of the use cases, full use case documentati
 - [Use Case Diagrams](./docs/demo4/PDF/Use%20Case%20Diagram%20&%20Scope.pdf)
 - [User Manual](./docs/demo4/PDF/User%20Manual.pdf)
 
-</details>
-
 ### NFR evidence
 
-The [Demo 3 NFR Traceability Matrix](./docs/demo3/PDF/Non%20Functional%20Requirements%20Matrix.pdf) records each requirement, its implementation tactic, and the evidence used to assess it. See the [GitHub Actions workflows](./.github/workflows/) for the automated evidence:
+The [Demo 3 NFR Traceability Matrix](./docs/demo4/PDF/Non%20Functional%20Requirements%20Matrix.pdf) records each requirement, its implementation tactic, and the evidence used to assess it. See the [GitHub Actions workflows](./.github/workflows/) for the automated evidence:
 
 | Requirement | Evidence |
 | ----------- | -------- |
@@ -106,6 +104,10 @@ The k6 workflow runs five scenarios concurrently (30 health-check, 6 login, 15 r
 It takes ~10 minutes to run the test suite (Mainly because of e2e), and roughly 30 ~ 40 minutes for our CI to deploy from dev -> main
 
 Maintainability is evidenced here through repeatable lint, test, build, and coverage checks in CI.
+
+</details>
+
+
 
 ## Team
 
