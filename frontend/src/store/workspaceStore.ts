@@ -22,7 +22,10 @@ import {
     MIN_BUFFER_DISTANCE_M,
 } from "@/lib/workspace/types";
 import {
-    fetchWorkspace,
+    cacheWorkspaceSnapshot,
+    loadWorkspaceSnapshot,
+} from "@/offline/workspaceCache";
+import {
     saveVisibility,
     saveWorkspace as putWorkspace,
     WorkspaceConflictError,
@@ -87,8 +90,8 @@ const initialData: WorkspaceDataState = {
 
 export interface WorkspaceState extends WorkspaceDataState {
     hasUnsavedChanges: boolean;
-    loadWorkspace: () => Promise<void>;
-    saveWorkspace: () => Promise<WorkspaceSaveResult>;
+    loadWorkspace: (userId?: string | null) => Promise<void>;
+    saveWorkspace: (userId?: string | null) => Promise<WorkspaceSaveResult>;
     resetWorkspace: () => void;
     addLayer: (name: string | undefined, parentId: string | null) => string;
     renameLayer: (layerId: string, name: string) => void;
@@ -199,10 +202,10 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
         ...initialData,
         hasUnsavedChanges: false,
 
-        loadWorkspace: async () => {
+        loadWorkspace: async (userId = null) => {
             set({ status: "loading" });
             try {
-                const snapshot = await fetchWorkspace();
+                const { snapshot } = await loadWorkspaceSnapshot(userId);
                 set({
                     layers: snapshot.layers,
                     features: snapshot.features,
@@ -217,7 +220,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
             }
         },
 
-        saveWorkspace: async () => {
+        saveWorkspace: async (userId = null) => {
             const { layers, features, memberships, version } = get();
             try {
                 const snapshot = await putWorkspace(version, {
@@ -233,6 +236,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => {
                     status: "ready",
                     hasUnsavedChanges: false,
                 });
+                await cacheWorkspaceSnapshot(userId, snapshot);
                 return "saved";
             } catch (error) {
                 if (error instanceof WorkspaceConflictError) return "conflict";

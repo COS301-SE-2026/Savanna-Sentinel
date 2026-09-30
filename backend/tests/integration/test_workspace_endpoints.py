@@ -149,8 +149,69 @@ async def test_empty_workspace_starts_at_version_zero():
 
 
 @pytest.mark.asyncio
-async def test_rangers_cannot_reach_the_workspace():
-    user_id = await _create_user("test_ws_ranger", role="ranger")
+async def test_rangers_can_read_the_workspace():
+    analyst_id = await _create_user("test_ws_ranger_author")
+    ranger_id = await _create_user("test_ws_ranger", role="ranger")
+    body, layer_id, _, _ = _one_of_each()
+
+    async with _client() as client:
+        await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(analyst_id),
+        )
+        response = await client.get(
+            "/v1/workspace",
+            headers=_auth_header(ranger_id),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["layers"][0]["id"] == layer_id
+
+
+@pytest.mark.asyncio
+async def test_rangers_cannot_save_the_workspace():
+    ranger_id = await _create_user("test_ws_ranger_saver", role="ranger")
+    body, _, _, _ = _one_of_each()
+
+    async with _client() as client:
+        response = await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(ranger_id),
+        )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_rangers_can_set_their_own_layer_visibility():
+    analyst_id = await _create_user("test_ws_vis_author")
+    ranger_id = await _create_user("test_ws_vis_ranger", role="ranger")
+    body, _, _, membership_id = _one_of_each()
+
+    async with _client() as client:
+        await client.put(
+            "/v1/workspace",
+            json=body,
+            headers=_auth_header(analyst_id),
+        )
+        response = await client.put(
+            "/v1/workspace/visibility",
+            json={
+                "entries": [
+                    {"membership_id": membership_id, "visible": False},
+                ],
+            },
+            headers=_auth_header(ranger_id),
+        )
+
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_community_liaisons_cannot_reach_the_workspace():
+    user_id = await _create_user("test_ws_liaison", role="community_liaison")
 
     async with _client() as client:
         response = await client.get(

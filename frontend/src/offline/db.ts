@@ -76,6 +76,7 @@ export const cacheKeys = {
     reports: (query: string) => `reports:${query}`,
     savedRoutes: () => "saved-routes:list",
     pinnedRoute: () => "heatmap:pinned-route",
+    workspace: () => "workspace",
     profile: () => "profile:me",
 };
 
