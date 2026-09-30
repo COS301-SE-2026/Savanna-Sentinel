@@ -17,7 +17,8 @@ from app.services.workspace_service import WorkspaceService
 
 router = APIRouter(tags=["workspace"])
 
-_workspace_user = require_roles(["analyst", "admin"])
+_workspace_editor = require_roles(["analyst", "admin"])
+_workspace_viewer = require_roles(["ranger", "analyst", "admin"])
 
 
 @router.get(
@@ -27,7 +28,7 @@ _workspace_user = require_roles(["analyst", "admin"])
     summary="Load the shared geospatial workspace",
 )
 async def get_workspace(
-    current_user: Annotated[User, Depends(_workspace_user)],
+    current_user: Annotated[User, Depends(_workspace_viewer)],
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     service = WorkspaceService(WorkspaceRepository(db))
@@ -42,7 +43,7 @@ async def get_workspace(
 )
 async def save_workspace(
     body: WorkspaceSaveRequest,
-    current_user: Annotated[User, Depends(_workspace_user)],
+    current_user: Annotated[User, Depends(_workspace_editor)],
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     service = WorkspaceService(
@@ -59,7 +60,7 @@ async def save_workspace(
 )
 async def set_workspace_visibility(
     body: WorkspaceVisibilityRequest,
-    current_user: Annotated[User, Depends(_workspace_user)],
+    current_user: Annotated[User, Depends(_workspace_viewer)],
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     service = WorkspaceService(WorkspaceRepository(db))

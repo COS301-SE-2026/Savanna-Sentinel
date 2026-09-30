@@ -27,6 +27,7 @@ import {
     type WorkspaceSelection,
 } from "@/components/workspace/StyleEditorPanel";
 import { Slider } from "@/components/ui/slider";
+import { useAuthStore } from "@/store/authStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { resolveVisibleFeatures } from "@/lib/workspace/resolveVisibleFeatures";
 import { useMapStore } from "@/store/mapStore";
@@ -99,7 +100,8 @@ export default function WorkspacePage() {
         loadGrid();
         loadSnapshots();
         const status = useWorkspaceStore.getState().status;
-        if (status === "idle" || status === "error") loadWorkspace();
+        if (status === "idle" || status === "error")
+            loadWorkspace(useAuthStore.getState().user?.id ?? null);
     }, [loadGrid, loadSnapshots, loadWorkspace]);
 
     const blocker = useBlocker(hasUnsavedChanges);
@@ -189,7 +191,9 @@ export default function WorkspacePage() {
 
     async function handleSave() {
         setSaving(true);
-        const result = await saveWorkspace();
+        const result = await saveWorkspace(
+            useAuthStore.getState().user?.id ?? null,
+        );
         setSaving(false);
 
         if (result === "saved") {
@@ -215,7 +219,7 @@ export default function WorkspacePage() {
         setConflictOpen(false);
         setSelection(null);
         setEditingFeatureId(null);
-        await loadWorkspace();
+        await loadWorkspace(useAuthStore.getState().user?.id ?? null);
     }
 
     return (

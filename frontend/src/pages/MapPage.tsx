@@ -93,7 +93,7 @@ export default function MapPage() {
     useEffect(() => {
         const status = useWorkspaceStore.getState().status;
         if (status === "idle" || status === "error") {
-            loadWorkspace();
+            loadWorkspace(useAuthStore.getState().user?.id ?? null);
         }
     }, [loadWorkspace]);
 

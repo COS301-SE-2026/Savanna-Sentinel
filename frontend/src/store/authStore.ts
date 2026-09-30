@@ -4,6 +4,7 @@ import { authApi, type TokenResponse } from "../services/authApi";
 import { clearOfflineData } from "../offline/db";
 import { prefetchMapData } from "@/offline/riskGridCache";
 import { prefetchSavedRoutes } from "@/offline/routesCache";
+import { prefetchWorkspace } from "@/offline/workspaceCache";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
 export interface AuthUser {
@@ -30,6 +31,9 @@ interface AuthState {
     setIsUploaded: (uploaded: boolean) => void;
 }
 
+const canReadWorkspace = (role: string) =>
+    role === "ranger" || role === "analyst" || role === "admin";
+
 export const useAuthStore = create<AuthState>()(
     persist(
         (set, get) => {
@@ -46,6 +50,9 @@ export const useAuthStore = create<AuthState>()(
 
                 prefetchMapData(data.user.id).catch(() => {});
                 prefetchSavedRoutes(data.user.id).catch(() => {});
+                if (canReadWorkspace(data.user.role)) {
+                    prefetchWorkspace(data.user.id).catch(() => {});
+                }
             };
 
             return {
@@ -105,6 +112,9 @@ export const useAuthStore = create<AuthState>()(
                 if (state?.user?.id) {
                     prefetchMapData(state.user.id).catch(() => {});
                     prefetchSavedRoutes(state.user.id).catch(() => {});
+                    if (canReadWorkspace(state.user.role)) {
+                        prefetchWorkspace(state.user.id).catch(() => {});
+                    }
                 }
             },
             partialize: (state) => ({
