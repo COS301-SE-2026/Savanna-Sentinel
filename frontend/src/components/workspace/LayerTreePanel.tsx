@@ -21,6 +21,7 @@ export interface LayerTreePanelProps {
     activeLayerId: string | null;
     selection?: WorkspaceSelection;
     readOnly?: boolean;
+    editingFeatureId?: string | null;
     rootLayersCollapsed?: boolean;
     heatmapVisible?: boolean;
     onToggleHeatmap?: (visible: boolean) => void;
@@ -45,6 +46,7 @@ export function LayerTreePanel({
     activeLayerId,
     selection = null,
     readOnly = false,
+    editingFeatureId = null,
     rootLayersCollapsed = false,
     heatmapVisible = false,
     onToggleHeatmap = () => {},
@@ -165,6 +167,7 @@ export function LayerTreePanel({
                                 activeLayerId={activeLayerId}
                                 selection={selection}
                                 readOnly={readOnly}
+                                editingFeatureId={editingFeatureId}
                                 defaultExpanded={!rootLayersCollapsed}
                                 onSelectLayer={onSelectLayer}
                                 onSelectMembership={onSelectMembership}
