@@ -1,5 +1,6 @@
 -- Seed data: one account per role.
--- Password for all accounts: SentinelSeed1!
+-- Password for all accounts: SentinelSeed1!, except DEMO_USERNAME, whose
+-- password is DEMO_PASSWORD.
 -- Hashes use the same PBKDF2-SHA256 scheme as app/core/security.py (390000 iterations).
 
 INSERT INTO users (username, email, password_hash, first_name, last_name, role, is_active)
@@ -140,6 +141,15 @@ VALUES
         TRUE
     ),
     (
+        'DEMO_USERNAME',
+        'demo@sentinel.dev',
+        'pbkdf2_sha256$390000$92922f759e8636aea2a1070f3f19542e$TJMOpL99TN004yPsQHjfvjF+pdrzc6PPj/dYbj99uhM=',
+        'Demo',
+        'Ranger',
+        'ranger',
+        TRUE
+    ),
+    (
         'analyst1',
         'analyst1@sentinel.dev',
         'pbkdf2_sha256$390000$2851237afacbac74b84dd5c3f285734d$rI51hPoNToGsjqU2yItxPhX4BJUe035Y5lW2ayeLSf0=',
@@ -195,7 +205,7 @@ VALUES
     ),
     (
         'admin1',
-        'admin1@sentinel.dev',
+        'sigill.team@gmail.com',
         'pbkdf2_sha256$390000$4b0b9be897b944a0f6c8211c85f74dd0$r1R5mBeA7ByTMk3j9kw2bx71m/mMmmO03XalBuG3Suk=',
         'Admin',
         'One',

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.dashboard import router as dashboard_router
+from app.api.v1.demo import router as demo_router
 from app.api.v1.ingestion import router as ingestion_router
 from app.api.v1.media import _service
 from app.api.v1.media import router as media_router
@@ -62,6 +63,7 @@ app.include_router(dashboard_router, prefix="/v1")
 app.include_router(notifications_router, prefix="/v1")
 app.include_router(workspace_router, prefix="/v1")
 app.include_router(terrain_router, prefix="/v1")
+app.include_router(demo_router, prefix="/v1")
 
 
 @app.get("/v1/health", tags=["health"])

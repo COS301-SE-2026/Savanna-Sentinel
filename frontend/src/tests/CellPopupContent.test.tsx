@@ -137,6 +137,58 @@ describe("CellPopupContent", () => {
         expect(screen.queryByText(/Vehicle/)).not.toBeInTheDocument();
     });
 
+    describe("terrain rules line", () => {
+        function renderWithExplain(overrides: Partial<CellExplainResponse>) {
+            server.use(
+                http.get(EXPLAIN_URL, () =>
+                    HttpResponse.json({ ...TEST_CELL_EXPLAIN, ...overrides }),
+                ),
+            );
+            seedCellRef();
+            renderPopup();
+        }
+
+        it("shows how many points terrain rules raised the score", async () => {
+            renderWithExplain({ terrain_delta: 0.12 });
+
+            expect(
+                await screen.findByText("Raised score by 12 pts"),
+            ).toBeInTheDocument();
+            expect(screen.getByText(/Terrain rules:/)).toBeInTheDocument();
+        });
+
+        it("shows how many points terrain rules lowered the score", async () => {
+            renderWithExplain({ terrain_delta: -0.08 });
+
+            expect(
+                await screen.findByText("Lowered score by 8 pts"),
+            ).toBeInTheDocument();
+        });
+
+        it("shows terrain rules even when the cell has no incidents or sightings", async () => {
+            renderWithExplain({
+                terrain_delta: 0.2,
+                self_incidents: [],
+                neighbor_incidents: [],
+                self_sightings: [],
+                neighbor_sightings: [],
+            });
+
+            expect(
+                await screen.findByText("Raised score by 20 pts"),
+            ).toBeInTheDocument();
+        });
+
+        it("hides the line when terrain rules made no visible change", async () => {
+            renderWithExplain({ terrain_delta: 0.004 });
+
+            await screen.findByText("3 Lion, 1 Elephant");
+            expect(
+                screen.queryByText(/Terrain rules:/),
+            ).not.toBeInTheDocument();
+        });
+    });
+
     it("does not show or fetch a summary without analysis permission", () => {
         renderPopup(false);
 

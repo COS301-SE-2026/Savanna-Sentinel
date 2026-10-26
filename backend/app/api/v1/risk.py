@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.user import User
+from app.repositories.audit_repository import AuditRepository
 from app.schemas.risk import (
     ActiveModelResponse,
     CellExplainResponse,
@@ -19,9 +20,10 @@ from app.schemas.risk import (
     RiskTrainJobStatus,
     RiskTrainRequest,
 )
+from app.services.audit_service import AuditService
 from app.services.risk_service import (
     check_if_uploaded,
-    delete_geojson_file,
+    delete_park_grid,
     get_active_model_metrics,
     get_cell_explanation,
     get_heatmap,
@@ -32,7 +34,7 @@ from app.services.risk_service import (
     get_training_job,
     trigger_scoring_job,
     trigger_training_job,
-    validate_boundaries,
+    upload_park_grid,
 )
 from app.services.terrain_service import enqueue_recompute_quietly
 
@@ -64,10 +66,19 @@ async def get_grid(current_user: Annotated[User, Depends(get_current_user)]):
 async def upload_geojson(
     authenticated: Annotated[User, Depends(require_roles("admin"))],
     file: Annotated[UploadFile, File()],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    if check_if_uploaded():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A park grid already exists. "
+            "Delete it before uploading a new one.",
+        )
     content = await file.read()
 
-    validate_boundaries(content)
+    await upload_park_grid(
+        content, authenticated.id, AuditService(AuditRepository(db)),
+    )
     enqueue_recompute_quietly()
 
 
@@ -89,15 +100,18 @@ async def check_file(
 @router.delete(
     "/geojson",
     status_code=status.HTTP_200_OK,
-    summary="Deletes the uploaded geojson in case the user is not satisfied",
+    summary="Deletes the park grid with every heatmap and model built on it",
 )
 async def delete_geojson(
     authenticated: Annotated[User, Depends(require_roles("admin"))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    result = delete_geojson_file()
+    await delete_park_grid(
+        db, authenticated.id, AuditService(AuditRepository(db)),
+    )
 
     return {
-        "success": result,
+        "success": True,
     }
 
 

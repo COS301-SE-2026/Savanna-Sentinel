@@ -14,16 +14,18 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
-import { NAV_ITEMS } from "./navLinks";
+import { NAV_ITEMS, NO_PARK_PATHS, canRoleSee } from "./navLinks";
 
 const BurgerMenu = () => {
     const [isOpen, setOpen] = useState(false);
     const user = useAuthStore((s) => s.user);
     const logout = useAuthStore((s) => s.logout);
+    const isUploaded = useAuthStore((s) => s.isUploaded);
 
     const visibleItems = NAV_ITEMS.filter(
         (item) =>
-            item.roles.length === 0 || (user && item.roles.includes(user.role)),
+            canRoleSee(item, user?.role) &&
+            (isUploaded || NO_PARK_PATHS.includes(item.path)),
     );
 
     return (
@@ -67,7 +69,16 @@ const BurgerMenu = () => {
                     </SheetClose>
                 </SheetHeader>
 
-                <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                {!isUploaded && user?.role !== "admin" && (
+                    <div
+                        role="status"
+                        className="mx-3 mt-4 rounded-md bg-color-surface-raised px-3 py-3 text-sm font-semibold text-color-text-primary"
+                    >
+                        System setup in progress. Contact an admin
+                    </div>
+                )}
+
+                <nav className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-3 py-4 space-y-1">
                     {visibleItems.map((item) => (
                         <Fragment key={item.path}>
                             {item.path === "/profile" && (

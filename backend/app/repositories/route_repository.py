@@ -8,7 +8,10 @@ from shapely.geometry import LineString, Point
 from shapely.prepared import prep
 from shapely.strtree import STRtree
 
-from app.repositories.risk_repository import GRID_FILE_PATH
+from app.repositories.risk_repository import (
+    GRID_FILE_PATH,
+    grid_file_signature,
+)
 from app.schemas.geo import GeoPoint
 from app.schemas.route import GraphEdge, GraphNode, ParkGraph
 from app.workers.ml.route_planner import clear_path_cache
@@ -34,12 +37,15 @@ STOP_PATH_REACH = 0.5
 PATH_JOIN_M = 25.0
 
 
-@lru_cache(maxsize=None)
 def _load_grid() -> ParkGraph:
-    if not GRID_FILE_PATH.is_file():
-        raise FileNotFoundError("No park grid has been uploaded yet")
+    return _read_grid(grid_file_signature(GRID_FILE_PATH))
 
-    with open(GRID_FILE_PATH) as f:
+
+@lru_cache(maxsize=1)
+def _read_grid(signature: tuple[str, int, int, int]) -> ParkGraph:
+    # A cache miss means the grid changed, so cached paths are for old cells.
+    clear_path_cache()
+    with open(signature[0]) as f:
         geojson = json.load(f)
 
     epsg_code = geojson["crs"]["properties"]["name"].rsplit(":", 1)[-1]
@@ -52,7 +58,7 @@ def _load_grid() -> ParkGraph:
     cells = {}
     for feature in geojson["features"]:
         props = feature["properties"]
-        cell_id = int(props["id"])
+        cell_id = int(float(str(props["id"]).replace("cell-", "")))
         center_x = (props["left"] + props["right"]) / 2
         center_y = (props["top"] + props["bottom"]) / 2
         lon, lat = to_wgs84.transform(center_x, center_y)
@@ -117,11 +123,6 @@ def _load_grid() -> ParkGraph:
         edges=edges,
         epsg=int(epsg_code),
     )
-
-
-def invalidate_grid_cache() -> None:
-    _load_grid.cache_clear()
-    clear_path_cache()
 
 
 def _crosses(

@@ -1,15 +1,17 @@
 import json
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
 
+from app.core.config import settings
 from app.services.risk_service import (
     check_if_uploaded,
-    delete_geojson_file,
+    delete_park_grid,
     get_park_grid,
     get_risk_summary,
+    upload_park_grid,
     validate_boundaries,
 )
 
@@ -71,15 +73,11 @@ def sample_geojson():
 
 
 # Various things need to be intercepted here
-@patch("app.services.risk_service.invalidate_route_grid_cache")
-@patch("app.services.risk_service.invalidate_grid_cache")
 @patch("pathlib.Path.mkdir")
 @patch("geopandas.GeoDataFrame.to_file", autospec=True)
 def test_validate_boundaries_success(
     mock_to_file,
     mock_mkdir,
-    mock_invalidate,
-    mock_invalidate_route,
     sample_geojson,
 ):
     result = validate_boundaries(sample_geojson)
@@ -110,8 +108,6 @@ def test_validate_boundaries_success(
     assert written_gdf["id"].iloc[0] == "cell-0"
 
     assert result["total_cells"] == len(written_gdf)
-    mock_invalidate.assert_called_once()
-    mock_invalidate_route.assert_called_once()
 
 
 def test_validate_boundaries_invalid_file():
@@ -123,13 +119,11 @@ def test_validate_boundaries_invalid_file():
     assert exc.value.status_code == 400
 
 
-@patch("app.services.risk_service.invalidate_grid_cache")
 @patch("pathlib.Path.mkdir")
 @patch("geopandas.GeoDataFrame.to_file", autospec=True)
 def test_validate_boundaries_out_of_bounds(
     mock_to_file,
     mock_mkdir,
-    mock_invalidate,
 ):
     invalid_coords_data = {
         "type": "FeatureCollection",
@@ -180,38 +174,123 @@ def test_check_if_uploaded_returns_false_when_file_does_not_exist(
     assert result is False
 
 
-@patch("app.services.risk_service.invalidate_route_grid_cache")
-@patch("app.services.risk_service.invalidate_grid_cache")
-@patch("pathlib.Path.unlink")
-def test_delete_geojson_file_success(
-    mock_unlink,
-    mock_invalidate,
-    mock_invalidate_route,
-):
-    result = delete_geojson_file()
+def _patch_grid_deletion(storage_keys, *, storage=None, unlink=None):
+    """Patch everything delete_park_grid touches outside the service."""
+    storage = storage or MagicMock()
+    return (
+        patch(
+            "app.services.risk_service.risk_repository.delete_park_risk_data",
+            AsyncMock(return_value=storage_keys),
+        ),
+        patch(
+            "app.services.risk_service.RiskModelStorage",
+            return_value=storage,
+        ),
+        patch("pathlib.Path.unlink", unlink or MagicMock()),
+    )
 
-    assert result is True
-    mock_unlink.assert_called_once_with(missing_ok=True)
-    mock_invalidate.assert_called_once()
-    mock_invalidate_route.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_delete_park_grid_wipes_db_then_storage_then_file():
+    storage = MagicMock()
+    unlink = MagicMock()
+    patches = _patch_grid_deletion(["k1", "k2"], storage=storage, unlink=unlink)
+    with patches[0] as delete_data, patches[1], patches[2]:
+        await delete_park_grid(MagicMock(), "admin-1", AsyncMock())
+
+    delete_data.assert_awaited_once()
+    assert [c.args[0] for c in storage.delete_model.call_args_list] == [
+        "k1",
+        "k2",
+    ]
+    unlink.assert_called_once_with(missing_ok=True)
 
 
-@patch("app.services.risk_service.invalidate_route_grid_cache")
-@patch("app.services.risk_service.invalidate_grid_cache")
-@patch("pathlib.Path.unlink")
-def test_delete_geojson_file_failure(
-    mock_unlink,
-    mock_invalidate,
-    mock_invalidate_route,
-):
-    mock_unlink.side_effect = PermissionError("Permission denied")
+@pytest.mark.asyncio
+async def test_delete_park_grid_writes_audit_entry():
+    audit = AsyncMock()
+    patches = _patch_grid_deletion(["k1"])
+    with patches[0], patches[1], patches[2]:
+        await delete_park_grid(MagicMock(), "admin-1", audit)
 
-    result = delete_geojson_file()
+    audit.log.assert_awaited_once_with(
+        actor_id="admin-1",
+        action="park_grid.deleted",
+        target_type="park_grid",
+        target_id=settings.PARK_ID,
+    )
 
-    assert result is False
-    mock_unlink.assert_called_once_with(missing_ok=True)
-    mock_invalidate.assert_not_called()
-    mock_invalidate_route.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_delete_park_grid_skips_audit_when_file_delete_fails():
+    audit = AsyncMock()
+    unlink = MagicMock(side_effect=PermissionError("Permission denied"))
+    patches = _patch_grid_deletion([], unlink=unlink)
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        pytest.raises(HTTPException),
+    ):
+        await delete_park_grid(MagicMock(), "admin-1", audit)
+
+    audit.log.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_upload_park_grid_writes_audit_entry_with_cell_count():
+    audit = AsyncMock()
+    with patch(
+        "app.services.risk_service.validate_boundaries",
+        return_value={"total_cells": 42},
+    ):
+        result = await upload_park_grid(b"{}", "admin-1", audit)
+
+    assert result == {"total_cells": 42}
+    audit.log.assert_awaited_once_with(
+        actor_id="admin-1",
+        action="park_grid.uploaded",
+        target_type="park_grid",
+        target_id=settings.PARK_ID,
+        details={"total_cells": 42},
+    )
+
+
+@pytest.mark.asyncio
+async def test_upload_park_grid_skips_audit_when_file_is_invalid():
+    audit = AsyncMock()
+    with pytest.raises(HTTPException):
+        await upload_park_grid(b"not geojson", "admin-1", audit)
+
+    audit.log.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_delete_park_grid_continues_when_storage_delete_fails():
+    storage = MagicMock()
+    storage.delete_model.side_effect = RuntimeError("storage down")
+    unlink = MagicMock()
+    patches = _patch_grid_deletion(["k1", "k2"], storage=storage, unlink=unlink)
+    with patches[0], patches[1], patches[2]:
+        await delete_park_grid(MagicMock(), "admin-1", AsyncMock())
+
+    assert storage.delete_model.call_count == 2
+    unlink.assert_called_once_with(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_delete_park_grid_raises_500_when_file_delete_fails():
+    unlink = MagicMock(side_effect=PermissionError("Permission denied"))
+    patches = _patch_grid_deletion([], unlink=unlink)
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await delete_park_grid(MagicMock(), "admin-1", AsyncMock())
+
+    assert exc_info.value.status_code == 500
 
 
 @pytest.mark.asyncio
