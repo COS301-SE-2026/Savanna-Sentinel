@@ -152,4 +152,29 @@ describe("MapView", () => {
 
         expect(screen.getByText(/WebGL context lost/i)).toBeInTheDocument();
     });
+
+    it("keeps the basemap layer visible at the maximum zoom", async () => {
+        const onMapReady = vi.fn();
+        render(
+            <MapView
+                center={[31.1, -24.3]}
+                zoom={12}
+                onMapReady={onMapReady}
+                onMapRemove={() => {}}
+            />,
+        );
+        await waitFor(() => expect(onMapReady).toHaveBeenCalled());
+        const map = onMapReady.mock.calls[0][0] as unknown as FakeMap;
+        const style = map.options.style as maplibregl.StyleSpecification;
+        const maxZoom = map.options.maxZoom as number;
+
+        // MapLibre hides a layer at zoom >= its maxzoom.
+        for (const layer of style.layers) {
+            if (layer.maxzoom !== undefined) {
+                expect(layer.maxzoom).toBeGreaterThan(maxZoom);
+            }
+        }
+        const osm = style.sources.osm as maplibregl.RasterSourceSpecification;
+        expect(maxZoom).toBeLessThanOrEqual(osm.maxzoom ?? 22);
+    });
 });
