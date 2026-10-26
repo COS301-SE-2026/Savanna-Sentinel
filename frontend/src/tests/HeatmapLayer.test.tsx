@@ -228,6 +228,32 @@ describe("HeatmapLayer", () => {
         expect(addToSpy).not.toHaveBeenCalled();
     });
 
+    it("does not open a popup on cell click when interactive is false", async () => {
+        const map = new maplibregl.Map({
+            container: document.createElement("div"),
+        }) as unknown as FakeMap;
+        render(
+            <HeatmapLayer
+                map={map as never}
+                grid={TEST_GRID}
+                riskByCell={makeRiskByCell(0.1)}
+                pickingActive={false}
+                isMobile={false}
+                interactive={false}
+            />,
+        );
+        await waitFor(() =>
+            expect(map.getLayer("patrol-risk-grid-fill")).toBeDefined(),
+        );
+
+        map.queryRenderedFeaturesResult = [
+            { properties: { cellId: "cell-1" } },
+        ];
+        const addToSpy = vi.spyOn(maplibregl.Popup.prototype, "addTo");
+        map.fireClick({ lng: 31.005, lat: -24.305 });
+        expect(addToSpy).not.toHaveBeenCalled();
+    });
+
     it("opens a popup on cell click when picking is not active", async () => {
         const map = new maplibregl.Map({
             container: document.createElement("div"),
