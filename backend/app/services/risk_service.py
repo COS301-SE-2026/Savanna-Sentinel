@@ -1,4 +1,5 @@
 import io
+import logging
 import math
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -13,11 +14,7 @@ from app.core.config import settings
 from app.repositories import risk_repository
 from app.repositories.risk_repository import (
     GRID_FILE_PATH,
-    invalidate_grid_cache,
     load_grid_geometry,
-)
-from app.repositories.route_repository import (
-    invalidate_grid_cache as invalidate_route_grid_cache,
 )
 from app.schemas.geo import GeoPolygon
 from app.schemas.risk import (
@@ -39,11 +36,15 @@ from app.schemas.risk import (
     RiskTrainRequest,
     SightingDetail,
 )
+from app.services.audit_service import AuditService
+from app.services.risk_model_storage import RiskModelStorage
 from app.workers.celery_app import CELERY_STATUS_MAP, celery_app
 from app.workers.tasks.risk_tasks import (
     run_risk_scoring_job,
     run_risk_training_job,
 )
+
+logger = logging.getLogger(__name__)
 
 _PARK_ID = settings.PARK_ID
 _SUMMARY_INCIDENT_DAYS = 60
@@ -156,29 +157,56 @@ def validate_boundaries(file: bytes):
     GRID_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
     full_blocks.to_file(GRID_FILE_PATH, driver="GeoJSON")
 
-    # Dev thing, clears the cache if the file is deleted and
-    # recreated in the same session, should not be relevant in prod
-    invalidate_grid_cache()
-    invalidate_route_grid_cache()
-
     return {
         "total_cells": len(full_blocks),
     }
+
+
+async def upload_park_grid(
+    file: bytes, actor_id: str, audit_service: AuditService,
+) -> dict:
+    result = validate_boundaries(file)
+    await audit_service.log(
+        actor_id=actor_id,
+        action="park_grid.uploaded",
+        target_type="park_grid",
+        target_id=_PARK_ID,
+        details=result,
+    )
+    return result
 
 
 def check_if_uploaded():
     return GRID_FILE_PATH.is_file()
 
 
-def delete_geojson_file():
+async def delete_park_grid(
+    db: AsyncSession, actor_id: str, audit_service: AuditService,
+) -> None:
+    storage_keys = await risk_repository.delete_park_risk_data(db, _PARK_ID)
+
+    # Orphaned model files are harmless, so a storage outage must not block
+    # removing the grid itself.
+    storage = RiskModelStorage()
+    for key in storage_keys:
+        try:
+            storage.delete_model(key)
+        except Exception:
+            logger.exception("Could not delete risk model file %s", key)
+
     try:
         GRID_FILE_PATH.unlink(missing_ok=True)
-        invalidate_grid_cache()
-        invalidate_route_grid_cache()
-    except Exception:
-        return False
-
-    return True
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not delete the park grid file",
+        ) from exc
+    await audit_service.log(
+        actor_id=actor_id,
+        action="park_grid.deleted",
+        target_type="park_grid",
+        target_id=_PARK_ID,
+    )
 
 
 async def trigger_training_job(

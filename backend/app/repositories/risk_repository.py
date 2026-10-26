@@ -46,7 +46,20 @@ _explainability_metrics_table = table(
 )
 
 
-@lru_cache(maxsize=None)
+def grid_file_signature(path: Path) -> tuple[str, int, int, int]:
+    """Identify one version of the grid file, so caches notice a new upload.
+
+    The API and the Celery worker are separate processes, so clearing a cache
+    in one does not reach the other. Keying caches on this signature makes
+    every process reload after the file is replaced or deleted.
+    """
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        raise FileNotFoundError("No park grid has been uploaded yet") from None
+    return (str(path), stat.st_mtime_ns, stat.st_size, stat.st_ino)
+
+
 def load_grid_geometry() -> list[dict]:
     """Cell polygons for the park, reprojected to WGS84.
 
@@ -54,10 +67,12 @@ def load_grid_geometry() -> list[dict]:
     than just its center. The grid file itself is assumed to already exist in
     the park's local UTM zone.
     """
-    if not GRID_FILE_PATH.is_file():
-        raise FileNotFoundError("No park grid has been uploaded yet")
+    return _read_grid_geometry(grid_file_signature(GRID_FILE_PATH))
 
-    with open(GRID_FILE_PATH) as f:
+
+@lru_cache(maxsize=1)
+def _read_grid_geometry(signature: tuple[str, int, int, int]) -> list[dict]:
+    with open(signature[0]) as f:
         geojson = json.load(f)
 
     epsg_code = geojson["crs"]["properties"]["name"].rsplit(":", 1)[-1]
@@ -93,10 +108,6 @@ def load_grid_geometry() -> list[dict]:
             },
         )
     return cells
-
-
-def invalidate_grid_cache() -> None:
-    load_grid_geometry.cache_clear()
 
 
 async def save_model_version(
@@ -219,6 +230,38 @@ async def persist_grid_cells(session: AsyncSession, park_id: str) -> None:
     )
 
     await session.commit()
+
+
+async def delete_park_risk_data(
+    session: AsyncSession,
+    park_id: str,
+) -> list[str]:
+    """Delete everything built on the park's grid, returning model keys."""
+    params = {"park_id": park_id}
+    await session.execute(
+        text("""
+            DELETE FROM risk_heatmaps
+            WHERE model_id IN (
+                SELECT id FROM risk_models WHERE park_id = :park_id
+            )
+        """),
+        params,
+    )
+    result = await session.execute(
+        text("""
+            DELETE FROM risk_models WHERE park_id = :park_id
+            RETURNING object_storage_key
+        """),
+        params,
+    )
+    storage_keys = [row.object_storage_key for row in result.fetchall()]
+    await session.execute(
+        text("DELETE FROM grid_cells WHERE park_id = :park_id"),
+        params,
+    )
+    await session.execute(text("DELETE FROM terrain_cell_effects"))
+    await session.commit()
+    return storage_keys
 
 
 async def get_grid_cells(session: AsyncSession, park_id: str) -> list[dict]:
