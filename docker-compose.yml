@@ -92,6 +92,8 @@ services:
       - "8000:8000"
     env_file:
       - ./backend/.env
+    volumes:
+      - park_data:/app/app/data
     depends_on:
       db:
         condition: service_healthy
@@ -111,6 +113,8 @@ services:
     command: celery -A app.workers.celery_app worker --loglevel=info --beat --schedule=/tmp/celerybeat-schedule --concurrency=1
     env_file:
       - ./backend/.env
+    volumes:
+      - park_data:/app/app/data
     depends_on:
       db:
         condition: service_healthy
@@ -161,3 +165,4 @@ volumes:
   redis_data:
   seaweedfs_data:
   caddy_data:
+  park_data:

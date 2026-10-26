@@ -32,7 +32,7 @@ class WorkspaceRepository:
     def __init__(self, db: "AsyncSession"):
         self.db = db
 
-    async def _ensure_meta(self) -> None:
+    async def ensure_meta(self) -> None:
         await self.db.execute(
             pg_insert(_meta)
             .values(id=True, version=0, updated_at=_now())
@@ -40,8 +40,22 @@ class WorkspaceRepository:
         )
 
     async def get_version(self) -> int:
-        await self._ensure_meta()
+        await self.ensure_meta()
         result = await self.db.execute(select(_meta.c.version))
+        return result.scalar_one()
+
+    async def bump_version(self, user_id: str) -> int:
+        """Advance the version so clients holding the old one get a 409."""
+        await self.ensure_meta()
+        result = await self.db.execute(
+            update(_meta)
+            .values(
+                version=_meta.c.version + 1,
+                updated_at=_now(),
+                updated_by=user_id,
+            )
+            .returning(_meta.c.version),
+        )
         return result.scalar_one()
 
     async def load(self, user_id: str) -> dict[str, Any]:
@@ -192,7 +206,7 @@ class WorkspaceRepository:
         features: list[dict[str, Any]],
         memberships: list[dict[str, Any]],
     ) -> Optional[int]:
-        await self._ensure_meta()
+        await self.ensure_meta()
 
         bumped = (
             await self.db.execute(

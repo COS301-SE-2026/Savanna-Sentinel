@@ -19,6 +19,7 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
     computeLayerCheckboxState,
     computeLayerInEffectState,
+    getDescendantLayerIds,
     getLayerChainIds,
 } from "@/lib/workspace/tree";
 import {
@@ -42,6 +43,7 @@ export interface LayerTreeNodeProps {
     activeLayerId: string | null;
     selection?: WorkspaceSelection;
     readOnly?: boolean;
+    editingFeatureId?: string | null;
     defaultExpanded?: boolean;
     onSelectLayer: (layerId: string) => void;
     onSelectMembership: (membershipId: string) => void;
@@ -56,7 +58,7 @@ const selectionContextRowClass = "bg-color-surface-bg";
 const menuItemClass =
     "cursor-pointer rounded px-2 py-1.5 text-sm text-color-text-primary outline-none hover:bg-color-surface-bg";
 const dangerMenuItemClass =
-    "cursor-pointer rounded px-2 py-1.5 text-sm text-status-critical-text outline-none hover:bg-color-surface-bg";
+    "cursor-pointer rounded px-2 py-1.5 text-sm text-status-critical-text outline-none hover:bg-color-surface-bg data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 data-[disabled]:hover:bg-transparent";
 
 function NotInEffectIcon() {
     return (
@@ -77,6 +79,7 @@ export function LayerTreeNode({
     activeLayerId,
     selection = null,
     readOnly = false,
+    editingFeatureId = null,
     defaultExpanded = true,
     onSelectLayer,
     onSelectMembership,
@@ -132,6 +135,17 @@ export function LayerTreeNode({
         transform: CSS.Transform.toString(transform),
         transition,
     };
+    const subtreeLayerIds = new Set([
+        layer.id,
+        ...getDescendantLayerIds(layers, layer.id),
+    ]);
+    const editingMemberships = memberships.filter(
+        (m) => m.featureId === editingFeatureId,
+    );
+    // Deleting the layer would also delete the feature being edited.
+    const isDeleteBlockedByEdit =
+        editingMemberships.length > 0 &&
+        editingMemberships.every((m) => subtreeLayerIds.has(m.layerId));
     const isSelected =
         selection?.kind === "layer" && selection.layerId === layer.id;
     const isActiveLayer = activeLayerId === layer.id;
@@ -279,6 +293,7 @@ export function LayerTreeNode({
                                 </DropdownMenu.Item>
                                 <DropdownMenu.Item
                                     className={dangerMenuItemClass}
+                                    disabled={isDeleteBlockedByEdit}
                                     onSelect={() => setConfirmingDelete(true)}
                                 >
                                     Delete layer
@@ -314,6 +329,7 @@ export function LayerTreeNode({
                                     feature={feature}
                                     depth={depth}
                                     readOnly={readOnly}
+                                    isEditing={feature.id === editingFeatureId}
                                     isSelected={
                                         selectedMembership?.id === membership.id
                                     }
@@ -346,6 +362,7 @@ export function LayerTreeNode({
                                 activeLayerId={activeLayerId}
                                 selection={selection}
                                 readOnly={readOnly}
+                                editingFeatureId={editingFeatureId}
                                 onSelectLayer={onSelectLayer}
                                 onSelectMembership={onSelectMembership}
                                 onMoveMembership={onMoveMembership}
@@ -364,6 +381,7 @@ interface MembershipRowProps {
     feature: WorkspaceFeature;
     depth: number;
     readOnly: boolean;
+    isEditing: boolean;
     isSelected: boolean;
     isOtherInstanceOfSelection: boolean;
     onSelectMembership: (membershipId: string) => void;
@@ -376,6 +394,7 @@ function MembershipRow({
     feature,
     depth,
     readOnly,
+    isEditing,
     isSelected,
     isOtherInstanceOfSelection,
     onSelectMembership,
@@ -526,6 +545,7 @@ function MembershipRow({
                             )}
                             <DropdownMenu.Item
                                 className={dangerMenuItemClass}
+                                disabled={isEditing}
                                 onSelect={() => setConfirmingDelete(true)}
                             >
                                 Delete feature everywhere

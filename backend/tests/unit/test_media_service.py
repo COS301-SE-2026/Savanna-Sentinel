@@ -120,3 +120,37 @@ def test_generate_view_url_returns_unrecognised_url_unchanged(monkeypatch):
     odd_url = "http://example.com/not-a-minio-url.jpg"
 
     assert service.generate_view_url(odd_url) == odd_url
+
+
+def test_empty_bucket_deletes_every_object_page_by_page(monkeypatch):
+    client = MagicMock()
+    client.get_paginator.return_value.paginate.return_value = [
+        {"Contents": [{"Key": "reports/a.jpg"}, {"Key": "reports/b.jpg"}]},
+        {"Contents": [{"Key": "risk-models/klaserie/m.json"}]},
+    ]
+    service, _ = _make_service(monkeypatch, client)
+
+    service.empty_bucket()
+
+    client.get_paginator.assert_called_once_with("list_objects_v2")
+    bucket = media_service.settings.MINIO_BUCKET
+    assert client.delete_objects.call_args_list[0].kwargs == {
+        "Bucket": bucket,
+        "Delete": {
+            "Objects": [{"Key": "reports/a.jpg"}, {"Key": "reports/b.jpg"}],
+            "Quiet": True,
+        },
+    }
+    assert client.delete_objects.call_args_list[1].kwargs["Delete"][
+        "Objects"
+    ] == [{"Key": "risk-models/klaserie/m.json"}]
+
+
+def test_empty_bucket_skips_delete_when_bucket_is_empty(monkeypatch):
+    client = MagicMock()
+    client.get_paginator.return_value.paginate.return_value = [{}]
+    service, _ = _make_service(monkeypatch, client)
+
+    service.empty_bucket()
+
+    client.delete_objects.assert_not_called()

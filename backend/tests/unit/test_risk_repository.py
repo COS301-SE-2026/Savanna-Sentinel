@@ -4,10 +4,7 @@ import pytest
 from pyproj import Transformer
 
 from app.repositories import risk_repository
-from app.repositories.risk_repository import (
-    invalidate_grid_cache,
-    load_grid_geometry,
-)
+from app.repositories.risk_repository import load_grid_geometry
 
 _EPSG = 32736
 _CELL_M = 1000.0
@@ -57,9 +54,7 @@ def grid_2x2(tmp_path, monkeypatch):
     ]
     path = _write_grid(tmp_path, cells)
     monkeypatch.setattr(risk_repository, "GRID_FILE_PATH", path)
-    load_grid_geometry.cache_clear()
-    yield path
-    load_grid_geometry.cache_clear()
+    return path
 
 
 def test_load_grid_geometry_returns_one_cell_per_feature(grid_2x2):
@@ -108,10 +103,8 @@ def test_load_grid_geometry_raises_when_no_grid_uploaded_yet(
         "GRID_FILE_PATH",
         tmp_path / "never-uploaded.geojson",
     )
-    load_grid_geometry.cache_clear()
     with pytest.raises(FileNotFoundError):
         load_grid_geometry()
-    load_grid_geometry.cache_clear()
 
 
 def test_load_grid_geometry_is_cached_across_calls(grid_2x2):
@@ -133,13 +126,10 @@ def test_klaserie_grid_geometry_corners_within_park_bounds():
             assert -24.4 < lat < -24.0
 
 
-def test_invalidate_cache_invalidates_the_cache(grid_2x2):
-    invalidate_grid_cache()
+def test_load_grid_geometry_reloads_when_file_changes(grid_2x2, tmp_path):
+    assert len(load_grid_geometry()) == 4
 
-    assert load_grid_geometry.cache_info().currsize == 0
+    _write_grid(tmp_path, [_cell(1, row=0, col=0)])
 
-    load_grid_geometry()
-    assert load_grid_geometry.cache_info().currsize == 1
+    assert len(load_grid_geometry()) == 1
 
-    invalidate_grid_cache()
-    assert load_grid_geometry.cache_info().currsize == 0

@@ -1,0 +1,65 @@
+submitted_by,report_type,description,lat,lon,occurred_at,incident_type,severity,species,count
+ranger8,incident,An unidentified person was seen acting suspiciously near the boundary.,-24.303192,31.059183,2026-01-05T19:38:00Z,Suspicious Person,medium,,
+ranger14,incident,Rangers reported hearing gunfire in the area during patrol.,-24.167160,31.051696,2026-01-11T14:50:00Z,Gunshot Heard,high,,
+ranger2,incident,Unusual human tracks were found during a routine patrol.,-24.158410,31.021845,2026-01-20T12:55:00Z,Suspicious Tracks,low,,
+ranger7,incident,An unidentified person was seen acting suspiciously near the boundary.,-24.175776,31.040628,2026-01-23T12:26:00Z,Suspicious Person,medium,,
+ranger5,sighting,Leopard sighted during routine observation.,-24.167153,31.041883,2026-01-24T19:24:00Z,,,Leopard,2
+ranger7,incident,Unauthorized vehicle tracks were found inside the reserve.,-24.160075,31.149154,2026-02-06T18:12:00Z,Vehicle Tracks,medium,,
+ranger3,sighting,Leopard sighted during routine observation.,-24.167339,31.050844,2026-02-10T05:14:00Z,,,Leopard,1
+ranger13,sighting,Leopard sighted during routine observation.,-24.077994,31.111493,2026-02-18T16:31:00Z,,,Leopard,2
+ranger15,sighting,Elephant sighted during routine observation.,-24.167259,31.040947,2026-03-05T09:33:00Z,,,Elephant,1
+ranger13,sighting,Lion sighted during routine observation.,-24.167069,31.050907,2026-03-16T12:26:00Z,,,Lion,2
+ranger9,incident,An unidentified person was seen acting suspiciously near the boundary.,-24.205862,31.247455,2026-03-18T08:21:00Z,Suspicious Person,medium,,
+ranger9,sighting,Leopard sighted during routine observation.,-24.250292,31.188309,2026-03-22T17:14:00Z,,,Leopard,3
+ranger6,incident,An animal carcass was discovered showing signs of poaching.,-24.249347,31.069094,2026-03-27T00:12:00Z,Carcass Found,high,,
+ranger14,sighting,Rhino sighted during routine observation.,-24.176700,31.041485,2026-04-11T00:40:00Z,,,Rhino,2
+ranger8,sighting,Leopard sighted during routine observation.,-24.152099,31.228884,2026-04-13T01:24:00Z,,,Leopard,2
+ranger1,sighting,Elephant sighted during routine observation.,-24.161024,31.188823,2026-04-14T17:43:00Z,,,Elephant,5
+liaison1,incident,A wire snare was located and removed from the area.,-24.250008,31.187858,2026-04-17T03:48:00Z,Snare Found,high,,
+ranger8,incident,Unusual human tracks were found during a routine patrol.,-24.222901,31.139724,2026-04-17T08:21:00Z,Suspicious Tracks,low,,
+liaison1,incident,An animal carcass was discovered showing signs of poaching.,-24.177058,31.042124,2026-04-23T05:57:00Z,Carcass Found,high,,
+ranger14,incident,Rangers reported hearing gunfire in the area during patrol.,-24.124212,31.248252,2026-04-30T00:12:00Z,Gunshot Heard,high,,
+ranger10,sighting,Lion sighted during routine observation.,-24.231879,31.100291,2026-05-04T13:38:00Z,,,Lion,1
+ranger6,incident,Unauthorized vehicle tracks were found inside the reserve.,-24.078663,31.122238,2026-05-05T15:04:00Z,Vehicle Tracks,medium,,
+ranger12,incident,An animal carcass was discovered showing signs of poaching.,-24.168320,31.060460,2026-05-17T00:12:00Z,Carcass Found,high,,
+ranger11,sighting,Buffalo sighted during routine observation.,-24.188123,31.238614,2026-05-30T03:19:00Z,,,Buffalo,1
+ranger2,incident,Unusual human tracks were found during a routine patrol.,-24.079010,31.121260,2026-06-02T21:19:00Z,Suspicious Tracks,low,,
+ranger15,incident,An animal carcass was discovered showing signs of poaching.,-24.176658,31.041517,2026-06-09T20:36:00Z,Carcass Found,high,,
+ranger4,sighting,Rhino sighted during routine observation.,-24.179471,31.237661,2026-07-03T03:33:00Z,,,Rhino,5
+ranger10,sighting,Rhino sighted during routine observation.,-24.187966,31.296628,2026-07-06T07:38:00Z,,,Rhino,1
+ranger10,incident,Unauthorized vehicle tracks were found inside the reserve.,-24.285668,31.128288,2026-07-11T13:52:00Z,Vehicle Tracks,medium,,
+ranger11,sighting,Leopard sighted during routine observation.,-24.295709,31.196734,2026-07-25T07:24:00Z,,,Leopard,1
+ranger4,incident,An unidentified person was seen acting suspiciously near the boundary.,-24.167232,31.041616,2026-07-26T15:48:00Z,Suspicious Person,medium,,
+ranger1,sighting,Lion sighted during routine observation.,-24.287182,31.177996,2026-07-26T23:14:00Z,,,Lion,5
+ranger6,sighting,Buffalo sighted during routine observation.,-24.176800,31.041837,2026-08-19T00:55:00Z,,,Buffalo,1
+ranger4,sighting,Buffalo sighted during routine observation.,-24.314854,31.255741,2026-08-28T04:02:00Z,,,Buffalo,3
+ranger4,sighting,Rhino sighted during routine observation.,-24.167037,31.051696,2026-08-31T12:55:00Z,,,Rhino,1
+ranger4,sighting,Lion sighted during routine observation.,-24.069474,31.200133,2026-09-13T14:36:00Z,,,Lion,5
+ranger5,sighting,Rhino sighted during routine observation.,-24.296518,31.265746,2026-09-14T00:55:00Z,,,Rhino,5
+ranger11,sighting,Elephant sighted during routine observation.,-24.043403,31.190210,2026-09-14T04:31:00Z,,,Elephant,1
+ranger15,sighting,Buffalo sighted during routine observation.,-24.167347,31.051269,2026-09-16T14:07:00Z,,,Buffalo,1
+ranger11,sighting,Rhino sighted during routine observation.,-24.321827,31.147833,2026-09-24T01:38:00Z,,,Rhino,1
+ranger10,incident,An unidentified person was seen acting suspiciously near the boundary.,-24.168504,31.149372,2026-10-08T14:36:00Z,Suspicious Person,medium,,
+ranger11,sighting,Elephant sighted during routine observation.,-24.197494,31.267913,2026-10-11T09:19:00Z,,,Elephant,3
+ranger11,sighting,Rhino sighted during routine observation.,-24.240957,31.099873,2026-10-16T07:52:00Z,,,Rhino,1
+ranger7,incident,A wire snare was located and removed from the area.,-24.224562,31.257560,2026-10-19T06:55:00Z,Snare Found,high,,
+ranger9,sighting,Lion sighted during routine observation.,-24.312473,31.138516,2026-10-19T13:09:00Z,,,Lion,1
+ranger7,incident,Unusual human tracks were found during a routine patrol.,-24.178862,31.238116,2026-10-20T20:36:00Z,Suspicious Tracks,low,,
+ranger2,sighting,Elephant sighted during routine observation.,-24.108800,31.208300,2026-10-24T05:00:00Z,,,Elephant,4
+ranger7,sighting,Buffalo sighted during routine observation.,-24.110200,31.211500,2026-10-24T05:00:00Z,,,Buffalo,6
+ranger11,sighting,Lion sighted during routine observation.,-24.111900,31.209800,2026-10-24T05:00:00Z,,,Lion,3
+ranger4,sighting,Rhino sighted during routine observation.,-24.107500,31.212600,2026-10-24T05:00:00Z,,,Rhino,2
+ranger9,sighting,Buffalo sighted during routine observation.,-24.112300,31.207200,2026-10-24T05:00:00Z,,,Buffalo,5
+ranger3,incident,An unidentified person was seen acting suspiciously near the boundary.,-24.340030,31.068208,2026-10-25T06:12:00Z,Suspicious Person,medium,,
+ranger3,sighting,Elephant sighted during routine observation.,-24.109400,31.210500,2026-10-27T05:00:00Z,,,Elephant,6
+ranger6,sighting,Buffalo sighted during routine observation.,-24.110800,31.211900,2026-10-27T05:00:00Z,,,Buffalo,4
+ranger13,sighting,Lion sighted during routine observation.,-24.110100,31.208800,2026-10-27T05:00:00Z,,,Lion,2
+ranger10,sighting,Rhino sighted during routine observation.,-24.111900,31.213100,2026-10-27T05:00:00Z,,,Rhino,3
+ranger1,sighting,Elephant sighted during routine observation.,-24.108200,31.209400,2026-10-27T05:00:00Z,,,Elephant,5
+ranger15,incident,A wire snare was located and removed from the area.,-24.268762,31.167481,2026-10-28T03:19:00Z,Snare Found,high,,
+ranger9,incident,Unauthorized vehicle tracks were found inside the reserve.,-24.141803,31.159141,2026-10-28T23:43:00Z,Vehicle Tracks,medium,,
+ranger5,sighting,Buffalo sighted during routine observation.,-24.109900,31.210100,2026-10-30T05:00:00Z,,,Buffalo,6
+ranger8,sighting,Elephant sighted during routine observation.,-24.109100,31.211300,2026-10-30T05:00:00Z,,,Elephant,4
+ranger14,sighting,Lion sighted during routine observation.,-24.111200,31.208600,2026-10-30T05:00:00Z,,,Lion,3
+ranger15,sighting,Rhino sighted during routine observation.,-24.110400,31.212200,2026-10-30T05:00:00Z,,,Rhino,2
+ranger12,sighting,Buffalo sighted during routine observation.,-24.112300,31.209700,2026-10-30T05:00:00Z,,,Buffalo,5

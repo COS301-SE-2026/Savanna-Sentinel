@@ -3,6 +3,7 @@ import { describe, beforeAll, afterAll, afterEach, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminPage from "@/pages/AdminPage";
+import { useAuthStore } from "@/store/authStore";
 import { authHandlers } from "./mocks/adminauthHandlers";
 import { roleSwapHandlers } from "./mocks/roleSwapHandlers";
 import {
@@ -12,8 +13,17 @@ import {
 
 const server = setupServer();
 
+function setAdmin(username: string) {
+    useAuthStore.setState({
+        user: { id: "1", username, role: "admin" },
+        accessToken: "fake-access",
+        refreshToken: "fake-refresh",
+    });
+}
+
 beforeAll(() => server.listen());
 afterEach(() => {
+    useAuthStore.setState({ user: null });
     server.resetHandlers();
     resetMockActiveUsers();
 });
@@ -78,5 +88,28 @@ describe("AdminPage", () => {
         expect(
             await screen.findAllByRole("button", { name: /^delete$/i }),
         ).not.toHaveLength(0);
+    });
+
+    it("switches to the demo tab and shows the reset button", async () => {
+        const user = userEvent.setup();
+        setAdmin("admin1");
+        server.use(...authHandlers);
+        render(<AdminPage />);
+
+        await user.click(screen.getByRole("tab", { name: /^demo$/i }));
+
+        expect(
+            await screen.findByRole("button", { name: /reset demo data/i }),
+        ).toBeInTheDocument();
+    });
+
+    it("hides the demo tab from admins other than admin1", () => {
+        setAdmin("admin2");
+        server.use(...authHandlers);
+        render(<AdminPage />);
+
+        expect(
+            screen.queryByRole("tab", { name: /^demo$/i }),
+        ).not.toBeInTheDocument();
     });
 });

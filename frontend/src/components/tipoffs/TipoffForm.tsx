@@ -348,6 +348,7 @@ export function TipoffForm({ onSubmit, isSubmitting }: TipoffFormProps) {
                     riskByCell={riskByCell}
                     pickingActive={false}
                     isMobile={false}
+                    interactive={false}
                 />
                 <p className="text-xs text-color-text-secondary">
                     Click the map to drop a pin, or drag it to fine-tune the

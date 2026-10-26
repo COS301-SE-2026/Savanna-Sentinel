@@ -10,44 +10,109 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
-import { notifyCritical } from "@/components/ui/toast";
-import { parseGridCells } from "@/lib/riskGrid";
+import { notifyCritical, notifySafe } from "@/components/ui/toast";
+import { DeleteGridDialog } from "@/components/upload/DeleteGridDialog";
+import { getGridCenterAndBounds, parseGridCells } from "@/lib/riskGrid";
 import { riskApi, type ParkGridResponse } from "@/services/riskApi";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
-import { EmptyState } from "@/components/ui/empty-state";
-import { CircleX } from "lucide-react";
 import axios from "axios";
 
 const DEFAULT_ZOOM = 10;
 const DEFAULT_RISK_SCORE = 0.5;
 
-const getGridCenterAndBounds = (cells: ReturnType<typeof parseGridCells>) => {
-    let minLng = Infinity,
-        maxLng = -Infinity;
-    let minLat = Infinity,
-        maxLat = -Infinity;
+const ExistingGrid = () => {
+    const setIsUploaded = useAuthStore((s) => s.setIsUploaded);
+    const [grid, setGrid] = useState<ParkGridResponse | null>(null);
+    const [hasLoadFailed, setHasLoadFailed] = useState(false);
+    const [map, setMap] = useState<maplibregl.Map | null>(null);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
-    for (const cell of cells) {
-        for (const [lng, lat] of cell.corners) {
-            if (lng < minLng) minLng = lng;
-            if (lng > maxLng) maxLng = lng;
-            if (lat < minLat) minLat = lat;
-            if (lat > maxLat) maxLat = lat;
+    useEffect(() => {
+        riskApi
+            .getParkGrid()
+            .then(setGrid)
+            .catch(() => setHasLoadFailed(true));
+    }, []);
+
+    const cells = useMemo(() => (grid ? parseGridCells(grid) : []), [grid]);
+    const view = useMemo(
+        () => (cells.length > 0 ? getGridCenterAndBounds(cells) : null),
+        [cells],
+    );
+    // Same flat placeholder score the upload preview uses, so the saved grid
+    // renders in the same colour.
+    const riskByCell = useMemo(
+        () =>
+            new Map<string, number>(
+                cells.map((cell) => [cell.cellId, DEFAULT_RISK_SCORE]),
+            ),
+        [cells],
+    );
+
+    useEffect(() => {
+        if (map && view) {
+            map.fitBounds(view.bounds, { padding: 20, animate: false });
         }
-    }
+    }, [map, view]);
 
-    const center: [number, number] = [
-        (minLng + maxLng) / 2,
-        (minLat + maxLat) / 2,
-    ];
-    const bounds: [[number, number], [number, number]] = [
-        [minLng, minLat],
-        [maxLng, maxLat],
-    ];
+    const handleDelete = async () => {
+        setIsDeleting(true);
+        try {
+            await riskApi.deleteUpload();
+            notifySafe("Park grid deleted");
+            setIsUploaded(false);
+        } catch {
+            notifyCritical("Could not delete the park grid");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
-    return { center, bounds };
+    return (
+        <div>
+            {view ? (
+                <div className="relative my-4 h-64 w-full overflow-hidden rounded-md border border-color-border">
+                    <MapView
+                        center={view.center}
+                        zoom={DEFAULT_ZOOM}
+                        onMapReady={setMap}
+                        onMapRemove={() => setMap(null)}
+                        className="absolute inset-0"
+                    />
+                    <HeatmapLayer
+                        map={map}
+                        grid={grid}
+                        riskByCell={riskByCell}
+                        pickingActive={false}
+                        isMobile={false}
+                        interactive={false}
+                    />
+                </div>
+            ) : (
+                <p className="my-4 text-sm text-color-text-secondary">
+                    {hasLoadFailed
+                        ? "Could not load the current grid."
+                        : "Loading the current grid..."}
+                </p>
+            )}
+            <Button
+                type="button"
+                variant="destructive"
+                onClick={() => setIsDeleteOpen(true)}
+            >
+                Delete grid
+            </Button>
+            <DeleteGridDialog
+                open={isDeleteOpen}
+                onOpenChange={setIsDeleteOpen}
+                onConfirm={handleDelete}
+                isDeleting={isDeleting}
+            />
+        </div>
+    );
 };
 
 const ParkZoneUploadPage = () => {
@@ -65,7 +130,7 @@ const ParkZoneUploadPage = () => {
     );
 
     const navigate = useNavigate();
-    const user = useAuthStore((s) => s.user);
+    const isUploaded = useAuthStore((s) => s.isUploaded);
     const setIsUploaded = useAuthStore((s) => s.setIsUploaded);
 
     const handleFilesSelected = async (files: FileList | null) => {
@@ -109,6 +174,12 @@ const ParkZoneUploadPage = () => {
                             errorMessage =
                                 "You do not have permission to upload park zones.";
                             break;
+                        case 409:
+                            // Another session saved a grid, so show that one.
+                            errorMessage =
+                                "A park grid already exists. Delete it before uploading a new one.";
+                            setIsUploaded(true);
+                            break;
                         case 422:
                             errorMessage =
                                 "Boundary coordinates must follow standard WGS 84 latitude/longitude formats.";
@@ -145,25 +216,13 @@ const ParkZoneUploadPage = () => {
         }
     }, [map, mapBounds]);
 
-    const returnToLogin = async () => {
-        navigate("/login");
-    };
-
     return (
         <div className="mx-auto max-w-[1120px] px-4 pt-8 pb-10 md:px-6">
             <h1 className="mb-6 font-heading text-3xl leading-[1.1] font-bold text-brand-primary">
                 Park GeoJson Upload
             </h1>
-            {!user || user?.role !== "admin" ? (
-                <EmptyState
-                    className="mb-4"
-                    icon={CircleX}
-                    title="Not authorised"
-                    body="The system is currently in an uninitalised state, please contact an admin to finish setup by uploading the park boundaries"
-                    action={
-                        <button onClick={returnToLogin}>Return to Login</button>
-                    }
-                />
+            {isUploaded ? (
+                <ExistingGrid />
             ) : (
                 <div>
                     <FileUploadDropzone
@@ -176,7 +235,11 @@ const ParkZoneUploadPage = () => {
 
                     <Dialog
                         open={isConfirmOpen}
-                        onOpenChange={setIsConfirmOpen}
+                        onOpenChange={(open) => {
+                            // Escape or the close button counts as a reject,
+                            // or the saved grid would block the next upload.
+                            if (!open) handleReject();
+                        }}
                     >
                         <DialogContent preventBackdropClose>
                             <DialogHeader>
@@ -197,6 +260,7 @@ const ParkZoneUploadPage = () => {
                                     riskByCell={riskByCell}
                                     pickingActive={false}
                                     isMobile={false}
+                                    interactive={false}
                                 />
                             </div>
                             <DialogFooter>

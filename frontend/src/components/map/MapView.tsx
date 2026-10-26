@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
+// OSM serves tiles up to z19. The cap lives on the source and the map, not
+// the layer: MapLibre hides a layer at zoom >= its maxzoom.
+const OSM_MAX_ZOOM = 19;
+
 const OSM_STYLE = {
     version: 8,
     sources: {
@@ -9,13 +13,12 @@ const OSM_STYLE = {
             type: "raster",
             tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
             tileSize: 256,
+            maxzoom: OSM_MAX_ZOOM,
             attribution:
                 "© <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
         },
     },
-    layers: [
-        { id: "osm", type: "raster", source: "osm", minzoom: 0, maxzoom: 19 },
-    ],
+    layers: [{ id: "osm", type: "raster", source: "osm" }],
 };
 
 function isResourceFetchError(error: unknown): boolean {
@@ -61,6 +64,7 @@ export function MapView({
                 style: OSM_STYLE as maplibregl.StyleSpecification,
                 center,
                 zoom,
+                maxZoom: OSM_MAX_ZOOM,
                 pitch: 0,
                 maxPitch: 0,
                 dragPitch: false,

@@ -27,6 +27,8 @@ export interface HeatmapLayerProps {
     opacityOverride?: number;
     beforeId?: string;
     visible?: boolean;
+    /** When false, clicking a cell opens no popup or analysis panel. */
+    interactive?: boolean;
 }
 
 interface SelectedCell {
@@ -50,11 +52,17 @@ export function HeatmapLayer({
     opacityOverride,
     beforeId,
     visible = true,
+    interactive = true,
 }: HeatmapLayerProps) {
     const pickingActiveRef = useRef(pickingActive);
     useEffect(() => {
         pickingActiveRef.current = pickingActive;
     }, [pickingActive]);
+
+    const interactiveRef = useRef(interactive);
+    useEffect(() => {
+        interactiveRef.current = interactive;
+    }, [interactive]);
 
     const role = useAuthStore((s) => s.user?.role);
     const canViewAnalysis = role === "analyst" || role === "admin";
@@ -134,7 +142,12 @@ export function HeatmapLayer({
         );
 
         const handleClick = (e: maplibregl.MapMouseEvent) => {
-            if (pickingActiveRef.current || e.defaultPrevented) return;
+            if (
+                !interactiveRef.current ||
+                pickingActiveRef.current ||
+                e.defaultPrevented
+            )
+                return;
             const feature = map.queryRenderedFeatures(e.point, {
                 layers: [LAYER_ID],
             })[0];

@@ -21,6 +21,7 @@ function setUser(role: string) {
         user: { id: "1", username: "testuser", role },
         accessToken: "fake-access",
         refreshToken: "fake-refresh",
+        isUploaded: true,
     });
 }
 
@@ -46,6 +47,7 @@ describe("BurgerMenu", () => {
             user: null,
             accessToken: null,
             refreshToken: null,
+            isUploaded: null,
         });
         vi.clearAllMocks();
     });
@@ -159,6 +161,100 @@ describe("BurgerMenu", () => {
         expect(screen.queryByText("Patrol Planner")).not.toBeInTheDocument();
         expect(screen.queryByText("Ingestion")).not.toBeInTheDocument();
         expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+    });
+
+    it("shows Upload Park to an admin once a park has been uploaded", async () => {
+        setUser("admin");
+        useAuthStore.setState({ isUploaded: true });
+        renderMenu();
+        await openMenu();
+
+        expect(screen.getByText("Reports")).toBeInTheDocument();
+        expect(screen.getByText("Upload Park")).toBeInTheDocument();
+    });
+
+    it("does not show Upload Park to an analyst once a park has been uploaded", async () => {
+        setUser("analyst");
+        useAuthStore.setState({ isUploaded: true });
+        renderMenu();
+        await openMenu();
+
+        expect(screen.getByText("Reports")).toBeInTheDocument();
+        expect(screen.queryByText("Upload Park")).not.toBeInTheDocument();
+    });
+
+    it("shows only Upload Park, Admin and Profile to an admin when no park is uploaded", async () => {
+        setUser("admin");
+        useAuthStore.setState({ isUploaded: false });
+        renderMenu();
+        await openMenu();
+
+        const nav = screen.getByText("Profile").closest("nav");
+        const labels = Array.from(nav!.querySelectorAll("a")).map(
+            (link) => link.textContent,
+        );
+        expect(labels).toEqual(["Upload Park", "Admin", "Profile"]);
+    });
+
+    it.each(["ranger", "analyst", "community_liaison"])(
+        "shows only Profile to a %s when no park is uploaded",
+        async (role) => {
+            setUser(role);
+            useAuthStore.setState({ isUploaded: false });
+            renderMenu();
+            await openMenu();
+
+            const nav = screen.getByText("Profile").closest("nav");
+            const labels = Array.from(nav!.querySelectorAll("a")).map(
+                (link) => link.textContent,
+            );
+            expect(labels).toEqual(["Profile"]);
+        },
+    );
+
+    it("tells a non-admin that setup is in progress when no park is uploaded", async () => {
+        setUser("ranger");
+        useAuthStore.setState({ isUploaded: false });
+        renderMenu();
+        await openMenu();
+
+        expect(screen.getByRole("status")).toHaveTextContent(
+            "System setup in progress. Contact an admin",
+        );
+    });
+
+    it("does not show the setup notice to an admin", async () => {
+        setUser("admin");
+        useAuthStore.setState({ isUploaded: false });
+        renderMenu();
+        await openMenu();
+
+        expect(
+            screen.queryByText(/system setup in progress/i),
+        ).not.toBeInTheDocument();
+    });
+
+    it("hides park pages when the upload state is unknown, like ProtectedRoute", async () => {
+        setUser("analyst");
+        useAuthStore.setState({ isUploaded: null });
+        renderMenu();
+        await openMenu();
+
+        expect(screen.queryByText("Heatmap")).not.toBeInTheDocument();
+        expect(screen.getByRole("status")).toHaveTextContent(
+            "System setup in progress. Contact an admin",
+        );
+    });
+
+    it("does not show the setup notice once a park is uploaded", async () => {
+        setUser("ranger");
+        useAuthStore.setState({ isUploaded: true });
+        renderMenu();
+        await openMenu();
+
+        expect(
+            screen.queryByText(/system setup in progress/i),
+        ).not.toBeInTheDocument();
     });
 
     it("closes the drawer when the X button is clicked", async () => {

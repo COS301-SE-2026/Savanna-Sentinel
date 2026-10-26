@@ -8,6 +8,7 @@ import {
     User,
     Megaphone,
     Layers,
+    MapPinned,
     type LucideIcon,
 } from "lucide-react";
 
@@ -17,6 +18,13 @@ export interface NavItem {
     icon: LucideIcon;
     /** Roles that can see this item. Empty array = every authenticated role. */
     roles: string[];
+}
+
+/** Paths still reachable while no park boundary has been uploaded. */
+export const NO_PARK_PATHS = ["/upload", "/admin", "/profile", "/help"];
+
+export function canRoleSee(item: NavItem, role: string | undefined): boolean {
+    return item.roles.length === 0 || (!!role && item.roles.includes(role));
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -61,6 +69,12 @@ export const NAV_ITEMS: NavItem[] = [
         path: "/workspace",
         icon: Layers,
         roles: ["analyst", "admin"],
+    },
+    {
+        label: "Upload Park",
+        path: "/upload",
+        icon: MapPinned,
+        roles: ["admin"],
     },
     {
         label: "Admin",

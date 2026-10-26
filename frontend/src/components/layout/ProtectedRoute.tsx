@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { riskApi } from "@/services/riskApi";
 import { isAxiosError } from "axios";
 import { homePathForRole } from "@/lib/utils";
+import {
+    NAV_ITEMS,
+    NO_PARK_PATHS,
+    canRoleSee,
+} from "@/components/layout/navLinks";
 
 /**
  * Wraps any route that requires authentication.
@@ -74,10 +79,21 @@ export default function ProtectedRoute() {
         return <div>Loading...</div>;
     }
 
-    if (!isUploaded && location.pathname !== "/upload") {
-        return <Navigate to="/upload" replace />;
+    const navItem = NAV_ITEMS.find((item) => item.path === location.pathname);
+    const isRoleAllowed = !navItem || canRoleSee(navItem, user?.role);
+
+    if (
+        !isUploaded &&
+        !(NO_PARK_PATHS.includes(location.pathname) && isRoleAllowed)
+    ) {
+        return (
+            <Navigate
+                to={user?.role === "admin" ? "/upload" : "/profile"}
+                replace
+            />
+        );
     }
-    if (isUploaded && location.pathname === "/upload") {
+    if (isUploaded && !isRoleAllowed) {
         return <Navigate to={homePathForRole(user?.role)} replace />;
     }
 
