@@ -9,7 +9,8 @@ import {
     vi,
     beforeEach,
 } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import ParkZoneUploadPage from "@/pages/ParkZoneUploadPage";
 import {
     deleteErrorHandlers,
@@ -21,7 +22,7 @@ import {
 } from "./mocks/parkZoneHandlers";
 import userEvent from "@testing-library/user-event";
 import { useEffect } from "react";
-import { notifyCritical } from "@/components/ui/toast";
+import { notifyCritical, notifySafe } from "@/components/ui/toast";
 import { useAuthStore } from "@/store/authStore";
 
 const mockNavigate = vi.fn();
@@ -41,6 +42,7 @@ beforeEach(() => {
             role: "admin",
         },
         accessToken: "mock-token",
+        isUploaded: false,
     });
 });
 
@@ -69,6 +71,7 @@ vi.mock("@/components/map/MapView", () => ({
 
 vi.mock("@/components/ui/toast", () => ({
     notifyCritical: vi.fn(),
+    notifySafe: vi.fn(),
 }));
 
 const server = setupServer();
@@ -210,6 +213,37 @@ describe("ParkZoneUploadPage", () => {
 
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
+    it("switches to the existing grid when the upload finds one already saved", async () => {
+        const user = userEvent.setup();
+        server.use(
+            http.post(
+                "**/v1/risk/upload*",
+                () => new HttpResponse(null, { status: 409 }),
+            ),
+        );
+        const { container } = render(<ParkZoneUploadPage />);
+
+        const file = new File(
+            ['{"type":"FeatureCollection"}'],
+            "reserve.geojson",
+            { type: "application/json" },
+        );
+
+        const fileInput = container.querySelector(
+            "#park-geojson-file",
+        ) as HTMLInputElement;
+        await user.upload(fileInput, file);
+
+        await waitFor(() => {
+            expect(notifyCritical).toHaveBeenCalledWith(
+                "A park grid already exists. Delete it before uploading a new one.",
+            );
+        });
+        expect(useAuthStore.getState().isUploaded).toBe(true);
+        expect(
+            screen.getByRole("button", { name: "Delete grid" }),
+        ).toBeInTheDocument();
+    });
     it("deletes the upload and closes the modal when clicking reject", async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         server.use(...parkZoneHandlers);
@@ -234,6 +268,39 @@ describe("ParkZoneUploadPage", () => {
         await user.click(rejectButton);
 
         await waitFor(() => {
+            expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        });
+    });
+    it("deletes the upload when the preview is dismissed with Escape", async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onDelete = vi.fn();
+        server.use(
+            http.delete("**/v1/risk/geojson*", () => {
+                onDelete();
+                return HttpResponse.json({ success: true });
+            }),
+            ...parkZoneHandlers,
+        );
+        const { container } = render(<ParkZoneUploadPage />);
+
+        const file = new File(
+            ['{"type":"FeatureCollection"}'],
+            "reserve.geojson",
+            {
+                type: "application/json",
+            },
+        );
+
+        const fileInput = container.querySelector(
+            "#park-geojson-file",
+        ) as HTMLInputElement;
+        await user.upload(fileInput, file);
+        await screen.findByRole("button", { name: /reject/i });
+
+        await user.keyboard("{Escape}");
+
+        await waitFor(() => {
+            expect(onDelete).toHaveBeenCalledTimes(1);
             expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         });
     });
@@ -266,34 +333,80 @@ describe("ParkZoneUploadPage", () => {
             );
         });
     });
-    it("renders empty state when user is not an admin and navigates to login on button click", async () => {
-        const user = userEvent.setup();
 
-        useAuthStore.setState({
-            user: {
-                id: "2",
-                username: "regularUser",
-                role: "user",
-            },
-            accessToken: "mock-valid-token",
+    describe("when a park grid already exists", () => {
+        beforeEach(() => {
+            useAuthStore.setState({ isUploaded: true });
         });
 
-        render(<ParkZoneUploadPage />);
+        async function deleteGridThroughDialog() {
+            const user = userEvent.setup();
+            await user.click(
+                await screen.findByRole("button", { name: /^delete grid$/i }),
+            );
+            await user.type(
+                screen.getByRole("textbox", {
+                    name: /type confirm deletion to continue/i,
+                }),
+                "Confirm Deletion",
+            );
+            const dialog = screen.getByRole("dialog");
+            await user.click(
+                within(dialog).getByRole("button", { name: /^delete grid$/i }),
+            );
+        }
 
-        expect(screen.getByText("Not authorised")).toBeInTheDocument();
-        expect(
-            screen.getByText(
-                /the system is currently in an uninitalised state/i,
-            ),
-        ).toBeInTheDocument();
+        it("shows the current grid on a map with a delete button, not the dropzone", async () => {
+            server.use(...parkZoneHandlers);
+            render(<ParkZoneUploadPage />);
 
-        expect(
-            screen.queryByText(/upload wgs84 boundary file/i),
-        ).not.toBeInTheDocument();
+            expect(await screen.findByTestId("map-view")).toBeInTheDocument();
+            expect(
+                screen.getByRole("button", { name: /^delete grid$/i }),
+            ).toBeInTheDocument();
+            expect(screen.queryByText(/upload wgs84/i)).not.toBeInTheDocument();
+        });
 
-        const button = screen.getByRole("button", { name: /return to login/i });
-        await user.click(button);
+        it("deletes the grid and returns to the upload form", async () => {
+            let hasDeleted = false;
+            server.use(
+                http.delete("**/v1/risk/geojson*", () => {
+                    hasDeleted = true;
+                    return HttpResponse.json({ success: true });
+                }),
+                ...parkZoneHandlers,
+            );
+            render(<ParkZoneUploadPage />);
 
-        expect(mockNavigate).toHaveBeenCalledWith("/login");
+            await deleteGridThroughDialog();
+
+            expect(
+                await screen.findByText(/upload wgs84/i),
+            ).toBeInTheDocument();
+            expect(hasDeleted).toBe(true);
+            expect(useAuthStore.getState().isUploaded).toBe(false);
+            expect(notifySafe).toHaveBeenCalledWith("Park grid deleted");
+        });
+
+        it("keeps the grid view and reports an error when the delete fails", async () => {
+            server.use(
+                http.delete(
+                    "**/v1/risk/geojson*",
+                    () => new HttpResponse(null, { status: 500 }),
+                ),
+                ...parkZoneHandlers,
+            );
+            render(<ParkZoneUploadPage />);
+
+            await deleteGridThroughDialog();
+
+            await waitFor(() => {
+                expect(notifyCritical).toHaveBeenCalledWith(
+                    "Could not delete the park grid",
+                );
+            });
+            expect(useAuthStore.getState().isUploaded).toBe(true);
+            expect(screen.queryByText(/upload wgs84/i)).not.toBeInTheDocument();
+        });
     });
 });
