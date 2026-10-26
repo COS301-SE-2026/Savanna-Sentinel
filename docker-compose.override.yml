@@ -7,6 +7,8 @@ services:
       context: ./backend
     volumes:
       - ./backend:/app
+      # Replaces the park_data volume so dev reads the grid from the working tree.
+      - ./backend/app/data:/app/app/data
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       MINIO_PUBLIC_ENDPOINT: localhost:9000
@@ -14,6 +16,7 @@ services:
   worker:
     volumes:
       - ./backend:/app
+      - ./backend/app/data:/app/app/data
 
   frontend:
     build:
