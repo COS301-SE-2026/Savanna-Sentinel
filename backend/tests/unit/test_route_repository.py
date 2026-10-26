@@ -72,9 +72,7 @@ def grid_2x2(tmp_path, monkeypatch):
     ]
     path = _write_grid(tmp_path, cells)
     monkeypatch.setattr(route_repository, "GRID_FILE_PATH", path)
-    route_repository._load_grid.cache_clear()
-    yield "unit-test-2x2"
-    route_repository._load_grid.cache_clear()
+    return "unit-test-2x2"
 
 
 # _load_grid
@@ -179,10 +177,8 @@ def test_load_grid_raises_when_no_grid_uploaded_yet(tmp_path, monkeypatch):
         "GRID_FILE_PATH",
         tmp_path / "never-uploaded.geojson",
     )
-    route_repository._load_grid.cache_clear()
     with pytest.raises(FileNotFoundError):
         route_repository._load_grid()
-    route_repository._load_grid.cache_clear()
 
 
 def test_load_grid_is_cached_across_calls(grid_2x2):
@@ -192,13 +188,32 @@ def test_load_grid_is_cached_across_calls(grid_2x2):
     assert first is second
 
 
-def test_invalidate_grid_cache_forces_a_reload(grid_2x2):
-    first = route_repository._load_grid()
+def test_load_grid_reloads_when_file_changes(grid_2x2, tmp_path):
+    assert len(route_repository._load_grid().nodes) == 4
 
-    route_repository.invalidate_grid_cache()
+    _write_grid(tmp_path, [_cell(1, row=0, col=0)])
 
-    second = route_repository._load_grid()
-    assert first is not second
+    assert len(route_repository._load_grid().nodes) == 1
+
+
+def test_load_grid_accepts_uploaded_cell_ids(grid_2x2, tmp_path):
+    cell = _cell(1, row=0, col=0)
+    cell["properties"]["id"] = "cell-1"
+    _write_grid(tmp_path, [cell])
+
+    graph = route_repository._load_grid()
+
+    assert [n.node_id for n in graph.nodes] == ["cell-1"]
+
+
+def test_load_grid_reload_drops_cached_paths(grid_2x2, tmp_path):
+    route_repository._load_grid()
+    route_planner._PATH_CACHE["stale"] = {}
+
+    _write_grid(tmp_path, [_cell(1, row=0, col=0)])
+    route_repository._load_grid()
+
+    assert "stale" not in route_planner._PATH_CACHE
 
 
 # build_park_graph
@@ -270,9 +285,7 @@ def grid_5x5(tmp_path, monkeypatch):
     ]
     path = _write_grid(tmp_path, cells)
     monkeypatch.setattr(route_repository, "GRID_FILE_PATH", path)
-    route_repository._load_grid.cache_clear()
-    yield "unit-test-5x5"
-    route_repository._load_grid.cache_clear()
+    return "unit-test-5x5"
 
 
 def _id(row, col):
