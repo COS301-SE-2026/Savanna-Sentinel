@@ -81,6 +81,9 @@ export function RiskModelControls() {
     const selectSnapshot = useMapStore((s) => s.selectSnapshot);
 
     const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+    // Outlives pendingAction so the dialog keeps its wording while it fades out.
+    const [dialogAction, setDialogAction] =
+        useState<Exclude<PendingAction, null>>("score");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [trainJobId, setTrainJobId] = useState<string | null>(null);
     const [scoreJobId, setScoreJobId] = useState<string | null>(null);
@@ -151,6 +154,11 @@ export function RiskModelControls() {
         }
     }
 
+    function openDialog(action: Exclude<PendingAction, null>) {
+        setDialogAction(action);
+        setPendingAction(action);
+    }
+
     const trainText = trainStatusText(train.status, train.result);
     const scoreText = scoreStatusText(score.status, score.result);
 
@@ -163,7 +171,7 @@ export function RiskModelControls() {
                         type="button"
                         variant="outline"
                         disabled={isScoring}
-                        onClick={() => setPendingAction("score")}
+                        onClick={() => openDialog("score")}
                     >
                         {isScoring && (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -182,7 +190,7 @@ export function RiskModelControls() {
                         type="button"
                         variant="outline"
                         disabled={isTraining}
-                        onClick={() => setPendingAction("train")}
+                        onClick={() => openDialog("train")}
                     >
                         {isTraining && (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -206,13 +214,13 @@ export function RiskModelControls() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
-                            {pendingAction === "train"
+                            {dialogAction === "train"
                                 ? "Train risk model?"
                                 : "Calculate heatmap now?"}
                         </DialogTitle>
                     </DialogHeader>
                     <DialogDescription>
-                        {pendingAction === "train"
+                        {dialogAction === "train"
                             ? "This retrains the risk model on all available history, and replaces the currently active model."
                             : "This scores the grid with the active model right now and publishes a new heatmap snapshot, outside the regular 6-hour schedule."}
                     </DialogDescription>
@@ -234,7 +242,7 @@ export function RiskModelControls() {
                             {isSubmitting && (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             )}
-                            {pendingAction === "train"
+                            {dialogAction === "train"
                                 ? "Train Model"
                                 : "Calculate Heatmap"}
                         </Button>

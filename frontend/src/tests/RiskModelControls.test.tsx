@@ -36,6 +36,7 @@ beforeAll(() => server.listen());
 afterEach(() => {
     server.resetHandlers();
     vi.clearAllMocks();
+    vi.restoreAllMocks();
     useAuthStore.setState({
         user: null,
         accessToken: null,
@@ -107,6 +108,62 @@ describe("RiskModelControls", () => {
             screen.queryByRole("heading", { name: /train risk model/i }),
         ).not.toBeInTheDocument();
         expect(hasCalledTrain).toBe(false);
+    });
+
+    it("keeps the Train Model wording while the dialog fades out after confirming", async () => {
+        setUser("admin");
+        // jsdom runs no CSS animations, so Radix unmounts the dialog at
+        // once; report a running exit animation to keep it mounted like a
+        // real browser does during the fade-out.
+        const realGetComputedStyle = window.getComputedStyle.bind(window);
+        vi.spyOn(window, "getComputedStyle").mockImplementation(
+            (element, pseudo) => {
+                const style = realGetComputedStyle(element, pseudo);
+                if (element.getAttribute("role") !== "dialog") return style;
+                return new Proxy(style, {
+                    get(target, prop) {
+                        if (prop === "animationName") {
+                            return element.getAttribute("data-state") === "open"
+                                ? "enter"
+                                : "exit";
+                        }
+                        const value = Reflect.get(target, prop);
+                        return typeof value === "function"
+                            ? value.bind(target)
+                            : value;
+                    },
+                });
+            },
+        );
+        server.use(
+            http.post(`${BASE}/risk/train`, () =>
+                HttpResponse.json({
+                    job_id: "t-fade",
+                    status: "queued",
+                    queued_at: "2026-09-02T00:00:00Z",
+                }),
+            ),
+        );
+
+        render(<RiskModelControls />);
+        await userEvent.click(
+            screen.getByRole("button", { name: /train model/i }),
+        );
+        const dialog = screen.getByRole("dialog");
+        await userEvent.click(
+            within(dialog).getByRole("button", { name: /train model/i }),
+        );
+
+        await waitFor(() => {
+            expect(dialog).toHaveAttribute("data-state", "closed");
+        });
+        expect(dialog).toBeInTheDocument();
+        expect(
+            within(dialog).getByText("Train risk model?"),
+        ).toBeInTheDocument();
+        expect(
+            within(dialog).queryByText(/calculate heatmap/i),
+        ).not.toBeInTheDocument();
     });
 
     it("trains on all available history, not a fixed window", async () => {
