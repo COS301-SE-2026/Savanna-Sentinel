@@ -63,6 +63,19 @@ class MediaService:
         except BotoCoreError:
             pass
 
+    def empty_bucket(self) -> None:
+        """Delete every object in the bucket, leaving the bucket itself."""
+        paginator = self._internal_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=settings.MINIO_BUCKET):
+            objects = [
+                {"Key": item["Key"]} for item in page.get("Contents", [])
+            ]
+            if objects:
+                self._internal_client.delete_objects(
+                    Bucket=settings.MINIO_BUCKET,
+                    Delete={"Objects": objects, "Quiet": True},
+                )
+
     def generate_upload_url(self, file_name: str, content_type: str) -> dict:
         if not file_name.strip():
             raise HTTPException(
