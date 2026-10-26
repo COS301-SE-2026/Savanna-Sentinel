@@ -89,6 +89,13 @@ export function CellPopupContent({
         );
     }, [explanation]);
 
+    const terrainDelta = explanation?.terrain_delta ?? 0;
+    const terrainPoints = Math.round(Math.abs(terrainDelta) * 100);
+    const terrainSummary =
+        terrainPoints === 0
+            ? null
+            : `${terrainDelta > 0 ? "Raised" : "Lowered"} score by ${terrainPoints} pts`;
+
     return (
         <div
             role="dialog"
@@ -112,7 +119,9 @@ export function CellPopupContent({
                 Cell {row}, {col}
             </p>
 
-            {(incidentSummary.length > 0 || sightingSummary.length > 0) && (
+            {(incidentSummary.length > 0 ||
+                sightingSummary.length > 0 ||
+                terrainSummary) && (
                 <div className="mb-3 flex flex-col gap-1 text-xs text-color-text-secondary">
                     {incidentSummary.length > 0 && (
                         <p>
@@ -128,6 +137,14 @@ export function CellPopupContent({
                                 Sightings:{" "}
                             </span>
                             {sightingSummary.join(", ")}
+                        </p>
+                    )}
+                    {terrainSummary && (
+                        <p>
+                            <span className="font-semibold text-color-text-primary">
+                                Terrain rules:{" "}
+                            </span>
+                            {terrainSummary}
                         </p>
                     )}
                 </div>
